@@ -247,6 +247,7 @@ export class ProfileService {
                 categories: data.categories,
                 price: data.price,
                 publicPrice: data.publicPrice,
+                isVerified: true,
             };
 
             influencer[data.typeOfSocialMedia] = socialMediaAccounts;

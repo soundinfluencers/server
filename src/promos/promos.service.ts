@@ -2,7 +2,7 @@ import {Injectable} from "@nestjs/common";
 import {CreatePromosDto} from "./dto/create-promo.dto";
 import {CreatePromosEstimateDto} from "./dto/create-promo-estimate.dto";
 import {InjectModel} from "@nestjs/mongoose";
-import {Promos} from "./schemas/promo.schema";
+import {Promos, SelectInfluencers} from "./schemas/promo.schema";
 import mongoose from "mongoose";
 import {Client} from "src/auth/schemas/client.schema";
 import {Influencer} from "src/auth/schemas/influencer.schema";
@@ -47,13 +47,13 @@ export class PromosService {
                 const socialMediaAccount = influencerData[data.socialMedia].find(
                     (account) => account.instagramUsername === influencer.instagramUsername
                 );
-
+                
                 if (socialMediaAccount) {
                     return {
                         ...influencer,
-                        followersNumber: socialMediaAccount.followersNumber,
                         price: socialMediaAccount.price,
                         publicPrice: socialMediaAccount.publicPrice,
+                        followersNumber: parseInt(socialMediaAccount.followersNumber),
                         selectedVideo,
                         dateRequest,
                     };
@@ -644,14 +644,15 @@ ${influencerVideos.map((video, index) => `
                 };
             }
 
-            let promo = await this.promosModel
-                .findById(id)
-                .lean();
+            let promo = await this.promosModel.findById(id).lean();
+            let totalFollowers = 0;
 
             if (!promo) {
-                promo = await this.promosCopiesModel.findById(id).lean();
-
-                if (!promo) {
+                const promoCopy = await this.promosCopiesModel.findById(id).lean();
+                if (promoCopy) {
+                    totalFollowers = promoCopy.totalFollowers || 0;
+                    promo = promoCopy; 
+                } else {
                     return {
                         code: 404,
                         message: "Promo not found",
@@ -661,8 +662,6 @@ ${influencerVideos.map((video, index) => `
 
             const clientData = await this.clientModel.findById(userId);
 
-            let totalFollowers = 0;
-            
             const selectInfluencersWithDetails = await Promise.all(
                 promo.selectInfluencers.map(async (influencerItem) => {
                     const influencerData = await this.influencerModel.findById(influencerItem.influencerId);
@@ -671,7 +670,6 @@ ${influencerVideos.map((video, index) => `
                         return {
                             ...influencerItem,
                             firstName: "",
-                            followersNumber: influencerItem.followersNumber || null,
                         };
                     }
 
@@ -679,12 +677,13 @@ ${influencerVideos.map((video, index) => `
                         (insta) => insta.instagramUsername === influencerItem.instagramUsername
                     );
 
-                    totalFollowers += parseInt(influencerItem.followersNumber || instagramAccount.followersNumber);
+                    if (!promo.isCopy) totalFollowers += parseInt(instagramAccount.followersNumber);
+                    let followersNumber = !promo.isCopy ? instagramAccount.followersNumber : promo.selectInfluencers.find(item => item.influencerId === influencerItem.influencerId).followersNumber;
                     
                     return {
                         ...influencerItem,
                         firstName: influencerData.firstName,
-                        followersNumber: influencerItem.followersNumber || instagramAccount.followersNumber,
+                        followersNumber: followersNumber,
                     };
                 })
             );
@@ -1400,15 +1399,21 @@ ${influencerVideos.map((video, index) => `
             });
 
             if (checkPromo) {
-                await this.promosCopiesModel.create({
-                    ...findNewPromo,
-                    statusPromo: "finally",
-                    verifyPromo: "accept",
-                    isCopy: true,
-                    totalFollowers: findNewPromo.selectInfluencers.reduce((acc, item) => {
-                        return acc + parseInt(item.followersNumber);
-                    }, 0),
-                    selectInfluencers: findNewPromo.selectInfluencers.map((item) => {
+                let totalFollowers = 0;
+
+                const selectInfluencers = await Promise.all(
+                    findNewPromo.selectInfluencers.map(async (item) => {
+                        const checkInfluencer = await this.influencerModel.findById(item.influencerId);
+                        const currentInstagram = checkInfluencer[data.socialMedia]?.find(
+                            (fin) => fin.instagramUsername === item.instagramUsername
+                        );
+
+                        if (!currentInstagram) {
+                            throw new Error(`Instagram data not found for influencerId: ${item.influencerId}`);
+                        }
+
+                        totalFollowers += parseInt(currentInstagram.followersNumber);
+
                         return {
                             ...item,
                             postLink: item.postLink || data.postLink,
@@ -1417,9 +1422,23 @@ ${influencerVideos.map((video, index) => `
                             screenshot: item.screenshot || data.screenshot,
                             confirmation: "accept",
                             closePromo: "close",
+                            followersNumber: parseInt(currentInstagram.followersNumber),
                         };
-                    }),
-                });
+                    })
+                );
+
+                try {
+                    await this.promosCopiesModel.create({
+                        ...findNewPromo,
+                        statusPromo: "finally",
+                        verifyPromo: "accept",
+                        isCopy: true,
+                        totalFollowers: totalFollowers,
+                        selectInfluencers: selectInfluencers,
+                    });
+                } catch (err) {
+                    console.error('Error creating promo copy:', err);
+                }
                 await this.promosModel.deleteOne({_id: promoId});
                 
                 // await Promise.all(

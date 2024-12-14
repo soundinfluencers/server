@@ -28,9 +28,6 @@ export class SelectInfluencers {
 
     @Prop()
     confirmation: string;
-
-    @Prop()
-    followersNumber: string;
     
     @Prop()
     price: string;
@@ -76,6 +73,9 @@ export class SelectInfluencers {
 
     @Prop({default: ''})
     invoice: string;
+    
+    @Prop({default: 0})
+    followersNumber: number;
 }
 
 const SelectInfluencersSchema = SchemaFactory.createForClass(SelectInfluencers);
@@ -154,7 +154,7 @@ export class Promos {
     isCpmAndResultHidden: boolean;
     
     @Prop({required: false, default: false})
-    isCopy: false;
+    isCopy: boolean;
 }
 
 export const PromosSchema = SchemaFactory.createForClass(Promos);
