@@ -21,6 +21,8 @@ import {AdminSendEmailToInfluencerDto} from "./dto/admin-send-email-to-influence
 import {OffersTemp, OffersTempSchema} from "./schemas/offers-temp.schema";
 import {AdminSaveOffersToTempDto} from "./dto/admin-save-offer-to-temp.dto";
 import {AdminPutOfferToOffersDto} from "./dto/admin-put-offer-to-offers.dto";
+import {PromosService} from "../promos/promos.service";
+import {PromosCopies} from "./schemas/promos-copies.schema";
 
 const fs = require("fs");
 const PDFDocument = require("pdfkit");
@@ -42,6 +44,8 @@ export class AdminService {
         private paymentModel: mongoose.Model<Payment>,
         @InjectModel(OffersTemp.name)
         private offersTempModel: mongoose.Model<OffersTemp>,
+        @InjectModel(PromosCopies.name)
+        private promosCopiesModel: mongoose.Model<PromosCopies>,
     ) {
     }
 
@@ -708,8 +712,10 @@ export class AdminService {
     async adminGetAllPromos() {
         try {
             const promos = await this.promosModel.find().sort({createdAt: -1}).lean().exec();
+            
+            const promosCopies = await this.promosCopiesModel.find().sort({createdAt: -1}).lean().exec();
 
-            if (!promos || promos.length === 0) {
+            if ((!promos || promos.length === 0) && (!promosCopies || promosCopies.length === 0)) {
                 return {
                     status: 404,
                     message: 'No promos found',
@@ -719,20 +725,22 @@ export class AdminService {
             const result = await Promise.all(promos.map(async (promo) => {
                 let totalFollowers = 0;
 
-                if (Array.isArray(promo.selectInfluencers)) {
+                if (Array.isArray(promo.selectInfluencers) && !promo.isCopy) {
                     const influencersInstagramUsernames = promo.selectInfluencers.map(influencer => influencer.instagramUsername);
 
+                    const socialMediaField = promo.socialMedia;
+
                     const influencers = await this.influencerModel.find({
-                        'instagram.instagramUsername': {$in: influencersInstagramUsernames}
+                        [`${socialMediaField}.instagramUsername`]: {$in: influencersInstagramUsernames}
                     }).lean().exec();
 
                     promo.selectInfluencers.forEach(promoInfluencer => {
                         const influencer = influencers.find(inf =>
-                            inf.instagram.some(insta => insta.instagramUsername === promoInfluencer.instagramUsername)
+                            inf[socialMediaField].some(insta => insta.instagramUsername === promoInfluencer.instagramUsername)
                         );
 
                         if (influencer) {
-                            const insta = influencer.instagram.find(instaAccount => instaAccount.instagramUsername === promoInfluencer.instagramUsername);
+                            const insta = influencer[socialMediaField].find(instaAccount => instaAccount.instagramUsername === promoInfluencer.instagramUsername);
 
                             if (insta) {
                                 const followersCount = insta.followersNumber.replace(/[\s,]/g, '');
@@ -756,9 +764,11 @@ export class AdminService {
                 };
             }));
 
+            const dataToReturn = [...result, ...promosCopies].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
             return {
                 status: 200,
-                data: result,
+                data: dataToReturn,
             };
         } catch (err) {
             console.error('Error occurred:', err);
@@ -771,7 +781,7 @@ export class AdminService {
 
     async adminDeletePromo(promoId: string) {
         try {
-            const promo = await this.promosModel.findOne({_id: promoId});
+            let promo = await this.promosModel.findOne({_id: promoId}) || await this.promosCopiesModel.findOne({_id: promoId});
 
             if (!promo) {
                 return {
@@ -780,7 +790,7 @@ export class AdminService {
                 };
             }
 
-            await this.promosModel.deleteOne({_id: promoId});
+            await this.promosModel.deleteOne({_id: promoId}) || await this.promosCopiesModel.deleteOne({_id: promoId});
 
             return {
                 status: 200,
@@ -797,7 +807,7 @@ export class AdminService {
 
     async adminClosePromoForInfluencer(promoId: string, instagramUsername: string) {
         try {
-            const promo = await this.promosModel.findOne({_id: promoId});
+            let promo = await this.promosModel.findOne({_id: promoId}) || await this.promosCopiesModel.findOne({_id: promoId});
 
             if (!promo) {
                 return {
@@ -873,6 +883,88 @@ export class AdminService {
         }
     }
 
+    async adminClosePromo(promoId: string) {
+        if (!promoId) {
+            return {
+                status: 400,
+                message: 'Not enough arguments',
+            };
+        }
+
+        const promo = await this.promosModel.findOne({_id: promoId});
+
+        if (!promo) {
+            return {
+                status: 404,
+                message: 'Promo not found',
+            };
+        }
+
+        let selectInfluencers = promo.selectInfluencers;
+        let totalFollowers = 0;
+
+        for (const influencer of promo.selectInfluencers) {
+            const influencerData = await this.influencerModel.findOne({
+                [`${promo.socialMedia}.instagramUsername`]: influencer.instagramUsername,
+            }).lean().exec();
+
+            if (influencerData && influencerData[promo.socialMedia]) {
+                const instagramProfile = influencerData[promo.socialMedia].find(
+                    (profile: any) => profile.instagramUsername === influencer.instagramUsername,
+                );
+
+                if (instagramProfile) {
+                    const followersCount = instagramProfile.followersNumber;
+                    const price = instagramProfile.price;
+                    const publicPrice = instagramProfile.publicPrice;
+
+                    const cleanedPrice = price.replace(/[^\d]/g, '');
+                    const cleanedPublicPrice = publicPrice.replace(/[^\d]/g, '');
+
+                    totalFollowers += parseInt(followersCount);
+
+                    selectInfluencers = selectInfluencers.map((influencer) => {
+                        if (influencer.instagramUsername === instagramProfile.instagramUsername) {
+                            return {
+                                ...influencer,
+                                closePromo: 'close',
+                                price: cleanedPrice,
+                                publicPrice: cleanedPublicPrice,
+                                followersNumber: parseInt(followersCount),
+                            };
+                        }
+                        return influencer;
+                    });
+                } else {
+                    console.log(`No matching Instagram profile found for ${influencer.instagramUsername}`);
+                    return {
+                        status: 404,
+                        message: 'No matching Instagram profile found for influencer' + influencer.instagramUsername,
+                    };
+                }
+            } else {
+                console.log(`No influencer data found for ${influencer.instagramUsername}`);
+            }
+        }
+
+        const promoCopy = await this.promosCopiesModel.create({
+            ...promo.toObject(),
+            _id: new mongoose.Types.ObjectId(),
+            statusPromo: 'finally',
+            selectInfluencers: selectInfluencers,
+            totalFollowers: totalFollowers,
+            isCopy: true,
+        });
+
+        await this.promosModel.deleteOne({_id: promoId});
+
+        return {
+            status: 201,
+            message: 'Promo closed successfully',
+            data: promoCopy,
+        };
+    }
+
     async adminSendCampaignPublicLinkToClient(userId: string, publicLink: string) {
         try {
             const user = await this.clientModel.findOne({_id: userId}).lean().exec();
@@ -908,52 +1000,65 @@ export class AdminService {
 
     async adminGetOnePromo(promoId: string) {
         try {
-            const promo: any = await this.promosModel.findOne({_id: promoId}).lean().exec();
+            let promo: any = await this.promosModel.findOne({_id: promoId}).lean().exec();
 
             if (!promo) {
+                promo = await this.promosCopiesModel.findOne({_id: promoId}).lean().exec();
+
+                if (!promo) {
+                    return {
+                        status: 404,
+                        message: 'Promo not found',
+                    };
+                }
+            }
+
+            if (!promo.isCopy) {
+                let totalFollowers = 0;
+
+                if (Array.isArray(promo.selectInfluencers)) {
+                    const influencersInstagramUsernames = promo.selectInfluencers.map(influencer => influencer.instagramUsername);
+
+                    const socialMediaField = promo.socialMedia;
+
+                    const influencers = await this.influencerModel.find({
+                        [`${socialMediaField}.instagramUsername`]: {$in: influencersInstagramUsernames}
+                    }).lean().exec();
+
+                    promo.selectInfluencers.forEach((promoInfluencer: any) => {
+                        const influencer = influencers.find(inf =>
+                            inf[socialMediaField].some(insta => insta.instagramUsername === promoInfluencer.instagramUsername)
+                        );
+
+                        if (influencer) {
+                            const insta = influencer[socialMediaField].find(instaAccount => instaAccount.instagramUsername === promoInfluencer.instagramUsername);
+
+                            if (insta) {
+                                const followersNumber = insta.followersNumber.replace(/[\s,]/g, '');
+                                promoInfluencer.followersNumber = parseInt(followersNumber, 10);
+                                totalFollowers += promoInfluencer.followersNumber;
+                            } else {
+                                promoInfluencer.followersNumber = 0;
+                            }
+                        } else {
+                            promoInfluencer.followersNumber = 0;
+                        }
+                    });
+                }
+
                 return {
-                    status: 404,
-                    message: 'Promo not found',
+                    status: 200,
+                    data: {
+                        ...promo,
+                        totalFollowers,
+                    },
+                };
+            } else {
+                return {
+                    status: 200,
+                    data: promo,
                 };
             }
-
-            let totalFollowers = 0;
-
-            if (Array.isArray(promo.selectInfluencers)) {
-                const influencersInstagramUsernames = promo.selectInfluencers.map(influencer => influencer.instagramUsername);
-
-                const influencers = await this.influencerModel.find({
-                    'instagram.instagramUsername': {$in: influencersInstagramUsernames}
-                }).lean().exec();
-
-                promo.selectInfluencers.forEach((promoInfluencer: any) => { // Используем any
-                    const influencer = influencers.find(inf =>
-                        inf.instagram.some(insta => insta.instagramUsername === promoInfluencer.instagramUsername)
-                    );
-
-                    if (influencer) {
-                        const insta = influencer.instagram.find(instaAccount => instaAccount.instagramUsername === promoInfluencer.instagramUsername);
-
-                        if (insta) {
-                            const followersCount = insta.followersNumber.replace(/[\s,]/g, '');
-                            promoInfluencer.followersCount = parseInt(followersCount, 10);
-                            totalFollowers += promoInfluencer.followersCount;
-                        } else {
-                            promoInfluencer.followersCount = 0;
-                        }
-                    } else {
-                        promoInfluencer.followersCount = 0;
-                    }
-                });
-            }
-
-            return {
-                status: 200,
-                data: {
-                    ...promo,
-                    totalFollowers,
-                },
-            };
         } catch (err) {
             return {
                 status: 500,
@@ -971,7 +1076,7 @@ export class AdminService {
                 };
             }
 
-            const checkPromo = await this.promosModel.findOne({_id: data._id});
+            let checkPromo = await this.promosModel.findOne({_id: data._id}) || await this.promosCopiesModel.findOne({_id: data._id});
 
             if (!checkPromo) {
                 return {
@@ -981,6 +1086,11 @@ export class AdminService {
             }
 
             await this.promosModel.findOneAndUpdate(
+                {_id: data._id},
+                {
+                    ...data
+                },
+            ) || await this.promosCopiesModel.findOneAndUpdate(
                 {_id: data._id},
                 {
                     ...data
@@ -1002,7 +1112,7 @@ export class AdminService {
 
     async adminGivePartialRefundToClient(userId: string, partialRefund: number, campaignId: string) {
         try {
-            const campaign = await this.promosModel.findOne({_id: campaignId});
+            let campaign = await this.promosModel.findOne({_id: campaignId}) || await this.promosCopiesModel.findOne({_id: campaignId});
 
             if (!campaign) {
                 return {
@@ -1043,7 +1153,7 @@ export class AdminService {
 
     async adminUpdatePromoVideo(data: AdminUpdatePromoVideoDto) {
         try {
-            const promo = await this.promosModel.findOne({_id: data._id});
+            let promo = await this.promosModel.findOne({_id: data._id}) || await this.promosCopiesModel.findOne({_id: data._id});
             if (!promo) {
                 return {
                     status: 404,
@@ -1075,7 +1185,7 @@ export class AdminService {
             video.storyTag = data.storyTag;
             video.swipeUpLink = data.swipeUpLink;
             video.specialWishes = data.specialWishes;
-            
+
             await promo.save();
 
             return {
@@ -1093,7 +1203,7 @@ export class AdminService {
 
     async adminUpdateInfluencersListPromo(data: AdminUpdatePromoInfluencersDto) {
         try {
-            const promo = await this.promosModel.findOne({_id: data.promoId});
+            let promo = await this.promosModel.findOne({_id: data.promoId}) || await this.promosCopiesModel.findOne({_id: data.promoId});
 
             if (!promo) {
                 return {
@@ -1146,7 +1256,7 @@ export class AdminService {
 
     async adminRemoveInfluencerFromPromo(promoId: string, instagramUsername: string) {
         try {
-            const promo = await this.promosModel.findOne({_id: promoId});
+            let promo = await this.promosModel.findOne({_id: promoId}) || await this.promosCopiesModel.findOne({_id: promoId});
 
             if (!promo) {
                 return {
@@ -1166,7 +1276,11 @@ export class AdminService {
                 };
             }
 
+            const influencersPrice = parseInt(promo.selectInfluencers[influencerIndex].publicPrice);
+
             promo.selectInfluencers.splice(influencerIndex, 1);
+
+            promo.amount = promo.amount - influencersPrice;
 
             await promo.save();
 
@@ -1185,7 +1299,7 @@ export class AdminService {
 
     async adminAddInfluencerToPromo(data: AdminAddInfluencerToCampaignDto) {
         try {
-            const promo = await this.promosModel.findOne({_id: data._id});
+            let promo = await this.promosModel.findOne({_id: data._id}) || await this.promosCopiesModel.findOne({_id: data._id});
             if (!promo) {
                 return {
                     status: 404,
@@ -1213,6 +1327,9 @@ export class AdminService {
                 };
             }
 
+            const price = influencer[promo.socialMedia].find((insta) => insta.instagramUsername === data.instagramUsername).price;
+            const publicPrice = influencer[promo.socialMedia].find((insta) => insta.instagramUsername === data.instagramUsername).publicPrice;
+
             promo.selectInfluencers.push({
                 _id: new Types.ObjectId().toString(),
                 influencerId: data.influencerId,
@@ -1232,6 +1349,9 @@ export class AdminService {
                 reach: '',
                 like: '',
                 invoice: '',
+                price: price,
+                publicPrice: publicPrice,
+                followersNumber: influencer[promo.socialMedia].find((insta) => insta.instagramUsername === data.instagramUsername).followersNumber,
             });
 
             if (!promo.videos.some(video => video.videoLink === data.selectedVideo)) {
@@ -1245,6 +1365,8 @@ export class AdminService {
                 };
                 promo.videos.push(newVideo);
             }
+
+            promo.amount = promo.amount + parseInt(publicPrice);
 
             await promo.save();
 
@@ -1263,7 +1385,7 @@ export class AdminService {
 
     async adminAddInfluencerToTempList(promoId: string, instagramUsername: string) {
         try {
-            const promo = await this.promosModel.findOne({_id: promoId});
+            let promo = await this.promosModel.findOne({_id: promoId}) || await this.promosCopiesModel.findOne({_id: promoId});
 
             if (!promo) {
                 return {
@@ -1273,10 +1395,10 @@ export class AdminService {
             }
 
             const influencer = await this.influencerModel.findOne({
-                'instagram.instagramUsername': {$regex: `^${instagramUsername}$`, $options: 'i'}
+                [`${promo.socialMedia}.instagramUsername`]: {$regex: `^${instagramUsername}$`, $options: 'i'}
             });
-            const instaFollowers = influencer.instagram.find((insta) => insta.instagramUsername.toLowerCase() === instagramUsername.toLowerCase()).followersNumber;
-            const instaUsername = influencer.instagram.find((insta) => insta.instagramUsername.toLowerCase() === instagramUsername.toLowerCase()).instagramUsername;
+            const instaFollowers = influencer[promo.socialMedia].find((insta) => insta.instagramUsername.toLowerCase() === instagramUsername.toLowerCase()).followersNumber;
+            const instaUsername = influencer[promo.socialMedia].find((insta) => insta.instagramUsername.toLowerCase() === instagramUsername.toLowerCase()).instagramUsername;
 
             if (!influencer) {
                 return {
@@ -1379,18 +1501,27 @@ Soundinfluencers Team
 
     async adminGetAllOffers() {
         try {
-            const offersTemp = await this.offersTempModel.find({});
+            const offersTempPromise = this.offersTempModel.find();
 
-            if (!offersTemp || offersTemp.length === 0) {
-                return {
-                    status: 404,
-                    message: 'No offers found',
-                };
-            }
+            const socialMediaTypes = ["instagram", "tiktok", "facebook", "youtube", "spotify", "soundcloud", "press"];
+            const promosService = new PromosService(this.promosModel, this.clientModel, this.influencerModel, this.offersModel, this.promosCopiesModel);
+
+            const socialMediaPromises = socialMediaTypes.map(socialMedia => promosService.getOffers(socialMedia));
+            const socialMediaResults = await Promise.all(socialMediaPromises);
+
+            const socialMedias = socialMediaTypes.reduce((acc, socialMedia, index) => {
+                acc[socialMedia] = socialMediaResults[index];
+                return acc;
+            }, {});
+
+            const offersTemp = await offersTempPromise;
 
             return {
                 status: 200,
-                data: offersTemp,
+                data: {
+                    offersTemp,
+                    socialMedias
+                },
             };
         } catch (err) {
             console.error('Error occurred:', err);
@@ -1524,66 +1655,6 @@ Soundinfluencers Team
         }
     }
 
-    async adminCalculateBalancesInfluencersFromPromos() {
-        try {
-            //нужно достать только промо после 30.10 включительно и verifyPromo accept
-            const promos = await this.promosModel.find({
-                createdAt: {$gte: new Date('2021-10-30T00:00:00.000Z')},
-                verifyPromo: 'accept'
-            });
-
-
-            if (!promos || promos.length === 0) {
-                return {
-                    status: 404,
-                    message: 'No promos found',
-                };
-            }
-
-            // const influencers = await this.influencerModel.find({ statusVerify: 'accept' });
-            //
-            // if (!influencers || influencers.length === 0) {
-            //     return {
-            //         status: 404,
-            //         message: 'No influencers found',
-            //     };
-            // }
-
-            for (const promo of promos) {
-                for (const influencer of promo.selectInfluencers) {
-                    if (influencer.closePromo === 'close') {
-                        const influencerObj = await this.influencerModel.findOne({_id: influencer.influencerId});
-                        const instagramPrice = influencerObj.instagram.find((insta) => insta.instagramUsername === influencer.instagramUsername).price;
-
-                        if (influencerObj) {
-                            await this.influencerModel.findOneAndUpdate(
-                                {_id: influencer.influencerId},
-                                {
-                                    balance: String(
-                                        Number(influencerObj.balance) +
-                                        (+instagramPrice.replace(/[^\d]/g, ""))
-                                    ),
-                                }
-                            );
-                        }
-                    }
-                }
-            }
-
-            console.log('Influencers balances updated successfully');
-            return {
-                status: 200,
-                message: 'Influencers balances updated successfully',
-            };
-        } catch (err) {
-            console.error('Error occurred:', err);
-            return {
-                status: 500,
-                message: 'An unknown error occurred',
-            };
-        }
-    }
-
     async adminPublishOffers() {
         try {
             const offersTemp = await this.offersTempModel.find({isDeleted: false});
@@ -1698,16 +1769,20 @@ Soundinfluencers Team
             };
         }
     }
-    
+
     async hideCpmAndResultForCampaign(campaignId: string) {
         try {
-            const campaign = await this.promosModel.findOne({_id: campaignId});
+            let campaign = await this.promosModel.findOne({_id: campaignId});
 
             if (!campaign) {
-                return {
-                    status: 404,
-                    message: 'Campaign not found',
-                };
+                campaign = await this.promosCopiesModel.findOne({_id: campaignId});
+
+                if (!campaign) {
+                    return {
+                        status: 404,
+                        message: 'Campaign not found',
+                    };
+                }
             }
 
             campaign.isCpmAndResultHidden = !campaign.isCpmAndResultHidden;
@@ -1726,4 +1801,17 @@ Soundinfluencers Team
             };
         }
     };
+
+    async adminAddFieldsToInfluencersBrands() {
+        const result = await this.influencerModel.updateMany(
+            {"instagram": {$exists: true, $ne: []}},
+            {$set: {"instagram.$[elem].isVerified": true}},
+            {
+                arrayFilters: [{"elem.isVerified": {$exists: false}}],
+                multi: true
+            }
+        );
+
+        console.log(`${result.modifiedCount} documents updated`);
+    }
 }

@@ -14,6 +14,8 @@ interface typesInstagram {
     countries: { country: string; percentage: number }[] | null;
     categories: string[] | null;
     isHidden: boolean;
+    isDeleted: boolean;
+    isVerified: boolean;
 }
 
 const typesInstagramApi = {
@@ -34,6 +36,8 @@ const typesInstagramApi = {
     ] || null,
     categories: [String] || null,
     isHidden: Boolean,
+    isDeleted: Boolean,
+    isVerified: Boolean,
 };
 
 @Schema({

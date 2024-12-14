@@ -204,7 +204,7 @@ export class InvoiceService {
             const instagramAccounts = checkUser.spotify.map((account) => {
                 return `${account.instagramUsername} `;
             });
-            
+
             await this.createPDF(result, data)
                 .then(async (pdfPath) => {
                     await sendMail(

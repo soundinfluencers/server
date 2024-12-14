@@ -1,55 +1,75 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Put,
-  Param,
-  Delete,
+    Controller,
+    Get,
+    Post,
+    Body,
+    Patch,
+    Put,
+    Param,
+    Delete, Query,
 } from '@nestjs/common';
-import { ProfileService } from './profile.service';
-import { UpdatePersonalClientDto } from './dto/update-personal-client.dto';
-import { UpdatePasswordClientDto } from './dto/update-password.dto';
-import { UpdateCompanyClientDto } from './dto/update-company-client.dto';
-import { UpdateEmailClientDto } from './dto/update-email-client.dto';
-import { UpdatePhoneClientDto } from './dto/update-phone-client.dto';
-import { UpdatePersonalInfluencerDto } from './dto/update-personal-influencer.dto';
-import { UpdateMusicStyleInfluencerDto } from './dto/update-music-influencer.dto';
-import { UpdateEmailInfluencerDto } from './dto/update-email-influencer.dto';
-import { UpdatePhoneInfluencerDto } from './dto/update-phone-influencer.dto';
+import {ProfileService} from './profile.service';
+import {UpdatePersonalClientDto} from './dto/update-personal-client.dto';
+import {UpdatePasswordClientDto} from './dto/update-password.dto';
+import {UpdatePersonalInfluencerDto} from './dto/update-personal-influencer.dto';
+import {UpdateSocialMediaAccountDto} from "./dto/update-social-media-account.dto";
+import {AddSocialMediasDto} from "./dto/add-social-medias.dto";
+import {SendMailPriceChangeDto} from "./dto/send-mail-price-change.dto";
+import {ApiQuery} from "@nestjs/swagger";
 
 @Controller('profile')
 export class ProfileController {
-  constructor(private readonly profileService: ProfileService) {}
+    constructor(private readonly profileService: ProfileService) {
+    }
 
-  @Put('client/personal')
-  updatePersonalClient(@Body() data: UpdatePersonalClientDto) {
-    return this.profileService.updatePersonalClient(data);
-  }
+    @Put('client/personal')
+    updatePersonalClient(@Body() data: UpdatePersonalClientDto) {
+        return this.profileService.updatePersonalClient(data);
+    }
 
-  @Put('client/password')
-  updatePasswordClient(@Body() data: UpdatePasswordClientDto) {
-    return this.profileService.updatePasswordClient(data);
-  }
+    @Put('client/password')
+    updatePasswordClient(@Body() data: UpdatePasswordClientDto) {
+        return this.profileService.updatePasswordClient(data);
+    }
 
-  @Put('influencer/personal')
-  updatePersonalInfluencer(@Body() data: UpdatePersonalInfluencerDto) {
-    return this.profileService.updatePersonalInfluencer(data);
-  }
+    @Put('influencer/personal')
+    updatePersonalInfluencer(@Body() data: UpdatePersonalInfluencerDto) {
+        return this.profileService.updatePersonalInfluencer(data);
+    }
 
-  @Put('influencer/music')
-  updateMusicStyleInfluencer(@Body() data: UpdateMusicStyleInfluencerDto) {
-    return this.profileService.updateMusicStyleInfluencer(data);
-  }
+    @Put('influencer/update-social-media-account')
+    updateSocialMediaAccount(@Body() data: UpdateSocialMediaAccountDto) {
+        return this.profileService.updateSocialMediaAccount(data);
+    }
 
-  @Put('influencer/email')
-  updateEmailInfluencer(@Body() data: UpdateEmailInfluencerDto) {
-    return this.profileService.updateEmailInfluencer(data);
-  }
+    @Patch('influencer/delete-social-media-account')
+    deleteSocialMediaAccount(@Body() data: any) {
+        return this.profileService.deleteSocialMediaAccount(data);
+    }
 
-  @Put('influencer/phone')
-  updatePhoneInfluencer(@Body() data: UpdatePhoneInfluencerDto) {
-    return this.profileService.updatePhoneInfluencer(data);
-  }
+    @Patch('influencer/add-social-media-accounts')
+    addSocialMediaAccounts(@Body() data: AddSocialMediasDto) {
+        return this.profileService.addSocialMediaAccounts(data);
+    }
+
+    @Post('influencer/send-mail-price-change')
+    sendMailAboutChangingPrice(@Body() data: SendMailPriceChangeDto) {
+        return this.profileService.sendMailAboutChangingPrice(data);
+    }
+
+    @ApiQuery({ name: 'influencerId' })
+    @ApiQuery({ name: 'accounts' })
+    @ApiQuery({ name: 'isVerified' })
+    @Get('influencer/verify-new-brand')
+    verifyNewSocialMediaAccounts(
+        @Query() query: { influencerId: string; accounts: []; isVerified: boolean },
+    ) {
+        return this.profileService.verifyNewSocialMediaAccounts(
+            query.influencerId,
+            query.accounts,
+            query.isVerified,
+        );
+    }
+
+
 }

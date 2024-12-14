@@ -179,9 +179,11 @@ export class AuthService {
                 const accounts = data[network] || [];
                 const usernames = accounts.map((item) => item.instagramUsername);
 
-                const networkFilter = {[`${network}.instagramUsername`]: {$in: usernames}};
-                const isUsernameUsed = await this.influencerModel.exists(networkFilter)
-                    || await this.clientModel.exists({instagramUsername: {$in: usernames}});
+                const networkFilter = {
+                    [`${network}.instagramUsername`]: {$in: usernames},
+                    isDeleted: {$ne: true}
+                };
+                const isUsernameUsed = await this.influencerModel.exists(networkFilter);
 
                 if (isUsernameUsed) {
                     return {code: 409, message: `This ${network} username already exists`};
@@ -205,6 +207,8 @@ export class AuthService {
                         musicStyle: musicStyle,
                         publicPrice: publicPrice,
                         isHidden: false,
+                        isDeleted: false,
+                        isVerified: true,
                     };
                 });
             }
@@ -297,7 +301,6 @@ export class AuthService {
             return {code: 500};
         }
     }
-
 
     async verifyAdminInfluencer(verifyId: string, responseVerify: string) {
         if (!verifyId || !responseVerify) {
@@ -602,7 +605,7 @@ export class AuthService {
 
                 if (Array.isArray(socialMediaAccounts)) {
                     return socialMediaAccounts
-                        .filter((account) => account.isHidden !== true)
+                        .filter((account) => account.isHidden !== true && account.isDeleted !== true && account.isVerified === true)
                         .map((account) => ({
                             ...account,
                             _id: item._id, 
@@ -625,39 +628,6 @@ export class AuthService {
         }
     }
 
-    async getInfluencers() {
-        try {
-            const getInfluencersAll = await this.influencerModel
-                .find({statusVerify: 'accept'})
-                .find({ statusVerify: 'accept' })
-                .select(['-password', '-balance', '-phone', '-email'])
-                .lean()
-                .exec();
-
-            const listInstagram = getInfluencersAll.map((item) => {
-                if (!Array.isArray(item.instagram)) return [];
-                return item.instagram
-                    .filter((itemIns) => itemIns.isHidden !== true)
-                    .map((itemIns) => ({
-                        ...itemIns,
-                        _id: item._id,
-                    }));
-
-            });
-
-            return {
-                code: 200,
-                influencers: listInstagram.flat(),
-            };
-        } catch (err) {
-            console.log(err);
-            return {
-                code: 500,
-                message: err.message || 'An error occurred while fetching influencers.',
-            };
-        }
-    }
-    
     
     async getInfluencersWithoutSocialMedia() {
         try {

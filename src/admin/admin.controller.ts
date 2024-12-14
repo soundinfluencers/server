@@ -161,6 +161,11 @@ export class AdminController {
         return this.adminService.adminGivePartialRefundToClient(userId, partialRefund, campaignId);
     }
     
+    @Post('promos/close-promo/:promoId')
+    adminClosePromo(@Param('promoId') promoId: string) {
+        return this.adminService.adminClosePromo(promoId);
+    }
+    
     @Get('offers/getAll')
     adminGetAllOffers() {
         return this.adminService.adminGetAllOffers();
@@ -184,11 +189,6 @@ export class AdminController {
     @Put('offers/return-from-deleted')
     adminReturnOfferFromDeleted(@Body() data: AdminPutOfferToOffersDto) {
         return this.adminService.adminReturnOfferFromDeleted(data);
-    }
-    
-    @Put('calculate-balance')
-    adminCalculateBalancesInfluencersFromPromos() {
-        return this.adminService.adminCalculateBalancesInfluencersFromPromos();
     }
     
     @Put('offers/publish')
