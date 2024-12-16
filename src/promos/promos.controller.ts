@@ -69,9 +69,9 @@ export class PromosController {
 
     @Get('check-upload-status')
     async checkUploadStatus(@Query('fileName') fileName: string): Promise<boolean> {
-        return await this.promosService.checkUploadStatus(fileName); 
+        return await this.promosService.checkUploadStatus(fileName);
     }
-    
+
     @ApiQuery({name: 'id', required: true})
     @Get('history')
     historyPromos(@Query() args: { id: string }) {
@@ -180,32 +180,20 @@ export class PromosController {
             body,
         );
     }
-    
+
     @ApiQuery({name: 'promoId', required: true})
     @Get('share-link')
     getPromoByPublicShareLink(@Query() args: { promoId: string }) {
         return this.promosService.getPromoByPublicShareLink(args.promoId);
     }
 
-    // @ApiQuery({name: 'influencerId', required: true})
-    // @ApiQuery({name: 'instagramUsername', required: true})
-    // @ApiQuery({name: 'promoId', required: true})
-    // @Put('update-ongoing-test')
-    // updateOngoingPromoPostLinkAndDatePost(
-    //     @Query()
-    //         args: {
-    //         influencerId: string;
-    //         instagramUsername: string;
-    //         promoId: string;
-    //     },
-    //     @Body() body,
-    // ) {
-    //     console.log(args);
-    //     return this.promosService.updateOngoingPromoPostLinkAndDatePost(
-    //         args.influencerId,
-    //         args.instagramUsername,
-    //         args.promoId,
-    //         body,
-    //     );
-    // }
+    @Post('migrate-promos')
+    migrateClosedPromosToPromosCopies() {
+        return this.promosService.migrateClosedPromosToPromosCopies();
+    }
+
+    @Patch('update-promo')
+    updateOngoingPromosToWork() {
+        return this.promosService.updateOngoingPromosToWork();
+    }
 }

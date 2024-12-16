@@ -1440,29 +1440,8 @@ ${influencerVideos.map((video, index) => `
                     console.error('Error creating promo copy:', err);
                 }
                 await this.promosModel.deleteOne({_id: promoId});
-                
-                // await Promise.all(
-                //     findNewPromo.selectInfluencers.map(async (item) => {
-                //         const checkInfluencer = await this.influencerModel.findById(
-                //             item.influencerId
-                //         );
-                //         const currentInstagram = checkInfluencer[data.socialMedia].find(
-                //             (fin) => fin.instagramUsername === item.instagramUsername
-                //         );
-                //
-                //         await this.influencerModel.findOneAndUpdate(
-                //             {_id: item.influencerId},
-                //             {
-                //                 balance: String(
-                //                     Number(checkInfluencer.balance) +
-                //                     (+currentInstagram.price.replace(/[^\d]/g, ""))
-                //                 ),
-                //             }
-                //         );
-                //     })
-                // );
             }
-
+            
             return {
                 code: 200,
                 updateNewPromo,
@@ -1540,6 +1519,126 @@ ${influencerVideos.map((video, index) => `
                 code: 500,
                 message: err,
             };
+        }
+    }
+    
+    async migrateClosedPromosToPromosCopies() {
+        const closedPromos = await this.promosModel.find({statusPromo: 'finally'}).lean().exec();
+        
+        if (!closedPromos) {
+            return {
+                code: 404,
+                message: 'No closed promos found',
+            };
+        }
+        
+        for (const promo of closedPromos) {
+            let totalFollowers = 0
+            
+            const selectInfluencers = await Promise.all(
+                promo.selectInfluencers.map(async (item) => {
+                    const influencer = await this.influencerModel.findById(item.influencerId);
+                    const instagramAccount = influencer.instagram.find(
+                        (insta) => insta.instagramUsername === item.instagramUsername
+                    );
+
+                    if (!instagramAccount) {
+                        console.error(
+                            `Instagram account not found for influencerId: ${item.influencerId}, instagramUsername: ${item.instagramUsername}`
+                        );
+                        return {
+                            ...item,
+                            price: 0,
+                            publicPrice: 0,
+                            followersNumber: 0,
+                        };
+                    }
+
+                    const followersNumber = parseInt(instagramAccount.followersNumber || '0', 10);
+                    const price = parseInt(instagramAccount.price || '0', 10);
+                    const publicPrice = parseInt(instagramAccount.publicPrice || '0', 10);
+
+                    totalFollowers += followersNumber;
+
+                    return {
+                        ...item,
+                        price: price,
+                        publicPrice: publicPrice,
+                        followersNumber: followersNumber,
+                    };
+                })
+            );
+            
+            await this.promosCopiesModel.create({
+                ...promo,
+                statusPromo: 'finally',
+                verifyPromo: 'accept',
+                isCopy: true,
+                totalFollowers: totalFollowers,
+                selectInfluencers: selectInfluencers,
+                socialMedia: 'instagram',
+                amount: promo.amount || promo.selectPrice.price,
+            });
+            
+            await this.promosModel.deleteOne({_id: promo._id});
+        }
+    }
+    
+    async updateOngoingPromosToWork() {
+        const ongoingPromos = await this.promosModel.find().lean().exec();
+        
+        if (!ongoingPromos) {
+            return {
+                code: 404,
+                message: 'No ongoing promos found',
+            };
+        }
+        
+        for (const promo of ongoingPromos) {
+            let totalFollowers = 0;
+            
+            const selectInfluencers = await Promise.all(
+                promo.selectInfluencers.map(async (item) => {
+                    const influencer = await this.influencerModel.findById(item.influencerId);
+                    const instagramAccount = influencer.instagram.find(
+                        (insta) => insta.instagramUsername === item.instagramUsername
+                    );
+
+                    if (!instagramAccount) {
+                        console.error(
+                            `Instagram account not found for influencerId: ${item.influencerId}, instagramUsername: ${item.instagramUsername}`
+                        );
+                        return {
+                            ...item,
+                            price: 0,
+                            publicPrice: 0,
+                            followersNumber: 0,
+                        };
+                    }
+
+                    const followersNumber = parseInt(instagramAccount.followersNumber);
+                    const price = parseInt(instagramAccount.price || '0', 10);
+                    const publicPrice = parseInt(instagramAccount.publicPrice || '0', 10);
+
+                    totalFollowers += followersNumber;
+                    
+                    return {
+                        ...item,
+                        price: price,
+                        publicPrice: publicPrice,
+                        followersNumber: followersNumber,
+                    };
+                })
+            );
+            
+            await this.promosModel.findOneAndUpdate(
+                {_id: promo._id},
+                {
+                    selectInfluencers: selectInfluencers,
+                    totalFollowers: totalFollowers,
+                    socialMedia: 'instagram',
+                }
+            );
         }
     }
 }

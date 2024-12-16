@@ -1019,7 +1019,7 @@ export class AdminService {
                 if (Array.isArray(promo.selectInfluencers)) {
                     const influencersInstagramUsernames = promo.selectInfluencers.map(influencer => influencer.instagramUsername);
 
-                    const socialMediaField = promo.socialMedia;
+                    const socialMediaField = promo.socialMedia ? `${promo.socialMedia}` : 'instagram';
 
                     const influencers = await this.influencerModel.find({
                         [`${socialMediaField}.instagramUsername`]: {$in: influencersInstagramUsernames}
