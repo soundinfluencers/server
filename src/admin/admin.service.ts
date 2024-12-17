@@ -195,7 +195,12 @@ export class AdminService {
     async adminGetAllInfluencerInstaAccounts() {
         try {
             const influencers = await this.influencerModel
-                .find({statusVerify: 'accept'})
+                .find({
+                    statusVerify: 'accept',
+                    'instagram': {
+                        $elemMatch: { isVerified: true }
+                    }
+                })
                 .select(['-password'])
                 .lean()
                 .exec();
@@ -206,7 +211,7 @@ export class AdminService {
                     message: 'No influencers found',
                 };
             }
-
+            
             const influencerAvatars = {};
             const instagrams = [];
             influencers.forEach((influencer) => {
@@ -240,7 +245,7 @@ export class AdminService {
                 .sort({createdAt: -1})
                 .lean()
                 .exec();
-
+            
             const promoData = await this.promosModel
                 .aggregate([
                     {$unwind: "$selectInfluencers"},
