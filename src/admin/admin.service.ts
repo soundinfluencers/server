@@ -192,94 +192,88 @@ export class AdminService {
         }
     }
 
-    async adminGetAllInfluencerInstaAccounts() {
+    async adminGetAllInfluencerInstaAccounts(socialMedia: string) {
         try {
-            const influencers = await this.influencerModel
-                .find({
-                    statusVerify: 'accept',
-                    'instagram': {
-                        $elemMatch: { isVerified: true }
-                    }
-                })
-                .select(['-password'])
-                .lean()
-                .exec();
+            const socialMediaAccounts = await this.influencerModel.aggregate([
+                {$match: {statusVerify: 'accept'}},
+                {$unwind: `$${socialMedia}`},
+                {$match: {[`${socialMedia}.isVerified`]: true}},
+                {$sort: {[`${socialMedia}.createdAt`]: -1}},
+                {
+                    $project: {
+                        influencerId: '$_id',
+                        firstName: 1,
+                        phone: 1,
+                        balance: 1,
+                        email: 1,
+                        internalNote: 1,
+                        account: `$${socialMedia}`,
+                    },
+                },
+            ]);
 
-            if (!influencers || influencers.length === 0) {
+            if (!socialMediaAccounts || socialMediaAccounts.length === 0) {
                 return {
                     status: 404,
-                    message: 'No influencers found',
+                    message: 'No accounts found',
                 };
             }
-            
-            const influencerAvatars = {};
-            const instagrams = [];
-            influencers.forEach((influencer) => {
-                influencer.instagram.forEach((insta) => {
-                    const username = String(insta.instagramUsername).trim();
-                    if (username && this.isValidUTF8(username)) {
-                        influencerAvatars[influencer._id] = influencerAvatars[influencer._id] || {};
-                        influencerAvatars[influencer._id][username] = insta.logo;
 
-                        instagrams.push({
-                            instagram: insta,
-                            influencerId: influencer._id,
-                            firstName: influencer.firstName,
-                            phone: influencer.phone,
-                            balance: influencer.balance,
-                            email: influencer.email,
-                            avatar: influencerAvatars[influencer._id][username],
-                            internalNote: influencer.internalNote,
-                            latestInvoice: null,
-                            campaignsCompleted: 0,
-                            campaignsDenied: 0
-                        });
-                    }
-                });
-            });
-
-            const influencerIds = influencers.map((inf) => inf._id);
+            const influencerIds = socialMediaAccounts.map(acc => acc.influencerId);
+            const usernames = socialMediaAccounts.map(acc => acc.account.instagramUsername);
 
             const latestInvoices = await this.invoicesModel
                 .find({influencerId: {$in: influencerIds}})
                 .sort({createdAt: -1})
                 .lean()
                 .exec();
-            
+
             const promoData = await this.promosModel
                 .aggregate([
                     {$unwind: "$selectInfluencers"},
                     {
                         $match: {
-                            "selectInfluencers.instagramUsername": {$in: instagrams.map(insta => insta.instagram.instagramUsername)}
-                        }
+                            "selectInfluencers.instagramUsername": {$in: usernames},
+                        },
                     },
                     {
                         $group: {
                             _id: "$selectInfluencers.instagramUsername",
                             campaignsCompleted: {
-                                $sum: {$cond: [{$and: [{$eq: ["$selectInfluencers.confirmation", "accept"]}, {$eq: ["$selectInfluencers.closePromo", "close"]}]}, 1, 0]}
+                                $sum: {
+                                    $cond: [
+                                        {$and: [{$eq: ["$selectInfluencers.confirmation", "accept"]}, {$eq: ["$selectInfluencers.closePromo", "close"]}]},
+                                        1,
+                                        0,
+                                    ],
+                                },
                             },
                             campaignsDenied: {
-                                $sum: {$cond: [{$ne: ["$selectInfluencers.confirmation", "accept"]}, 1, 0]}
-                            }
-                        }
-                    }
+                                $sum: {
+                                    $cond: [
+                                        {$ne: ["$selectInfluencers.confirmation", "accept"]},
+                                        1,
+                                        0,
+                                    ],
+                                },
+                            },
+                        },
+                    },
                 ])
                 .exec();
 
             const invoiceMap = Object.fromEntries(latestInvoices.map(inv => [inv.influencerId.toString(), inv]));
             const promoMap = Object.fromEntries(promoData.map(promo => [promo._id, promo]));
 
-            instagrams.forEach(insta => {
-                insta.latestInvoice = invoiceMap[insta.influencerId] || "No Invoice";
-                insta.campaignsCompleted = promoMap[insta.instagram.instagramUsername]?.campaignsCompleted;
-                insta.campaignsDenied = promoMap[insta.instagram.instagramUsername]?.campaignsDenied;
+            socialMediaAccounts.forEach(acc => {
+                acc.latestInvoice = invoiceMap[acc.influencerId] || "No Invoice";
+                acc.campaignsCompleted = promoMap[acc.account.instagramUsername]?.campaignsCompleted || 0;
+                acc.campaignsDenied = promoMap[acc.account.instagramUsername]?.campaignsDenied || 0;
             });
 
             return {
                 status: 200,
-                data: instagrams,
+                data: socialMediaAccounts,
             };
 
         } catch (err) {
@@ -336,7 +330,7 @@ export class AdminService {
         }
     }
 
-    async adminUpdateInfluencerInstagram(data: AdminUpdateInfluencerInstagramDto) {
+    async adminUpdateInfluencerSocialMediaAccount(data: AdminUpdateInfluencerInstagramDto) {
         try {
             if (!data) {
                 return {
@@ -354,26 +348,26 @@ export class AdminService {
                 };
             }
 
-            const checkInstagram = checkUser.instagram.find((insta) => insta.instagramUsername === data.instagramUsername);
+            const checkSocialMediaAccount = checkUser[data.socialMedia].find((account) => account.instagramUsername === data.instagramUsername);
 
-            if (!checkInstagram) {
+            if (!checkSocialMediaAccount) {
                 return {
                     code: 404,
-                    message: 'Instagram not found',
+                    message: `${data.socialMedia} not found`,
                 };
             }
-
+            
             await this.influencerModel.findOneAndUpdate(
                 {
                     _id: data.influencerId,
-                    'instagram.instagramUsername': data.instagramUsername
+                    [`${data.socialMedia}.instagramUsername`]: data.instagramUsername
                 },
                 {
                     $set: {
-                        'instagram.$.instagramLink': data.instagramLink,
-                        'instagram.$.followersNumber': data.followersNumber,
-                        'instagram.$.price': data.price,
-                        'instagram.$.publicPrice': data.publicPrice,
+                        [`${data.socialMedia}.$.instagramLink`]: data.instagramLink,
+                        [`${data.socialMedia}.$.followersNumber`]: data.followersNumber,
+                        [`${data.socialMedia}.$.price`]: data.price,
+                        [`${data.socialMedia}.$.publicPrice`]: data.publicPrice,
                     }
                 },
             );
@@ -385,7 +379,7 @@ export class AdminService {
         }
     }
 
-    async adminGetOneInfluencerInstaAccount(influencerId: string, instagramUsername: string) {
+    async adminGetOneInfluencerInstaAccount(influencerId: string, socialMedia: string, instagramUsername: string) {
         try {
             const influencer = await this.influencerModel.findOne({_id: influencerId}).lean().exec();
 
@@ -396,30 +390,30 @@ export class AdminService {
                 };
             }
 
-            const instagram = influencer.instagram.find((insta) => insta.instagramUsername === instagramUsername);
+            const socialMediaAccount = influencer[socialMedia].find((account) => account.instagramUsername === instagramUsername);
 
-            if (!instagram) {
+            if (!socialMediaAccount) {
                 return {
                     status: 404,
                     message: 'Instagram not found',
                 };
             }
 
-            const influencerAvatar = instagram.logo;
+            const influencerAvatar = socialMediaAccount.logo;
 
             const result = {
-                instagram: {
-                    instagramUsername: instagram.instagramUsername,
-                    instagramLink: instagram.instagramLink,
-                    followersNumber: instagram.followersNumber,
-                    price: instagram.price,
-                    publicPrice: instagram.publicPrice,
-                    logo: instagram.logo,
-                    musicStyle: instagram.musicStyle,
-                    musicSubStyles: instagram.musicSubStyles,
-                    countries: instagram.countries,
-                    categories: instagram.categories,
-                    isHidden: instagram.isHidden,
+                account: {
+                    instagramUsername: socialMediaAccount.instagramUsername,
+                    instagramLink: socialMediaAccount.instagramLink,
+                    followersNumber: socialMediaAccount.followersNumber,
+                    price: socialMediaAccount.price,
+                    publicPrice: socialMediaAccount.publicPrice,
+                    logo: socialMediaAccount.logo,
+                    musicStyle: socialMediaAccount.musicStyle,
+                    musicSubStyles: socialMediaAccount.musicSubStyles,
+                    countries: socialMediaAccount.countries,
+                    categories: socialMediaAccount.categories,
+                    isHidden: socialMediaAccount.isHidden,
                 },
                 influencerId: influencer._id,
                 firstName: influencer.firstName,

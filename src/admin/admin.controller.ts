@@ -41,9 +41,9 @@ export class AdminController {
         return this.adminService.adminUpdateClient(data);
     }
     
-    @Get('influencer/getAll')
-    adminGetAllInfluencerInstaAccounts() {
-        return this.adminService.adminGetAllInfluencerInstaAccounts();
+    @Get('influencer/getAll/:socialMedia')
+    adminGetAllInfluencerInstaAccounts(@Param('socialMedia') socialMedia: string) {
+        return this.adminService.adminGetAllInfluencerInstaAccounts(socialMedia);
     }
     
     @Put('influencer/update/personal')
@@ -51,14 +51,14 @@ export class AdminController {
         return this.adminService.adminUpdatePersonalInfluencer(data);
     }
     
-    @Put('influencer/update/instagram')
+    @Put('influencer/update/socialMediaAccount')
     adminUpdateInfluencerInstagram(@Body() data: AdminUpdateInfluencerInstagramDto) {
-        return this.adminService.adminUpdateInfluencerInstagram(data);
+        return this.adminService.adminUpdateInfluencerSocialMediaAccount(data);
     }
     
-    @Get('influencer/getOne/:id/:instagramUsername')
-    adminGetOneInfluencerInstaAccount(@Param('id') id: string, @Param('instagramUsername') instagramUsername: string) {
-        return this.adminService.adminGetOneInfluencerInstaAccount(id, instagramUsername);
+    @Get('influencer/getOne/:id/:socialMedia/:instagramUsername')
+    adminGetOneInfluencerInstaAccount(@Param('id') id: string, @Param('socialMedia') socialMedia: string, @Param('instagramUsername') instagramUsername: string) {
+        return this.adminService.adminGetOneInfluencerInstaAccount(id, socialMedia, instagramUsername);
     }
     
     @Get('invoices-influencers/getAll')
