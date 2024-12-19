@@ -48,7 +48,7 @@ export class CreatePromosEstimateDto {
 
     @ApiProperty({ required: true, default: 'wait' })
     paymentStatus: string;
-    
+
     @ApiProperty({
         required: true,
         type: 'array',
@@ -69,4 +69,7 @@ export class CreatePromosEstimateDto {
 
     @ApiProperty({ required: false })
     amount: number;
+    
+    @ApiProperty({ required: true })
+    socialMedia: string;
 }

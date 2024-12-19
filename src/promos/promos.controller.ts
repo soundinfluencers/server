@@ -29,12 +29,8 @@ export class PromosController {
         return this.promosService.createPromos(data);
     }
 
-    @ApiQuery({name: 'isPO', required: false, type: Boolean})
-    @Post('estimate')
-    createPromosForEstimate(
-        @Body() data: CreatePromosEstimateDto,
-        @Query('isPO') isPO?: boolean
-    ) {
+    @Post('estimate/:isPO')
+    createPromosForEstimate(@Body() data: CreatePromosEstimateDto, @Param('isPO') isPO: boolean) {
         return this.promosService.createPromosForEstimate(data, isPO);
     }
 
@@ -181,10 +177,9 @@ export class PromosController {
         );
     }
 
-    @ApiQuery({name: 'promoId', required: true})
-    @Get('share-link')
-    getPromoByPublicShareLink(@Query() args: { promoId: string }) {
-        return this.promosService.getPromoByPublicShareLink(args.promoId);
+    @Get('share-link/:promoId/:socialMedia')
+    getPromoByPublicShareLink(@Param() args: { promoId: string; socialMedia: string }) {
+        return this.promosService.getPromoByPublicShareLink(args.promoId, args.socialMedia);
     }
 
     @Post('migrate-promos')

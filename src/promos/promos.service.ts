@@ -10,6 +10,8 @@ import {Offers} from "./schemas/offers.schema";
 import sendMail from "src/utils/sendMail";
 import {DropboxService} from "src/services/Dropbox.service";
 import {PromosCopies} from "../admin/schemas/promos-copies.schema";
+import {CreateOrderStripe} from "../payment/dto/create-payment.dto";
+mongoose.Promise = global.Promise;
 
 @Injectable()
 export class PromosService {
@@ -39,7 +41,7 @@ export class PromosService {
             data.selectInfluencers.map(async (influencer) => {
                 const selectedVideo = influencer.selectedVideo;
                 const dateRequest = influencer.dateRequest;
-                
+
                 const influencerData = await this.influencerModel.findOne({
                     _id: influencer.influencerId,
                 });
@@ -47,7 +49,7 @@ export class PromosService {
                 const socialMediaAccount = influencerData[data.socialMedia].find(
                     (account) => account.instagramUsername === influencer.instagramUsername
                 );
-                
+
                 if (socialMediaAccount) {
                     return {
                         ...influencer,
@@ -60,9 +62,9 @@ export class PromosService {
                 }
             })
         );
-        
+
         let result;
-        
+
         try {
             result = await this.promosModel.create({
                 ...data,
@@ -80,7 +82,7 @@ export class PromosService {
         }
 
         let dataClient;
-        
+
         try {
             dataClient = await this.clientModel.findOne({_id: data.userId});
             if (+dataClient.balance <= data.amount) {
@@ -203,99 +205,117 @@ ${emailVideoContent()}
     }
 
     async createPromosForEstimate(data: CreatePromosEstimateDto, isPO: boolean = false) {
-        try {
-            if (!data) {
-                return {
-                    status: 400,
-                    message: "Not enough arguments",
-                };
-            }
+        if (!data || !Array.isArray(data.selectInfluencers)) {
+            return {
+                code: 400,
+                message: "Invalid data: selectInfluencers must be a valid array",
+            };
+        }
 
-            if (!isPO) {
-                const result = await this.promosModel.create({
-                    ...data,
-                    paymentType: !data.paymentType ? "payment" : data.paymentType,
-                    paymentStatus: "wait",
-                    statusPromo: "estimate",
-                    isPO: false,
-                });
-
-                const dataClient = await this.clientModel.findOne({_id: data.userId});
-
-                const influencerList = await Promise.all(
-                    data.selectInfluencers.map(async (item) => {
-                        const dataInfluencer = await this.influencerModel.findOne({
-                            _id: item.influencerId,
-                        });
-                        return dataInfluencer ? dataInfluencer : null;
-                    })
-                );
-                const influencerFilter = influencerList.filter((item) => item);
-
-                await sendMail(
-                    // "nazarkozynets030606@zohomail.eu",
-                    "admin@soundinfluencers.com",
-                    "soundinfluencers",
-                    `<p>Hi</p>
-                <p>The Client ${dataClient.firstName} has requested a campaign on this network without providing any content</p>
-                <p>Influencers Chosen:</p><br/>
-                ${data.selectInfluencers
-                        .map((item) => `<p>Instagram name: ${item.instagramUsername}</p>`)
-                        .join('')}<br/>
-                <p>Email: ${dataClient.email}</p>
-                <p>Phone Number: ${dataClient.phone}</p>
-                `,
-                    "html"
-                );
-
-                return {
-                    code: 201,
-                    result,
-                };
-            } else {
-                const processedInfluencers = data.selectInfluencers.map((influencer) => {
+        const processedInfluencers = await Promise.all(
+            data.selectInfluencers.map(async (influencer) => {
+                try {
                     const selectedVideo = influencer.selectedVideo;
                     const dateRequest = influencer.dateRequest;
 
-                    return {
-                        ...influencer,
-                        selectedVideo,
-                        dateRequest,
-                    };
-                });
+                    const influencerData = await this.influencerModel.findOne({
+                        _id: influencer.influencerId,
+                    });
 
-                const result = await this.promosModel.create({
-                    ...data,
-                    selectInfluencers: processedInfluencers,
-                    paymentType: !data.paymentType ? "payment" : data.paymentType,
-                    paymentStatus: "wait",
-                    statusPromo: "estimate",
-                    isPO: true,
-                });
+                    if (!influencerData) {
+                        return {
+                            ...influencer,
+                            price: '0',
+                            publicPrice: '0',
+                            followersNumber: 0,
+                            selectedVideo,
+                            dateRequest,
+                        };
+                    }
 
-                const dataClient = await this.clientModel.findOne({_id: data.userId});
-                if (+dataClient.balance <= data.amount) {
-                    await this.clientModel.findOneAndUpdate(
-                        {_id: data.userId},
-                        {balance: "0"}
+                    const socialMediaAccount = influencerData[data.socialMedia]?.find(
+                        (account) => account.instagramUsername === influencer.instagramUsername
                     );
+
+                    return socialMediaAccount
+                        ? {
+                            ...influencer,
+                            price: socialMediaAccount.price,
+                            publicPrice: socialMediaAccount.publicPrice,
+                            followersNumber: parseInt(socialMediaAccount.followersNumber),
+                            selectedVideo,
+                            dateRequest,
+                        }
+                        : {
+                            ...influencer,
+                            price: '0',
+                            publicPrice: '0',
+                            followersNumber: 0,
+                            selectedVideo,
+                            dateRequest,
+                        };
+                } catch (error) {
+                    console.error('Error processing influencer:', influencer, error);
+                    throw error;
                 }
+            })
+        );
 
-                const influencerList = await Promise.all(
-                    data.selectInfluencers.map(async (item) => {
-                        const dataInfluencer = await this.influencerModel.findOne({
-                            _id: item.influencerId,
-                        });
-                        return dataInfluencer ? dataInfluencer : null;
-                    })
+        if (!isPO && processedInfluencers.length > 0) {
+            const result = await this.promosModel.create({
+                ...data,
+                selectInfluencers: processedInfluencers,
+                paymentType: !data.paymentType ? "payment" : data.paymentType,
+                paymentStatus: "wait",
+                statusPromo: "estimate",
+                isPO: false,
+            });
+
+            const dataClient = await this.clientModel.findOne({_id: data.userId});
+
+            await sendMail(
+                // "nazarkozynets030606@zohomail.eu",
+                "admin@soundinfluencers.com",
+                "soundinfluencers",
+                `<p>Hi</p>
+                <p>The Client ${dataClient.firstName} has requested a campaign on this network without providing any content</p>
+                <p>Influencers Chosen:</p><br/>
+                ${data.selectInfluencers
+                    .map((item) => `<p>Instagram name: ${item.instagramUsername}</p>`)
+                    .join('')}<br/>
+                <p>Email: ${dataClient.email}</p>
+                <p>Phone Number: ${dataClient.phone}</p>
+                `,
+                "html"
+            );
+
+            return {
+                code: 201,
+                result,
+            };
+        } else if (isPO && processedInfluencers.length > 0) {
+            const result = await this.promosModel.create({
+                ...data,
+                selectInfluencers: processedInfluencers,
+                paymentType: !data.paymentType ? "payment" : data.paymentType,
+                paymentStatus: "wait",
+                statusPromo: "estimate",
+                isPO: true,
+            });
+
+            const dataClient = await this.clientModel.findOne({_id: data.userId});
+            if (+dataClient.balance <= data.amount) {
+                await this.clientModel.findOneAndUpdate(
+                    {_id: data.userId},
+                    {balance: "0"}
                 );
-                const influencerFilter = influencerList.filter((item) => item);
+            }
 
-                await sendMail(
-                    // "nazarkozynets030606@zohomail.eu",
-                    "admin@soundinfluencers.com",
-                    "soundinfluencers",
-                    `<p>Hi,</p>
+            await sendMail(
+                // "nazarkozynets030606@zohomail.eu",
+                "admin@soundinfluencers.com",
+                "soundinfluencers",
+                `<p>Hi,</p>
 <p>The Client ${dataClient.firstName} has requested the following post for this list of influencers:</p>
 <p><strong>Post Details:</strong></p>
 ${data.videos.map((video, index) => `
@@ -311,22 +331,16 @@ ${data.videos.map((video, index) => `
 <p><strong>Selected Influencers:</strong></p>
 <ul>
     ${data.selectInfluencers.map(
-                        (item) => `<li>Instagram name: ${item.instagramUsername}</li>`
-                    ).join('')}
+                    (item) => `<li>Instagram name: ${item.instagramUsername}</li>`
+                ).join('')}
 </ul>
 <p>Payment Method Used: ${result.paymentType}</p>`,
-                    "html"
-                );
+                "html"
+            );
 
-                return {
-                    code: 201,
-                    result,
-                };
-            }
-        } catch (err) {
             return {
-                code: 500,
-                message: err.message,
+                code: 201,
+                result,
             };
         }
     }
@@ -601,7 +615,6 @@ ${influencerVideos.map((video, index) => `
                     statusPromo: {$in: ["work", "wait", "estimate", "po waiting"]},
                 })
                 .lean();
-
             const promosName = await Promise.all(
                 promos.map(async (item) => {
                     const clientName = await this.clientModel.findById(item.userId);
@@ -651,7 +664,7 @@ ${influencerVideos.map((video, index) => `
                 const promoCopy = await this.promosCopiesModel.findById(id).lean();
                 if (promoCopy) {
                     totalFollowers = promoCopy.totalFollowers || 0;
-                    promo = promoCopy; 
+                    promo = promoCopy;
                 } else {
                     return {
                         code: 404,
@@ -679,7 +692,7 @@ ${influencerVideos.map((video, index) => `
 
                     if (!promo.isCopy) totalFollowers += parseInt(instagramAccount.followersNumber);
                     let followersNumber = !promo.isCopy ? instagramAccount.followersNumber : influencerItem.followersNumber;
-                    
+
                     return {
                         ...influencerItem,
                         firstName: influencerData.firstName,
@@ -1441,7 +1454,7 @@ ${influencerVideos.map((video, index) => `
                 }
                 await this.promosModel.deleteOne({_id: promoId});
             }
-            
+
             return {
                 code: 200,
                 updateNewPromo,
@@ -1463,7 +1476,7 @@ ${influencerVideos.map((video, index) => `
         };
     }
 
-    async getPromoByPublicShareLink(promoId: string) {
+    async getPromoByPublicShareLink(promoId: string, socialMedia: string) {
         try {
             if (!promoId) {
                 return {
@@ -1472,69 +1485,64 @@ ${influencerVideos.map((video, index) => `
                 };
             }
 
-            const promo = await this.promosModel.findById(promoId).lean().exec();
+            if (!mongoose.Types.ObjectId.isValid(promoId)) {
+                return {
+                    status: 400,
+                    message: "Invalid promoId format",
+                };
+            }
 
+            const promo = await this.promosModel
+                .findOne({
+                    _id: new mongoose.Types.ObjectId(promoId),
+                    socialMedia: socialMedia,
+                })
+                .lean();
+
+            let finishedPromo;
             if (!promo) {
+                finishedPromo = await this.promosCopiesModel
+                    .findOne({
+                        _id: new mongoose.Types.ObjectId(promoId),
+                        socialMedia: socialMedia,
+                    })
+                    .lean();
+            }
+
+            if (!promo && !finishedPromo) {
                 return {
                     code: 404,
                     message: "Promo not found",
                 };
             }
 
-            const selectInfluencersWithDetails = await Promise.all(
-                promo.selectInfluencers.map(async (influencerItem) => {
-                    const influencerData = await this.influencerModel.findById(influencerItem.influencerId);
-
-                    if (!influencerData) {
-                        return {
-                            ...influencerItem,
-                            firstName: "",
-                            followersNumber: null,
-                        };
-                    }
-
-                    const instagramAccount = influencerData.instagram.find(
-                        (insta) => insta.instagramUsername === influencerItem.instagramUsername
-                    );
-
-                    return {
-                        ...influencerItem,
-                        firstName: influencerData.firstName,
-                        followersNumber: instagramAccount ? instagramAccount.followersNumber : null,
-                    };
-                })
-            );
-
             return {
                 code: 200,
-                promo: {
-                    ...promo,
-                    selectInfluencers: selectInfluencersWithDetails,
-                }
+                promo: promo || finishedPromo,
             };
         } catch (err) {
-            console.error('Error fetching promo by public share link:', err);
+            console.error("Error fetching promo by public share link:", err);
 
             return {
                 code: 500,
-                message: err,
+                message: "An error occurred while fetching the promo.",
             };
         }
     }
-    
+
     async migrateClosedPromosToPromosCopies() {
         const closedPromos = await this.promosModel.find({statusPromo: 'finally'}).lean().exec();
-        
+
         if (!closedPromos) {
             return {
                 code: 404,
                 message: 'No closed promos found',
             };
         }
-        
+
         for (const promo of closedPromos) {
             let totalFollowers = 0
-            
+
             const selectInfluencers = await Promise.all(
                 promo.selectInfluencers.map(async (item) => {
                     const influencer = await this.influencerModel.findById(item.influencerId);
@@ -1568,7 +1576,7 @@ ${influencerVideos.map((video, index) => `
                     };
                 })
             );
-            
+
             await this.promosCopiesModel.create({
                 ...promo,
                 statusPromo: 'finally',
@@ -1579,24 +1587,24 @@ ${influencerVideos.map((video, index) => `
                 socialMedia: 'instagram',
                 amount: promo.amount || promo.selectPrice.price,
             });
-            
+
             await this.promosModel.deleteOne({_id: promo._id});
         }
     }
-    
+
     async updateOngoingPromosToWork() {
         const ongoingPromos = await this.promosModel.find().lean().exec();
-        
+
         if (!ongoingPromos) {
             return {
                 code: 404,
                 message: 'No ongoing promos found',
             };
         }
-        
+
         for (const promo of ongoingPromos) {
             let totalFollowers = 0;
-            
+
             const selectInfluencers = await Promise.all(
                 promo.selectInfluencers.map(async (item) => {
                     const influencer = await this.influencerModel.findById(item.influencerId);
@@ -1621,7 +1629,7 @@ ${influencerVideos.map((video, index) => `
                     const publicPrice = parseInt(instagramAccount.publicPrice || '0', 10);
 
                     totalFollowers += followersNumber;
-                    
+
                     return {
                         ...item,
                         price: price,
@@ -1630,7 +1638,7 @@ ${influencerVideos.map((video, index) => `
                     };
                 })
             );
-            
+
             await this.promosModel.findOneAndUpdate(
                 {_id: promo._id},
                 {

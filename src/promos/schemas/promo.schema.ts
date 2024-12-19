@@ -29,10 +29,10 @@ export class SelectInfluencers {
     @Prop()
     confirmation: string;
     
-    @Prop()
+    @Prop({default: '0'})
     price: string;
     
-    @Prop()
+    @Prop({default: '0'})
     publicPrice: string;
     
     @Prop()
