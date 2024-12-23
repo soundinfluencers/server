@@ -339,7 +339,7 @@ export class AdminService {
                 };
             }
 
-            const checkUser = await this.influencerModel.findOne({_id: data.influencerId});
+            const checkUser = await this.influencerModel.findOne({ _id: data.influencerId });
 
             if (!checkUser) {
                 return {
@@ -348,7 +348,9 @@ export class AdminService {
                 };
             }
 
-            const checkSocialMediaAccount = checkUser[data.socialMedia].find((account) => account.instagramUsername === data.instagramUsername);
+            const checkSocialMediaAccount = checkUser[data.socialMedia]?.find(
+                (account) => account.instagramUsername === data.instagramUsername
+            );
 
             if (!checkSocialMediaAccount) {
                 return {
@@ -356,25 +358,52 @@ export class AdminService {
                     message: `${data.socialMedia} not found`,
                 };
             }
-            
+
+            const updateFields: any = {
+                [`${data.socialMedia}.$.instagramLink`]: data.instagramLink,
+                [`${data.socialMedia}.$.followersNumber`]: data.followersNumber,
+                [`${data.socialMedia}.$.price`]: data.price,
+                [`${data.socialMedia}.$.publicPrice`]: data.publicPrice,
+            };
+
+            if (data.musicStyle) {
+                updateFields[`${data.socialMedia}.$.musicStyle`] = data.musicStyle;
+            }
+
+            if (data.musicSubStyles && Array.isArray(data.musicSubStyles)) {
+                updateFields[`${data.socialMedia}.$.musicSubStyles`] = data.musicSubStyles;
+            }
+
+            if (data.musicStyleOther && Array.isArray(data.musicStyleOther)) {
+                updateFields[`${data.socialMedia}.$.musicStyleOther`] = data.musicStyleOther;
+            }
+
+            if (data.countries && Array.isArray(data.countries)) {
+                updateFields[`${data.socialMedia}.$.countries`] = data.countries;
+            }
+
+            if (data.categories && Array.isArray(data.categories)) {
+                updateFields[`${data.socialMedia}.$.categories`] = data.categories;
+            }
+
             await this.influencerModel.findOneAndUpdate(
                 {
                     _id: data.influencerId,
-                    [`${data.socialMedia}.instagramUsername`]: data.instagramUsername
+                    [`${data.socialMedia}.instagramUsername`]: data.instagramUsername,
                 },
                 {
-                    $set: {
-                        [`${data.socialMedia}.$.instagramLink`]: data.instagramLink,
-                        [`${data.socialMedia}.$.followersNumber`]: data.followersNumber,
-                        [`${data.socialMedia}.$.price`]: data.price,
-                        [`${data.socialMedia}.$.publicPrice`]: data.publicPrice,
-                    }
-                },
+                    $set: updateFields,
+                }
             );
+
+            return {
+                status: 200,
+                message: 'Social media account updated successfully',
+            };
         } catch (err) {
             return {
                 status: 500,
-                message: err,
+                message: err.message || 'Internal server error',
             };
         }
     }
@@ -411,6 +440,7 @@ export class AdminService {
                     logo: socialMediaAccount.logo,
                     musicStyle: socialMediaAccount.musicStyle,
                     musicSubStyles: socialMediaAccount.musicSubStyles,
+                    musicStyleOther: socialMediaAccount.musicStyleOther,
                     countries: socialMediaAccount.countries,
                     categories: socialMediaAccount.categories,
                     isHidden: socialMediaAccount.isHidden,

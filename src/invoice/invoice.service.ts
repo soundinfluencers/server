@@ -119,10 +119,10 @@ export class InvoiceService {
         doc.text("BALANCE DUE:", 50, currentY);
         doc.text(result.amount + "€", 250, currentY);
 
-        currentY += 15;
+        currentY += 20;
         doc.text("Selected Payment Method: " + result.selectedPaymentMethod, 50, currentY);
 
-        currentY += 15;
+        currentY += 20;
         doc.text(getPaymentMethod(), 50, currentY, { width: 500, continued: false });
 
         currentY = doc.y + 20;
@@ -184,6 +184,7 @@ export class InvoiceService {
                 {_id: data.influencerId},
                 {balance: +checkUser.balance - data.amount}
             );
+            
             data.description = "Payment Due: 7 days (subject to approval)";
             const result = await this.invoicesModel.create({
                 ...data,
@@ -201,23 +202,26 @@ export class InvoiceService {
                 await this.saveInvoiceDataModel.create(data);
             }
 
-            const instagramAccounts = checkUser.spotify.map((account) => {
-                return `${account.instagramUsername} `;
-            });
+            const instagramAccounts = checkUser.instagram.map((account) => {
+                return `<br /> - ${account.instagramUsername}`;
+            }).join('');
 
             await this.createPDF(result, data)
                 .then(async (pdfPath) => {
                     await sendMail(
-                        "admin@soundinfluencers.com",
                         // "nazarkozynets030606@zohomail.eu",
+                        "admin@soundinfluencers.com",
                         `${checkUser.email}`,
-                        `Invoice from ${data.contactEmail} (${data.contactName}) ID: ${result?._id} Instagram Accounts: ${instagramAccounts} Selected Payment Method: ${data.selectedPaymentMethod}`,
+                        `<p>Invoice from ${checkUser.email} <b>(Contact email: ${data.contactEmail})</b> </p>
+<p><b>ID:</b> ${result?._id}</p>
+<p><b>Instagram Accounts:</b> ${instagramAccounts}</p>
+<p><b>Selected Payment Method:</b> ${data.selectedPaymentMethod}</p>`,
                         "pdf",
                         pdfPath as string
                     );
 
                     await sendMail(
-                        checkUser.email,
+                        data.contactEmail,
                         "soundinfluencers",
                         `<p>Hello</p>
         <p>We acknowledge the receipt of your invoice. If everything is in order, we will process the payment to your details within the next 7 days.

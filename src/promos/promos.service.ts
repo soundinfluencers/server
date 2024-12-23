@@ -10,7 +10,7 @@ import {Offers} from "./schemas/offers.schema";
 import sendMail from "src/utils/sendMail";
 import {DropboxService} from "src/services/Dropbox.service";
 import {PromosCopies} from "../admin/schemas/promos-copies.schema";
-import {CreateOrderStripe} from "../payment/dto/create-payment.dto";
+
 mongoose.Promise = global.Promise;
 
 @Injectable()
@@ -1016,8 +1016,8 @@ ${influencerVideos.map((video, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewPromo.userId);
 
                 await sendMail(
-                    // "nazarkozynets030606@zohomail.eu",
-                    "admin@soundinfluencers.com",
+                    "nazarkozynets030606@zohomail.eu",
+                    // "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} declined the offer for ${checkUserClient.email}'s campaign</p>
                 <p>Details:</p><br/>
@@ -1133,81 +1133,88 @@ ${influencerVideos.map((video, index) => `
         promoId: string,
         instagramUsername: string
     ) {
-        try {
-            if (!influencerId || !promoId || !instagramUsername) {
-                return {
-                    status: 400,
-                    message: "Not enough arguments",
-                };
-            }
+        if (!influencerId || !promoId || !instagramUsername) {
+            return {
+                status: 400,
+                message: "Not enough arguments",
+            };
+        }
 
-            const influencer = await this.influencerModel.findById(influencerId);
-            if (!influencer) {
-                return {
-                    code: 404,
-                    message: "Influencer not found",
-                };
-            }
+        const influencer = await this.influencerModel.findById(influencerId);
+        if (!influencer) {
+            return {
+                code: 404,
+                message: "Influencer not found",
+            };
+        }
 
-            const promo = await this.promosModel.findOne({
-                _id: promoId,
-                selectInfluencers: {
-                    $elemMatch: {
-                        influencerId: influencerId,
-                        confirmation: "accept",
-                        instagramUsername: instagramUsername,
-                    },
+        const promo = await this.promosModel.findOne({
+            _id: promoId,
+            selectInfluencers: {
+                $elemMatch: {
+                    influencerId: influencerId,
+                    confirmation: "accept",
+                    instagramUsername: instagramUsername,
                 },
-            }).lean();
+            },
+        }).lean();
+        if (!promo) {
+            return {
+                code: 404,
+                message: "Promo not found",
+            };
+        }
 
-            if (!promo) {
-                return {
-                    code: 404,
-                    message: "Promo not found",
-                };
-            }
+        const client = await this.clientModel.findById(promo.userId);
+        if (!client) {
+            return {
+                code: 404,
+                message: "Client not found",
+            };
+        }
 
-            const currentDataInfluencer = promo.selectInfluencers.find(
-                (item) =>
-                    item.influencerId === influencerId &&
-                    item.instagramUsername === instagramUsername
-            );
+        const selectedInfluencerData = await Promise.all(
+            promo.selectInfluencers.map(async (item) => {
+                if (item.influencerId === influencerId && item.instagramUsername === instagramUsername) {
+                    const selectedVideo = promo.videos.find((video) => video.videoLink === item.selectedVideo);
 
-            if (!currentDataInfluencer) {
-                return {
-                    code: 404,
-                    message: "Influencer not found in promo",
-                };
-            }
+                    if (selectedVideo) {
+                        return {
+                            dateRequest: item.dateRequest,
+                            videoLink: selectedVideo?.videoLink || "",
+                            postDescription: selectedVideo?.postDescription || "",
+                            storyTag: selectedVideo?.storyTag || "",
+                            swipeUpLink: selectedVideo?.swipeUpLink || "",
+                            specialWishes: selectedVideo?.specialWishes || "",
+                        };
+                    }
+                }
+                return null;
+            })
+        );
 
-            const promoCurrent = await this.promosModel.findById(promoId);
-
-            const client = await this.clientModel.findById(promo.userId);
-            if (!client) {
-                return {
-                    code: 404,
-                    message: "Client not found",
-                };
-            }
-
+        const filteredSelectedInfluencerData = selectedInfluencerData.filter(data => data !== null);
+        
+        if (filteredSelectedInfluencerData !== null) {
             return {
                 code: 200,
                 promo: {
-                    ...currentDataInfluencer,
-                    ...promo,
-                    client: client.company || "No Company",
-                    logo: client.logo || null,
+                    socialMedia: promo.socialMedia,
+                    client: client.company,
+                    socialNetworkUsername: instagramUsername,
+                    videoLink: filteredSelectedInfluencerData[0].videoLink,
+                    postDescription: filteredSelectedInfluencerData[0].postDescription,
+                    storyTag: filteredSelectedInfluencerData[0].storyTag,
+                    swipeUpLink: filteredSelectedInfluencerData[0].swipeUpLink,
+                    specialWishes: filteredSelectedInfluencerData[0].specialWishes,
+                    dateRequest: filteredSelectedInfluencerData[0].dateRequest,
+                    campaignName: promo.campaignName,
                 },
-                description: promoCurrent.videos?.map(video => video.postDescription) || "No description",
-                dateRequest: promoCurrent.createdAt,
-                date: promoCurrent.createdAt,
-                campaignName: promoCurrent.campaignName,
             };
-        } catch (err) {
-            console.log(err);
+        } else {
             return {
-                code: 500,
-                message: err.message || "Internal Server Error",
+                code: 404,
+                message: "Selected influencer not found",
             };
         }
     }

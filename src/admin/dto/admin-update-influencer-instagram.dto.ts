@@ -24,4 +24,19 @@ export class AdminUpdateInfluencerInstagramDto {
     
     @ApiProperty({required: true})
     socialMedia: string;
+    
+    @ApiProperty({required: false})
+    musicStyle: string;
+    
+    @ApiProperty({required: false})
+    musicSubStyles: [];
+    
+    @ApiProperty({required: false})
+    musicStyleOther: [];
+    
+    @ApiProperty({required: false})
+    countries: [];
+    
+    @ApiProperty({required: false})
+    categories: [];
 }

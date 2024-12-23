@@ -305,11 +305,18 @@ export class ProfileService {
 
         const account = socialMediaAccounts[accountIndex];
 
-        const emailContent = `
+        let emailContent = `
             <p>Hi,</p>
-            <p>The Influencer <strong>${influencer.firstName}</strong> changed the price for <strong>${data.typeOfSocialMedia}</strong> account <strong>${account.instagramUsername}</strong></p>
+            <p>The Influencer <strong>${influencer.firstName}</strong> wants to change the price for <strong>${data.typeOfSocialMedia}</strong> account <strong>${account.instagramUsername}</strong></p>
             <br>
         `;
+        
+        if (data.newPrice) {
+            emailContent += `
+                <p><strong>Old price:</strong> ${account.price}€</p>
+                <p><strong>New price:</strong> ${data.newPrice}€</p>
+            `;
+        }
 
         await sendMail(
             // "nazarkozynets030606@zohomail.eu",
