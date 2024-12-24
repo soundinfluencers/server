@@ -11,6 +11,7 @@ export interface ISocial {
     price: string;
     countries: { country: string; percentage: number }[] | null;
     categories: string[] | null;
+    initialPrice: string;
 }
 
 export const typesSocialMedia = {
@@ -34,6 +35,7 @@ export const typesSocialMedia = {
         nullable: true,
     },
     categories: {type: 'array', items: {type: 'string'}, nullable: true},
+    initialPrice: {type: 'string'},
 };
 
 export class CreateInfluencerDto {

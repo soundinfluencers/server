@@ -71,5 +71,22 @@ export class ProfileController {
         );
     }
 
-
+    @ApiQuery({ name: 'influencerId'})
+    @ApiQuery({ name: 'socialMedia'})
+    @ApiQuery({ name: 'networkUsername'})
+    @ApiQuery({ name: 'isPriceGoodToGo'})
+    @ApiQuery({ name: 'newPrice'})
+    @Get('influencer/verify-new-social-media-price')
+    changeSocialMediaPrice(
+        @Query() query: { influencerId: string; socialMedia: string; networkUsername: string; isPriceGoodToGo: string; newPrice: string },
+    ) {
+        const isPriceGoodToGo = query.isPriceGoodToGo === 'true';
+        return this.profileService.changeSocialMediaPrice(
+            query.influencerId,
+            query.socialMedia,
+            query.networkUsername,
+            isPriceGoodToGo,
+            query.newPrice,
+        );
+    }
 }

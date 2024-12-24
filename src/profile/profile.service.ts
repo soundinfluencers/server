@@ -307,16 +307,10 @@ export class ProfileService {
 
         let emailContent = `
             <p>Hi,</p>
-            <p>The Influencer <strong>${influencer.firstName}</strong> wants to change the price for <strong>${data.typeOfSocialMedia}</strong> account <strong>${account.instagramUsername}</strong></p>
-            <br>
+            <p>The influencer <strong>${influencer.firstName}</strong> has requested to update the price for their ${data.typeOfSocialMedia} account <strong>${account.instagramUsername}</strong> from €${account.price} to €${data.newPrice}.</p>
+<a href="${process.env.SERVER}/profile/influencer/verify-new-social-media-price?influencerId=${data.influencerId}&socialMedia=${data.typeOfSocialMedia}&networkUsername=${encodeURIComponent(account.instagramUsername)}&isPriceGoodToGo=${true}&newPrice=${data.newPrice}">ACCEPT</a>
+<a href="${process.env.SERVER}/profile/influencer/verify-new-social-media-price?influencerId=${data.influencerId}&socialMedia=${data.typeOfSocialMedia}&networkUsername=${encodeURIComponent(account.instagramUsername)}&isPriceGoodToGo=${false}&newPrice=${data.newPrice}">DECLINE</a>
         `;
-        
-        if (data.newPrice) {
-            emailContent += `
-                <p><strong>Old price:</strong> ${account.price}€</p>
-                <p><strong>New price:</strong> ${data.newPrice}€</p>
-            `;
-        }
 
         await sendMail(
             // "nazarkozynets030606@zohomail.eu",
@@ -325,13 +319,82 @@ export class ProfileService {
             emailContent,
             "html"
         );
-
+        
+        await sendMail(
+            influencer.email,
+            "soundinfluencers",
+            `
+                <p>Hi ${influencer.firstName}</p>
+                <br>
+                <p>We've received your price change request and we will come back to you ASAP.</p>
+                <br>    
+                <p>Thanks for your patience</p>
+                <p>SoundInfluencers Team</p>
+            `
+        );
+        
         return {
             code: 200,
             message: 'Email sent successfully',
         };
     };
 
+    async changeSocialMediaPrice(influencerId: string, socialMedia: string, networkUsername: string, isPriceGoodToGo: boolean, newPrice: string) {
+        if (!influencerId || !socialMedia || !networkUsername || isPriceGoodToGo === undefined) {
+            return {
+                code: 400,
+                message: 'Not enough arguments',
+            };
+        }
+        
+        if (isPriceGoodToGo) {
+            const influencer = await this.influencerModel.findOne({_id: influencerId});
+
+            if (!influencer) {
+                return {
+                    code: 404,
+                    message: 'User not found',
+                };
+            }
+
+            const socialMediaAccounts = influencer[socialMedia];
+
+            if (!socialMediaAccounts || socialMediaAccounts.length === 0) {
+                return {
+                    code: 404,
+                    message: `No accounts found for type: ${socialMedia}`,
+                };
+            }
+
+            const accountIndex = socialMediaAccounts.findIndex(
+                (account) => account.instagramUsername === networkUsername
+            );
+
+            if (accountIndex === -1) {
+                return {
+                    code: 404,
+                    message: 'Account not found',
+                };
+            }
+
+            socialMediaAccounts[accountIndex].price = newPrice;
+            socialMediaAccounts[accountIndex].publicPrice = (parseFloat(newPrice) * 2).toString();
+
+            influencer[socialMedia] = socialMediaAccounts;
+            await influencer.save();
+
+            return {
+                code: 200,
+                message: 'Social media account updated successfully',
+            };   
+        } else {
+            return {
+                code: 200,
+                message: 'Price change request declined',
+            };
+        }
+    }
+    
     async deleteSocialMediaAccount(data: any) {
         try {
             if (!data) {
@@ -432,7 +495,7 @@ export class ProfileService {
             influencerId: influencer._id,
             accounts: [],
         };
-        
+
         for (const network of socialNetworks) {
             const accounts = data[network] || [];
             const usernames = accounts.map((item) => item.instagramUsername);
@@ -462,6 +525,7 @@ export class ProfileService {
             <li><strong>Followers: ${item.followersNumber}</strong></li>
             <li><strong>Logo: ${item.logo}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
+            <li><strong>Initial Price: ${item.initialPrice}</strong></li>
 </ul>
                 `;
             } else if (socialMedia === 'press') {
@@ -473,6 +537,7 @@ export class ProfileService {
             <li><strong>Logo: ${item.logo}</strong></li>
             <li><strong>Music Genres: ${formatGenres(item).join(', ')}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
+            <li><strong>Initial Price: ${item.initialPrice}</strong></li>
             `;
             } else {
                 return `
@@ -483,6 +548,7 @@ export class ProfileService {
             <li><strong>Logo: ${item.logo}</strong></li>
             <li><strong>Music Styles: ${formatGenres(item).join(', ')}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
+            <li><strong>Initial Price: ${item.initialPrice}</strong></li>
 </ul>
                 `;
             }
@@ -539,7 +605,7 @@ export class ProfileService {
                     });
 
                     influencer[network] = socialMediaAccounts;
-                    
+
                     dataToSendWithEmail.accounts.push(accountId);
                 }
             } catch (err) {
@@ -547,10 +613,10 @@ export class ProfileService {
                 errors.push(`Error adding ${network} account. ${err}`);
             }
         }
-        
+
         try {
             await sendMail(
-                // 'nazarkozynets030606@gmail.com',
+                // "nazarkozynets030606@zohomail.eu",
                 'admin@soundinfluencers.com',
                 'soundinfluencers',
                 `<p>Request from ${influencer.firstName} (${influencer.email}) to add a new Brand</p>
@@ -595,7 +661,7 @@ export class ProfileService {
             };
         }
 
-        const influencer = await this.influencerModel.findOne({ _id: influencerId });
+        const influencer = await this.influencerModel.findOne({_id: influencerId});
 
         if (!influencer) {
             return {
@@ -607,7 +673,7 @@ export class ProfileService {
         const socialNetworks = ['instagram', 'tiktok', 'spotify', 'soundcloud', 'facebook', 'youtube', 'press'];
 
         let updatedAccounts = [];
-        
+
         try {
             socialNetworks.forEach((network) => {
                 const accounts = influencer[network] || [];
@@ -626,11 +692,11 @@ export class ProfileService {
             await influencer.save();
 
             this.webSocketService.server.emit('brands approved', {
-                    influencerId,
-                    updatedAccounts,
-                    isVerified,
-                });
-            
+                influencerId,
+                updatedAccounts,
+                isVerified,
+            });
+
             return {
                 code: 200,
                 message: 'Social media account(s) updated successfully',

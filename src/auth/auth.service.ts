@@ -165,7 +165,7 @@ export class AuthService {
             if (!data) {
                 return {status: 400, message: 'Not enough arguments'};
             }
-
+console.log(data, 'data')
             const checkUser = await this.influencerModel.findOne({email: data.email})
                 || await this.clientModel.findOne({email: data.email});
 
@@ -259,7 +259,7 @@ export class AuthService {
             };
 
             await sendMail(
-                // 'nazarkozynets030606@gmail.com',
+                // "nazarkozynets030606@zohomail.eu",
                 'admin@soundinfluencers.com',
                 'soundinfluencers',
                 `<p>Request from a new partner ${data.firstName}</p>
@@ -277,6 +277,7 @@ export class AuthService {
             <li><strong>Logo: ${item.logo}</strong></li>
             <li><strong>Music Styles: ${formatGenres(item).join(', ')}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
+            <li><strong>Initial Price: ${item.initialPrice}</strong></li>
 </ul>`).join('')).join('')}
             <h2>Do you want to verify your account?</h2>
             <a href="${process.env.SERVER}/auth/verify-influencer?verifyId=${generateVerifyId}&responseVerify=accept">ACCEPT</a>

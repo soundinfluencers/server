@@ -10,6 +10,6 @@ export class SendMailPriceChangeDto {
     @Prop()
     accountId: string;
     
-    @Prop({isRequired: false})
+    @Prop()
     newPrice: string;
 }
