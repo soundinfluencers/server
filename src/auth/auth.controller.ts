@@ -89,6 +89,11 @@ export class AuthController {
         return this.authService.getInfluencerById(id);
     }
     
+    @Get('influencer/one-network/:id/:socialMedia/:networkUsername')
+    getOneSocialNetworkAccount(@Param('id') id: string, @Param('socialMedia') socialMedia: string, @Param('networkUsername') networkUsername: string) {
+        return this.authService.getOneSocialNetworkAccount(id, socialMedia, networkUsername);
+    }
+    
     @Get('client/:id')
     getClient(@Param('id') id: string) {
         return this.authService.getClientById(id);

@@ -10,6 +10,8 @@ import {Offers} from "./schemas/offers.schema";
 import sendMail from "src/utils/sendMail";
 import {DropboxService} from "src/services/Dropbox.service";
 import {PromosCopies} from "../admin/schemas/promos-copies.schema";
+import axios from "axios";
+import * as process from "node:process";
 
 mongoose.Promise = global.Promise;
 
@@ -417,8 +419,32 @@ ${data.videos.map((video, index) => `
 
                 const influencers = await this.influencerModel.find({_id: {$in: influencersIds}});
 
+                if (!influencers) {
+                    return {
+                        code: 404,
+                        message: "Influencers not found",
+                    };
+                }
+
+                let dataToSaveInfluencersHistory = [];
+
                 for (let influencer of influencers) {
-                    const influencerInstagramAccounts = influencer.instagram.map((account) => account.instagramUsername);
+                    const influencerInstagramAccounts = influencer[checkPromo.socialMedia].map((account) => {
+                        if (checkPromo.selectInfluencers.some((influencerData) => influencerData.instagramUsername === account.instagramUsername)) {
+                            dataToSaveInfluencersHistory.push({
+                                influencerId: influencer._id,
+                                campaignId: new mongoose.Types.ObjectId(checkPromo._id),
+                                campaignName: checkPromo.campaignName,
+                                updatedCampaignAction: {
+                                    actionNumber: 0,
+                                    networkUsername: account.instagramUsername,
+                                    rewardForInfluencer: parseInt(account.price),
+                                },
+                            });
+                        }
+
+                        return account.instagramUsername;
+                    });
 
                     const influencerVideos = checkPromo.videos.filter((video) => {
                         return checkPromo.selectInfluencers.some((influencerData) => {
@@ -456,6 +482,17 @@ ${influencerVideos.map((video, index) => `
 
                         await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
                     }
+                }
+
+                try {
+                    for (const item of dataToSaveInfluencersHistory) {
+                        await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, item);
+                    }
+                } catch (err) {
+                    return {
+                        code: 500,
+                        message: err,
+                    };
                 }
 
                 return {
@@ -948,6 +985,25 @@ ${influencerVideos.map((video, index) => `
             }
 
             if ((findNewPromo.statusPromo === "wait" || findNewPromo.statusPromo === 'work') && promoResponse === "accept") {
+                const resultOfSavingHistory = await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, {
+                    influencerId: influencerId,
+                    campaignId: new mongoose.Types.ObjectId(findNewPromo._id),
+                    campaignName: findNewPromo.campaignName,
+                    updatedCampaignAction: {
+                        actionNumber: 1,
+                        networkUsername: instagramUsername,
+                        rewardForInfluencer: parseInt(findNewPromo.selectInfluencers.find(influencer => influencer.instagramUsername === instagramUsername).price.replace(/\D/g, '')),
+                    },
+                });
+
+                if (resultOfSavingHistory.data.code !== 200) {
+                    console.error('Error saving history:', resultOfSavingHistory.data.message);
+                    return {
+                        code: 500,
+                        message: 'Internal Server Error',
+                    }
+                }
+                
                 const updateNewPromo = await this.promosModel.findOneAndUpdate(
                     {
                         _id: promoId,
@@ -989,10 +1045,27 @@ ${influencerVideos.map((video, index) => `
                     updateNewPromo,
                 };
             } else {
-                const influencer = await this.influencerModel.findById(influencerId);
-                const instagram = influencer.instagram.find(instagram => instagram.instagramUsername === instagramUsername);
-                const price = instagram.publicPrice;
+                const resultOfSavingHistory = await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, {
+                    influencerId: influencerId,
+                    campaignId: new mongoose.Types.ObjectId(findNewPromo._id),
+                    campaignName: findNewPromo.campaignName,
+                    updatedCampaignAction: {
+                        actionNumber: 2,
+                        networkUsername: instagramUsername,
+                        rewardForInfluencer: parseInt(findNewPromo.selectInfluencers.find(influencer => influencer.instagramUsername === instagramUsername).price.replace(/\D/g, '')),
+                    },
+                });
 
+                if (resultOfSavingHistory.data.code !== 200) {
+                    console.error('Error saving history:', resultOfSavingHistory.data.message);
+                    return {
+                        code: 500,
+                        message: 'Internal Server Error',
+                    }
+                }
+                
+                const price = parseInt(findNewPromo.selectInfluencers.find(influencer => influencer.instagramUsername === instagramUsername).price.replace(/\D/g, ''));
+                
                 const updatePromo = await this.promosModel.findOneAndUpdate(
                     {
                         _id: promoId,
@@ -1194,7 +1267,7 @@ ${influencerVideos.map((video, index) => `
         );
 
         const filteredSelectedInfluencerData = selectedInfluencerData.filter(data => data !== null);
-        
+
         if (filteredSelectedInfluencerData !== null) {
             return {
                 code: 200,
@@ -1278,116 +1351,190 @@ ${influencerVideos.map((video, index) => `
                 );
             };
 
-            const updateNewPromo = await (async () => {
-                if ((findNewPromo.socialMedia === 'spotify' || findNewPromo.socialMedia === 'soundcloud')) {
-                    if (data.screenshot === '' || data.screenshot === null) {
-                        console.log('screenshot is empty');
-                        return {
+            let updateNewPromo;
+            try {
+                updateNewPromo = await (async () => {
+                    if ((findNewPromo.socialMedia === 'spotify' || findNewPromo.socialMedia === 'soundcloud')) {
+                        if (data.screenshot === '' || data.screenshot === null) {
+                            console.error(`Screenshot is empty (Updating spotify campaign: ${promoId})`);
+                            return {
+                                code: 400,
+                                message: 'Screenshot is empty',
+                            };
+                        }
+                        if (dataInstagram.closePromo !== "close") await paymentGo();
+
+                        const resultOfSavingHistory = await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, {
+                            influencerId: influencerId,
+                            campaignId: new mongoose.Types.ObjectId(findNewPromo._id),
+                            campaignName: findNewPromo.campaignName,
+                            updatedCampaignAction: {
+                                actionNumber: 3,
+                                networkUsername: instagramUsername,
+                                rewardForInfluencer: parseInt(findNewPromo.selectInfluencers.find(influencer => influencer.instagramUsername === instagramUsername).price.replace(/\D/g, '')),
+                            },
+                        });
+
+                        if (resultOfSavingHistory.data.code !== 200) {
+                            console.error('Error saving history:', resultOfSavingHistory.data.message);
+                            return {
+                                code: 500,
+                                message: 'Internal Server Error',
+                            }
+                        }
+
+                        await this.promosModel.findOneAndUpdate(
+                            {
+                                _id: promoId,
+                                selectInfluencers: {
+                                    $elemMatch: {
+                                        influencerId: influencerId,
+                                        instagramUsername: instagramUsername,
+                                    },
+                                },
+                            },
+                            {
+                                $set: {
+                                    "selectInfluencers.$": {
+                                        ...dataInstagram,
+                                        ...data,
+                                        closePromo: "close",
+                                    },
+                                },
+                            }
+                        );
+                    } else if (findNewPromo.socialMedia === "press") {
+                        if (data.postLink === '' || data.postLink === null) return {
                             code: 400,
-                            message: 'screenshot is empty',
+                            message: `Post link is empty (Updating press campaign: ${promoId})`,
                         };
+
+                        if (dataInstagram.closePromo !== "close") await paymentGo();
+
+                        const resultOfSavingHistory = await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, {
+                            influencerId: influencerId,
+                            campaignId: new mongoose.Types.ObjectId(findNewPromo._id),
+                            campaignName: findNewPromo.campaignName,
+                            updatedCampaignAction: {
+                                actionNumber: 3,
+                                networkUsername: instagramUsername,
+                                rewardForInfluencer: parseInt(findNewPromo.selectInfluencers.find(influencer => influencer.instagramUsername === instagramUsername).price.replace(/\D/g, '')),
+                            },
+                        });
+
+                        if (resultOfSavingHistory.data.code !== 200) {
+                            console.error('Error saving history:', resultOfSavingHistory.data.message);
+                            return {
+                                code: 500,
+                                message: 'Internal Server Error',
+                            }
+                        }
+
+                        return await this.promosModel.findOneAndUpdate(
+                            {
+                                _id: promoId,
+                                selectInfluencers: {
+                                    $elemMatch: {
+                                        influencerId: influencerId,
+                                        instagramUsername: instagramUsername,
+                                    },
+                                },
+                            },
+                            {
+                                $set: {
+                                    "selectInfluencers.$": {
+                                        ...dataInstagram,
+                                        ...data,
+                                        closePromo: "close",
+                                    },
+                                },
+                            }
+                        );
+                    } else if (
+                        data.postLink &&
+                        data.datePost &&
+                        data.impressions &&
+                        data.like &&
+                        data.screenshot
+                    ) {
+                        if (dataInstagram.closePromo !== "close") await paymentGo();
+                        
+                        const resultOfSavingHistory = await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, {
+                            influencerId: influencerId,
+                            campaignId: new mongoose.Types.ObjectId(findNewPromo._id),
+                            campaignName: findNewPromo.campaignName,
+                            updatedCampaignAction: {
+                                actionNumber: 3,
+                                networkUsername: instagramUsername,
+                                rewardForInfluencer: parseInt(findNewPromo.selectInfluencers.find(influencer => influencer.instagramUsername === instagramUsername).price.replace(/\D/g, '')),
+                            },
+                        });
+
+                        if (resultOfSavingHistory.data.code !== 200) {
+                            console.error('Error saving history:', resultOfSavingHistory.data.message);
+                            return {
+                                code: 500,
+                                message: 'Internal Server Error',
+                            }
+                        }
+                        
+                        return await this.promosModel.findOneAndUpdate(
+                            {
+                                _id: promoId,
+                                selectInfluencers: {
+                                    $elemMatch: {
+                                        influencerId: influencerId,
+                                        instagramUsername: instagramUsername,
+                                    },
+                                },
+                            },
+                            {
+                                $set: {
+                                    "selectInfluencers.$": {
+                                        ...dataInstagram,
+                                        ...data,
+                                        closePromo: "close",
+                                    },
+                                },
+                            }
+                        );
+                    } else {
+                        return await this.promosModel.findOneAndUpdate(
+                            {
+                                _id: promoId,
+                                selectInfluencers: {
+                                    $elemMatch: {
+                                        influencerId: influencerId,
+                                        instagramUsername: instagramUsername,
+                                    },
+                                },
+                            },
+                            {
+                                $set: {
+                                    "selectInfluencers.$": {
+                                        ...dataInstagram,
+                                        ...data,
+                                    },
+                                },
+                            }
+                        );
                     }
-                    if (dataInstagram.closePromo !== "close") await paymentGo();
+                })();
+            } catch (err) {
+                console.error('Error updating promo:', err);
+                return {
+                    code: 500,
+                    message: err,
+                };
+            }
 
-                    await this.promosModel.findOneAndUpdate(
-                        {
-                            _id: promoId,
-                            selectInfluencers: {
-                                $elemMatch: {
-                                    influencerId: influencerId,
-                                    instagramUsername: instagramUsername,
-                                },
-                            },
-                        },
-                        {
-                            $set: {
-                                "selectInfluencers.$": {
-                                    ...dataInstagram,
-                                    ...data,
-                                    closePromo: "close",
-                                },
-                            },
-                        }
-                    );
-                } else if (findNewPromo.socialMedia === "press") {
-                    if (data.postLink === '' || data.postLink === null) return {
-                        code: 400,
-                        message: 'post link is empty',
-                    };
-                    if (dataInstagram.closePromo !== 'close') await paymentGo();
-
-                    return await this.promosModel.findOneAndUpdate(
-                        {
-                            _id: promoId,
-                            selectInfluencers: {
-                                $elemMatch: {
-                                    influencerId: influencerId,
-                                    instagramUsername: instagramUsername,
-                                },
-                            },
-                        },
-                        {
-                            $set: {
-                                "selectInfluencers.$": {
-                                    ...dataInstagram,
-                                    ...data,
-                                    closePromo: "close",
-                                },
-                            },
-                        }
-                    );
-                } else if (
-                    data.postLink &&
-                    data.datePost &&
-                    data.impressions &&
-                    data.like &&
-                    data.screenshot
-                ) {
-                    if (dataInstagram.closePromo !== "close") await paymentGo();
-
-                    return await this.promosModel.findOneAndUpdate(
-                        {
-                            _id: promoId,
-                            selectInfluencers: {
-                                $elemMatch: {
-                                    influencerId: influencerId,
-                                    instagramUsername: instagramUsername,
-                                },
-                            },
-                        },
-                        {
-                            $set: {
-                                "selectInfluencers.$": {
-                                    ...dataInstagram,
-                                    ...data,
-                                    closePromo: "close",
-                                },
-                            },
-                        }
-                    );
-                } else {
-                    return await this.promosModel.findOneAndUpdate(
-                        {
-                            _id: promoId,
-                            selectInfluencers: {
-                                $elemMatch: {
-                                    influencerId: influencerId,
-                                    instagramUsername: instagramUsername,
-                                },
-                            },
-                        },
-                        {
-                            $set: {
-                                "selectInfluencers.$": {
-                                    ...dataInstagram,
-                                    ...data,
-                                },
-                            },
-                        }
-                    );
-                }
-            })();
-
+            if (!updateNewPromo || updateNewPromo.code === 500) {
+                return {
+                    code: 500,
+                    message: 'Internal Server Error',
+                };
+            }
+            
             let checkPromo = true;
             findNewPromo.selectInfluencers.forEach((item) => {
                 if (item.confirmation === "refusing") return;

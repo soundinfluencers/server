@@ -695,10 +695,8 @@ console.log(data, 'data')
 
     async getInfluencerById(id: string) {
         try {
-            const objectId = new Types.ObjectId(id);
-
             const getInfluencer = await this.influencerModel
-                .findOne({_id: objectId})
+                .findOne({_id: new mongoose.Types.ObjectId(id)})
                 .select(['-password', '-balance', '-phone', '-email'])
                 .lean()
                 .exec();
@@ -714,6 +712,47 @@ console.log(data, 'data')
                 message: err,
             };
         }
+    }
+    
+    async getOneSocialNetworkAccount(influencerId: string, socialMedia: string, networkUsername: string) {
+        if (!influencerId || !socialMedia || !networkUsername) {
+            return {
+                code: 400,
+                message: 'Not enough arguments',
+            };
+        }
+        
+        const influencer = await this.influencerModel.findOne({_id: new mongoose.Types.ObjectId(influencerId)});
+        
+        if (!influencer) {
+            return {
+                code: 404,
+                message: 'Influencer not found',
+            };
+        }
+        
+        const socialMediaAccounts = influencer[socialMedia];
+        
+        if (!socialMediaAccounts) {
+            return {
+                code: 404,
+                message: 'Social media not found',
+            };
+        }
+        
+        const account = socialMediaAccounts.find((item) => item.instagramUsername === networkUsername);
+        
+        if (!account) {
+            return {
+                code: 404,
+                message: 'Account not found',
+            };
+        }
+        
+        return {
+            code: 200,
+            account,
+        };
     }
 
     async getClientById(id: string) {

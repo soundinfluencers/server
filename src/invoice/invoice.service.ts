@@ -7,10 +7,12 @@ import {CreateInvoiceDtoDto} from "./dto/create-invoice.dto";
 import {Invoices} from "./schemas/invoices.schema";
 import {SaveInvoiceData} from "./schemas/invoice-save.schema";
 import sendMail from "src/utils/sendMail";
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import {Injectable, HttpException, HttpStatus} from '@nestjs/common';
+
 const fs = require("fs");
 const PDFDocument = require("pdfkit");
 import {Response} from 'express';
+import axios from "axios";
 
 @Injectable()
 export class InvoiceService {
@@ -123,7 +125,7 @@ export class InvoiceService {
         doc.text("Selected Payment Method: " + result.selectedPaymentMethod, 50, currentY);
 
         currentY += 20;
-        doc.text(getPaymentMethod(), 50, currentY, { width: 500, continued: false });
+        doc.text(getPaymentMethod(), 50, currentY, {width: 500, continued: false});
 
         currentY = doc.y + 20;
         doc.text("Payment Terms: Within 7 business days", 50, currentY);
@@ -176,35 +178,49 @@ export class InvoiceService {
             if (!checkUser) {
                 return {
                     code: 404,
-                    message: "influencer not found",
+                    message: "Influencer not found",
                 };
             }
 
-            await this.influencerModel.findByIdAndUpdate(
-                {_id: data.influencerId},
-                {balance: +checkUser.balance - data.amount}
-            );
-            
             data.description = "Payment Due: 7 days (subject to approval)";
             const result = await this.invoicesModel.create({
                 ...data,
                 status: "Submitted",
             });
+
+            const newBalance = +checkUser.balance - data.amount;
+            
+            const resultOfSavingHistory = await axios.post(
+                `${process.env.SERVER}/influencer-actions-history/upsert/invoice`,
+                {
+                    influencerId: data.influencerId,
+                    invoiceId: result._id,
+                    paymentMethod: data.selectedPaymentMethod,
+                    currentBalance: newBalance,
+                    amount: data.amount,
+                }
+            );
+            
+            if (+resultOfSavingHistory.data.code !== 200) {
+                throw new Error("Error saving invoice history");
+            }
+
             const findSaveData = await this.saveInvoiceDataModel.findOne({
                 influencerId: data.influencerId,
             });
+
             if (findSaveData) {
                 await this.saveInvoiceDataModel.findByIdAndUpdate(
-                    {_id: findSaveData._id},
+                    { _id: findSaveData._id },
                     data
                 );
             } else {
                 await this.saveInvoiceDataModel.create(data);
             }
 
-            const instagramAccounts = checkUser.instagram.map((account) => {
-                return `<br /> - ${account.instagramUsername}`;
-            }).join('');
+            const instagramAccounts = checkUser.instagram
+                .map((account) => `<br /> - ${account.instagramUsername}`)
+                .join("");
 
             await this.createPDF(result, data)
                 .then(async (pdfPath) => {
@@ -213,9 +229,9 @@ export class InvoiceService {
                         "admin@soundinfluencers.com",
                         `${checkUser.email}`,
                         `<p>Invoice from ${checkUser.email} <b>(Contact email: ${data.contactEmail})</b> </p>
-<p><b>ID:</b> ${result?._id}</p>
-<p><b>Instagram Accounts:</b> ${instagramAccounts}</p>
-<p><b>Selected Payment Method:</b> ${data.selectedPaymentMethod}</p>`,
+                    <p><b>ID:</b> ${result?._id}</p>
+                    <p><b>Instagram Accounts:</b> ${instagramAccounts}</p>
+                    <p><b>Selected Payment Method:</b> ${data.selectedPaymentMethod}</p>`,
                         "pdf",
                         pdfPath as string
                     );
@@ -224,26 +240,39 @@ export class InvoiceService {
                         data.contactEmail,
                         "soundinfluencers",
                         `<p>Hello</p>
-        <p>We acknowledge the receipt of your invoice. If everything is in order, we will process the payment to your details within the next 7 days.
-        </p></br></br>
-        <p>Bests</br>
-        Sound Influencers Team
-        </p>
-        `,
+                    <p>We acknowledge the receipt of your invoice. If everything is in order, we will process the payment to your details within the next 7 days.</p></br></br>
+                    <p>Bests</br>Sound Influencers Team</p>`,
+
                         "html"
                     );
                 })
                 .catch((error) => {
                     console.error("Error creating PDF:", error);
                 });
+
+            await this.influencerModel.findByIdAndUpdate(
+                { _id: data.influencerId },
+                { balance: newBalance }
+            );
+            
             return {
                 code: 201,
                 result,
             };
         } catch (err) {
-            console.log(err);
+            console.error("Error in createInvoice:", err);
+
+            if (err.message === "Error saving invoice history") {
+                return {
+                    code: 500,
+                    message: err.message,
+                };
+            }
+
+            throw err;
         }
     }
+
 
     async getInvoices(influencerId: string) {
         if (!influencerId) {

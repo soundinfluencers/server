@@ -17,7 +17,7 @@ import {CreatePromosDto} from './dto/create-promo.dto';
 import {CreatePromosEstimateDto} from "./dto/create-promo-estimate.dto";
 import {ApiQuery} from '@nestjs/swagger';
 import {FileInterceptor} from '@nestjs/platform-express';
-import File from 'multer'; // Correct import of File type
+import File from 'multer'; 
 
 @Controller('promos')
 export class PromosController {
