@@ -101,52 +101,85 @@ export class AdminService {
 
     async adminGetClients() {
         try {
-            const getClientsAll = await this.clientModel
-                .find({statusVerify: 'accept'})
-                .select(['-password'])
-                .lean()
-                .exec();
-
-            const clients = [];
-
-            for (const client of getClientsAll) {
-                const campaignsCompleted = await this.promosModel.countDocuments({
-                    userId: client._id,
-                    statusPromo: 'finally'
-                }).exec();
-
-                const campaignsDenied = await this.promosModel.countDocuments({
-                    userId: client._id,
-                    selectInfluencers: {
-                        $elemMatch: {
-                            confirmation: {$ne: 'accept'}
+            const clientsData = await this.clientModel.aggregate([
+                {
+                    $match: { statusVerify: 'accept' } 
+                },
+                {
+                    $lookup: {
+                        from: 'promos', 
+                        localField: '_id',
+                        foreignField: 'userId',
+                        as: 'campaigns'
+                    }
+                },
+                {
+                    $addFields: {
+                        campaignsCompleted: {
+                            $size: {
+                                $filter: {
+                                    input: '$campaigns',
+                                    as: 'campaign',
+                                    cond: { $eq: ['$$campaign.statusPromo', 'finally'] }
+                                }
+                            }
+                        },
+                        campaignsDenied: {
+                            $size: {
+                                $filter: {
+                                    input: '$campaigns',
+                                    as: 'campaign',
+                                    cond: {
+                                        $gt: [
+                                            {
+                                                $size: {
+                                                    $filter: {
+                                                        input: '$$campaign.selectInfluencers',
+                                                        as: 'influencer',
+                                                        cond: { $ne: ['$$influencer.confirmation', 'accept'] }
+                                                    }
+                                                }
+                                            },
+                                            0
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                        campaignsOngoing: {
+                            $size: {
+                                $filter: {
+                                    input: '$campaigns',
+                                    as: 'campaign',
+                                    cond: { $eq: ['$$campaign.statusPromo', 'work'] }
+                                }
+                            }
+                        },
+                        latestCampaign: {
+                            $arrayElemAt: [
+                                {
+                                    $sortArray: {
+                                        input: '$campaigns',
+                                        sortBy: { createdAt: -1 }
+                                    }
+                                },
+                                0
+                            ]
                         }
                     }
-                }).exec();
-
-                const campaignsOngoing = await this.promosModel.countDocuments({
-                    userId: client._id,
-                    statusPromo: 'work'
-                }).exec();
-
-                const latestCampaign = await this.promosModel.find({
-                    userId: client._id
-                }).sort({createdAt: -1}).limit(1).lean().exec();
-
-                clients.push({
-                    ...client,
-                    campaignsCompleted,
-                    campaignsDenied,
-                    campaignsOngoing,
-                    latestCampaign: latestCampaign[0],
-                });
-            }
+                },
+                {
+                    $project: {
+                        password: 0,
+                        campaigns: 0 
+                    }
+                }
+            ]);
 
             return {
                 code: 200,
-                data: clients
+                data: clientsData
             };
-
         } catch (err) {
             console.log(err);
             return {

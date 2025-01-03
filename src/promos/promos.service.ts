@@ -193,8 +193,8 @@ ${emailVideoContent()}
 </p>`;
 
         await sendMail(
-            // "nazarkozynets030606@zohomail.eu",
-            "admin@soundinfluencers.com",
+            "nazarkozynets030606@zohomail.eu",
+            // "admin@soundinfluencers.com",
             "soundinfluencers",
             emailContent,
             "html"
@@ -276,8 +276,8 @@ ${emailVideoContent()}
             const dataClient = await this.clientModel.findOne({_id: data.userId});
 
             await sendMail(
-                // "nazarkozynets030606@zohomail.eu",
-                "admin@soundinfluencers.com",
+                "nazarkozynets030606@zohomail.eu",
+                // "admin@soundinfluencers.com",
                 "soundinfluencers",
                 `<p>Hi</p>
                 <p>The Client ${dataClient.firstName} has requested a campaign on this network without providing any content</p>
@@ -314,8 +314,8 @@ ${emailVideoContent()}
             }
 
             await sendMail(
-                // "nazarkozynets030606@zohomail.eu",
-                "admin@soundinfluencers.com",
+                "nazarkozynets030606@zohomail.eu",
+                // "admin@soundinfluencers.com",
                 "soundinfluencers",
                 `<p>Hi,</p>
 <p>The Client ${dataClient.firstName} has requested the following post for this list of influencers:</p>
@@ -480,7 +480,7 @@ ${influencerVideos.map((video, index) => `
 <p>Soundinfluencers Team</p>
 `;
 
-                        await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
+                        // await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
                     }
                 }
 
@@ -734,6 +734,7 @@ ${influencerVideos.map((video, index) => `
                         ...influencerItem,
                         firstName: influencerData.firstName,
                         followersNumber: followersNumber,
+                        logo: instagramAccount.logo,
                     };
                 })
             );
@@ -1027,8 +1028,8 @@ ${influencerVideos.map((video, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewPromo.userId);
 
                 await sendMail(
-                    // "nazarkozynets030606@zohomail.eu",
-                    "admin@soundinfluencers.com",
+                    "nazarkozynets030606@zohomail.eu",
+                    // "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} accepted the offer for ${checkUserClient.email}'s campaign</p>
                 <p>Details:</p><br/>
@@ -1089,8 +1090,8 @@ ${influencerVideos.map((video, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewPromo.userId);
 
                 await sendMail(
-                    // "nazarkozynets030606@zohomail.eu",
-                    "admin@soundinfluencers.com",
+                    "nazarkozynets030606@zohomail.eu",
+                    // "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} declined the offer for ${checkUserClient.email}'s campaign</p>
                 <p>Details:</p><br/>
