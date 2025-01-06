@@ -1760,18 +1760,18 @@ Soundinfluencers Team
 
     async adminUpdateOldOffer(data: AdminSaveOffersToTempDto) {
         try {
-            const offer = await this.offersModel.findOne({_id: data._id});
+            const offer = await this.offersModel.findOne({ _id: data._id });
 
             if (offer) {
-                await this.offersModel.deleteOne({_id: data._id});
-                await this.offersTempModel.create({...data, isNew: true});
+                await this.offersTempModel.create({ ...data, isNew: true });
+                await this.offersModel.deleteOne({ _id: data._id });
 
                 return {
                     status: 200,
                     message: 'Offer updated successfully',
                 };
             } else {
-                const offerTemp = await this.offersTempModel.findOne({_id: data._id});
+                const offerTemp = await this.offersTempModel.findOne({ _id: data._id });
 
                 if (!offerTemp) {
                     return {
@@ -1779,7 +1779,8 @@ Soundinfluencers Team
                         message: 'Offer not found',
                     };
                 }
-                await this.offersTempModel.updateOne({_id: data._id}, {...data});
+
+                await this.offersTempModel.updateOne({ _id: data._id }, { ...data });
 
                 return {
                     status: 200,
@@ -1788,10 +1789,7 @@ Soundinfluencers Team
             }
         } catch (err) {
             console.error('Error occurred:', err);
-            return {
-                status: 500,
-                message: 'An unknown error occurred',
-            };
+            throw new Error('An unknown error occurred'); 
         }
     }
 

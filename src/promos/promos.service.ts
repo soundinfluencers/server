@@ -566,12 +566,16 @@ ${influencerVideos.map((video, index) => `
 
     async getInfluencerAvatarById(influencerId: string, instagramName: string) {
         const influencer = await this.influencerModel.findById(influencerId);
-        const avatar = influencer.instagram.find(
-            (item) => item.instagramUsername === instagramName
-        ).logo;
+        if (!influencer) {
+            throw new Error(`Influencer with ID ${influencerId} not found`);
+        }
 
-        return avatar || null;
+        const instagramAccount = influencer.instagram?.find(
+            (item) => item.instagramUsername === instagramName
+        );
+        return instagramAccount?.logo || null;
     }
+
 
     async checkUploadStatus(fileName: string): Promise<boolean> {
         const dropboxService = new DropboxService();
