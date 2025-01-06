@@ -616,8 +616,8 @@ export class ProfileService {
 
         try {
             await sendMail(
-                "nazarkozynets030606@zohomail.eu",
-                // 'admin@soundinfluencers.com',
+                // "nazarkozynets030606@zohomail.eu",
+                'admin@soundinfluencers.com',
                 'soundinfluencers',
                 `<p>Request from ${influencer.firstName} (${influencer.email}) to add a new Brand</p>
             <b>Details:</b><br/>
