@@ -210,4 +210,9 @@ export class AdminController {
     hideCpmAndResultForCampaign(@Param('promoId') promoId: string) {
         return this.adminService.hideCpmAndResultForCampaign(promoId);
     }
+    
+    @Get('edit-influencer/getInfluencerAccount/:influencerId')
+    adminGetInfluencerAccount(@Param('influencerId') influencerId: string) {
+        return this.adminService.adminGetInfluencerAccount(influencerId);
+    }
 }

@@ -1862,6 +1862,31 @@ Soundinfluencers Team
         }
     };
 
+    async adminGetInfluencerAccount(influencerId: string) {
+        try {
+            const influencer = await this.influencerModel.findOne({ _id: influencerId });
+
+            if (!influencer) {
+                console.error('Influencer not found');
+                return {
+                    status: 404,
+                    message: 'Influencer not found',
+                };
+            }
+
+            return {
+                status: 200,
+                influencer: influencer,
+            };
+        } catch (err) {
+            console.error('Error occurred:', err);
+            return {
+                status: 500,
+                message: 'An unknown error occurred',
+            };
+        }
+    }
+    
     async adminAddFieldsToInfluencersBrands() {
         const result = await this.influencerModel.updateMany(
             {"instagram": {$exists: true, $ne: []}},
