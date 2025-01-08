@@ -27,13 +27,13 @@ export class Offers {
     @Prop()
     id: number;
 
-    @Prop()
+    @Prop({required: false, default: 0})
     price: number;
 
-    @Prop()
+    @Prop({required: false, default: 0})
     maxInfluencer: number;
 
-    @Prop()
+    @Prop({required: false, default: []})
     connectInfluencer: [];
 
     @Prop()

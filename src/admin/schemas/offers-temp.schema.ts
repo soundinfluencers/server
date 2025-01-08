@@ -8,7 +8,7 @@ export class OffersTemp {
     @Prop({required: true})
     id: number;
     
-    @Prop({required: true})
+    @Prop({required: false, default: 0})
     price: number;
     
     @Prop({required: true})
@@ -20,10 +20,10 @@ export class OffersTemp {
     @Prop({required: true})
     story: string;
     
-    @Prop({required: true})
+    @Prop({required: false, default: 0})
     maxInfluencer: number;
     
-    @Prop({required: true})
+    @Prop({required: false, default: []})
     connectInfluencer: [];
     
     @Prop({required: true})
