@@ -33,7 +33,7 @@ export class Offers {
     @Prop({required: false, default: 0})
     maxInfluencer: number;
 
-    @Prop({required: false, default: []})
+    @Prop({required: false, default: null})
     connectInfluencer: [];
 
     @Prop()

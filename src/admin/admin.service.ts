@@ -23,6 +23,7 @@ import {AdminSaveOffersToTempDto} from "./dto/admin-save-offer-to-temp.dto";
 import {AdminPutOfferToOffersDto} from "./dto/admin-put-offer-to-offers.dto";
 import {PromosService} from "../promos/promos.service";
 import {PromosCopies} from "./schemas/promos-copies.schema";
+import {AdminUpdateInfluencerFullAccountDto} from "./dto/admin-update-influencer-full-account.dto";
 
 const fs = require("fs");
 const PDFDocument = require("pdfkit");
@@ -1598,6 +1599,10 @@ Soundinfluencers Team
         try {
             const offer = await this.offersModel.findOne({_id: data._id});
 
+            if (Array.isArray(data.connectInfluencer) && data.connectInfluencer.length === 0) {
+                data.connectInfluencer = null;
+            }
+            
             if (offer) await offer.deleteOne();
 
             const findOfferInTemp = await this.offersTempModel.findOne({_id: data._id});
@@ -1626,6 +1631,10 @@ Soundinfluencers Team
         try {
             const existingOffer = await this.offersTempModel.findOne({_id: data._id});
 
+            if (Array.isArray(data.connectInfluencer) && data.connectInfluencer.length === 0) {
+                data.connectInfluencer = null;
+            }
+            
             if (existingOffer) {
                 await this.offersTempModel.updateOne({_id: data._id}, {...data});
                 return {
@@ -1684,6 +1693,10 @@ Soundinfluencers Team
 
     async adminReturnOfferFromDeleted(data: AdminPutOfferToOffersDto) {
         try {
+            if (Array.isArray(data.connectInfluencer) && data.connectInfluencer.length === 0) {
+                data.connectInfluencer = null;
+            }
+            
             if (data.wasPublished) {
                 const offer = await this.offersModel.findOne({_id: data._id});
 
@@ -1762,6 +1775,10 @@ Soundinfluencers Team
         try {
             const offer = await this.offersModel.findOne({ _id: data._id });
 
+            if (Array.isArray(data.connectInfluencer) && data.connectInfluencer.length === 0) {
+                data.connectInfluencer = null;
+            }
+            
             if (offer) {
                 await this.offersTempModel.create({ ...data, isNew: true });
                 await this.offersModel.deleteOne({ _id: data._id });
@@ -1877,6 +1894,41 @@ Soundinfluencers Team
             return {
                 status: 200,
                 influencer: influencer,
+            };
+        } catch (err) {
+            console.error('Error occurred:', err);
+            return {
+                status: 500,
+                message: 'An unknown error occurred',
+            };
+        }
+    }
+    
+    async adminUpdateInfluencerAccount(data: AdminUpdateInfluencerFullAccountDto) {
+        try {
+            const influencer = await this.influencerModel.findOne({ _id: data._id });
+
+            if (!influencer) {
+                console.error('Influencer not found');
+                return {
+                    status: 404,
+                    message: 'Influencer not found',
+                };
+            }
+            
+            try {
+                await this.influencerModel.updateOne({ _id: data._id }, { ...data });
+            } catch (err) {
+                console.error('Error updating influencer:', err);
+                return {
+                    status: 500,
+                    message: 'An unknown error occurred',
+                };
+            }
+    
+            return {
+                status: 200,
+                message: 'Influencer updated successfully',
             };
         } catch (err) {
             console.error('Error occurred:', err);

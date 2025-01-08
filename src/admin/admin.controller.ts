@@ -25,6 +25,7 @@ import {AdminAddInfluencerToCampaignDto} from "./dto/admin-add-influencer-to-cam
 import {AdminSendEmailToInfluencerDto} from "./dto/admin-send-email-to-influencer.dto";
 import {AdminSaveOffersToTempDto} from "./dto/admin-save-offer-to-temp.dto";
 import {AdminPutOfferToOffersDto} from "./dto/admin-put-offer-to-offers.dto";
+import {AdminUpdateInfluencerFullAccountDto} from "./dto/admin-update-influencer-full-account.dto";
 
 @Controller('admin')
 export class AdminController {
@@ -214,5 +215,10 @@ export class AdminController {
     @Get('edit-influencer/getInfluencerAccount/:influencerId')
     adminGetInfluencerAccount(@Param('influencerId') influencerId: string) {
         return this.adminService.adminGetInfluencerAccount(influencerId);
+    }
+    
+    @Put('edit-influencer/updateInfluencerAccount')
+    adminUpdateInfluencerAccount(@Body() data: AdminUpdateInfluencerFullAccountDto) {
+        return this.adminService.adminUpdateInfluencerAccount(data);
     }
 }
