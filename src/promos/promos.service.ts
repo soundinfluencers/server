@@ -12,6 +12,7 @@ import {DropboxService} from "src/services/Dropbox.service";
 import {PromosCopies} from "../admin/schemas/promos-copies.schema";
 import axios from "axios";
 import * as process from "node:process";
+import {GetSelectedSocialAccountsDto} from "./dto/get-selected-social-accounts.dto";
 
 mongoose.Promise = global.Promise;
 
@@ -1008,7 +1009,7 @@ ${influencerVideos.map((video, index) => `
                         message: 'Internal Server Error',
                     }
                 }
-                
+
                 const updateNewPromo = await this.promosModel.findOneAndUpdate(
                     {
                         _id: promoId,
@@ -1068,9 +1069,9 @@ ${influencerVideos.map((video, index) => `
                         message: 'Internal Server Error',
                     }
                 }
-                
+
                 const price = parseInt(findNewPromo.selectInfluencers.find(influencer => influencer.instagramUsername === instagramUsername).price.replace(/\D/g, ''));
-                
+
                 const updatePromo = await this.promosModel.findOneAndUpdate(
                     {
                         _id: promoId,
@@ -1463,7 +1464,7 @@ ${influencerVideos.map((video, index) => `
                         data.screenshot
                     ) {
                         if (dataInstagram.closePromo !== "close") await paymentGo();
-                        
+
                         const resultOfSavingHistory = await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, {
                             influencerId: influencerId,
                             campaignId: new mongoose.Types.ObjectId(findNewPromo._id),
@@ -1482,7 +1483,7 @@ ${influencerVideos.map((video, index) => `
                                 message: 'Internal Server Error',
                             }
                         }
-                        
+
                         return await this.promosModel.findOneAndUpdate(
                             {
                                 _id: promoId,
@@ -1539,7 +1540,7 @@ ${influencerVideos.map((video, index) => `
                     message: 'Internal Server Error',
                 };
             }
-            
+
             let checkPromo = true;
             findNewPromo.selectInfluencers.forEach((item) => {
                 if (item.confirmation === "refusing") return;
@@ -1806,6 +1807,61 @@ ${influencerVideos.map((video, index) => `
                     socialMedia: 'instagram',
                 }
             );
+        }
+    }
+
+    async getSelectedSocialMediaAccountsForCampaignStrategy(data: GetSelectedSocialAccountsDto) {
+        if (!data) {
+            return {
+                code: 400,
+                message: 'Not enough arguments',
+            };
+        }
+
+        try {
+            const { selectedAccounts, socialMedia } = data;
+            const dataToSend = {
+                totalFollowers: 0,
+                selectedAccounts: [],                
+            };
+
+            for (const item of selectedAccounts) {
+                const influencer = await this.influencerModel.findById(item.influencerId);
+                if (!influencer) {
+                    throw new Error(`Influencer with ID ${item.influencerId} not found`);
+                }
+                
+                const account = influencer[socialMedia].find(
+                    (socialMediaAccount) => socialMediaAccount.instagramUsername === item.instagramUsername
+                );
+                if (!account) {
+                    throw new Error(`Social media account with username ${item.instagramUsername} not found`);
+                }
+                
+                const followersNumber = parseInt(account.followersNumber);
+                dataToSend.totalFollowers += followersNumber;
+                
+                dataToSend.selectedAccounts.push(account);
+            }
+
+            if (dataToSend.selectedAccounts.length === 0) {
+                return {
+                    code: 404,
+                    message: 'No social media accounts found',
+                };
+            }
+            
+            return {
+                code: 200,
+                data: dataToSend,
+            };
+        } catch (err) {
+            console.error('Error fetching selected social media accounts for campaign strategy:', err);
+
+            return {
+                code: 500,
+                message: 'Error fetching selected social media accounts for campaign strategy',
+            };
         }
     }
 }

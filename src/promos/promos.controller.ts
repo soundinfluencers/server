@@ -17,7 +17,8 @@ import {CreatePromosDto} from './dto/create-promo.dto';
 import {CreatePromosEstimateDto} from "./dto/create-promo-estimate.dto";
 import {ApiQuery} from '@nestjs/swagger';
 import {FileInterceptor} from '@nestjs/platform-express';
-import File from 'multer'; 
+import File from 'multer';
+import {GetSelectedSocialAccountsDto} from "./dto/get-selected-social-accounts.dto"; 
 
 @Controller('promos')
 export class PromosController {
@@ -190,5 +191,10 @@ export class PromosController {
     @Patch('update-promo')
     updateOngoingPromosToWork() {
         return this.promosService.updateOngoingPromosToWork();
+    }
+
+    @Post('get-selected-social-accounts')
+    getSelectedSocialMediaAccountsForCampaignStrategy(@Body() data: GetSelectedSocialAccountsDto) {
+        return this.promosService.getSelectedSocialMediaAccountsForCampaignStrategy(data);
     }
 }

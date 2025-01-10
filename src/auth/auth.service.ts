@@ -723,7 +723,6 @@ console.log(data, 'data')
         }
         
         const influencer = await this.influencerModel.findOne({_id: new mongoose.Types.ObjectId(influencerId)});
-        
         if (!influencer) {
             return {
                 code: 404,
@@ -754,7 +753,6 @@ console.log(data, 'data')
             account,
         };
     }
-
     async getClientById(id: string) {
         try {
             const objectId = new Types.ObjectId(id);
