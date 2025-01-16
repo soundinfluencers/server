@@ -165,7 +165,7 @@ export class AuthService {
             if (!data) {
                 return {status: 400, message: 'Not enough arguments'};
             }
-console.log(data, 'data')
+            
             const checkUser = await this.influencerModel.findOne({email: data.email})
                 || await this.clientModel.findOne({email: data.email});
 

@@ -15,11 +15,12 @@ import {PaymentModule} from './payment/payment.module';
 import {AdminModule} from "./admin/admin.module";
 import {AppGateway} from "./websocket/app.gateway";
 import {InfluencerActionsHistoryModule} from "./influencer-actions-history/influencer-actions-history.module";
+import {ProposalSystemModule} from "./proposal-system/proposal-system.module";
 
 @Module({
     imports: [
         MongooseModule.forRoot(
-            'mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/music',
+            `mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/music`,
             // 'mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/dev_db',
             // 'mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/music_dev',
         ),
@@ -33,6 +34,7 @@ import {InfluencerActionsHistoryModule} from "./influencer-actions-history/influ
         PaymentModule,
         AdminModule,
         InfluencerActionsHistoryModule,
+        ProposalSystemModule,
         ServeStaticModule.forRoot({
             rootPath: join(__dirname, '..', 'uploads'),
             serveRoot: '/uploads',
