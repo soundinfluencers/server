@@ -4,12 +4,14 @@ import {ProposalSystemController} from "./proposal-system.controller";
 import {ProposalSystemService} from "./proposal-system.service";
 import {Client, ClientSchema} from "../auth/schemas/client.schema";
 import {Influencer, InfluencerSchema} from "../auth/schemas/influencer.schema";
+import {ProposalCampaign, ProposalCampaignSchema} from "./schemas/proposal-campaign.schema";
 
 @Module({
     imports: [
         MongooseModule.forFeature([
             { name: Client.name, schema: ClientSchema },
             { name: Influencer.name, schema: InfluencerSchema },
+            { name: ProposalCampaign.name, schema: ProposalCampaignSchema },
         ]),
     ],
     controllers: [ProposalSystemController],

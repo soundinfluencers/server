@@ -19,7 +19,6 @@ interface selectInfluencersType {
     dateRequest: string;
 }
 
-
 interface VideoType {
     videoLink: string;
     postDescription: string;
