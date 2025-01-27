@@ -286,16 +286,16 @@ export class ProposalSystemService {
                     message: 'Proposal campaign not found',
                 };
             }
-            
+
             const clientName = await this.clientModel.findOne({
-                _id: campaignClientId,
+                _id: campaignClientId.clientId,
             }).select('firstName');
-            
+
             await sendMail(
-                "nazarkozynets030606@zohomail.eu",
-                // "admin@soundinfluencers.com",
+                // "nazarkozynets030606@zohomail.eu",
+                "admin@soundinfluencers.com",
                 "soundinfluencers",
-                `<p>The client ${clientName} wants to talk about changes to the "${campaignName}" campaign</p>`,
+                `<p>The client <b>${clientName.firstName}</b> wants to talk about changes to the <b>"${campaignName}"</b> campaign</p>`,
                 "html"
             );
             
