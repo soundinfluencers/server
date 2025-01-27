@@ -11,7 +11,6 @@ interface VideoType {
 interface selectInfluencersType {
     influencerId: string;
     instagramUsername: string;
-    logo: string;
     price: string;
     publicPrice: string;
     selectedVideo: string;

@@ -104,11 +104,11 @@ export class AdminService {
         try {
             const clientsData = await this.clientModel.aggregate([
                 {
-                    $match: { statusVerify: 'accept' } 
+                    $match: {statusVerify: 'accept'}
                 },
                 {
                     $lookup: {
-                        from: 'promos', 
+                        from: 'promos',
                         localField: '_id',
                         foreignField: 'userId',
                         as: 'campaigns'
@@ -121,7 +121,7 @@ export class AdminService {
                                 $filter: {
                                     input: '$campaigns',
                                     as: 'campaign',
-                                    cond: { $eq: ['$$campaign.statusPromo', 'finally'] }
+                                    cond: {$eq: ['$$campaign.statusPromo', 'finally']}
                                 }
                             }
                         },
@@ -137,7 +137,7 @@ export class AdminService {
                                                     $filter: {
                                                         input: '$$campaign.selectInfluencers',
                                                         as: 'influencer',
-                                                        cond: { $ne: ['$$influencer.confirmation', 'accept'] }
+                                                        cond: {$ne: ['$$influencer.confirmation', 'accept']}
                                                     }
                                                 }
                                             },
@@ -152,7 +152,7 @@ export class AdminService {
                                 $filter: {
                                     input: '$campaigns',
                                     as: 'campaign',
-                                    cond: { $eq: ['$$campaign.statusPromo', 'work'] }
+                                    cond: {$eq: ['$$campaign.statusPromo', 'work']}
                                 }
                             }
                         },
@@ -161,7 +161,7 @@ export class AdminService {
                                 {
                                     $sortArray: {
                                         input: '$campaigns',
-                                        sortBy: { createdAt: -1 }
+                                        sortBy: {createdAt: -1}
                                     }
                                 },
                                 0
@@ -172,7 +172,7 @@ export class AdminService {
                 {
                     $project: {
                         password: 0,
-                        campaigns: 0 
+                        campaigns: 0
                     }
                 }
             ]);
@@ -373,7 +373,7 @@ export class AdminService {
                 };
             }
 
-            const checkUser = await this.influencerModel.findOne({ _id: data.influencerId });
+            const checkUser = await this.influencerModel.findOne({_id: data.influencerId});
 
             if (!checkUser) {
                 return {
@@ -775,7 +775,7 @@ export class AdminService {
     async adminGetAllPromos() {
         try {
             const promos = await this.promosModel.find().sort({createdAt: -1}).lean().exec();
-            
+
             const promosCopies = await this.promosCopiesModel.find().sort({createdAt: -1}).lean().exec();
 
             if ((!promos || promos.length === 0) && (!promosCopies || promosCopies.length === 0)) {
@@ -1602,7 +1602,7 @@ Soundinfluencers Team
             if (Array.isArray(data.connectInfluencer) && data.connectInfluencer.length === 0) {
                 data.connectInfluencer = null;
             }
-            
+
             if (offer) await offer.deleteOne();
 
             const findOfferInTemp = await this.offersTempModel.findOne({_id: data._id});
@@ -1634,7 +1634,7 @@ Soundinfluencers Team
             if (Array.isArray(data.connectInfluencer) && data.connectInfluencer.length === 0) {
                 data.connectInfluencer = null;
             }
-            
+
             if (existingOffer) {
                 await this.offersTempModel.updateOne({_id: data._id}, {...data});
                 return {
@@ -1696,7 +1696,7 @@ Soundinfluencers Team
             if (Array.isArray(data.connectInfluencer) && data.connectInfluencer.length === 0) {
                 data.connectInfluencer = null;
             }
-            
+
             if (data.wasPublished) {
                 const offer = await this.offersModel.findOne({_id: data._id});
 
@@ -1773,22 +1773,22 @@ Soundinfluencers Team
 
     async adminUpdateOldOffer(data: AdminSaveOffersToTempDto) {
         try {
-            const offer = await this.offersModel.findOne({ _id: data._id });
+            const offer = await this.offersModel.findOne({_id: data._id});
 
             if (Array.isArray(data.connectInfluencer) && data.connectInfluencer.length === 0) {
                 data.connectInfluencer = null;
             }
-            
+
             if (offer) {
-                await this.offersTempModel.create({ ...data, isNew: true });
-                await this.offersModel.deleteOne({ _id: data._id });
+                await this.offersTempModel.create({...data, isNew: true});
+                await this.offersModel.deleteOne({_id: data._id});
 
                 return {
                     status: 200,
                     message: 'Offer updated successfully',
                 };
             } else {
-                const offerTemp = await this.offersTempModel.findOne({ _id: data._id });
+                const offerTemp = await this.offersTempModel.findOne({_id: data._id});
 
                 if (!offerTemp) {
                     return {
@@ -1797,7 +1797,7 @@ Soundinfluencers Team
                     };
                 }
 
-                await this.offersTempModel.updateOne({ _id: data._id }, { ...data });
+                await this.offersTempModel.updateOne({_id: data._id}, {...data});
 
                 return {
                     status: 200,
@@ -1806,7 +1806,7 @@ Soundinfluencers Team
             }
         } catch (err) {
             console.error('Error occurred:', err);
-            throw new Error('An unknown error occurred'); 
+            throw new Error('An unknown error occurred');
         }
     }
 
@@ -1881,7 +1881,7 @@ Soundinfluencers Team
 
     async adminGetInfluencerAccount(influencerId: string) {
         try {
-            const influencer = await this.influencerModel.findOne({ _id: influencerId });
+            const influencer = await this.influencerModel.findOne({_id: influencerId});
 
             if (!influencer) {
                 console.error('Influencer not found');
@@ -1903,10 +1903,10 @@ Soundinfluencers Team
             };
         }
     }
-    
+
     async adminUpdateInfluencerAccount(data: AdminUpdateInfluencerFullAccountDto) {
         try {
-            const influencer = await this.influencerModel.findOne({ _id: data._id });
+            const influencer = await this.influencerModel.findOne({_id: data._id});
 
             if (!influencer) {
                 console.error('Influencer not found');
@@ -1915,9 +1915,9 @@ Soundinfluencers Team
                     message: 'Influencer not found',
                 };
             }
-            
+
             try {
-                await this.influencerModel.updateOne({ _id: data._id }, { ...data });
+                await this.influencerModel.updateOne({_id: data._id}, {...data});
             } catch (err) {
                 console.error('Error updating influencer:', err);
                 return {
@@ -1925,7 +1925,7 @@ Soundinfluencers Team
                     message: 'An unknown error occurred',
                 };
             }
-    
+
             return {
                 status: 200,
                 message: 'Influencer updated successfully',
@@ -1938,17 +1938,65 @@ Soundinfluencers Team
             };
         }
     }
-    
-    async adminAddFieldsToInfluencersBrands() {
-        const result = await this.influencerModel.updateMany(
-            {"instagram": {$exists: true, $ne: []}},
-            {$set: {"instagram.$[elem].isVerified": true}},
-            {
-                arrayFilters: [{"elem.isVerified": {$exists: false}}],
-                multi: true
-            }
-        );
 
-        console.log(`${result.modifiedCount} documents updated`);
+    async adminAddInfluencerIdsToOffers() {
+        const offer = await this.offersModel.findOne({id: 15}).exec();
+        let ctr = 0;
+
+        // console.log('Before update:', offer.connectInfluencer);
+
+        if (offer.connectInfluencer && offer.connectInfluencer.length > 0) {
+            for (const influencerObj of offer.connectInfluencer) {
+                const influencerObjTyped = influencerObj as { instagramUsername: string; influencerId?: string };
+
+                if (!influencerObjTyped.influencerId) {
+                    const influencer = await this.influencerModel.findOne({
+                        'instagram.instagramUsername': influencerObjTyped.instagramUsername
+                    });
+                    // console.log(`Processing influencer ${influencer?._id.toString()}`);
+                    if (influencer) {
+                        influencerObjTyped.influencerId = influencer._id.toString();
+                        ctr++;
+                    } else {
+                        console.log(`No influencer found for ${influencerObjTyped.instagramUsername}`);
+                    }
+                }
+            }
+        }
+
+        // console.log('After update:', offer.connectInfluencer);
+
+        if (offer.musicStyles && offer.musicStyles.length > 0) {
+            for (const musicStyle of offer.musicStyles) {
+                console.log('Before update:', musicStyle.connectInfluencer);
+                await Promise.all(
+                    musicStyle.connectInfluencer.map(async (influencerObj: any) => {
+                        const influencerObjTyped = influencerObj as { instagramUsername: string; influencerId?: string };
+                        
+                        if (!influencerObjTyped.influencerId) {
+                            const influencer = await this.influencerModel.findOne({
+                                'instagram.instagramUsername': influencerObjTyped.instagramUsername
+                            });
+                            console.log(`Processing influencer ${influencer?._id.toString()}`);
+                            if (influencer) {
+                                influencerObjTyped.influencerId = influencer._id.toString();
+                                ctr++;
+                            } else {
+                                console.log(`No influencer found for ${influencerObjTyped.instagramUsername}`);
+                            }
+                        }
+                    })
+                );
+                console.log('After update:', musicStyle.connectInfluencer);
+            }
+        }
+
+        offer.markModified('connectInfluencer');
+        offer.markModified('musicStyles');
+        await offer.save();
+
+        console.log(`Total ${ctr} influencer ids added`);
     }
+
+
 }

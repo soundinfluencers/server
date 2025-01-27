@@ -8,9 +8,6 @@ export class SelectInfluencers {
 
     @Prop()
     instagramUsername: string;
-
-    @Prop()
-    logo: string;
     
     @Prop({default: '0'})
     price: string;

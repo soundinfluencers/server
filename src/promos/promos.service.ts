@@ -511,18 +511,13 @@ ${influencerVideos.map((video, index) => `
 
     async getOffers(socialMedia: string) {
         try {
-            const offers = await this.offersModel.find({
-                socialMedia
-            });
+            const offers = await this.offersModel.find({ socialMedia }).lean();
 
             const offersWithAvatars = await Promise.all(
                 offers.map(async (offer: any) => {
-                    if (!Array.isArray(offer.connectInfluencer)) {
-                        return offer;
-                    }
-
+                    // Process the top-level connectInfluencer array
                     const connectInfluencerWithAvatars = await Promise.all(
-                        offer.connectInfluencer.map(async (influencer: any) => {
+                        (offer.connectInfluencer || []).map(async (influencer: any) => {
                             if (!influencer.influencerId || !influencer.instagramUsername) {
                                 return influencer;
                             }
@@ -535,7 +530,7 @@ ${influencerVideos.map((video, index) => `
 
                                 return {
                                     ...influencer,
-                                    avatar: avatar,
+                                    avatar,
                                 };
                             } catch (error) {
                                 console.error(`Error fetching avatar for influencer ${influencer.influencerId}:`, error);
@@ -544,9 +539,43 @@ ${influencerVideos.map((video, index) => `
                         })
                     );
 
+                    // Process the musicStyles array
+                    const musicStylesWithAvatars = await Promise.all(
+                        (offer.musicStyles || []).map(async (style: any) => {
+                            const connectInfluencersWithAvatars = await Promise.all(
+                                (style.connectInfluencer || []).map(async (influencer: any) => {
+                                    if (!influencer.influencerId || !influencer.instagramUsername) {
+                                        return influencer;
+                                    }
+
+                                    try {
+                                        const avatar = await this.getInfluencerAvatarById(
+                                            influencer.influencerId,
+                                            influencer.instagramUsername
+                                        );
+
+                                        return {
+                                            ...influencer,
+                                            avatar,
+                                        };
+                                    } catch (error) {
+                                        console.error(`Error fetching avatar for influencer ${influencer.influencerId}:`, error);
+                                        return influencer;
+                                    }
+                                })
+                            );
+
+                            return {
+                                ...style,
+                                connectInfluencer: connectInfluencersWithAvatars,
+                            };
+                        })
+                    );
+
                     return {
-                        ...offer?._doc,
+                        ...offer,
                         connectInfluencer: connectInfluencerWithAvatars,
+                        musicStyles: musicStylesWithAvatars,
                     };
                 })
             );
@@ -564,7 +593,7 @@ ${influencerVideos.map((video, index) => `
             };
         }
     }
-
+    
     async getInfluencerAvatarById(influencerId: string, instagramName: string) {
         const influencer = await this.influencerModel.findById(influencerId);
         if (!influencer) {

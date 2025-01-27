@@ -6,6 +6,7 @@ import {Influencer} from "../auth/schemas/influencer.schema";
 import {ProposalCampaign} from "./schemas/proposal-campaign.schema";
 import {SaveProposalCampaignDto} from "./dto/save-proposal-campaign.dto";
 import {Campaign} from "../influencer-actions-history/schemas/influencer-actions-history.schema";
+import sendMail from "../utils/sendMail";
 
 @Injectable()
 export class ProposalSystemService {
@@ -175,7 +176,9 @@ export class ProposalSystemService {
 
             return {
                 status: 200,
-                proposalCampaigns: campaigns
+                proposalCampaigns: campaigns.sort((a, b) => {
+                    return a.createdAt > b.createdAt ? -1 : 1;
+                }),
             };
         } catch (err) {
             console.error('Error fetching proposal campaigns:', err);
@@ -235,4 +238,77 @@ export class ProposalSystemService {
             };
         }
     };
+    
+    async deleteProposalCampaign(campaignId: string, campaignName: string) {
+        if (!campaignId || !campaignName) {
+            return {
+                status: 400,
+                message: 'Campaign ID and Campaign Name is required',
+            };
+        }
+        
+        try {
+            await this.proposalCampaignModel.findOneAndDelete({
+                _id: new mongoose.Types.ObjectId(campaignId),
+                campaignName: campaignName,
+            });
+           
+            return {
+                status: 200,
+                message: `Proposal campaign "${campaignName}" deleted successfully`,
+            };
+        } catch (err) {
+            console.error('Error deleting proposal campaign:', err);
+            return {
+                status: 500,
+                message: 'An unknown error occurred',
+            };
+        }
+    };
+    
+    async sendMailToAdminAboutChangingProposalCampaign(campaignId: string, campaignName: string, ) {
+        if (!campaignId || !campaignName) {
+            return {
+                status: 400,
+                message: 'Campaign ID and Campaign Name is required',
+            };
+        }
+        
+        try {
+            const campaignClientId = await this.proposalCampaignModel.findOne({
+                _id: new mongoose.Types.ObjectId(campaignId),
+                campaignName: campaignName,
+            }).select('clientId');
+            
+            if (!campaignClientId) {
+                return {
+                    status: 404,
+                    message: 'Proposal campaign not found',
+                };
+            }
+            
+            const clientName = await this.clientModel.findOne({
+                _id: campaignClientId,
+            }).select('firstName');
+            
+            await sendMail(
+                "nazarkozynets030606@zohomail.eu",
+                // "admin@soundinfluencers.com",
+                "soundinfluencers",
+                `<p>The client ${clientName} wants to talk about changes to the "${campaignName}" campaign</p>`,
+                "html"
+            );
+            
+            return {
+                status: 200,
+                message: `Proposal campaign "${campaignName}" sent to admin successfully`,
+            };
+        } catch (err) {
+            console.error('Error sending email to admin:', err);
+            return {
+                status: 500,
+                message: 'An unknown error occurred',
+            };
+        }
+    }
 }

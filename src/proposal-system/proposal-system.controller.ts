@@ -1,6 +1,8 @@
-import {Body, Controller, Get, Param, Post, Put} from "@nestjs/common";
+import {Body, Controller, Delete, Get, Param, Post, Put} from "@nestjs/common";
 import {ProposalSystemService} from "./proposal-system.service";
 import {SaveProposalCampaignDto} from "./dto/save-proposal-campaign.dto";
+import {decodeAndDecrypt} from "../utils/crypt";
+import * as process from "node:process";
 
 @Controller('proposal-system')
 export class ProposalSystemController {
@@ -30,5 +32,17 @@ export class ProposalSystemController {
     @Get('get-proposal-campaign/:id')
     getProposalCampaignById(@Param('id') id: string) {
         return this.proposalSystemService.getProposalCampaignById(id);
+    }
+    
+    @Delete('delete-proposal-campaign/:campaignId/:campaignName')
+    deleteProposalCampaign(@Param('campaignId') campaignId: string, @Param('campaignName') campaignName: string) {
+        const decodedCampaignId = decodeAndDecrypt(campaignId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
+        return this.proposalSystemService.deleteProposalCampaign(decodedCampaignId, campaignName);
+    }
+    
+    @Post('send-email-to-admin-changes/:campaignId/:campaignName')
+    sendMailToAdminAboutChangingProposalCampaign(@Param('campaignId') campaignId: string, @Param('campaignName') campaignName: string) {
+        const decodedCampaignId = decodeAndDecrypt(campaignId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
+        return this.proposalSystemService.sendMailToAdminAboutChangingProposalCampaign(decodedCampaignId, campaignName);
     }
 }

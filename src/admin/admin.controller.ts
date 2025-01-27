@@ -221,4 +221,8 @@ export class AdminController {
     adminUpdateInfluencerAccount(@Body() data: AdminUpdateInfluencerFullAccountDto) {
         return this.adminService.adminUpdateInfluencerAccount(data);
     }
+    @Put('offer/add-influencer-ids-to-offers')
+    adminAddInfluencerIdsToOffers() {
+        return this.adminService.adminAddInfluencerIdsToOffers();
+    }
 }
