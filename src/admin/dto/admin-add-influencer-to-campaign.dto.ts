@@ -9,34 +9,19 @@ export class AdminAddInfluencerToCampaignDto {
     influencerId: string;
 
     @Prop()
-    amount: number;
-
-    @Prop()
-    instagramUsername: string;
+    socialMediaUsername: string;
 
     @Prop({default: 'wait'})
     confirmation: string;
 
     @Prop()
-    selectedVideo: string;
+    selectedCampaignContentItem: string;
 
-    @Prop()
+    @Prop({default: 'ASAP'})
     dateRequest: string;
 
     @Prop({ default: 'wait' })
     closePromo: string;
-
-    @Prop({ default: '' })
-    brand: string;
-
-    @Prop({ default: '' })
-    datePost: string;
-
-    @Prop({ default: '' })
-    caption: string;
-
-    @Prop({ default: '' })
-    video: string;
 
     @Prop({ default: '' })
     postLink: string;
@@ -48,11 +33,5 @@ export class AdminAddInfluencerToCampaignDto {
     impressions: string;
 
     @Prop({ default: '' })
-    reach: string;
-
-    @Prop({ default: '' })
     like: string;
-
-    @Prop({ default: '' })
-    invoice: string;
 }

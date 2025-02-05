@@ -1,14 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class AdminUpdatePromoInfluencersDto {
+export class AdminUpdateCampaignInfluencersDto {
     @ApiProperty({ required: true })
-    promoId: string;
+    campaignId: string;
     
     @ApiProperty({required: true})
-    instagramUsername: string;
+    socialMediaUsername: string;
     
-    @ApiProperty({required: false})
-    datePost: string;
+    @ApiProperty({required: true})
+    selectInfluencersAccountId: string;
     
     @ApiProperty({required: false})
     impressions: string;

@@ -1,6 +1,6 @@
 import {ApiProperty} from '@nestjs/swagger';
 
-interface VideoType {
+interface campaignContentItemType {
     videoLink: string;
     postDescription: string;
     storyTag: string;
@@ -10,10 +10,10 @@ interface VideoType {
 
 interface selectInfluencersType {
     influencerId: string;
-    instagramUsername: string;
+    socialMediaUsername: string;
     price: string;
     publicPrice: string;
-    selectedVideo: string;
+    selectedCampaignContentItem: string;
     dateRequest: string;
     followersNumber: number; 
     genres: string[];
@@ -34,7 +34,7 @@ export class SaveProposalCampaignDto {
     selectInfluencers: selectInfluencersType[];
 
     @ApiProperty({required: false})
-    videos: VideoType[];
+    campaignContent: campaignContentItemType[];
     
     @ApiProperty({required: false, default: 0})
     publicPrice: number;

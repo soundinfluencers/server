@@ -1,11 +1,11 @@
 import {ApiProperty} from "@nestjs/swagger";
 
-export class AdminUpdatePromoDto {
+export class AdminUpdateCampaignDto {
     @ApiProperty({required: true})
     _id: string;
     
     @ApiProperty({required: false})
-    userId: string;
+    clientId: string;
 
     @ApiProperty({required: false})
     replacementsNotes: string;
@@ -17,5 +17,5 @@ export class AdminUpdatePromoDto {
     campaignName: string;
     
     @ApiProperty({required: false})
-    amount: number;
+    campaignPrice: number;
 }

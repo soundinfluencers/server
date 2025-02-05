@@ -5,7 +5,6 @@ import mongoose from "mongoose";
 import {Influencer} from "../auth/schemas/influencer.schema";
 import {ProposalCampaign} from "./schemas/proposal-campaign.schema";
 import {SaveProposalCampaignDto} from "./dto/save-proposal-campaign.dto";
-import {Campaign} from "../influencer-actions-history/schemas/influencer-actions-history.schema";
 import sendMail from "../utils/sendMail";
 
 @Injectable()
@@ -111,7 +110,7 @@ export class ProposalSystemService {
                     clientId: data.clientId ? new mongoose.Types.ObjectId(data.clientId) : null,
                     campaignName: data.campaignName,
                     selectInfluencers: data.selectInfluencers,
-                    videos: data.videos,
+                    campaignContent: data.campaignContent,
                     price: data.price,
                     publicPrice: data.publicPrice,
                     totalFollowers: data.totalFollowers,
@@ -129,7 +128,7 @@ export class ProposalSystemService {
                     clientId: data.clientId ? new mongoose.Types.ObjectId(data.clientId) : null,
                     campaignName: data.campaignName,
                     selectInfluencers: data.selectInfluencers,
-                    videos: data.videos,
+                    campaignContent: data.campaignContent,
                     price: data.price,
                     publicPrice: data.publicPrice,
                     totalFollowers: data.totalFollowers,
@@ -163,9 +162,9 @@ export class ProposalSystemService {
                 } catch (err) {
                     console.error('Error fetching client:', err);
                 }
-                
+
                 return {
-                    ...campaign.toObject(),  
+                    ...campaign.toObject(),
                     client: client ? {
                         clientId: client._id,
                         firstName: client.firstName,
@@ -188,7 +187,7 @@ export class ProposalSystemService {
             };
         }
     }
-    
+
     async getProposalCampaignById(campaignId: string) {
         if (!campaignId) {
             return {
@@ -196,19 +195,19 @@ export class ProposalSystemService {
                 message: 'Campaign ID is required',
             };
         }
-        
+
         try {
             const proposalCampaign = await this.proposalCampaignModel.findOne({
                 _id: new mongoose.Types.ObjectId(campaignId),
-            });
-            
+            }).lean().exec();
+
             if (!proposalCampaign) {
                 return {
                     status: 404,
                     message: 'Proposal campaign not found',
                 };
             }
-            
+
             let client = null;
             try {
                 client = await this.clientModel.findOne({
@@ -217,11 +216,19 @@ export class ProposalSystemService {
             } catch (err) {
                 console.error('Error fetching client:', err);
             }
-            
+
             return {
                 status: 200,
                 proposalCampaign: {
-                    ...proposalCampaign.toObject(),
+                    ...proposalCampaign,
+                    videos: proposalCampaign.campaignContent,
+                    selectInfluencers: proposalCampaign.selectInfluencers.map((inf) => {
+                        return {
+                            ...inf,
+                            selectedVideo: inf.selectedCampaignContentItem,
+                            instagramUsername: inf.socialMediaUsername,
+                        }
+                    }),
                     client: client ? {
                         clientId: client._id,
                         firstName: client.firstName,
@@ -238,7 +245,7 @@ export class ProposalSystemService {
             };
         }
     };
-    
+
     async deleteProposalCampaign(campaignId: string, campaignName: string) {
         if (!campaignId || !campaignName) {
             return {
@@ -246,13 +253,13 @@ export class ProposalSystemService {
                 message: 'Campaign ID and Campaign Name is required',
             };
         }
-        
+
         try {
             await this.proposalCampaignModel.findOneAndDelete({
                 _id: new mongoose.Types.ObjectId(campaignId),
                 campaignName: campaignName,
             });
-           
+
             return {
                 status: 200,
                 message: `Proposal campaign "${campaignName}" deleted successfully`,
@@ -265,21 +272,21 @@ export class ProposalSystemService {
             };
         }
     };
-    
-    async sendMailToAdminAboutChangingProposalCampaign(campaignId: string, campaignName: string, ) {
+
+    async sendMailToAdminAboutChangingProposalCampaign(campaignId: string, campaignName: string,) {
         if (!campaignId || !campaignName) {
             return {
                 status: 400,
                 message: 'Campaign ID and Campaign Name is required',
             };
         }
-        
+
         try {
             const campaignClientId = await this.proposalCampaignModel.findOne({
                 _id: new mongoose.Types.ObjectId(campaignId),
                 campaignName: campaignName,
             }).select('clientId');
-            
+
             if (!campaignClientId) {
                 return {
                     status: 404,
@@ -298,7 +305,7 @@ export class ProposalSystemService {
                 `<p>The client <b>${clientName.firstName}</b> wants to talk about changes to the <b>"${campaignName}"</b> campaign</p>`,
                 "html"
             );
-            
+
             return {
                 status: 200,
                 message: `Proposal campaign "${campaignName}" sent to admin successfully`,

@@ -1,11 +1,11 @@
 import {ApiProperty} from "@nestjs/swagger";
 
-export class AdminUpdatePromoVideoDto {
+export class AdminUpdateCampaignVideoDto {
     @ApiProperty({required: true})
     _id: string;
 
     @ApiProperty({required: true})
-    videoId: string;
+    campaignContentItemId: string;
     
     @ApiProperty({required: false})
     oldVideoLink: string;
@@ -26,8 +26,11 @@ export class AdminUpdatePromoVideoDto {
     specialWishes: string;
     
     @ApiProperty({required: true})
-    isNewVideo: boolean;
+    isNewCampaignContentItem: boolean;
     
     @ApiProperty({required: true})
-    selectedInstagramUsername: string;
+    selectedSocialMediaAccountUsername: string;
+    
+    @ApiProperty({required: true})
+    selectInfluencersAccountId: string;
 }

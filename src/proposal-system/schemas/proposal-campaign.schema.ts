@@ -4,11 +4,20 @@ import mongoose from "mongoose";
 @Schema()
 export class SelectInfluencers {
     @Prop()
-    influencerId: string;
+    _id: mongoose.Schema.Types.ObjectId;
 
     @Prop()
-    instagramUsername: string;
-    
+    influencerId: mongoose.Schema.Types.ObjectId;
+
+    @Prop()
+    socialMedia: string;
+
+    @Prop()
+    socialMediaUsername: string;
+
+    @Prop()
+    confirmation: string;
+
     @Prop({default: '0'})
     price: string;
 
@@ -16,45 +25,58 @@ export class SelectInfluencers {
     publicPrice: string;
 
     @Prop()
-    selectedVideo: string;
+    selectedCampaignContentItem: string;
 
     @Prop()
     dateRequest: string;
 
+    @Prop({default: 'wait'})
+    closePromo: string;
+
+    @Prop({default: ''})
+    postLink: string;
+
+    @Prop({default: ''})
+    screenshot: string;
+
+    @Prop({default: ''})
+    impressions: string;
+
+    @Prop({default: ''})
+    like: string;
+
     @Prop({default: 0})
     followersNumber: number;
     
-    @Prop()
+    @Prop({default: []})
     genres: string[];
     
-    @Prop()
+    @Prop({default: []})
     countries: object[];
 }
-
 export const SelectInfluencersSchema = SchemaFactory.createForClass(SelectInfluencers);
 
 @Schema()
-export class Video {
-    @Prop()
-    videoLink: string;
-    
-    @Prop()
-    postDescription: string;
-    
-    @Prop()
-    storyTag: string;
-    
-    @Prop()
-    swipeUpLink: string;
-    
-    @Prop()
-    specialWishes: string;
-    
+export class CampaignContentItem {
     @Prop()
     _id: mongoose.Schema.Types.ObjectId;
-} 
 
-export const VideoSchema = SchemaFactory.createForClass(Video);
+    @Prop()
+    videoLink: string;
+
+    @Prop()
+    postDescription: string;
+
+    @Prop()
+    storyTag: string;
+
+    @Prop()
+    swipeUpLink: string;
+
+    @Prop()
+    specialWishes: string;
+}
+const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignContentItem);
 
 @Schema({timestamps: true})
 export class ProposalCampaign {
@@ -70,13 +92,13 @@ export class ProposalCampaign {
         default: [],
     })
     selectInfluencers: SelectInfluencers[];
-    
+
     @Prop({
         required: false,
-        type: [VideoSchema],
+        type: [CampaignContentItemSchema],
         default: [],
     })
-    videos: Video[];
+    campaignContent: CampaignContentItem[];
     
     @Prop({required: false, default: 0})
     price: number;

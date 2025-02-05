@@ -1,25 +1,14 @@
 import {ApiProperty} from '@nestjs/swagger';
-import mongoose from 'mongoose';
 
 interface selectInfluencersType {
     influencerId: string;
-    instagramUsername: string;
-    confirmation: string;
-    brand: string;
-    datePost: string;
-    caption: string;
-    video: string;
-    postLink: string;
-    screenshot: string;
-    impressions: string;
-    reach: string;
-    like: string;
-    invoice: string;
-    selectedVideo: string;
+    socialMedia: string;
+    socialMediaUsername: string;
+    selectedCampaignContentItem: string;
     dateRequest: string;
 }
 
-interface VideoType {
+interface campaignContentItemType {
     videoLink: string;
     postDescription: string;
     storyTag: string;
@@ -29,20 +18,7 @@ interface VideoType {
 
 export class CreatePromosDto {
     @ApiProperty({required: true})
-    userId: string;
-
-    @ApiProperty({
-        required: true,
-        type: 'object',
-        properties: {
-            variant: {type: 'number'},
-            price: {type: 'number'},
-        },
-    })
-    selectPrice: {
-        variant: number;
-        price: number;
-    };
+    clientId: string;
 
     @ApiProperty({
         required: true,
@@ -60,7 +36,7 @@ export class CreatePromosDto {
             type: 'object',
         },
     })
-    videos: VideoType[];
+    campaignContent: campaignContentItemType[];
 
     @ApiProperty({required: true})
     campaignName: string;
@@ -72,7 +48,7 @@ export class CreatePromosDto {
     paymentStatus: string;
 
     @ApiProperty({required: true})
-    amount: number;
+    campaignPrice: number;
 
     @ApiProperty({required: true})
     createdAt: string;

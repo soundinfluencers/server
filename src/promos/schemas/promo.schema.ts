@@ -1,32 +1,22 @@
 import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
-import mongoose from "mongoose";
+import {Types} from "mongoose";
 
-@Schema()
-export class SelectPrice {
-    @Prop()
-    variant: number;
-
-    @Prop()
-    price: number;
-}
-
-const SelectPriceSchema = SchemaFactory.createForClass(SelectPrice);
-
+// @Schema({strict: false})
 @Schema()
 export class SelectInfluencers {
-    @Prop()
-    _id: string;
+    @Prop({ type: Types.ObjectId, required: true }) 
+    _id: Types.ObjectId;
+
+    @Prop({ type: Types.ObjectId })
+    influencerId: Types.ObjectId;
+    
+    @Prop({default: 'instagram'})
+    socialMedia: string;
 
     @Prop()
-    influencerId: string;
+    socialMediaUsername: string;
 
-    @Prop()
-    amount: number;
-
-    @Prop()
-    instagramUsername: string;
-
-    @Prop()
+    @Prop({default: 'wait'})
     confirmation: string;
     
     @Prop({default: '0'})
@@ -34,27 +24,15 @@ export class SelectInfluencers {
     
     @Prop({default: '0'})
     publicPrice: string;
-    
+
     @Prop()
-    selectedVideo: string;
+    selectedCampaignContentItem: string;
 
     @Prop()
     dateRequest: string;
 
     @Prop({default: 'wait'})
     closePromo: string;
-
-    @Prop({default: ''})
-    brand: string;
-
-    @Prop({default: ''})
-    datePost: string;
-
-    @Prop({default: ''})
-    caption: string;
-
-    @Prop({default: ''})
-    video: string;
 
     @Prop({default: ''})
     postLink: string;
@@ -66,32 +44,42 @@ export class SelectInfluencers {
     impressions: string;
 
     @Prop({default: ''})
-    reach: string;
-
-    @Prop({default: ''})
     like: string;
 
-    @Prop({default: ''})
-    invoice: string;
-    
     @Prop({default: 0})
     followersNumber: number;
 }
-
 const SelectInfluencersSchema = SchemaFactory.createForClass(SelectInfluencers);
+
+@Schema()
+export class CampaignContentItem {
+    @Prop({ type: Types.ObjectId, required: true })
+    _id: Types.ObjectId;
+    
+    @Prop()
+    videoLink: string;
+
+    @Prop()
+    postDescription: string;
+
+    @Prop()
+    storyTag: string;
+
+    @Prop()
+    swipeUpLink: string;
+
+    @Prop()
+    specialWishes: string;
+}
+const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignContentItem);
 
 @Schema({
     timestamps: true,
+    // strict: false,
 })
 export class Promos {
-    @Prop()
-    userId: string;
-
-    @Prop({
-        required: true,
-        type: SelectPriceSchema,
-    })
-    selectPrice: SelectPrice;
+    @Prop({ type: Types.ObjectId })
+    clientId: Types.ObjectId;
 
     @Prop({
         required: true,
@@ -100,25 +88,9 @@ export class Promos {
     selectInfluencers: SelectInfluencers[];
 
     @Prop({
-        type: [
-            {
-                videoLink: String,
-                postDescription: String,
-                storyTag: String,
-                swipeUpLink: String,
-                specialWishes: String,
-                _id: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() },
-            },
-        ],
+        type: [CampaignContentItemSchema],
     })
-    videos: Array<{
-        videoLink: string;
-        postDescription: string;
-        storyTag: string;
-        swipeUpLink: string;
-        specialWishes: string;
-        _id: mongoose.Types.ObjectId;
-    }>;
+    campaignContent: CampaignContentItem[];
 
     @Prop()
     campaignName: string;
@@ -130,13 +102,13 @@ export class Promos {
     paymentStatus: string;
 
     @Prop({required: true})
-    statusPromo: string;
+    statusCampaign: string;
 
     @Prop({required: true})
-    amount: number;
+    campaignPrice: number;
 
     @Prop({default: 'wait'})
-    verifyPromo: string;
+    verifyCampaign: string;
 
     @Prop({required: false, default: ''})
     replacementsNotes: string;
@@ -144,9 +116,7 @@ export class Promos {
     @Prop({required: false, default: 0})
     partialRefund: number;
 
-    @Prop()
-    createdAt: Date;
-
+    //TODO: заменить поле на массив использованных соц сетей 
     @Prop({required: true})
     socialMedia: string;
 
@@ -155,6 +125,9 @@ export class Promos {
     
     @Prop({required: false, default: false})
     isCopy: boolean;
+
+    readonly createdAt?: Date;
+    readonly updatedAt?: Date;
 }
 
 export const PromosSchema = SchemaFactory.createForClass(Promos);
