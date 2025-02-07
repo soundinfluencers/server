@@ -798,6 +798,9 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 
                     return {
                         ...influencerItem,
+                        selectedCampaignContentItem: influencerItem.selectedCampaignContentItem || (influencerItem as any).selectedVideo,
+                        selectedCampaignContentItemObj: campaign.campaignContent ? campaign.campaignContent.find((campaignContentItem) => campaignContentItem.videoLink === influencerItem.selectedCampaignContentItem) : (campaign as any).videos ? (campaign as any).videos.find((video) => video.videoLink === (influencerItem as any).selectedVideo) : null,
+                        socialMediaUsername: influencerItem.socialMediaUsername || (influencerItem as any).instagramUsername,
                         firstName: influencerData.firstName,
                         followersNumber: followersNumber,
                         logo: socialMediaAccount.logo,
@@ -806,19 +809,14 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
             );
 
             return {
-                code: 201,
-                promo: {
+                code: 200,
+                campaign: {
                     ...campaign,
-                    selectInfluencers: selectInfluencersWithDetails.map((item) => {
-                        return {
-                            ...item,
-                            instagramUsername: item.socialMediaUsername || (item as any).instagramUsername,
-                        }
-                    }),
+                    selectInfluencers: selectInfluencersWithDetails,
                     brand: clientData ? clientData.company : "No Data",
                     client: clientData ? clientData.firstName : "No Data",
                     dateRequest: campaign.createdAt,
-                    campaignContent: campaign.campaignContent || [],
+                    campaignContent: campaign.campaignContent || (campaign as any).videos,
                     paymentStatus: campaign.paymentStatus,
                     paymentType: campaign.paymentType,
                     amount: campaign.campaignPrice || (campaign as any).amount || 0,
@@ -1121,23 +1119,23 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                     const {_id, ...newObjectSocialMediaAccount} = acc;
 
                     if (acc.selectedCampaignContentItem) {
-                            const selectedCampaignContentItem = item.campaignContent.find((item) => item.videoLink === acc.selectedCampaignContentItem);
+                        const selectedCampaignContentItem = item.campaignContent.find((item) => item.videoLink === acc.selectedCampaignContentItem);
 
-                            return {
-                                influencerId: newObjectSocialMediaAccount.influencerId,
-                                campaignName: newObject.campaignName,
-                                videoLink: selectedCampaignContentItem.videoLink,
-                                postDescription: selectedCampaignContentItem.postDescription,
-                                storyTag: selectedCampaignContentItem.storyTag,
-                                swipeUpLink: selectedCampaignContentItem.swipeUpLink,
-                                specialWishes: selectedCampaignContentItem.specialWishes,
-                                socialMediaUsername: newObjectSocialMediaAccount.socialMediaUsername || (newObjectSocialMediaAccount as any).instagramUsername,
-                                userId: newObject.clientId || (newObject as any).userId,
-                                dateRequest: newObjectSocialMediaAccount.dateRequest,
-                                createdAt: newObject.createdAt,
-                                socialMedia: newObject.socialMedia,
-                                campaignId: newObject._id,
-                            };
+                        return {
+                            influencerId: newObjectSocialMediaAccount.influencerId,
+                            campaignName: newObject.campaignName,
+                            videoLink: selectedCampaignContentItem.videoLink,
+                            postDescription: selectedCampaignContentItem.postDescription,
+                            storyTag: selectedCampaignContentItem.storyTag,
+                            swipeUpLink: selectedCampaignContentItem.swipeUpLink,
+                            specialWishes: selectedCampaignContentItem.specialWishes,
+                            socialMediaUsername: newObjectSocialMediaAccount.socialMediaUsername || (newObjectSocialMediaAccount as any).instagramUsername,
+                            userId: newObject.clientId || (newObject as any).userId,
+                            dateRequest: newObjectSocialMediaAccount.dateRequest,
+                            createdAt: newObject.createdAt,
+                            socialMedia: newObject.socialMedia,
+                            campaignId: newObject._id,
+                        };
                     } else if ((acc as any).selectedVideo) {
                         const selectedVideoObj = (item as any).videos.find((video) => video.videoLink === (acc as any).selectedVideo);
 
@@ -1939,15 +1937,18 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 
             return {
                 code: 200,
-                promo: {
+                campaign: {
                     ...campaign,
                     selectInfluencers: campaign.selectInfluencers.map((item) => {
                         return {
                             ...item,
-                            instagramUsername: item.socialMediaUsername || (item as any).instagramUsername,
+                            socialMediaUsername: item.socialMediaUsername || (item as any).instagramUsername,
+                            selectedCampaignContentItem: item.selectedCampaignContentItem || (item as any).selectedVideo,
+                            selectedCampaignContentItemObj: campaign.campaignContent ? campaign.campaignContent.find((campaignContentItem) => campaignContentItem.videoLink === item.selectedCampaignContentItem) : (campaign as any).videos ? (campaign as any).videos.find((video) => video.videoLink === (item as any).selectedVideo) : null,
                         };
                     }),
                     amount: campaign.campaignPrice || (campaign as any).amount || 0,
+                    campaignContent: campaign.campaignContent || (campaign as any).videos,
                 },
             };
         } catch (err) {
