@@ -42,6 +42,9 @@ export class Invoices {
 
     @Prop()
     contactName: string;
+    
+    @Prop()
+    contactLastName: string;
 
     @Prop()
     contactPhone: string;

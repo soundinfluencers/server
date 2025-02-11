@@ -20,7 +20,6 @@ import {FileInterceptor} from '@nestjs/platform-express';
 import File from 'multer';
 import {GetSelectedSocialAccountsDto} from "./dto/get-selected-social-accounts.dto";
 import {decodeAndDecrypt} from "../utils/crypt";
-import {Api} from "gocardless-nodejs/api/api";
 
 @Controller('promos')
 export class PromosController {
@@ -214,8 +213,7 @@ export class PromosController {
 
     @Get('share-link/:campaignId/:socialMedia')
     getCampaignByPublicShareLink(@Param() args: { campaignId: string; socialMedia: string }) {
-        const decryptedCampaignId = decodeAndDecrypt(args.campaignId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
-        return this.promosService.getCampaignByPublicShareLink(decryptedCampaignId, args.socialMedia);
+        return this.promosService.getCampaignByPublicShareLink(args.campaignId, args.socialMedia);
     }
 
     @Post('migrate-promos')
@@ -223,13 +221,13 @@ export class PromosController {
         return this.promosService.migrateClosedPromosToPromosCopies();
     }
 
-    @Patch('update-promo')
-    updateOngoingPromosToWork() {
-        return this.promosService.updateOngoingPromosToWork();
-    }
-
     @Post('get-selected-social-accounts')
     getSelectedSocialMediaAccountsForCampaignStrategy(@Body() data: GetSelectedSocialAccountsDto) {
         return this.promosService.getSelectedSocialMediaAccountsForCampaignStrategy(data);
+    }
+    
+    @Put('add-share-link')
+    addShareLinksToPromos() {
+        return this.promosService.addShareLinksToPromos();
     }
 }

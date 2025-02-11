@@ -13,6 +13,7 @@ import {PromosCopies} from "../admin/schemas/promos-copies.schema";
 import axios from "axios";
 import * as process from "node:process";
 import {GetSelectedSocialAccountsDto} from "./dto/get-selected-social-accounts.dto";
+import {encryptAndEncode} from "../utils/crypt";
 
 mongoose.Promise = global.Promise;
 
@@ -69,17 +70,20 @@ export class PromosService {
         let result;
 
         try {
+            const campaignId = new mongoose.Types.ObjectId();
             result = await this.promosModel.create({
                 ...data,
+                _id: campaignId,
                 campaignContent: data.campaignContent.map((item) => ({
                     ...item,
-                    _id: new mongoose.Types.ObjectId(),
+                    _id: campaignId,
                 })),
                 selectInfluencers: processedInfluencers,
                 paymentType: !data.paymentType ? "payment" : data.paymentType,
                 paymentStatus: "wait",
                 statusCampaign: "wait",
                 verifyCampaign: "wait",
+                shareLink: `${process.env.SERVER_CLIENT}/promo-share/${campaignId}/${data.socialMedia}`,
             });
         } catch (err) {
             return {
@@ -198,8 +202,8 @@ ${emailVideoContent()}
 </p>`;
 
         await sendMail(
-            // "nazarkozynets030606@zohomail.eu",
-            "admin@soundinfluencers.com",
+            "nazarkozynets030606@zohomail.eu",
+            // "admin@soundinfluencers.com",
             "soundinfluencers",
             emailContent,
             "html"
@@ -564,7 +568,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                     avatar,
                                 };
                             } catch (error) {
-                                console.error(`Error fetching avatar for influencer ${influencer.influencerId}:`, error);
                                 return influencer;
                             }
                         })
@@ -590,7 +593,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                             avatar,
                                         };
                                     } catch (error) {
-                                        console.error(`Error fetching avatar for influencer ${influencer.influencerId}:`, error);
                                         return influencer;
                                     }
                                 })
@@ -626,7 +628,10 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
     }
 
     async getInfluencerAvatarById(influencerId: string, instagramName: string) {
-        const influencer = await this.influencerModel.findById(influencerId);
+        const influencer = await this.influencerModel.findOne({
+            _id: new mongoose.Types.ObjectId(influencerId),
+        })
+        
         if (!influencer) {
             throw new Error(`Influencer with ID ${influencerId} not found`);
         }
@@ -1859,6 +1864,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 try {
                     await this.promosCopiesModel.create({
                         ...findNewCampaign,
+                        _id: findNewCampaign._id,
                         statusCampaign: "finally",
                         verifyCampaign: "accept",
                         isCopy: true,
@@ -2023,64 +2029,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
         }
     }
 
-    async updateOngoingPromosToWork() {
-        const ongoingPromos = await this.promosModel.find().lean().exec();
-
-        if (!ongoingPromos) {
-            return {
-                code: 404,
-                message: 'No ongoing promos found',
-            };
-        }
-
-        for (const promo of ongoingPromos) {
-            let totalFollowers = 0;
-
-            const selectInfluencers = await Promise.all(
-                promo.selectInfluencers.map(async (item) => {
-                    const influencer = await this.influencerModel.findById(item.influencerId);
-                    const instagramAccount = influencer.instagram.find(
-                        (account) => account.instagramUsername === item.socialMediaUsername
-                    );
-
-                    if (!instagramAccount) {
-                        console.error(
-                            `Instagram account not found for influencerId: ${item.influencerId}, instagramUsername: ${item.socialMediaUsername}`
-                        );
-                        return {
-                            ...item,
-                            price: 0,
-                            publicPrice: 0,
-                            followersNumber: 0,
-                        };
-                    }
-
-                    const followersNumber = parseInt(instagramAccount.followersNumber);
-                    const price = parseInt(instagramAccount.price || '0', 10);
-                    const publicPrice = parseInt(instagramAccount.publicPrice || '0', 10);
-
-                    totalFollowers += followersNumber;
-
-                    return {
-                        ...item,
-                        price: price,
-                        publicPrice: publicPrice,
-                        followersNumber: followersNumber,
-                    };
-                })
-            );
-
-            await this.promosModel.findOneAndUpdate(
-                {_id: promo._id},
-                {
-                    selectInfluencers: selectInfluencers,
-                    totalFollowers: totalFollowers,
-                    socialMedia: 'instagram',
-                }
-            );
-        }
-    }
-
     async getSelectedSocialMediaAccountsForCampaignStrategy(data: GetSelectedSocialAccountsDto) {
         if (!data) {
             return {
@@ -2133,6 +2081,36 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 code: 500,
                 message: 'Error fetching selected social media accounts for campaign strategy',
             };
+        }
+    }
+    
+    async addShareLinksToPromos() {
+        const promos = await this.promosModel.find().lean().exec();
+
+        if (!promos) {
+            return {
+                code: 404,
+                message: 'No promos found',
+            };
+        }
+
+        for (const promo of promos) {
+            const shareLink = `${process.env.SERVER_CLIENT}/promo-share/${promo._id}/${promo.socialMedia}`
+            await this.promosModel.findOneAndUpdate({_id: promo._id}, {shareLink: shareLink});
+        }
+        
+        const promosCopies = await this.promosCopiesModel.find().lean().exec();
+        
+        if (!promosCopies) {
+            return {
+                code: 404,
+                message: 'No promo copies found',
+            };
+        }
+        
+        for (const promo of promosCopies) {
+            const shareLink = `${process.env.SERVER_CLIENT}/promo-share/${promo._id}/${promo.socialMedia}`
+            await this.promosCopiesModel.findOneAndUpdate({_id: promo._id}, {shareLink: shareLink});
         }
     }
 }

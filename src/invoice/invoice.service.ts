@@ -87,9 +87,10 @@ export class InvoiceService {
         doc.fontSize(20).text("INVOICE", 50, 50);
 
         // Sender's details
-        doc.fontSize(10).text(result.beneficiary, 50, 100);
+        doc.fontSize(10).text(result.contactName + " " + result.contactLastName, 50, 100);
         doc.text(result.street, 50, 115);
         doc.text(result.city + " " + result.country, 50, 130);
+        doc.text(result.beneficiary, 50, 145);
 
         // Date and Invoice Number
         doc.text(`DATE: ${getFormattedDate()}`, 400, 100);

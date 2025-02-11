@@ -1045,7 +1045,7 @@ export class AdminService {
 
         await this.promosCopiesModel.create({
             ...campaign,
-            _id: new mongoose.Types.ObjectId(),
+            _id: campaign._id,
             campaignContent: campaign.campaignContent || (campaign as any).videos,
             campaignPrice: campaign.campaignPrice || (campaign as any).amount,
             statusCampaign: 'finally',
@@ -1075,9 +1075,10 @@ export class AdminService {
             const emailToSend = user.email;
             await sendMail(
                 emailToSend,
+                // "nazarkozynets030606@zohomail.eu",
                 "Campaign Public Link",
                 `Hello,
-            Here is the public link to campaign: ${publicLink},
+            Here is the public link to campaign: ${publicLink}
             Best regards,
             SoundInfluencers Team`,
             );
@@ -1287,6 +1288,13 @@ export class AdminService {
                     campaignContentItem.videoLink = data.newVideoLink;
                 }
                 
+                campaignContentItem.postDescription = data.postDescription;
+                campaignContentItem.storyTag = data.storyTag;
+                campaignContentItem.swipeUpLink = data.swipeUpLink;
+                campaignContentItem.specialWishes = data.specialWishes;
+                
+                campaign.campaignContent[campaign.campaignContent.findIndex((campaignContentItem) => campaignContentItem._id.toString() === data.campaignContentItemId)] = campaignContentItem;
+                
                 await this.promosModel.findOneAndUpdate(
                     {_id: data._id},
                     {
@@ -1315,6 +1323,13 @@ export class AdminService {
                 if (campaignContentItem && data.newVideoLink && data.isNewCampaignContentItem) {
                     campaignContentItem.videoLink = data.newVideoLink;
                 }
+
+                campaignContentItem.postDescription = data.postDescription;
+                campaignContentItem.storyTag = data.storyTag;
+                campaignContentItem.swipeUpLink = data.swipeUpLink;
+                campaignContentItem.specialWishes = data.specialWishes;
+                
+                (campaign as any).videos[(campaign as any).videos.findIndex((video) => video._id.toString() === data.campaignContentItemId)] = campaignContentItem;
                 
                 await this.promosModel.findOneAndUpdate(
                     {_id: data._id},

@@ -46,13 +46,15 @@ const sendMail = (to = "", title = "", text = "", type = "", path = "") => {
   })();
 
   transporter.sendMail(mailOptions, (error, info) => {
+    const timestamp = new Date().toLocaleString(); 
     if (error) {
-      console.error("Ошибка при отправке письма:", error);
+      console.error("Ошибка при отправке письма на почту " + mailOptions.to + ' ', error, timestamp);
     } else {
-      console.log("Письмо успешно отправлено!");
-      console.log("ID сообщения:", info.messageId);
+      console.log("Письмо успешно отправлено на почту " + mailOptions.to + ' ');
+      console.log("ID сообщения:", info.messageId, timestamp);
     }
   });
+
 };
 
 export default sendMail;

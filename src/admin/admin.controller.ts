@@ -124,7 +124,8 @@ export class AdminController {
     
     @Post('promos/send-public-link/:userId/:publicLink')
     adminSendCampaignPublicLinkToClient(@Param('userId') userId: string, @Param('publicLink') publicLink: string) {
-        return this.adminService.adminSendCampaignPublicLinkToClient(userId, publicLink);
+        const decryptedPublicLink = decodeAndDecrypt(publicLink, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
+        return this.adminService.adminSendCampaignPublicLinkToClient(userId, decryptedPublicLink);
     }
     
     @Post('send-invoice-client')

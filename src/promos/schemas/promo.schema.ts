@@ -126,6 +126,9 @@ export class Promos {
     @Prop({required: false, default: false})
     isCopy: boolean;
 
+    @Prop({required: false, default: `${process.env.SERVER_CLIENT}`})
+    shareLink: string;
+    
     readonly createdAt?: Date;
     readonly updatedAt?: Date;
 }
