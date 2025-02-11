@@ -202,8 +202,8 @@ ${emailVideoContent()}
 </p>`;
 
         await sendMail(
-            "nazarkozynets030606@zohomail.eu",
-            // "admin@soundinfluencers.com",
+            // "nazarkozynets030606@zohomail.eu",
+            "admin@soundinfluencers.com",
             "soundinfluencers",
             emailContent,
             "html"
