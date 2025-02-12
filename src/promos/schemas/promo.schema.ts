@@ -122,7 +122,10 @@ export class Promos {
 
     @Prop({required: false, default: false})
     isCpmAndResultHidden: boolean;
-    
+
+    @Prop({required: false, default: false})
+    isPriceHidden: boolean;
+
     @Prop({required: false, default: false})
     isCopy: boolean;
 
