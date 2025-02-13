@@ -24,7 +24,6 @@ import {AdminPutOfferToOffersDto} from "./dto/admin-put-offer-to-offers.dto";
 import {PromosService} from "../promos/promos.service";
 import {PromosCopies} from "./schemas/promos-copies.schema";
 import {AdminUpdateInfluencerFullAccountDto} from "./dto/admin-update-influencer-full-account.dto";
-import {type} from "node:os";
 
 const fs = require("fs");
 const PDFDocument = require("pdfkit");
@@ -1952,22 +1951,21 @@ Soundinfluencers Team
 
     async hidePriceForCampaign(campaignId: string) {
         try {
-            const campaign = await this.promosModel.findOne({_id: campaignId}).lean().exec() 
+            const campaign = await this.promosModel.findOne({_id: campaignId}).lean().exec()
                 || await this.promosCopiesModel.findOne({_id: campaignId}).lean().exec();
-            
+
             if (!campaign) {
                 return {
                     status: 404,
                     message: 'Campaign not found',
                 }
             }
-            
+
             const isPriceHidden = campaign.isPriceHidden !== undefined ? !campaign.isPriceHidden : true;
-            
+
             if (campaign.isCopy) {
                 try {
                     await this.promosCopiesModel.updateOne({_id: campaignId}, {isPriceHidden});
-
                     return {
                         status: 200,
                         message: 'Price hidden successfully',
@@ -1978,7 +1976,7 @@ Soundinfluencers Team
             } else {
                 try {
                     await this.promosModel.updateOne({_id: campaignId}, {isPriceHidden});
-                    
+
                     return {
                         status: 200,
                         message: 'Price hidden successfully',

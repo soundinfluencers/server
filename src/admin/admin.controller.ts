@@ -221,7 +221,7 @@ export class AdminController {
         const decryptedCampaignId = decodeAndDecrypt(campaignId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
         return this.adminService.hideCpmAndResultForCampaign(decryptedCampaignId);
     }
-    
+
     @Put('promos/update/hide-price-for-campaign/:campaignId')
     hidePriceForCampaign(@Param('campaignId') campaignId: string) {
         const decryptedCampaignId = decodeAndDecrypt(campaignId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);

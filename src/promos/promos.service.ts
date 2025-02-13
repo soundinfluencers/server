@@ -1578,7 +1578,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
     ) {
         if (!influencerId || !campaignId || !socialMediaUsername) {
             return {
-                status: 400,
+                code: 400,
                 message: "Not enough arguments",
             };
         }
@@ -1617,7 +1617,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 const checkInfluencer =
                     await this.influencerModel.findById(influencerId);
 
-                const currentSocialMediaAccount = checkInfluencer[data.socialMedia].find(
+                const currentSocialMediaAccount = checkInfluencer[dataSocialMediaAccount.socialMedia].find(
                     (item) => item.instagramUsername === socialMediaUsername
                 );
 
@@ -1643,7 +1643,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                 message: 'Screenshot is empty',
                             };
                         }
-                        if (dataSocialMediaAccount.closePromo !== "close") await paymentGo();
+
+                        const isPromoAlreadyClosed = dataSocialMediaAccount.closePromo === "close";
 
                         const resultOfSavingHistory = await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, {
                             influencerId: influencerId,
@@ -1664,36 +1665,50 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                             }
                         }
 
-                        await this.promosModel.findOneAndUpdate(
-                            {
-                                _id: campaignId,
-                                selectInfluencers: {
-                                    $elemMatch: {
-                                        influencerId: influencerId,
-                                        $or: [
-                                            {socialMediaUsername: socialMediaUsername},
-                                            {instagramUsername: socialMediaUsername},
-                                        ]
+                        try {
+                            await this.promosModel.findOneAndUpdate(
+                                {
+                                    _id: campaignId,
+                                    selectInfluencers: {
+                                        $elemMatch: {
+                                            influencerId: influencerId,
+                                            $or: [
+                                                {socialMediaUsername: socialMediaUsername},
+                                                {instagramUsername: socialMediaUsername},
+                                            ]
+                                        },
                                     },
                                 },
-                            },
-                            {
-                                $set: Object.fromEntries(
-                                    Object.entries({
-                                        ...dataSocialMediaAccount,
-                                        ...data,
-                                        closePromo: "close",
-                                    }).map(([key, value]) => [`selectInfluencers.$.${key}`, value])
-                                ),
+                                {
+                                    $set: Object.fromEntries(
+                                        Object.entries({
+                                            ...dataSocialMediaAccount,
+                                            ...data,
+                                            closePromo: "close",
+                                        }).map(([key, value]) => [`selectInfluencers.$.${key}`, value])
+                                    ),
+                                }
+                            );
+
+                            if (!isPromoAlreadyClosed) await paymentGo();
+
+                            return {
+                                code: 200,
                             }
-                        );
+                        } catch (err) {
+                            console.error('Error updating promo:', err);
+                            return {
+                                code: 500,
+                                message: 'Internal Server Error',
+                            };
+                        }
                     } else if (findNewCampaign.socialMedia === "press") {
                         if (data.postLink === '' || data.postLink === null) return {
                             code: 400,
                             message: `Post link is empty (Updating press campaign: ${campaignId})`,
                         };
 
-                        if (dataSocialMediaAccount.closePromo !== "close") await paymentGo();
+                        const isPromoAlreadyClosed = dataSocialMediaAccount.closePromo === "close";
 
                         const resultOfSavingHistory = await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, {
                             influencerId: influencerId,
@@ -1714,36 +1729,50 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                             }
                         }
 
-                        return await this.promosModel.findOneAndUpdate(
-                            {
-                                _id: campaignId,
-                                selectInfluencers: {
-                                    $elemMatch: {
-                                        influencerId: influencerId,
-                                        $or: [
-                                            {socialMediaUsername: socialMediaUsername},
-                                            {instagramUsername: socialMediaUsername},
-                                        ],
+                        try {
+                            await this.promosModel.findOneAndUpdate(
+                                {
+                                    _id: campaignId,
+                                    selectInfluencers: {
+                                        $elemMatch: {
+                                            influencerId: influencerId,
+                                            $or: [
+                                                {socialMediaUsername: socialMediaUsername},
+                                                {instagramUsername: socialMediaUsername},
+                                            ],
+                                        },
                                     },
                                 },
-                            },
-                            {
-                                $set: Object.fromEntries(
-                                    Object.entries({
-                                        ...dataSocialMediaAccount,
-                                        ...data,
-                                        closePromo: "close",
-                                    }).map(([key, value]) => [`selectInfluencers.$.${key}`, value])
-                                ),
+                                {
+                                    $set: Object.fromEntries(
+                                        Object.entries({
+                                            ...dataSocialMediaAccount,
+                                            ...data,
+                                            closePromo: "close",
+                                        }).map(([key, value]) => [`selectInfluencers.$.${key}`, value])
+                                    ),
+                                }
+                            );
+
+                            if (!isPromoAlreadyClosed) await paymentGo();
+
+                            return {
+                                code: 200,
                             }
-                        );
+                        } catch (err) {
+                            console.error('Error updating promo:', err);
+                            return {
+                                code: 500,
+                                message: 'Internal Server Error',
+                            };
+                        }
                     } else if (
                         data.postLink &&
                         data.impressions &&
                         data.like &&
                         data.screenshot
                     ) {
-                        if (dataSocialMediaAccount.closePromo !== "close") await paymentGo();
+                        const isPromoAlreadyClosed = dataSocialMediaAccount.closePromo === "close";
 
                         const resultOfSavingHistory = await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, {
                             influencerId: influencerId,
@@ -1764,36 +1793,50 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                             }
                         }
 
-                        return await this.promosModel.findOneAndUpdate(
-                            {
-                                _id: campaignId,
-                                selectInfluencers: {
-                                    $elemMatch: {
-                                        influencerId: influencerId,
-                                        $or: [
-                                            {socialMediaUsername: socialMediaUsername},
-                                            {instagramUsername: socialMediaUsername},
-                                        ],
+                        try {
+                            await this.promosModel.findOneAndUpdate(
+                                {
+                                    _id: campaignId,
+                                    selectInfluencers: {
+                                        $elemMatch: {
+                                            influencerId: influencerId,
+                                            $or: [
+                                                {socialMediaUsername: socialMediaUsername},
+                                                {instagramUsername: socialMediaUsername},
+                                            ],
+                                        },
                                     },
                                 },
-                            },
-                            {
-                                $set: Object.fromEntries(
-                                    Object.entries({
-                                        ...dataSocialMediaAccount,
-                                        ...data,
-                                        closePromo: "close",
-                                    }).map(([key, value]) => [`selectInfluencers.$.${key}`, value])
-                                ),
+                                {
+                                    $set: Object.fromEntries(
+                                        Object.entries({
+                                            ...dataSocialMediaAccount,
+                                            ...data,
+                                            closePromo: "close",
+                                        }).map(([key, value]) => [`selectInfluencers.$.${key}`, value])
+                                    ),
+                                }
+                            );
+
+                            if (!isPromoAlreadyClosed) await paymentGo();
+                            
+                            return {
+                                code: 200,
                             }
-                        );
+                        } catch (err) {
+                            console.error('Error updating promo:', err);
+                            return {
+                                code: 500,
+                                message: 'Internal Server Error',
+                            };
+                        }
                     }
                 })();
             } catch (err) {
                 console.error('Error updating promo:', err);
                 return {
                     code: 500,
-                    message: err,
+                    message: 'Internal Server Error',
                 };
             }
 
@@ -1831,14 +1874,14 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                     checkCampaign = false;
                 }
             });
-
+            
             if (checkCampaign) {
                 let totalFollowers = 0;
 
                 const selectInfluencers = await Promise.all(
                     findNewCampaign.selectInfluencers.map(async (item) => {
                         const checkInfluencer = await this.influencerModel.findById(item.influencerId);
-                        const currentAccount = checkInfluencer[data.socialMedia]?.find(
+                        const currentAccount = checkInfluencer[item.socialMedia]?.find(
                             (fin) => fin.instagramUsername === item.socialMediaUsername || fin.instagramUsername === (item as any).instagramUsername
                         );
 
@@ -1872,14 +1915,18 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                         selectInfluencers: selectInfluencers,
                     });
                 } catch (err) {
-                    console.error('Error creating promo copy:', err);
+                    throw new Error(`Error creating promo copy: ${err}`);
                 }
-                await this.promosModel.deleteOne({_id: campaignId});
+                
+                try {
+                    await this.promosModel.deleteOne({_id: campaignId});
+                } catch (err) {
+                    throw new Error(`Error deleting promo: ${err}`);
+                }
             }
 
             return {
                 code: 200,
-                updateNewCampaign,
             };
         } catch (err) {
             return {
