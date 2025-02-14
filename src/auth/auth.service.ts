@@ -170,6 +170,7 @@ export class AuthService {
                 || await this.clientModel.findOne({email: data.email});
 
             if (checkUser) {
+                console.error(`Existing email was used while creating new influencer`);
                 return {code: 409, message: 'This user already exists'};
             }
 
@@ -180,13 +181,18 @@ export class AuthService {
                 const usernames = accounts.map((item) => item.instagramUsername);
 
                 const networkFilter = {
-                    [`${network}.instagramUsername`]: {$in: usernames},
-                    isDeleted: {$ne: true}
+                    [`${network}.instagramUsername`]: { $in: usernames },
+                    isDeleted: { $ne: true }
                 };
-                const isUsernameUsed = await this.influencerModel.exists(networkFilter);
 
-                if (isUsernameUsed) {
-                    return {code: 409, message: `This ${network} username already exists`};
+                const existingUser = await this.influencerModel.findOne(networkFilter);
+
+                if (existingUser) {
+                    console.error(`Existing username was used while creating new influencer: ${existingUser[network].instagramUsername}`);
+                    return {
+                        code: 409,
+                        message: `This ${network} username (${existingUser[network].instagramUsername}) already exists`,
+                    };
                 }
             }
 

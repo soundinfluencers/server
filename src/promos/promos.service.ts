@@ -40,7 +40,7 @@ export class PromosService {
                 message: "Not enough arguments",
             };
         }
-
+        
         const processedInfluencers = await Promise.all(
             data.selectInfluencers.map(async (influencer) => {
                 const dateRequest = influencer.dateRequest;
@@ -62,6 +62,7 @@ export class PromosService {
                         followersNumber: parseInt(socialMediaAccount.followersNumber),
                         selectedCampaignContentItem: influencer.selectedCampaignContentItem,
                         dateRequest,
+                        socialMedia: data.socialMedia,
                     };
                 }
             })
