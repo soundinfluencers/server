@@ -923,8 +923,7 @@ export class AdminService {
 
             influencer.confirmation = 'accept';
             influencer.closePromo = 'close';
-            await campaign.save();
-
+            
             const price = influencerAccount[campaign.socialMedia].find(
                 (acc) => acc.instagramUsername === influencer.socialMediaUsername || acc.instagramUsername === (influencer as any).instagramUsername
             )?.price;
@@ -937,7 +936,7 @@ export class AdminService {
             }
 
             let balance = parseInt(influencerAccount.balance.replace('€', '').trim(), 10);
-
+            
             if (isNaN(balance)) {
                 balance = 0;
             }
@@ -945,17 +944,23 @@ export class AdminService {
             balance += parseInt(price.replace('€', '').trim(), 10);
 
             const updatedBalance = `${balance}`;
-
-            await this.influencerModel.findOneAndUpdate(
-                {
-                    $or: [
-                        {[`${campaign.socialMedia}.instagramUsername`]: influencer.socialMediaUsername},
-                        {[`${campaign.socialMedia}.instagramUsername`]: (influencer as any).instagramUsername}
-                    ]
-                },
-                {balance: updatedBalance}
-            );
-
+            
+            try {
+                await this.influencerModel.findOneAndUpdate(
+                    {
+                        _id: influencer.influencerId,
+                    },
+                    {balance: updatedBalance}
+                );
+                await campaign.save();
+            } catch (err) {
+                console.error('Error while closing campaign for influencer', err);
+                return {
+                    code: 500,
+                    message: err.message || 'An error occurred while updating the influencer balance while closing the campaign for this him',
+                };
+            }
+            
             return {
                 code: 200,
                 message: 'Promo closed for influencer successfully',
@@ -1294,7 +1299,7 @@ export class AdminService {
                 campaignContentItem.specialWishes = data.specialWishes;
                 
                 campaign.campaignContent[campaign.campaignContent.findIndex((campaignContentItem) => campaignContentItem._id.toString() === data.campaignContentItemId)] = campaignContentItem;
-                
+
                 await this.promosModel.findOneAndUpdate(
                     {_id: data._id},
                     {
@@ -1468,13 +1473,13 @@ export class AdminService {
 
             const price = influencer[campaign.socialMedia].find((acc) => acc.instagramUsername === data.socialMediaUsername).price;
             const publicPrice = influencer[campaign.socialMedia].find((acc) => acc.instagramUsername === data.socialMediaUsername).publicPrice;
-
+            
             campaign.selectInfluencers.push({
                 _id: new Types.ObjectId(),
-                influencerId: new Types.ObjectId(data.influencerId),
+                influencerId: data.influencerId,
                 socialMediaUsername: data.socialMediaUsername,
                 confirmation: 'wait',
-                socialMedia: 'instagram',
+                socialMedia: campaign.socialMedia,
                 selectedCampaignContentItem: data.selectedCampaignContentItem,
                 dateRequest: data.dateRequest,
                 closePromo: 'wait',
