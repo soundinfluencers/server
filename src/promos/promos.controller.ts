@@ -58,6 +58,11 @@ export class PromosController {
         return this.promosService.getOffers(socialMedia);
     }
 
+    @Get('offers-create-campaign-page/:socialMedia')
+    getOffersForCreateCampaignPage(@Param('socialMedia') socialMedia: string) {
+        return this.promosService.getOffersForCreateCampaignPage(socialMedia);
+    }
+    
     @Post('uploadScreenshot')
     @UseInterceptors(FileInterceptor('file'))
     uploadFile(@UploadedFile() file: File) {
@@ -226,8 +231,8 @@ export class PromosController {
         return this.promosService.getSelectedSocialMediaAccountsForCampaignStrategy(data);
     }
     
-    @Put('add-share-link')
-    addShareLinksToPromos() {
-        return this.promosService.addShareLinksToPromos();
+    @Put('update-offer-by-id')
+    updateOfferById() {
+        return this.promosService.updateOffer();
     }
 }

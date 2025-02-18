@@ -957,7 +957,7 @@ export class AdminService {
                 console.error('Error while closing campaign for influencer', err);
                 return {
                     code: 500,
-                    message: err.message || 'An error occurred while updating the influencer balance while closing the campaign for this him',
+                    message: err.message || 'An error occurred while updating the influencer balance while closing the campaign for him',
                 };
             }
             
@@ -2053,68 +2053,6 @@ Soundinfluencers Team
                 message: 'An unknown error occurred',
             };
         }
-    }
-
-    async adminAddInfluencerIdsToOffers() {
-        const offer = await this.offersModel.findOne({id: 15}).exec();
-        let ctr = 0;
-
-        // console.log('Before update:', offer.connectInfluencer);
-
-        if (offer.connectInfluencer && offer.connectInfluencer.length > 0) {
-            for (const influencerObj of offer.connectInfluencer) {
-                const influencerObjTyped = influencerObj as { instagramUsername: string; influencerId?: string };
-
-                if (!influencerObjTyped.influencerId) {
-                    const influencer = await this.influencerModel.findOne({
-                        'instagram.instagramUsername': influencerObjTyped.instagramUsername
-                    });
-                    // console.log(`Processing influencer ${influencer?._id.toString()}`);
-                    if (influencer) {
-                        influencerObjTyped.influencerId = influencer._id.toString();
-                        ctr++;
-                    } else {
-                        console.log(`No influencer found for ${influencerObjTyped.instagramUsername}`);
-                    }
-                }
-            }
-        }
-
-        // console.log('After update:', offer.connectInfluencer);
-
-        if (offer.musicStyles && offer.musicStyles.length > 0) {
-            for (const musicStyle of offer.musicStyles) {
-                console.log('Before update:', musicStyle.connectInfluencer);
-                await Promise.all(
-                    musicStyle.connectInfluencer.map(async (influencerObj: any) => {
-                        const influencerObjTyped = influencerObj as {
-                            instagramUsername: string;
-                            influencerId?: string
-                        };
-
-                        if (!influencerObjTyped.influencerId) {
-                            const influencer = await this.influencerModel.findOne({
-                                'instagram.instagramUsername': influencerObjTyped.instagramUsername
-                            });
-                            console.log(`Processing influencer ${influencer?._id.toString()}`);
-                            if (influencer) {
-                                influencerObjTyped.influencerId = influencer._id.toString();
-                                ctr++;
-                            } else {
-                                console.log(`No influencer found for ${influencerObjTyped.instagramUsername}`);
-                            }
-                        }
-                    })
-                );
-                console.log('After update:', musicStyle.connectInfluencer);
-            }
-        }
-
-        offer.markModified('connectInfluencer');
-        offer.markModified('musicStyles');
-        await offer.save();
-
-        console.log(`Total ${ctr} influencer ids added`);
     }
 
     async adminGiveIdsToSelectInfluencersAndVideos() {

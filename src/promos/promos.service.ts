@@ -551,7 +551,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 
             const offersWithAvatars = await Promise.all(
                 offers.map(async (offer: any) => {
-                    // Process the top-level connectInfluencer array
                     const connectInfluencerWithAvatars = await Promise.all(
                         (offer.connectInfluencer || []).map(async (influencer: any) => {
                             if (!influencer.influencerId || !influencer.instagramUsername) {
@@ -574,7 +573,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                         })
                     );
 
-                    // Process the musicStyles array
                     const musicStylesWithAvatars = await Promise.all(
                         (offer.musicStyles || []).map(async (style: any) => {
                             const connectInfluencersWithAvatars = await Promise.all(
@@ -628,6 +626,84 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
         }
     }
 
+    async getOffersForCreateCampaignPage(socialMedia: string) {
+        try {
+            const offers = await this.offersModel.find({socialMedia}).lean();
+
+            const offersWithAvatars = await Promise.all(
+                offers.map(async (offer: any) => {
+                    const connectInfluencerWithAvatars = await Promise.all(
+                        (offer.connectInfluencer || []).map(async (influencer: any) => {
+                            // if (!influencer.influencerId || !influencer.instagramUsername) {
+                            //     return influencer;
+                            // }
+
+                            try {
+                                // const avatar = await this.getInfluencerAvatarById(
+                                //     influencer.influencerId,
+                                //     influencer.instagramUsername
+                                // );
+
+                                return {
+                                    instagramUsername: influencer.instagramUsername,
+                                    influencerId: influencer.influencerId || (influencer as any)._id,
+                                    // avatar,
+                                };
+                            } catch (error) {
+                                return influencer;
+                            }
+                        })
+                    );
+
+                    const musicStylesWithAvatars = await Promise.all(
+                        (offer.musicStyles || []).map(async (style: any) => {
+                            const connectInfluencersWithAvatars = await Promise.all(
+                                (style.connectInfluencer || []).map(async (influencer: any) => {
+                                    // if (!influencer.influencerId || !influencer.instagramUsername) {
+                                    //     return influencer;
+                                    // }
+
+                                    try {
+                                        return {
+                                            instagramUsername: influencer.instagramUsername,
+                                            influencerId: influencer.influencerId || (influencer as any)._id,
+                                            // avatar,
+                                        };
+                                    } catch (error) {
+                                        return influencer;
+                                    }
+                                })
+                            );
+
+                            return {
+                                ...style,
+                                connectInfluencer: connectInfluencersWithAvatars,
+                            };
+                        })
+                    );
+                    
+                    return {
+                        ...offer,
+                        connectInfluencer: connectInfluencerWithAvatars,
+                        musicStyles: musicStylesWithAvatars,
+                    };
+                })
+            );
+
+            return {
+                code: 200,
+                offers: offersWithAvatars,
+            };
+        } catch (err) {
+            console.error('Error fetching offers:', err);
+
+            return {
+                code: 500,
+                message: err,
+            };
+        }
+    }
+    
     async getInfluencerAvatarById(influencerId: string, instagramName: string) {
         const influencer = await this.influencerModel.findOne({
             _id: new mongoose.Types.ObjectId(influencerId),
@@ -2131,34 +2207,29 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
             };
         }
     }
-    
-    async addShareLinksToPromos() {
-        const promos = await this.promosModel.find().lean().exec();
 
-        if (!promos) {
-            return {
-                code: 404,
-                message: 'No promos found',
-            };
-        }
+    async updateOffer() {
+        try {
+            const offer = await this.offersModel.findOne({ id: 27.5 });
 
-        for (const promo of promos) {
-            const shareLink = `${process.env.SERVER_CLIENT}/promo-share/${promo._id}/${promo.socialMedia}`
-            await this.promosModel.findOneAndUpdate({_id: promo._id}, {shareLink: shareLink});
-        }
-        
-        const promosCopies = await this.promosCopiesModel.find().lean().exec();
-        
-        if (!promosCopies) {
-            return {
-                code: 404,
-                message: 'No promo copies found',
-            };
-        }
-        
-        for (const promo of promosCopies) {
-            const shareLink = `${process.env.SERVER_CLIENT}/promo-share/${promo._id}/${promo.socialMedia}`
-            await this.promosCopiesModel.findOneAndUpdate({_id: promo._id}, {shareLink: shareLink});
+            if (!offer) {
+                console.error('Offer not found');
+                return;
+            }
+
+            if (Array.isArray(offer.connectInfluencer)) {
+                offer.connectInfluencer = offer.connectInfluencer.map(influencer => ({
+                    instagramUsername: influencer.instagramUsername,
+                    influencerId: influencer.influencerId || (influencer as any)._id,
+                }));
+            }
+
+            await offer.save();
+
+            console.log('Offer updated:', offer);
+        } catch (err) {
+            console.error('Error updating offer:', err);
         }
     }
+
 }
