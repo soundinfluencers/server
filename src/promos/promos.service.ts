@@ -40,7 +40,7 @@ export class PromosService {
                 message: "Not enough arguments",
             };
         }
-        
+
         const processedInfluencers = await Promise.all(
             data.selectInfluencers.map(async (influencer) => {
                 const dateRequest = influencer.dateRequest;
@@ -551,7 +551,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 
             const offersWithAvatars = await Promise.all(
                 offers.map(async (offer: any) => {
-                    // Process the top-level connectInfluencer array
                     const connectInfluencerWithAvatars = await Promise.all(
                         (offer.connectInfluencer || []).map(async (influencer: any) => {
                             if (!influencer.influencerId || !influencer.instagramUsername) {
@@ -574,7 +573,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                         })
                     );
 
-                    // Process the musicStyles array
                     const musicStylesWithAvatars = await Promise.all(
                         (offer.musicStyles || []).map(async (style: any) => {
                             const connectInfluencersWithAvatars = await Promise.all(
@@ -628,11 +626,71 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
         }
     }
 
+    async getOffersForCreateCampaignPage(socialMedia: string) {
+        try {
+            const offers = await this.offersModel.find({socialMedia}).lean();
+
+            const processedOffers = await Promise.all(
+                offers.map(async (offer: any) => {
+                    let processedOffer = {
+                        id: offer.id,
+                        followers: offer.followers,
+                        network: offer.network,
+                        story: offer.story,
+                        musicStylesAccounts: []
+                    };
+
+                    if (offer.musicStyles && offer.musicStyles.length > 0) {
+                        processedOffer.musicStylesAccounts = offer.musicStyles.map((style) => {
+                            return {
+                                genre: style.genres[0],
+                                price: style.price,
+                                accounts: style.connectInfluencer.map((item) => {
+                                    return {
+                                        instagramUsername: item.instagramUsername,
+                                        influencerId: item.influencerId || (item as any)._id,
+                                    };
+                                }),
+                            };
+                        });
+                    }
+
+                    if (offer.connectInfluencer && offer.connectInfluencer.length > 0) {
+                        processedOffer.musicStylesAccounts.push({
+                            genre: "Techno (Melodic)",
+                            price: offer.price,
+                            accounts: offer.connectInfluencer.map((item) => {
+                                return {
+                                    instagramUsername: item.instagramUsername,
+                                    influencerId: item.influencerId || (item as any)._id,
+                                };
+                            }),
+                        });
+                    }
+
+                    return processedOffer;
+                })
+            );
+
+            return {
+                code: 200,
+                offers: processedOffers,
+            };
+        } catch (err) {
+            console.error('Error fetching offers:', err);
+
+            return {
+                code: 500,
+                message: err,
+            };
+        }
+    }
+
     async getInfluencerAvatarById(influencerId: string, instagramName: string) {
         const influencer = await this.influencerModel.findOne({
             _id: new mongoose.Types.ObjectId(influencerId),
         })
-        
+
         if (!influencer) {
             throw new Error(`Influencer with ID ${influencerId} not found`);
         }
@@ -1820,7 +1878,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                             );
 
                             if (!isPromoAlreadyClosed) await paymentGo();
-                            
+
                             return {
                                 code: 200,
                             }
@@ -1875,7 +1933,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                     checkCampaign = false;
                 }
             });
-            
+
             if (checkCampaign) {
                 let totalFollowers = 0;
 
@@ -1918,7 +1976,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 } catch (err) {
                     throw new Error(`Error creating promo copy: ${err}`);
                 }
-                
+
                 try {
                     await this.promosModel.deleteOne({_id: campaignId});
                 } catch (err) {
@@ -2131,34 +2189,29 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
             };
         }
     }
-    
-    async addShareLinksToPromos() {
-        const promos = await this.promosModel.find().lean().exec();
 
-        if (!promos) {
-            return {
-                code: 404,
-                message: 'No promos found',
-            };
-        }
+    async updateOffer() {
+        try {
+            const offer = await this.offersModel.findOne({ id: 27.5 });
 
-        for (const promo of promos) {
-            const shareLink = `${process.env.SERVER_CLIENT}/promo-share/${promo._id}/${promo.socialMedia}`
-            await this.promosModel.findOneAndUpdate({_id: promo._id}, {shareLink: shareLink});
-        }
-        
-        const promosCopies = await this.promosCopiesModel.find().lean().exec();
-        
-        if (!promosCopies) {
-            return {
-                code: 404,
-                message: 'No promo copies found',
-            };
-        }
-        
-        for (const promo of promosCopies) {
-            const shareLink = `${process.env.SERVER_CLIENT}/promo-share/${promo._id}/${promo.socialMedia}`
-            await this.promosCopiesModel.findOneAndUpdate({_id: promo._id}, {shareLink: shareLink});
+            if (!offer) {
+                console.error('Offer not found');
+                return;
+            }
+
+            if (Array.isArray(offer.connectInfluencer)) {
+                offer.connectInfluencer = offer.connectInfluencer.map(influencer => ({
+                    instagramUsername: influencer.instagramUsername,
+                    influencerId: influencer.influencerId || (influencer as any)._id,
+                }));
+            }
+
+            await offer.save();
+
+            console.log('Offer updated:', offer);
+        } catch (err) {
+            console.error('Error updating offer:', err);
         }
     }
+
 }
