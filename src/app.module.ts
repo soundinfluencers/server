@@ -16,6 +16,7 @@ import {AdminModule} from "./admin/admin.module";
 import {AppGateway} from "./websocket/app.gateway";
 import {InfluencerActionsHistoryModule} from "./influencer-actions-history/influencer-actions-history.module";
 import {ProposalSystemModule} from "./proposal-system/proposal-system.module";
+import {MultiPromoModule} from "./multipromos/multipromo.module";
 
 @Module({
     imports: [
@@ -35,6 +36,7 @@ import {ProposalSystemModule} from "./proposal-system/proposal-system.module";
         AdminModule,
         InfluencerActionsHistoryModule,
         ProposalSystemModule,
+        MultiPromoModule,
         ServeStaticModule.forRoot({
             rootPath: join(__dirname, '..', 'uploads'),
             serveRoot: '/uploads',

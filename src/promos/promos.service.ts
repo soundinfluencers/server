@@ -630,69 +630,51 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
         try {
             const offers = await this.offersModel.find({socialMedia}).lean();
 
-            const offersWithAvatars = await Promise.all(
+            const processedOffers = await Promise.all(
                 offers.map(async (offer: any) => {
-                    const connectInfluencerWithAvatars = await Promise.all(
-                        (offer.connectInfluencer || []).map(async (influencer: any) => {
-                            // if (!influencer.influencerId || !influencer.instagramUsername) {
-                            //     return influencer;
-                            // }
-
-                            try {
-                                // const avatar = await this.getInfluencerAvatarById(
-                                //     influencer.influencerId,
-                                //     influencer.instagramUsername
-                                // );
-
-                                return {
-                                    instagramUsername: influencer.instagramUsername,
-                                    influencerId: influencer.influencerId || (influencer as any)._id,
-                                    // avatar,
-                                };
-                            } catch (error) {
-                                return influencer;
-                            }
-                        })
-                    );
-
-                    const musicStylesWithAvatars = await Promise.all(
-                        (offer.musicStyles || []).map(async (style: any) => {
-                            const connectInfluencersWithAvatars = await Promise.all(
-                                (style.connectInfluencer || []).map(async (influencer: any) => {
-                                    // if (!influencer.influencerId || !influencer.instagramUsername) {
-                                    //     return influencer;
-                                    // }
-
-                                    try {
-                                        return {
-                                            instagramUsername: influencer.instagramUsername,
-                                            influencerId: influencer.influencerId || (influencer as any)._id,
-                                            // avatar,
-                                        };
-                                    } catch (error) {
-                                        return influencer;
-                                    }
-                                })
-                            );
-
-                            return {
-                                ...style,
-                                connectInfluencer: connectInfluencersWithAvatars,
-                            };
-                        })
-                    );
-                    
-                    return {
-                        ...offer,
-                        connectInfluencer: connectInfluencerWithAvatars,
-                        musicStyles: musicStylesWithAvatars,
+                    let processedOffer = {
+                        id: offer.id,
+                        followers: offer.followers,
+                        network: offer.network,
+                        story: offer.story, 
+                        musicStylesAccounts: []
                     };
+                    
+                    if (offer.musicStyles && offer.musicStyles.length > 0) {
+                        processedOffer.musicStylesAccounts = offer.musicStyles.map((style) => {
+                            return {
+                                genre: style.genres[0],
+                                price: style.price,
+                                accounts: style.connectInfluencer.map((item) => {
+                                    return {
+                                        instagramUsername: item.instagramUsername,
+                                        influencerId: item.influencerId || (item as any)._id,
+                                    };
+                                }),
+                            };
+                        });
+                    }
+
+                    if (offer.connectInfluencer && offer.connectInfluencer.length > 0) {
+                        processedOffer.musicStylesAccounts.push({
+                            genre: "Techno (Melodic)",
+                            price: offer.price,
+                            accounts: offer.connectInfluencer.map((item) => {
+                                return {
+                                    instagramUsername: item.instagramUsername,
+                                    influencerId: item.influencerId || (item as any)._id,
+                                };
+                            }),
+                        });
+                    }
+                    
+                    return processedOffer;
                 })
             );
 
             return {
                 code: 200,
-                offers: offersWithAvatars,
+                offers: processedOffers,
             };
         } catch (err) {
             console.error('Error fetching offers:', err);
