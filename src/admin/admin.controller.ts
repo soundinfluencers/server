@@ -242,8 +242,8 @@ export class AdminController {
         return this.adminService.adminAddInfluencerIdsToOffers();
     }
     
-    @Put('promos/update/give-id-influencers-campaign-contents')
-    adminGiveIdsToSelectInfluencersAndVideos() {
-        return this.adminService.adminGiveIdsToSelectInfluencersAndVideos();
+    @Post('time-warp')
+    combineTimeWarpCampaigns() {
+        return this.adminService.combineTimeWarpCampaigns();
     }
 }

@@ -8,10 +8,7 @@ export class AdminUpdateCampaignVideoDto {
     campaignContentItemId: string;
     
     @ApiProperty({required: false})
-    oldVideoLink: string;
-    
-    @ApiProperty({required: false})
-    newVideoLink: string;
+    videoLink: string;
     
     @ApiProperty({required: false})
     postDescription: string;

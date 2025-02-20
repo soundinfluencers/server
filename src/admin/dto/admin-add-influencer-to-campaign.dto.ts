@@ -34,4 +34,7 @@ export class AdminAddInfluencerToCampaignDto {
 
     @Prop({ default: '' })
     like: string;
+    
+    @Prop({ default: '' })
+    newVideoLink: string;
 }

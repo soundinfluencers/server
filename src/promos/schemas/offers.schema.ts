@@ -1,9 +1,18 @@
 import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
 
+@Schema({strict: true})
+export class ConnectInfluencerObj {
+    @Prop()
+    instagramUsername: string;
+
+    @Prop()
+    influencerId: string;
+}
+
 export interface MusicStyle {
     price: number;
     genres: string[];
-    connectInfluencer: [];
+    connectInfluencer: ConnectInfluencerObj[];
 }
 
 @Schema()
@@ -13,9 +22,9 @@ export class MusicStyleSchema {
 
     @Prop({type: [String]})
     genres: string[];
-    
+
     @Prop()
-    connectInfluencer: [];
+    connectInfluencer: ConnectInfluencerObj[];
 }
 
 export const MusicStyleSchemaSchema = SchemaFactory.createForClass(MusicStyleSchema);
@@ -34,7 +43,7 @@ export class Offers {
     maxInfluencer: number;
 
     @Prop({required: false, default: null})
-    connectInfluencer: [];
+    connectInfluencer: ConnectInfluencerObj[];
 
     @Prop()
     followers: string;
@@ -44,7 +53,7 @@ export class Offers {
 
     @Prop()
     story: string;
-    
+
     @Prop()
     socialMedia: string;
 

@@ -226,8 +226,8 @@ export class PromosController {
         return this.promosService.getSelectedSocialMediaAccountsForCampaignStrategy(data);
     }
     
-    @Put('add-share-link')
-    addShareLinksToPromos() {
-        return this.promosService.addShareLinksToPromos();
+    @Put('add-ids-to-content-items')
+    addIdsToContentItems() {
+        return this.promosService.addIdsToContentItems();
     }
 }
