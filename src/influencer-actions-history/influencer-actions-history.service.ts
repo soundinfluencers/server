@@ -95,7 +95,7 @@ export class InfluencerActionsHistoryService {
                     actionNumber,
                     networkUsername,
                     rewardForInfluencer,
-                    currentBalance: parseInt(balance),
+                    currentBalance: actionNumber === 3 ? parseInt(balance) + rewardForInfluencer : parseInt(balance),
                     date: new Date(),
                 });
             }
@@ -194,7 +194,7 @@ export class InfluencerActionsHistoryService {
     }
 
     async getActionsHistoryForAllOfInfluencers() {
-        const influencerActionsHistory = await this.influencerActionsHistoryModel.find();
+        const influencerActionsHistory = await this.influencerActionsHistoryModel.find().lean().exec();
 
         if (!influencerActionsHistory) {
             return {
@@ -206,7 +206,14 @@ export class InfluencerActionsHistoryService {
         const processedInfluencerActionsHistory = await Promise.all(
             influencerActionsHistory.map(async (influencerActionsHistory) => {
                 const influencer = await this.influencerModel.findById(influencerActionsHistory.influencerId);
+
+                if (!influencer) {
+                    console.warn(`Influencer not found for ID: ${influencerActionsHistory.influencerId} - INFLUENCER ACTIONS HISTORY SERVICE`, new Date().toLocaleString());
+                    return null;
+                }
+
                 const socialMedias = ["instagram", "tiktok", "youtube", "spotify", "soundcloud", "facebook", "press"];
+
                 const influencerNetworkUsernames = socialMedias.flatMap(socialMedia => {
                     const influencersSocialMediaAccounts = influencer[socialMedia]
 
@@ -218,10 +225,10 @@ export class InfluencerActionsHistoryService {
                                 networkUsername: account.instagramUsername,
                                 influencerId: influencer._id,
                             }));
-                    } else {
-                        return [];
                     }
-                });
+                    return [];
+                }).filter(Boolean);
+
                 const actionsHistory = [
                     ...influencerActionsHistory.campaigns.flatMap(campaign =>
                         campaign.actions.map(action => ({
@@ -246,7 +253,7 @@ export class InfluencerActionsHistoryService {
                 ];
 
                 actionsHistory.sort((a, b) => {
-                    const dateA = a.date instanceof Date ? a.date.getTime() : 0; 
+                    const dateA = a.date instanceof Date ? a.date.getTime() : 0;
                     const dateB = b.date instanceof Date ? b.date.getTime() : 0;
                     return dateB - dateA;
                 });
@@ -266,8 +273,8 @@ export class InfluencerActionsHistoryService {
                     influencerNetworkUsernames: influencerNetworkUsernames,
                     influencerEmail: influencer.email,
                     history: actionsHistory,
-                } 
-            })
+                }
+            }).filter(Boolean)
         )
 
         if (!processedInfluencerActionsHistory) {
