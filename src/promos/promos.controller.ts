@@ -231,8 +231,8 @@ export class PromosController {
         return this.promosService.getSelectedSocialMediaAccountsForCampaignStrategy(data);
     }
     
-    @Put('update-offer-by-id')
-    updateOfferById() {
-        return this.promosService.updateOffer();
+    @Put('add-ids-to-content-items')
+    addIdsToContentItems() {
+        return this.promosService.addIdsToContentItems();
     }
 }

@@ -4,7 +4,7 @@ import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
 export class ConnectInfluencerObj {
     @Prop()
     instagramUsername: string;
-    
+
     @Prop()
     influencerId: string;
 }
@@ -22,7 +22,7 @@ export class MusicStyleSchema {
 
     @Prop({type: [String]})
     genres: string[];
-    
+
     @Prop()
     connectInfluencer: ConnectInfluencerObj[];
 }
@@ -53,7 +53,7 @@ export class Offers {
 
     @Prop()
     story: string;
-    
+
     @Prop()
     socialMedia: string;
 
