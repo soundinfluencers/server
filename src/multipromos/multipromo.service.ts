@@ -22,40 +22,31 @@ export class MultiPromoService {
             };
         }
 
-        const influencers = await this.influencerModel
-            .find({ statusVerify: 'accept' })
-            .select(['-password', '-balance', '-phone', '-email'])
-            .lean()
-            .exec();
+        try {
+            const influencers = await this.influencerModel
+                .find({
+                    statusVerify: 'accept',
+                    $or: socialMedias.map(media => ({ [`${media}.isVerified`]: true })),
+                })
+                .select(['_id', 'username', ...socialMedias.map(m => `${m}`)])
+                .lean();
 
-        const validAccounts = influencers.map((influencer) => {
-            const result = [];
-            socialMedias.forEach((socialMedia) => {
-                if (influencer[socialMedia] && Array.isArray(influencer[socialMedia])) {
-                    const validAccountsForSocialMedia = influencer[socialMedia]
+            const validAccounts = influencers.flatMap(influencer =>
+                socialMedias.flatMap(media =>
+                    (influencer[media] || [])
                         .filter(account => !account.isHidden && !account.isDeleted && account.isVerified)
                         .map(account => ({
                             influencerId: influencer._id,
-                            validAccount: account,
-                            socialMedia: socialMedia,
-                        }));
+                            socialMedia: media,
+                            ...account,
+                        }))
+                )
+            );
 
-                    if (validAccountsForSocialMedia.length > 0) {
-                        result.push(...validAccountsForSocialMedia);
-                    }
-                }
-            });
-
-            return result;
-        }).flat();
-
-        return {
-            code: 200,
-            accounts: validAccounts.map(({ influencerId, socialMedia, validAccount }) => ({
-                influencerId,
-                socialMedia, 
-                ...validAccount,
-            })),
-        };
+            return { code: 200, accounts: validAccounts };
+        } catch (e) {
+            console.error(e);
+            return { code: 500, message: 'Internal server error' };
+        }
     }
 }
