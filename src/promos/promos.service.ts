@@ -141,7 +141,7 @@ export class PromosService {
                     `;
             }
         };
-
+        
         const emailVideoContent = () => {
             if (data.socialMedia === 'spotify' || data.socialMedia === 'soundcloud') {
                 return processedCampaignContent.map((campaignContentItem, index) => `
@@ -187,7 +187,7 @@ export class PromosService {
                         <li><strong>Special Wishes:</strong> ${campaignContentItem.specialWishes}</li>
                         <p><strong>Selected Influencers:</strong></p>
     <ul>
-        ${data.selectInfluencers
+        ${processedInfluencers
                     .filter(influencer => influencer.selectedCampaignContentItem === campaignContentItem._id.toString())
                     .map(influencer => `<li>${data.socialMedia} username: ${influencer.socialMediaUsername}</li>`)
                     .join('')}
@@ -211,8 +211,8 @@ ${emailVideoContent()}
 </p>`;
 
         await sendMail(
-            // "nazarkozynets030606@zohomail.eu",
-            "admin@soundinfluencers.com",
+            "nazarkozynets030606@zohomail.eu",
+            // "admin@soundinfluencers.com",
             "soundinfluencers",
             emailContent,
             "html"
