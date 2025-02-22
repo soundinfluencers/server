@@ -58,6 +58,11 @@ export class PromosController {
         return this.promosService.getOffers(socialMedia);
     }
 
+    @Get('offers-create-campaign-page/:socialMedia')
+    getOffersForCreateCampaignPage(@Param('socialMedia') socialMedia: string) {
+        return this.promosService.getOffersForCreateCampaignPage(socialMedia);
+    }
+    
     @Post('uploadScreenshot')
     @UseInterceptors(FileInterceptor('file'))
     uploadFile(@UploadedFile() file: File) {

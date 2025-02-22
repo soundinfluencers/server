@@ -13,6 +13,7 @@ import {PromosCopies} from "../admin/schemas/promos-copies.schema";
 import axios from "axios";
 import * as process from "node:process";
 import {GetSelectedSocialAccountsDto} from "./dto/get-selected-social-accounts.dto";
+import {encryptAndEncode} from "../utils/crypt";
 
 mongoose.Promise = global.Promise;
 
@@ -524,8 +525,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 <p>Soundinfluencers Team</p>
 `;
 
-                        await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
-                        // await sendMail("nazarkozynets030606@zohomail.eu", "soundinfluencers", emailToInfluencer, "html");
+                        // await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
+                        await sendMail("nazarkozynets030606@zohomail.eu", "soundinfluencers", emailToInfluencer, "html");
                     }
                 }
 
@@ -559,6 +560,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 
             const offersWithAvatars = await Promise.all(
                 offers.map(async (offer: any) => {
+                    // Process the top-level connectInfluencer array
                     const connectInfluencerWithAvatars = await Promise.all(
                         (offer.connectInfluencer || []).map(async (influencer: any) => {
                             if (!influencer.influencerId || !influencer.instagramUsername) {
@@ -581,6 +583,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                         })
                     );
 
+                    // Process the musicStyles array
                     const musicStylesWithAvatars = await Promise.all(
                         (offer.musicStyles || []).map(async (style: any) => {
                             const connectInfluencersWithAvatars = await Promise.all(
@@ -644,10 +647,10 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                         id: offer.id,
                         followers: offer.followers,
                         network: offer.network,
-                        story: offer.story,
+                        story: offer.story, 
                         musicStylesAccounts: []
                     };
-
+                    
                     if (offer.musicStyles && offer.musicStyles.length > 0) {
                         processedOffer.musicStylesAccounts = offer.musicStyles.map((style) => {
                             return {
@@ -675,7 +678,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                             }),
                         });
                     }
-
+                    
                     return processedOffer;
                 })
             );
@@ -1343,8 +1346,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewCampaign.clientId || (findNewCampaign as any).userId);
 
                 await sendMail(
-                    // "nazarkozynets030606@zohomail.eu",
-                    "admin@soundinfluencers.com",
+                    "nazarkozynets030606@zohomail.eu",
+                    // "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} accepted the offer for ${checkUserClient.email}'s campaign</p>
                 <p>Details:</p><br/>
@@ -1409,8 +1412,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewCampaign.clientId || (findNewCampaign as any).userId);
 
                 await sendMail(
-                    // "nazarkozynets030606@zohomail.eu",
-                    "admin@soundinfluencers.com",
+                    "nazarkozynets030606@zohomail.eu",
+                    // "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} declined the offer for ${checkUserClient.email}'s campaign</p>
                 <p>Details:</p><br/>
