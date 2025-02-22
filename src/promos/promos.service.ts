@@ -188,7 +188,7 @@ export class PromosService {
                         <li><strong>Special Wishes:</strong> ${campaignContentItem.specialWishes}</li>
                         <p><strong>Selected Influencers:</strong></p>
     <ul>
-        ${data.selectInfluencers
+        ${processedInfluencers
                     .filter(influencer => influencer.selectedCampaignContentItem === campaignContentItem._id.toString())
                     .map(influencer => `<li>${data.socialMedia} username: ${influencer.socialMediaUsername}</li>`)
                     .join('')}
