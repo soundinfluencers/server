@@ -237,9 +237,4 @@ export class AdminController {
     adminUpdateInfluencerAccount(@Body() data: AdminUpdateInfluencerFullAccountDto) {
         return this.adminService.adminUpdateInfluencerAccount(data);
     }
-    
-    @Post('time-warp')
-    combineTimeWarpCampaigns() {
-        return this.adminService.combineTimeWarpCampaigns();
-    }
 }

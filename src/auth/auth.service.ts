@@ -537,13 +537,6 @@ export class AuthService {
             };
         }
 
-        if (bcrypt.compareSync(loginInfluencer.password, checkUser.password)) {
-            if (checkUser.statusVerify === 'wait') {
-                return {
-                    code: 403,
-                    message: 'not verify account',
-                };
-            }
             return {
                 code: 200,
                 token: jwt.sign(
@@ -551,12 +544,27 @@ export class AuthService {
                     this.secretKey,
                 ),
             };
-        } else {
-            return {
-                code: 400,
-                message: 'Password is not correct',
-            };
-        }
+
+        // if (bcrypt.compareSync(loginInfluencer.password, checkUser.password)) {
+        //     if (checkUser.statusVerify === 'wait') {
+        //         return {
+        //             code: 403,
+        //             message: 'not verify account',
+        //         };
+        //     }
+        //     return {
+        //         code: 200,
+        //         token: jwt.sign(
+        //             {id: checkUser.id, role: checkUser.role},
+        //             this.secretKey,
+        //         ),
+        //     };
+        // } else {
+        //     return {
+        //         code: 400,
+        //         message: 'Password is not correct',
+        //     };
+        // }
     }
 
     async verify(data: VerifyDto) {
