@@ -142,6 +142,7 @@ export class PromosController {
     @ApiQuery({name: 'socialMediaUsername', required: true})
     @ApiQuery({name: 'campaignId', required: true})
     @ApiQuery({name: 'campaignResponse', required: true})
+    @ApiQuery({name: 'selectInfluencersId', required: true})
     @Put('influencer-update-response-new-campaign')
     influencerUpdateResponseNewCampaign(
         @Query()
@@ -150,6 +151,7 @@ export class PromosController {
             socialMediaUsername: string;
             campaignId: string;
             campaignResponse: string;
+            selectInfluencersId: string;
         },
     ) {
         const decryptedInfluencerId = decodeAndDecrypt(args.influencerId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
@@ -161,6 +163,7 @@ export class PromosController {
             decryptedSocialMediaUsername,
             decryptedCampaignId,
             args.campaignResponse,
+            args.selectInfluencersId,
         );
     }
 
@@ -173,6 +176,7 @@ export class PromosController {
     @ApiQuery({name: 'influencerId', required: true})
     @ApiQuery({name: 'campaignId', required: true})
     @ApiQuery({name: 'socialNetworkUsername', required: true})
+    @ApiQuery({name: 'selectInfluencersId', required: true})
     @Get('influencer-get-ongoing-campaign/one')
     influencerGetOngoingCampaign(
         @Query()
@@ -180,6 +184,7 @@ export class PromosController {
             influencerId: string;
             campaignId: string;
             socialNetworkUsername: string;
+            selectInfluencersId: string;
         },
     ) {
         const decryptedInfluencerId = decodeAndDecrypt(args.influencerId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
@@ -189,12 +194,14 @@ export class PromosController {
             decryptedInfluencerId,
             decryptedCampaignId,
             args.socialNetworkUsername,
+            args.selectInfluencersId,
         );
     }
 
     @ApiQuery({name: 'influencerId', required: true})
     @ApiQuery({name: 'socialNetworkUsername', required: true})
     @ApiQuery({name: 'campaignId', required: true})
+    @ApiQuery({name: 'selectInfluencersId', required: true})
     @Put('influencer-update-ongoing')
     influencerUpdateOngoingCampaign(
         @Query()
@@ -202,6 +209,7 @@ export class PromosController {
             influencerId: string;
             socialNetworkUsername: string;
             campaignId: string;
+            selectInfluencersId: string;
         },
         @Body() body,
     ) {
@@ -212,6 +220,7 @@ export class PromosController {
             decryptedInfluencerId,
             args.socialNetworkUsername,
             decryptedCampaignId,
+            args.selectInfluencersId,
             body,
         );
     }
