@@ -2095,39 +2095,4 @@ Soundinfluencers Team
 
         console.log(`Total ${ctr} influencer ids added`);
     }
-
-    async combineTimeWarpCampaigns() {
-        const partOne = await this.promosModel.find({campaignName: 'Time Warp x Infamous'}).lean().exec();
-        const partTwo = await this.promosModel.find({campaignName: 'Time Warp x Infamous part 2'}).lean().exec();
-        
-        const idForNewCampaign = new mongoose.Types.ObjectId();
-        const combinedCampaign = {
-            _id: idForNewCampaign,
-            campaignName: 'Time Warp x Infamous',
-            paymentType: 'Bank transfer',
-            paymentStatus: 'wait',
-            replacementsNotes: '',
-            partialRefund: 147,
-            socialMedia: 'instagram',
-            isCpmAndResultHidden: false,
-            isCopy: false,
-            campaignPrice: 9999,
-            clientId: '6659b88c5bc4317ed7c73336',
-            statusCampaign: 'work',
-            verifyCampaign: 'accept',
-            shareLink: `https://go.soundinfluencers.com/promo-share/${idForNewCampaign}/instagram`,
-            campaignContent: [],
-            selectInfluencers: [],
-        }
-        
-        const combinedCampaignContent = [...partOne[0].campaignContent, ...partTwo[0].campaignContent];
-        const combinedSelectInfluencers = [...partOne[0].selectInfluencers, ...partTwo[0].selectInfluencers];
-        
-        combinedCampaign.campaignContent = combinedCampaignContent;
-        combinedCampaign.selectInfluencers = combinedSelectInfluencers;
-        
-        await this.promosModel.create(combinedCampaign);
-        
-        
-    }
 }
