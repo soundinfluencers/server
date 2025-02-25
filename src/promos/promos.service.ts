@@ -1599,22 +1599,30 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
         const filteredSelectedInfluencerData = selectedInfluencerData.filter(data => data !== null);
 
         if (filteredSelectedInfluencerData !== null) {
-            return {
-                code: 200,
-                promo: {
-                    socialMedia: campaign.socialMedia,
-                    client: client.company,
-                    socialNetworkUsername: socialMediaUsername,
-                    videoLink: filteredSelectedInfluencerData[0].videoLink || (filteredSelectedInfluencerData as any).videoLink,
-                    postDescription: filteredSelectedInfluencerData[0].postDescription || (filteredSelectedInfluencerData as any).postDescription,
-                    storyTag: filteredSelectedInfluencerData[0].storyTag || (filteredSelectedInfluencerData as any).storyTag,
-                    swipeUpLink: filteredSelectedInfluencerData[0].swipeUpLink || (filteredSelectedInfluencerData as any).swipeUpLink,
-                    specialWishes: filteredSelectedInfluencerData[0].specialWishes || (filteredSelectedInfluencerData as any).specialWishes,
-                    dateRequest: filteredSelectedInfluencerData[0].dateRequest || (filteredSelectedInfluencerData as any).dateRequest,
-                    selectInfluencersId: filteredSelectedInfluencerData[0].selectInfluencersId || null,
-                    campaignName: campaign.campaignName,
-                },
-            };
+            try {
+                return {
+                    code: 200,
+                    promo: {
+                        socialMedia: campaign.socialMedia,
+                        client: client.company,
+                        socialNetworkUsername: socialMediaUsername,
+                        videoLink: filteredSelectedInfluencerData[0].videoLink || (filteredSelectedInfluencerData as any).videoLink,
+                        postDescription: filteredSelectedInfluencerData[0].postDescription || (filteredSelectedInfluencerData as any).postDescription,
+                        storyTag: filteredSelectedInfluencerData[0].storyTag || (filteredSelectedInfluencerData as any).storyTag,
+                        swipeUpLink: filteredSelectedInfluencerData[0].swipeUpLink || (filteredSelectedInfluencerData as any).swipeUpLink,
+                        specialWishes: filteredSelectedInfluencerData[0].specialWishes || (filteredSelectedInfluencerData as any).specialWishes,
+                        dateRequest: filteredSelectedInfluencerData[0].dateRequest || (filteredSelectedInfluencerData as any).dateRequest,
+                        selectInfluencersId: filteredSelectedInfluencerData[0].selectInfluencersId || null,
+                        campaignName: campaign.campaignName,
+                    },
+                };
+            } catch (err) {
+                console.log(err, "Error influencerGetOngoingCampaign", new Date());
+                return {
+                    code: 500,
+                    message: err,
+                };
+            }
         } else {
             return {
                 code: 404,
