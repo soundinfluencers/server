@@ -212,8 +212,8 @@ ${emailVideoContent()}
 </p>`;
 
         await sendMail(
-            // "nazarkozynets030606@zohomail.eu",
-            "admin@soundinfluencers.com",
+            "nazarkozynets030606@zohomail.eu",
+            // "admin@soundinfluencers.com",
             "soundinfluencers",
             emailContent,
             "html"
@@ -1617,7 +1617,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                     },
                 };
             } catch (err) {
-                console.log(err, "Error influencerGetOngoingCampaign", new Date());
+                console.log(err, `Error influencerGetOngoingCampaign. influencerId: ${influencerId}. socialMediaUsername: ${socialMediaUsername}. campaignId: ${campaignId}. campaignName: ${campaign.campaignName}`, new Date());
                 return {
                     code: 500,
                     message: err,
