@@ -1,7 +1,7 @@
 import {ApiProperty} from '@nestjs/swagger';
 
 interface selectInfluencersType {
-    influencerId: string;
+    socialMediaAccountId: string;
     socialMedia: string;
     socialMediaUsername: string;
     selectedCampaignContentItem: string;
@@ -9,11 +9,13 @@ interface selectInfluencersType {
 }
 
 interface campaignContentItemType {
+    _id: string;
     videoLink: string;
     postDescription: string;
     storyTag: string;
     swipeUpLink: string;
     specialWishes: string;
+    socialMedia: string;
 }
 
 export class CreatePromosDto {

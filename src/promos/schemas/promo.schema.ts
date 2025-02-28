@@ -70,6 +70,9 @@ export class CampaignContentItem {
 
     @Prop()
     specialWishes: string;
+
+    @Prop({required: false, default: 'instagram'})
+    socialMedia: string;
 }
 const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignContentItem);
 

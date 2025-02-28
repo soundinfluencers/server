@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 interface selectedAccountsType {
     influencerId: string;
     instagramUsername: string;
+    socialMedia: string;
 }
 
 export class GetSelectedSocialAccountsDto {
@@ -15,7 +16,4 @@ export class GetSelectedSocialAccountsDto {
         },
     })
     selectedAccounts: selectedAccountsType[];
-    
-    @ApiProperty({required: true, type: 'string'})
-    socialMedia: string;
 }

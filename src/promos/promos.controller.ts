@@ -239,9 +239,4 @@ export class PromosController {
     getSelectedSocialMediaAccountsForCampaignStrategy(@Body() data: GetSelectedSocialAccountsDto) {
         return this.promosService.getSelectedSocialMediaAccountsForCampaignStrategy(data);
     }
-    
-    @Put('add-ids-to-content-items')
-    addIdsToContentItems() {
-        return this.promosService.addIdsToContentItems();
-    }
 }

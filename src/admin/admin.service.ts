@@ -1460,6 +1460,7 @@ export class AdminService {
                     storyTag: '',
                     swipeUpLink: '',
                     specialWishes: '',
+                    socialMedia: campaign.socialMedia,
                 };
                 campaign.campaignContent.push(newCampaignContent);
             }

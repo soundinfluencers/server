@@ -41,44 +41,47 @@ export class PromosService {
             };
         }
 
-        const processedCampaignContent = data.campaignContent.map((item) => {
-            return {
-                ...item,
-                _id: new mongoose.Types.ObjectId(),
-            };
-        });
-
         const processedInfluencers = await Promise.all(
             data.selectInfluencers.map(async (influencer) => {
                 const dateRequest = influencer.dateRequest;
 
-                const influencerData = await this.influencerModel.findOne({
-                    _id: influencer.influencerId,
-                });
+                const influencerData = await this.influencerModel.findOne(
+                    {
+                        [`${influencer.socialMedia}._id`]: new mongoose.Types.ObjectId(influencer.socialMediaAccountId),
+                    },
+                    {
+                        [`${influencer.socialMedia}`]: {
+                            $elemMatch: {_id: new mongoose.Types.ObjectId(influencer.socialMediaAccountId)},
+                        },
+                    }
+                );
 
-                const socialMediaAccount = influencerData[data.socialMedia].find(
-                    (account) => account.instagramUsername === influencer.socialMediaUsername
+                const influencerId = influencerData._id.toString();
+
+                const socialMediaAccount = influencerData[influencer.socialMedia].find(
+                    (account) => account.instagramUsername === influencer.socialMediaUsername && account._id.toString() === influencer.socialMediaAccountId
                 );
 
                 if (socialMediaAccount) {
                     return {
                         ...influencer,
+                        influencerId: influencerId,
                         _id: new mongoose.Types.ObjectId(),
                         price: socialMediaAccount.price,
                         publicPrice: socialMediaAccount.publicPrice,
                         followersNumber: parseInt(socialMediaAccount.followersNumber),
-                        selectedCampaignContentItem: (() => {
-                            const matchedItem = processedCampaignContent.find(campaignContentItem =>
-                                campaignContentItem.videoLink === influencer.selectedCampaignContentItem
-                            );
-                            return matchedItem ? matchedItem._id.toString() : null;
-                        })(),
                         dateRequest,
-                        socialMedia: data.socialMedia,
                     };
                 }
             })
         );
+
+        const processedCampaignContent = await Promise.all(
+            data.campaignContent.map(async (campaignContentItem) => ({
+                ...campaignContentItem,
+                _id: new mongoose.Types.ObjectId(campaignContentItem._id),
+            }))
+        )
 
         let result;
 
@@ -87,13 +90,13 @@ export class PromosService {
             result = await this.promosModel.create({
                 ...data,
                 _id: campaignId,
-                campaignContent: processedCampaignContent,
                 selectInfluencers: processedInfluencers,
                 paymentType: !data.paymentType ? "payment" : data.paymentType,
                 paymentStatus: "wait",
                 statusCampaign: "wait",
                 verifyCampaign: "wait",
                 shareLink: `${process.env.SERVER_CLIENT}/promo-share/${campaignId}/${data.socialMedia}`,
+                campaignContent: processedCampaignContent,
             });
         } catch (err) {
             return {
@@ -156,7 +159,7 @@ export class PromosService {
     <ul>
         ${data.selectInfluencers
                     .filter(influencer => influencer.selectedCampaignContentItem === campaignContentItem._id.toString())
-                    .map(influencer => `<li>${data.socialMedia} username: ${influencer.socialMediaUsername}</li>`)
+                    .map(influencer => `<li>${influencer.socialMedia} username: ${influencer.socialMediaUsername}</li>`)
                     .join('')}
     </ul>
                 `).join('');
@@ -173,13 +176,13 @@ export class PromosService {
     <ul>
         ${data.selectInfluencers
                     .filter(influencer => influencer.selectedCampaignContentItem === campaignContentItem._id.toString())
-                    .map(influencer => `<li>${data.socialMedia} username: ${influencer.socialMediaUsername}</li>`)
+                    .map(influencer => `<li>${influencer.socialMedia} username: ${influencer.socialMediaUsername}</li>`)
                     .join('')}
     </ul>
                 `).join('');
             } else {
                 return processedCampaignContent.map((campaignContentItem, index) => `
-                    <p><strong>Video ${index + 1}:</strong></p>
+                    <p><strong>Post Content ${index + 1}:</strong></p>
                     <ul>
                         <li><strong>Link:</strong> ${campaignContentItem.videoLink}</li>
                         <li><strong>Post Description:</strong> ${campaignContentItem.postDescription}</li>
@@ -190,7 +193,7 @@ export class PromosService {
     <ul>
         ${processedInfluencers
                     .filter(influencer => influencer.selectedCampaignContentItem === campaignContentItem._id.toString())
-                    .map(influencer => `<li>${data.socialMedia} username: ${influencer.socialMediaUsername}</li>`)
+                    .map(influencer => `<li>${influencer.socialMedia} username: ${influencer.socialMediaUsername}</li>`)
                     .join('')}
     </ul>
                     </ul>
@@ -560,7 +563,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 
             const offersWithAvatars = await Promise.all(
                 offers.map(async (offer: any) => {
-                    // Process the top-level connectInfluencer array
                     const connectInfluencerWithAvatars = await Promise.all(
                         (offer.connectInfluencer || []).map(async (influencer: any) => {
                             if (!influencer.influencerId || !influencer.instagramUsername) {
@@ -583,7 +585,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                         })
                     );
 
-                    // Process the musicStyles array
                     const musicStylesWithAvatars = await Promise.all(
                         (offer.musicStyles || []).map(async (style: any) => {
                             const connectInfluencersWithAvatars = await Promise.all(
@@ -647,10 +648,11 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                         id: offer.id,
                         followers: offer.followers,
                         network: offer.network,
-                        story: offer.story, 
+                        story: offer.story,
+                        socialMedia: offer.socialMedia,
                         musicStylesAccounts: []
                     };
-                    
+
                     if (offer.musicStyles && offer.musicStyles.length > 0) {
                         processedOffer.musicStylesAccounts = offer.musicStyles.map((style) => {
                             return {
@@ -678,7 +680,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                             }),
                         });
                     }
-                    
+
                     return processedOffer;
                 })
             );
@@ -769,7 +771,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
         try {
             if (!id) {
                 return {
-                    status: 400,
+                    code: 400,
                     message: "Not enough arguments",
                 };
             }
@@ -2142,23 +2144,36 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
         }
 
         try {
-            const {selectedAccounts, socialMedia} = data;
+            const {selectedAccounts} = data;
             const dataToSend = {
                 totalFollowers: 0,
                 selectedAccounts: [],
             };
 
             for (const item of selectedAccounts) {
-                const influencer = await this.influencerModel.findById(item.influencerId);
-                if (!influencer) {
-                    throw new Error(`Influencer with ID ${item.influencerId} not found`);
+                const result = await this.influencerModel
+                    .findOne(
+                        {
+                            [`${item.socialMedia}._id`]: new mongoose.Types.ObjectId(item.influencerId),
+                        },
+                        {
+                            [`${item.socialMedia}`]: {
+                                $elemMatch: {_id: new mongoose.Types.ObjectId(item.influencerId)},
+                            },
+                        }
+                    )
+                    .lean()
+                    .exec();
+
+                if (!result) {
+                    throw new Error(`Account with ID ${item.influencerId} not found (${item.socialMedia} : ${item.instagramUsername})`);
                 }
 
-                const account = influencer[socialMedia].find(
-                    (socialMediaAccount) => socialMediaAccount.instagramUsername === item.instagramUsername
-                );
-                if (!account) {
-                    throw new Error(`Social media account with username ${item.instagramUsername} not found`);
+                const account = {
+                    ...result[item.socialMedia][0],
+                    socialMedia: item.socialMedia,
+                    dateRequest: '',
+                    selectedCampaignContentItem: ''
                 }
 
                 const followersNumber = parseInt(account.followersNumber);
@@ -2185,74 +2200,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 code: 500,
                 message: 'Error fetching selected social media accounts for campaign strategy',
             };
-        }
-    }
-
-    async addIdsToContentItems() {
-        const promos = await this.promosModel.find().lean().exec();
-
-        const bulkOps = promos.map((promo, index) => {
-            console.log(`Processing promo ${index + 1} ${promo.campaignName} of ${promos.length}`);
-            if (!promo.campaignContent) return;
-
-            promo.campaignContent = promo.campaignContent.map(contentItem => ({
-                ...contentItem,
-                _id: new mongoose.Types.ObjectId(),
-            }));
-
-            if (promo.selectInfluencers) {
-                promo.selectInfluencers = promo.selectInfluencers.map(influencer => {
-                    if (influencer.selectedCampaignContentItem) {
-                        const contentItem = promo.campaignContent.find(contentItem =>
-                            contentItem.videoLink === influencer.selectedCampaignContentItem
-                        );
-                        if (contentItem) {
-                            influencer.selectedCampaignContentItem = contentItem._id.toString();
-                        }
-                    }
-                    return influencer;
-                });
-            }
-
-            return {
-                updateOne: {
-                    filter: {_id: promo._id},
-                    update: {
-                        $set: {
-                            campaignContent: promo.campaignContent,
-                            selectInfluencers: promo.selectInfluencers
-                        }
-                    }
-                }
-            };
-        }).filter(op => op !== null);
-
-        if (bulkOps.length > 0) {
-            await this.promosModel.bulkWrite(bulkOps);
-        }
-    }
-
-    async updateOffer() {
-        try {
-            const offer = await this.offersModel.findOne({id: 27.5});
-
-            if (!offer) {
-                console.error('Offer not found');
-                return;
-            }
-
-            if (Array.isArray(offer.connectInfluencer)) {
-                offer.connectInfluencer = offer.connectInfluencer.map(influencer => ({
-                    instagramUsername: influencer.instagramUsername,
-                    influencerId: influencer.influencerId || (influencer as any)._id,
-                }));
-            }
-
-            await offer.save();
-
-            console.log('Offer updated:', offer);
-        } catch (err) {
-            console.error('Error updating offer:', err);
         }
     }
 }
