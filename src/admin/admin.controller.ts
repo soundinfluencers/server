@@ -155,9 +155,9 @@ export class AdminController {
         return this.adminService.adminAddInfluencerToCampaign(data);
     }
 
-    @Put('promos/update/add-influencer-to-temp-list/:campaignId/:socialMediaUsername')
-    adminAddInfluencerToTempList(@Param('campaignId') campaignId: string, @Param('socialMediaUsername') socialMediaUsername: string) {
-        return this.adminService.adminAddInfluencerToTempList(campaignId, socialMediaUsername);
+    @Put('promos/update/add-influencer-to-temp-list/:campaignId/:socialMediaUsername/:socialMedia')
+    adminAddInfluencerToTempList(@Param('campaignId') campaignId: string, @Param('socialMediaUsername') socialMediaUsername: string, @Param('socialMedia') socialMedia: string) {
+        return this.adminService.adminAddInfluencerToTempList(campaignId, socialMediaUsername, socialMedia);
     }
     
     @Post('promos/send-mail-influencer')

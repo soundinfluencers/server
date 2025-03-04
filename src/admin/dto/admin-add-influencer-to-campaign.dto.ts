@@ -37,4 +37,7 @@ export class AdminAddInfluencerToCampaignDto {
     
     @Prop({ default: '' })
     newVideoLink: string;
+
+    @Prop({ default: 'instagram' })
+    socialMedia: string;
 }

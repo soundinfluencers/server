@@ -907,8 +907,8 @@ export class AdminService {
                 .findOne({
                     _id: influencer.influencerId,
                     $or: [
-                        {[`${campaign.socialMedia}.instagramUsername`]: influencer.socialMediaUsername},
-                        {[`${campaign.socialMedia}.instagramUsername`]: (influencer as any).instagramUsername}
+                        {[`${influencer.socialMedia}.instagramUsername`]: influencer.socialMediaUsername},
+                        {[`${influencer.socialMedia}.instagramUsername`]: (influencer as any).instagramUsername}
                     ]
                 })
                 .lean()
@@ -924,7 +924,7 @@ export class AdminService {
             influencer.confirmation = 'accept';
             influencer.closePromo = 'close';
 
-            const price = influencerAccount[campaign.socialMedia].find(
+            const price = influencerAccount[influencer.socialMedia].find(
                 (acc) => acc.instagramUsername === influencer.socialMediaUsername || acc.instagramUsername === (influencer as any).instagramUsername
             )?.price;
 
@@ -996,11 +996,11 @@ export class AdminService {
 
         for (const influencer of campaign.selectInfluencers) {
             const influencerData = await this.influencerModel.findOne({
-                [`${campaign.socialMedia}.instagramUsername`]: influencer.socialMediaUsername || (influencer as any).instagramUsername,
+                [`${influencer.socialMedia}.instagramUsername`]: influencer.socialMediaUsername || (influencer as any).instagramUsername,
             }).lean().exec();
 
-            if (influencerData && influencerData[campaign.socialMedia]) {
-                const socialMediaAccountProfile = influencerData[campaign.socialMedia].find(
+            if (influencerData && influencerData[influencer.socialMedia]) {
+                const socialMediaAccountProfile = influencerData[influencer.socialMedia].find(
                     (profile: any) => profile.instagramUsername === influencer.socialMediaUsername || profile.instagramUsername === (influencer as any).instagramUsername,
                 );
 
@@ -1021,7 +1021,7 @@ export class AdminService {
                                 influencerId: influencer.influencerId,
                                 socialMediaUsername: influencer.socialMediaUsername || (influencer as any).instagramUsername,
                                 confirmation: influencer.confirmation,
-                                socialMedia: campaign.socialMedia,
+                                socialMedia: influencer.socialMedia,
                                 closePromo: 'close',
                                 price: cleanedPrice,
                                 publicPrice: cleanedPublicPrice,
@@ -1119,37 +1119,45 @@ export class AdminService {
             if (!campaign.isCopy) {
                 let totalFollowers = 0;
 
-                if (Array.isArray(campaign.selectInfluencers)) {
-                    const influencersSocialMediaAccountsUsernames = campaign.selectInfluencers.map(influencer => influencer.socialMediaUsername || (influencer as any).instagramUsername);
+                const socialMediaAccounts = campaign.selectInfluencers.map(acc => {
+                    if (acc.socialMediaUsername) {
+                        return {
+                            socialMediaUsername: acc.socialMediaUsername,
+                            socialMedia: acc.socialMedia,
+                        }
+                    } else throw new Error(`Can't find social media username ${acc.socialMediaUsername} (ADMIN PANEL GET ONE CAMPAIGN) ${new Date().toLocaleString()}`);
+                });
 
-                    const socialMediaField = campaign.socialMedia ? `${campaign.socialMedia}` : 'instagram';
+                for (const account of socialMediaAccounts) {
+                    const thisAccFromInfluencersList = await this.influencerModel.findOne(
+                        {
+                            [`${account.socialMedia}.instagramUsername`]: account.socialMediaUsername
+                        },
+                        {
+                            [`${account.socialMedia}.$`]: 1,
+                            _id: 0
+                        }
+                    );
 
-                    const influencers = await this.influencerModel.find({
-                        [`${socialMediaField}.instagramUsername`]: {$in: influencersSocialMediaAccountsUsernames}
-                    }).lean().exec();
+                    const influencerAccount = thisAccFromInfluencersList?.[account.socialMedia]?.[0] || null;
 
-                    campaign.selectInfluencers.forEach((campaignInfluencer: any) => {
-                        campaignInfluencer.instagramUsername = campaignInfluencer.socialMediaUsername || (campaignInfluencer as any).instagramUsername;
-
-                        const influencer = influencers.find(inf =>
-                            inf[socialMediaField].some(acc => acc.instagramUsername === campaignInfluencer.instagramUsername)
-                        );
-
-                        if (influencer) {
-                            const socialMediaAccount = influencer[socialMediaField].find(acc => acc.instagramUsername === campaignInfluencer.instagramUsername);
-
-                            if (socialMediaAccount) {
-                                const followersNumber = socialMediaAccount.followersNumber.replace(/[\s,]/g, '');
-                                campaignInfluencer.followersNumber = parseInt(followersNumber, 10);
-                                totalFollowers += campaignInfluencer.followersNumber;
+                    campaign.selectInfluencers.forEach((selectInfluencersAccount) => {
+                        if (
+                            selectInfluencersAccount.socialMediaUsername === account.socialMediaUsername &&
+                            selectInfluencersAccount.socialMedia === account.socialMedia
+                        ) {
+                            if (influencerAccount && influencerAccount.followersNumber) {
+                                const followersNumber = parseInt(influencerAccount.followersNumber.replace(/[\s,]/g, ''));
+                                selectInfluencersAccount.followersNumber = followersNumber;
+                                totalFollowers += followersNumber;
                             } else {
-                                campaignInfluencer.followersNumber = 0;
+                                selectInfluencersAccount.followersNumber = 0;
                             }
-                        } else {
-                            campaignInfluencer.followersNumber = 0;
+                            selectInfluencersAccount.instagramUsername = account.socialMediaUsername;
                         }
                     });
                 }
+
 
                 return {
                     status: 200,
@@ -1177,6 +1185,7 @@ export class AdminService {
                 };
             }
         } catch (err) {
+            console.error(err);
             return {
                 status: 500,
                 message: err,
@@ -1220,6 +1229,7 @@ export class AdminService {
             };
 
         } catch (err) {
+            console.error(err);
             return {
                 status: 500,
                 message: err,
@@ -1287,9 +1297,9 @@ export class AdminService {
                         message: 'Campaign content item not found',
                     };
                 }
-                
+
                 const influencer = campaign.selectInfluencers.find((influencer) => influencer._id.toString() === data.selectInfluencersAccountId);
-                
+
                 if (influencer.selectedCampaignContentItem !== data.campaignContentItemId) {
                     campaign.selectInfluencers = campaign.selectInfluencers.map((influencer) => {
                         if (influencer._id.toString() === data.selectInfluencersAccountId) {
@@ -1448,8 +1458,8 @@ export class AdminService {
                 };
             }
 
-            const price = influencer[campaign.socialMedia].find((acc) => acc.instagramUsername === data.socialMediaUsername).price;
-            const publicPrice = influencer[campaign.socialMedia].find((acc) => acc.instagramUsername === data.socialMediaUsername).publicPrice;
+            const price = influencer[data.socialMedia].find((acc) => acc.instagramUsername === data.socialMediaUsername).price;
+            const publicPrice = influencer[data.socialMedia].find((acc) => acc.instagramUsername === data.socialMediaUsername).publicPrice;
 
             const selectedCampaignContentItem = data.selectedCampaignContentItem !== '' ? data.selectedCampaignContentItem : new mongoose.Types.ObjectId();
             if (data.newVideoLink !== '' && data.selectedCampaignContentItem === '') {
@@ -1460,17 +1470,17 @@ export class AdminService {
                     storyTag: '',
                     swipeUpLink: '',
                     specialWishes: '',
-                    socialMedia: campaign.socialMedia,
+                    socialMedia: data.socialMedia,
                 };
                 campaign.campaignContent.push(newCampaignContent);
             }
-            
+
             campaign.selectInfluencers.push({
                 _id: new Types.ObjectId(),
                 influencerId: data.influencerId,
                 socialMediaUsername: data.socialMediaUsername,
                 confirmation: 'wait',
-                socialMedia: campaign.socialMedia,
+                socialMedia: data.socialMedia,
                 selectedCampaignContentItem: selectedCampaignContentItem.toString(),
                 dateRequest: data.dateRequest,
                 closePromo: 'wait',
@@ -1480,7 +1490,7 @@ export class AdminService {
                 like: '',
                 price: price,
                 publicPrice: publicPrice,
-                followersNumber: influencer[campaign.socialMedia].find((acc) => acc.instagramUsername === data.socialMediaUsername).followersNumber,
+                followersNumber: influencer[data.socialMedia].find((acc) => acc.instagramUsername === data.socialMediaUsername).followersNumber,
             });
 
             campaign.campaignPrice = campaign.campaignPrice + parseInt(publicPrice);
@@ -1500,7 +1510,7 @@ export class AdminService {
         }
     }
 
-    async adminAddInfluencerToTempList(campaignId: string, socialMediaUsername: string) {
+    async adminAddInfluencerToTempList(campaignId: string, socialMediaUsername: string, socialMedia: string) {
         if (!campaignId || !socialMediaUsername) {
             return {
                 code: 400,
@@ -1519,7 +1529,7 @@ export class AdminService {
             }
 
             const influencer = await this.influencerModel.findOne({
-                [`${campaign.socialMedia}.instagramUsername`]: {$regex: `^${socialMediaUsername}$`, $options: 'i'}
+                [`${socialMedia}.instagramUsername`]: {$regex: `^${socialMediaUsername}$`, $options: 'i'}
             });
 
             if (!influencer) {
@@ -1529,14 +1539,14 @@ export class AdminService {
                 };
             }
 
-            const socialMediaAccountFollowers = influencer[campaign.socialMedia].find((acc) => acc.instagramUsername.toLowerCase() === socialMediaUsername.toLowerCase()).followersNumber;
-            const socialMediaAccountUsername = influencer[campaign.socialMedia].find((acc) => acc.instagramUsername.toLowerCase() === socialMediaUsername.toLowerCase()).instagramUsername;
+            const socialMediaAccountFollowers = influencer[socialMedia].find((acc) => acc.instagramUsername.toLowerCase() === socialMediaUsername.toLowerCase()).followersNumber;
+            const socialMediaAccountUsername = influencer[socialMedia].find((acc) => acc.instagramUsername.toLowerCase() === socialMediaUsername.toLowerCase()).instagramUsername;
 
             const influencerObj = {
                 _id: new Types.ObjectId(),
                 influencerId: new Types.ObjectId(influencer._id),
                 instagramUsername: socialMediaAccountUsername,
-                socialMedia: 'instagram',
+                socialMedia: socialMedia,
                 confirmation: 'wait',
                 selectedCampaignContentItem: '',
                 selectedVideo: '',
@@ -1600,7 +1610,7 @@ Soundinfluencers Team
                 message: "ok",
             };
         } catch (err) {
-            console.log(err);
+            console.error(err);
             return {
                 code: 500,
                 message: err,
