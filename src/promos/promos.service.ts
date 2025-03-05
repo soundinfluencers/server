@@ -2,7 +2,7 @@ import {Injectable} from "@nestjs/common";
 import {CreatePromosDto} from "./dto/create-promo.dto";
 import {CreatePromosEstimateDto} from "./dto/create-promo-estimate.dto";
 import {InjectModel} from "@nestjs/mongoose";
-import {Promos, SelectInfluencers} from "./schemas/promo.schema";
+import {Promos} from "./schemas/promo.schema";
 import mongoose from "mongoose";
 import {Client} from "src/auth/schemas/client.schema";
 import {Influencer} from "src/auth/schemas/influencer.schema";
@@ -13,7 +13,8 @@ import {PromosCopies} from "../admin/schemas/promos-copies.schema";
 import axios from "axios";
 import * as process from "node:process";
 import {GetSelectedSocialAccountsDto} from "./dto/get-selected-social-accounts.dto";
-import {encryptAndEncode} from "../utils/crypt";
+import {decodeAndDecrypt} from "../utils/crypt";
+import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
 
 mongoose.Promise = global.Promise;
 
@@ -2066,6 +2067,58 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 code: 500,
                 message: "An error occurred while fetching the promo.",
             };
+        }
+    }
+
+    async sendNewFullServicedCampaignRequest(data: SendNewFullServicedCampaignRequest) {
+        try {
+            const {encryptedClientId, campaignGoal, videos, music, budget, additional = ''} = data;
+            const decryptedClientId = decodeAndDecrypt(encryptedClientId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
+
+            const clientObj = await this.clientModel.findById(decryptedClientId);
+
+            if (!clientObj) {
+                console.error(`There's no client with id: ${decryptedClientId} (SEND NEW FULL SERVICED CAMPAIGN REQUEST) ${new Date().toLocaleDateString()}`)
+                return {
+                    code: 400,
+                    message: `Can't find client with this id`
+                }
+            }
+
+            const emailText = `
+    <p>${clientObj.firstName} (${clientObj.email}) requested the full serviced campaign.</p>
+    <p>Details:</p><br/>
+    <p><strong>Campaign Goal:</strong> ${campaignGoal}</p>
+    <p><strong>Videos:</strong> ${videos}</p>
+    <p><strong>Music:</strong> ${music}</p>
+    <p><strong>Budget:</strong> ${budget}</p>
+    ${additional ? `<p><strong>Additional:</strong> ${additional}</p>` : ''}
+`;
+
+            try {
+                await sendMail(
+                    process.env.EMAIL_USER,
+                    'soundinfluencers',
+                    emailText,
+                    "html"
+                );
+            } catch (error) {
+                return {
+                    code: 500,
+                    message: "Server Error",
+                }
+            }
+
+            return {
+                code: 200,
+                message: `Successfully sent}`,
+            }
+        } catch (err) {
+            console.error(`Error sending request of creating new full serviced campaign ${err} ${new Date().toLocaleDateString()}`)
+            return {
+                code: 500,
+                message: 'Server error',
+            }
         }
     }
 

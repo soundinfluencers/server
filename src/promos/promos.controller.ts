@@ -20,6 +20,7 @@ import {FileInterceptor} from '@nestjs/platform-express';
 import File from 'multer';
 import {GetSelectedSocialAccountsDto} from "./dto/get-selected-social-accounts.dto";
 import {decodeAndDecrypt} from "../utils/crypt";
+import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
 
 @Controller('promos')
 export class PromosController {
@@ -228,6 +229,11 @@ export class PromosController {
     @Get('share-link/:campaignId/:socialMedia')
     getCampaignByPublicShareLink(@Param() args: { campaignId: string; socialMedia: string }) {
         return this.promosService.getCampaignByPublicShareLink(args.campaignId, args.socialMedia);
+    }
+
+    @Post('send-new-full-serviced-campaign-request')
+    sendNewFullServicedCampaignRequest(@Body() data: SendNewFullServicedCampaignRequest) {
+        return this.promosService.sendNewFullServicedCampaignRequest(data);
     }
 
     @Post('migrate-promos')
