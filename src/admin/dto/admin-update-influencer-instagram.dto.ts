@@ -39,4 +39,7 @@ export class AdminUpdateInfluencerInstagramDto {
     
     @ApiProperty({required: false})
     categories: [];
+
+    @ApiProperty({required: false})
+    logo: string;
 }

@@ -24,6 +24,7 @@ import {AdminPutOfferToOffersDto} from "./dto/admin-put-offer-to-offers.dto";
 import {PromosService} from "../promos/promos.service";
 import {PromosCopies} from "./schemas/promos-copies.schema";
 import {AdminUpdateInfluencerFullAccountDto} from "./dto/admin-update-influencer-full-account.dto";
+import axios from "axios";
 
 const fs = require("fs");
 const PDFDocument = require("pdfkit");
@@ -418,6 +419,10 @@ export class AdminService {
 
             if (data.categories && Array.isArray(data.categories)) {
                 updateFields[`${data.socialMedia}.$.categories`] = data.categories;
+            }
+
+            if (data.logo && data.logo !== checkSocialMediaAccount.logo) {
+                updateFields[`${data.socialMedia}.$.logo`] = data.logo;
             }
 
             await this.influencerModel.findOneAndUpdate(
