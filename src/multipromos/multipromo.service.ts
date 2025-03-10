@@ -21,7 +21,6 @@ export class MultiPromoService {
                 message: 'No social media provided',
             };
         }
-
         try {
             const influencers = await this.influencerModel
                 .find({

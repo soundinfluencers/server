@@ -75,6 +75,9 @@ export class CampaignContentItem {
 
     @Prop()
     specialWishes: string;
+
+    @Prop()
+    socialMedia: string;
 }
 const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignContentItem);
 

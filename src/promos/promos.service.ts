@@ -45,30 +45,35 @@ export class PromosService {
         try {
             const processedInfluencers = await Promise.all(
                 data.selectInfluencers.map(async (influencer) => {
-                    const dateRequest = influencer.dateRequest;
+                    try {
+                        const dateRequest = influencer.dateRequest;
 
-                    const influencerData = await this.influencerModel.findOne(
-                        {
-                            [`${influencer.socialMedia}._id`]: new mongoose.Types.ObjectId(influencer.socialMediaAccountId),
-                        },
-                    ).lean().exec();
+                        const influencerData = await this.influencerModel.findOne(
+                            {
+                                [`${influencer.socialMedia}._id`]: new mongoose.Types.ObjectId(influencer.socialMediaAccountId),
+                            },
+                        ).lean().exec();
+                        console.log(influencerData);
+                        const influencerId = influencerData._id.toString();
 
-                    const influencerId = influencerData._id.toString();
+                        const socialMediaAccount = influencerData[influencer.socialMedia].find(
+                            (account) => account.instagramUsername === influencer.socialMediaUsername && account._id.toString() === influencer.socialMediaAccountId
+                        );
 
-                    const socialMediaAccount = influencerData[influencer.socialMedia].find(
-                        (account) => account.instagramUsername === influencer.socialMediaUsername && account._id.toString() === influencer.socialMediaAccountId
-                    );
-
-                    if (socialMediaAccount) {
-                        return {
-                            ...influencer,
-                            influencerId: influencerId,
-                            _id: new mongoose.Types.ObjectId(),
-                            price: socialMediaAccount.price,
-                            publicPrice: socialMediaAccount.publicPrice,
-                            followersNumber: parseInt(socialMediaAccount.followersNumber),
-                            dateRequest,
-                        };
+                        if (socialMediaAccount) {
+                            return {
+                                ...influencer,
+                                influencerId: influencerId,
+                                _id: new mongoose.Types.ObjectId(),
+                                price: socialMediaAccount.price,
+                                publicPrice: socialMediaAccount.publicPrice,
+                                followersNumber: parseInt(socialMediaAccount.followersNumber),
+                                dateRequest,
+                            };
+                        }
+                    } catch (err) {
+                        console.error(err, `Creating campaign ${new Date().toLocaleDateString()}`);
+                        throw err;
                     }
                 })
             );

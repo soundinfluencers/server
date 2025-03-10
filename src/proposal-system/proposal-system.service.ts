@@ -151,7 +151,7 @@ export class ProposalSystemService {
 
     async getAllProposalCampaigns() {
         try {
-            const proposalCampaigns = await this.proposalCampaignModel.find();
+            const proposalCampaigns = await this.proposalCampaignModel.find().lean().exec();
 
             const campaigns = await Promise.all(proposalCampaigns.map(async campaign => {
                 let client = null;
@@ -163,8 +163,31 @@ export class ProposalSystemService {
                     console.error('Error fetching client:', err);
                 }
 
+                const processedSelectInfluencers = campaign.selectInfluencers?.length
+                    ? await Promise.all(
+                        campaign.selectInfluencers.map(async acc => {
+                            const influencer = await this.influencerModel.findOne(
+                                {
+                                    _id: acc.influencerId,
+                                    [`${acc.socialMedia}.instagramUsername`]: acc.socialMediaUsername
+                                },
+                                {
+                                    [`${acc.socialMedia}.$`]: 1
+                                }
+                            );
+
+                            const accountId: string = influencer?.[acc.socialMedia]?.[0]?._id.toString();
+                            return {
+                                ...acc,
+                                accountId
+                            };
+                        })
+                    )
+                    : [];
+
                 return {
-                    ...campaign.toObject(),
+                    ...campaign,
+                    selectInfluencers: processedSelectInfluencers,
                     client: client ? {
                         clientId: client._id,
                         firstName: client.firstName,
@@ -217,18 +240,33 @@ export class ProposalSystemService {
                 console.error('Error fetching client:', err);
             }
 
+            const processedSelectInfluencers = proposalCampaign.selectInfluencers?.length
+                ? await Promise.all(
+                    proposalCampaign.selectInfluencers.map(async acc => {
+                        const influencer = await this.influencerModel.findOne(
+                            {
+                                _id: acc.influencerId,
+                                [`${acc.socialMedia}.instagramUsername`]: acc.socialMediaUsername
+                            },
+                            {
+                                [`${acc.socialMedia}.$`]: 1
+                            }
+                        );
+
+                        const accountId: string = influencer?.[acc.socialMedia]?.[0]?._id.toString();
+                        return {
+                            ...acc,
+                            accountId
+                        };
+                    })
+                )
+                : [];
+
             return {
                 status: 200,
                 proposalCampaign: {
                     ...proposalCampaign,
-                    videos: proposalCampaign.campaignContent,
-                    selectInfluencers: proposalCampaign.selectInfluencers.map((inf) => {
-                        return {
-                            ...inf,
-                            selectedVideo: inf.selectedCampaignContentItem,
-                            instagramUsername: inf.socialMediaUsername,
-                        }
-                    }),
+                    selectInfluencers: processedSelectInfluencers,
                     client: client ? {
                         clientId: client._id,
                         firstName: client.firstName,
@@ -302,7 +340,7 @@ export class ProposalSystemService {
                 // "nazarkozynets030606@zohomail.eu",
                 "admin@soundinfluencers.com",
                 "soundinfluencers",
-                `<p>The client <b>${clientName.firstName}</b> wants to talk about changes to the <b>"${campaignName}"</b> campaign</p>`,
+                `<p>The client <b>${clientName.firstName}</b> wants to talk about changes to the <b>"${campaignName}"</b> proposal campaign</p>`,
                 "html"
             );
 
