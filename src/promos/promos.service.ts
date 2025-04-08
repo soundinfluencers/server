@@ -487,7 +487,9 @@ ${emailVideoContent()}
 
                 for (let influencer of influencers) {
                     const influencerSocialMediaAccounts = socialMedias.flatMap(socialMedia => influencer[socialMedia].flatMap((account) => {
-                        if (checkCampaign.selectInfluencers.some((influencerData) => influencerData.socialMediaUsername === account.instagramUsername || (influencerData as any).instagramUsername === account.instagramUsername)) {
+                        if (checkCampaign.selectInfluencers.some((influencerData) =>
+                            (influencerData.socialMediaUsername === account.instagramUsername || (influencerData as any).instagramUsername === account.instagramUsername) && influencerData.socialMedia === socialMedia
+                        )) {
                             dataToSaveInfluencersHistory.push({
                                 influencerId: influencer._id,
                                 campaignId: new mongoose.Types.ObjectId(checkCampaign._id),
