@@ -216,8 +216,8 @@ ${emailVideoContent()}
 </p>`;
 
             await sendMail(
-                "nazarkozynets030606@zohomail.eu",
-                // "admin@soundinfluencers.com",
+                // "nazarkozynets030606@zohomail.eu",
+                "admin@soundinfluencers.com",
                 "soundinfluencers",
                 emailContent,
                 "html"
@@ -539,8 +539,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 <p>Soundinfluencers Team</p>
 `;
                         try {
-                            // await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
-                            await sendMail("nazarkozynets030606@zohomail.eu", "soundinfluencers", emailToInfluencer, "html");
+                            await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
+                            // await sendMail("nazarkozynets030606@zohomail.eu", "soundinfluencers", emailToInfluencer, "html");
                         } catch (err) {
                             console.error('Error sending emails to influencers:', err);
                         }
@@ -1351,8 +1351,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewCampaign.clientId || (findNewCampaign as any).userId);
 
                 await sendMail(
-                    "nazarkozynets030606@zohomail.eu",
-                    // "admin@soundinfluencers.com",
+                    // "nazarkozynets030606@zohomail.eu",
+                    "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} accepted the offer for ${checkUserClient.email}'s campaign</p>
                 <p>Details:</p><br/>
@@ -1413,8 +1413,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewCampaign.clientId || (findNewCampaign as any).userId);
 
                 await sendMail(
-                    "nazarkozynets030606@zohomail.eu",
-                    // "admin@soundinfluencers.com",
+                    // "nazarkozynets030606@zohomail.eu",
+                    "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} declined the offer for ${checkUserClient.email}'s campaign</p>
                 <p>Details:</p><br/>
