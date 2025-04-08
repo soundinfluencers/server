@@ -53,7 +53,6 @@ export class PromosService {
                                 [`${influencer.socialMedia}._id`]: new mongoose.Types.ObjectId(influencer.socialMediaAccountId),
                             },
                         ).lean().exec();
-                        console.log(influencerData);
                         const influencerId = influencerData._id.toString();
 
                         const socialMediaAccount = influencerData[influencer.socialMedia].find(
@@ -217,8 +216,8 @@ ${emailVideoContent()}
 </p>`;
 
             await sendMail(
-                // "nazarkozynets030606@zohomail.eu",
-                "admin@soundinfluencers.com",
+                "nazarkozynets030606@zohomail.eu",
+                // "admin@soundinfluencers.com",
                 "soundinfluencers",
                 emailContent,
                 "html"
@@ -538,8 +537,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 <p>Soundinfluencers Team</p>
 `;
                         try {
-                            await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
-                            // await sendMail("nazarkozynets030606@zohomail.eu", "soundinfluencers", emailToInfluencer, "html");
+                            // await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
+                            await sendMail("nazarkozynets030606@zohomail.eu", "soundinfluencers", emailToInfluencer, "html");
                         } catch (err) {
                             console.error('Error sending emails to influencers:', err);
                         }
@@ -1350,8 +1349,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewCampaign.clientId || (findNewCampaign as any).userId);
 
                 await sendMail(
-                    // "nazarkozynets030606@zohomail.eu",
-                    "admin@soundinfluencers.com",
+                    "nazarkozynets030606@zohomail.eu",
+                    // "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} accepted the offer for ${checkUserClient.email}'s campaign</p>
                 <p>Details:</p><br/>
@@ -1412,8 +1411,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewCampaign.clientId || (findNewCampaign as any).userId);
 
                 await sendMail(
-                    // "nazarkozynets030606@zohomail.eu",
-                    "admin@soundinfluencers.com",
+                    "nazarkozynets030606@zohomail.eu",
+                    // "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} declined the offer for ${checkUserClient.email}'s campaign</p>
                 <p>Details:</p><br/>
@@ -1906,84 +1905,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                     code: 500,
                     message: 'Internal Server Error',
                 };
-            }
-
-            let checkCampaign = true;
-            findNewCampaign.selectInfluencers.forEach((item) => {
-                if (item.confirmation === "refusing") return;
-                if (((data.socialMedia === 'spotify' || data.socialMedia === 'soundcloud') && (data.screenshot || item.screenshot)) || item.closePromo === "close") {
-                    if (item.closePromo === "close") return;
-                } else if ((data.socialMedia === "press" && (data.postLink || item.postLink)) || item.closePromo === "close") {
-                    if (item.closePromo === "close") return;
-                } else if (item.socialMediaUsername === socialMediaUsername || (item as any).instagramUsername === socialMediaUsername) {
-                    if (
-                        data.postLink &&
-                        data.impressions &&
-                        data.like &&
-                        data.screenshot
-                    ) {
-                        return;
-                    }
-                } else if (
-                    item.postLink &&
-                    item.impressions &&
-                    item.like &&
-                    item.screenshot
-                ) {
-                    return;
-                } else {
-                    checkCampaign = false;
-                }
-            });
-
-            if (checkCampaign) {
-                let totalFollowers = 0;
-
-                const selectInfluencers = await Promise.all(
-                    findNewCampaign.selectInfluencers.map(async (item) => {
-                        const checkInfluencer = await this.influencerModel.findById(item.influencerId);
-                        const currentAccount = checkInfluencer[item.socialMedia]?.find(
-                            (fin) => fin.instagramUsername === item.socialMediaUsername || fin.instagramUsername === (item as any).instagramUsername
-                        );
-
-                        if (!currentAccount) {
-                            throw new Error(`Instagram data not found for influencerId: ${item.influencerId}`);
-                        }
-
-                        totalFollowers += parseInt(currentAccount.followersNumber);
-
-                        return {
-                            ...item,
-                            postLink: item.postLink || data.postLink,
-                            impressions: item.impressions || data.impressions,
-                            like: item.like || data.like,
-                            screenshot: item.screenshot || data.screenshot,
-                            confirmation: "accept",
-                            closePromo: "close",
-                            followersNumber: parseInt(currentAccount.followersNumber),
-                        };
-                    })
-                );
-
-                try {
-                    await this.promosCopiesModel.create({
-                        ...findNewCampaign,
-                        _id: findNewCampaign._id,
-                        statusCampaign: "finally",
-                        verifyCampaign: "accept",
-                        isCopy: true,
-                        totalFollowers: totalFollowers,
-                        selectInfluencers: selectInfluencers,
-                    });
-                } catch (err) {
-                    throw new Error(`Error creating promo copy: ${err}`);
-                }
-
-                try {
-                    await this.promosModel.deleteOne({_id: campaignId});
-                } catch (err) {
-                    throw new Error(`Error deleting promo: ${err}`);
-                }
             }
 
             return {
