@@ -253,7 +253,7 @@ export class ProposalSystemService {
                             }
                         );
 
-                        const accountId: string = influencer?.[acc.socialMedia]?.[0]?._id.toString();
+                        const accountId = influencer?.[acc.socialMedia]?.[0]?._id.toString() || null;
                         return {
                             ...acc,
                             accountId

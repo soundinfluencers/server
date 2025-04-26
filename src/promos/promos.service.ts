@@ -1413,8 +1413,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewCampaign.clientId || (findNewCampaign as any).userId);
 
                 await sendMail(
-                    // "nazarkozynets030606@zohomail.eu",
-                    "admin@soundinfluencers.com",
+                    "nazarkozynets030606@zohomail.eu",
+                    // "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} declined the offer for ${checkUserClient.email}'s campaign</p>
                 <p>Details:</p><br/>
@@ -1670,6 +1670,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 .lean()
                 .exec();
 
+            console.log(findNewCampaign, 'find campaign');
+
             if (!findNewCampaign) {
                 return {
                     code: 404,
@@ -1838,7 +1840,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                         data.screenshot
                     ) {
                         const isPromoAlreadyClosed = dataSocialMediaAccount.closePromo === "close";
-
+                        console.log(isPromoAlreadyClosed)
                         const resultOfSavingHistory = await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, {
                             influencerId: influencerId,
                             campaignId: new mongoose.Types.ObjectId(findNewCampaign._id),
@@ -2148,6 +2150,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 
                 const account = {
                     ...result[item.socialMedia][0],
+                    influencerId: item.influencerId,
                     socialMedia: item.socialMedia,
                     dateRequest: '',
                     selectedCampaignContentItem: ''
