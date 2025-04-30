@@ -10,6 +10,7 @@ import {
 } from 'src/auth/schemas/influencer.schema';
 import { Offers, OffersSchema } from './schemas/offers.schema';
 import {PromosCopies, PromosCopiesSchema} from "../admin/schemas/promos-copies.schema";
+import {ProposalCampaign, ProposalCampaignSchema} from "../proposal-system/schemas/proposal-campaign.schema";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import {PromosCopies, PromosCopiesSchema} from "../admin/schemas/promos-copies.s
       { name: Influencer.name, schema: InfluencerSchema },
       { name: Offers.name, schema: OffersSchema },
       { name: PromosCopies.name, schema: PromosCopiesSchema },
+      { name: ProposalCampaign.name, schema: ProposalCampaignSchema },
     ]),
   ],
   controllers: [PromosController],

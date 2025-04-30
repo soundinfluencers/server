@@ -21,6 +21,7 @@ import File from 'multer';
 import {GetSelectedSocialAccountsDto} from "./dto/get-selected-social-accounts.dto";
 import {decodeAndDecrypt} from "../utils/crypt";
 import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
+import {SaveXlsxPromoDto} from "./dto/save-xlsx-promo.dto";
 
 @Controller('promos')
 export class PromosController {
@@ -244,5 +245,10 @@ export class PromosController {
     @Post('get-selected-social-accounts')
     getSelectedSocialMediaAccountsForCampaignStrategy(@Body() data: GetSelectedSocialAccountsDto) {
         return this.promosService.getSelectedSocialMediaAccountsForCampaignStrategy(data);
+    }
+
+    @Post('save-xlsx-campaign/:typeOfStorage')
+    saveXLSXCampaign(@Param() args: {typeOfStorage: string}, @Body() data: SaveXlsxPromoDto) {
+        return this.promosService.saveXLSXCampaign(args.typeOfStorage, data)
     }
 }

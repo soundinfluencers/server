@@ -3,7 +3,7 @@ import {CreatePromosDto} from "./dto/create-promo.dto";
 import {CreatePromosEstimateDto} from "./dto/create-promo-estimate.dto";
 import {InjectModel} from "@nestjs/mongoose";
 import {Promos} from "./schemas/promo.schema";
-import mongoose from "mongoose";
+import mongoose, {Types} from "mongoose";
 import {Client} from "src/auth/schemas/client.schema";
 import {Influencer} from "src/auth/schemas/influencer.schema";
 import {Offers} from "./schemas/offers.schema";
@@ -15,6 +15,8 @@ import * as process from "node:process";
 import {GetSelectedSocialAccountsDto} from "./dto/get-selected-social-accounts.dto";
 import {decodeAndDecrypt} from "../utils/crypt";
 import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
+import {SaveXlsxPromoDto} from "./dto/save-xlsx-promo.dto";
+import {ProposalCampaign} from "src/proposal-system/schemas/proposal-campaign.schema";
 
 mongoose.Promise = global.Promise;
 
@@ -31,6 +33,8 @@ export class PromosService {
         private offersModel: mongoose.Model<Offers>,
         @InjectModel(PromosCopies.name)
         private promosCopiesModel: mongoose.Model<PromosCopies>,
+        @InjectModel(ProposalCampaign.name)
+        private proposalCampaignModel: mongoose.Model<ProposalCampaign>
     ) {
     }
 
@@ -2179,6 +2183,190 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
             return {
                 code: 500,
                 message: 'Error fetching selected social media accounts for campaign strategy',
+            };
+        }
+    }
+
+    async saveXLSXCampaign(typeOfStorage: string, data: SaveXlsxPromoDto) {
+        try {
+            if (!data) {
+                return {
+                    code: 400,
+                    message: "Invalid campaign data",
+                };
+            }
+
+            if (typeOfStorage === "proposal") {
+                try {
+                    const isMultiPromo = !data.socialMedia || data.socialMedia === "multipromo";
+
+                    const campaign = {
+                        campaignId: new Types.ObjectId().toHexString(),
+                        campaignName: new Date().toISOString().split("T")[0],
+                        price: data.price || 0,
+                        publicPrice: 0,
+                        socialMedia: data.socialMedia || "multipromo",
+                        selectInfluencers: [],
+                        campaignContent: [],
+                        totalFollowers: 0,
+                        clientId: (await this.clientModel.findOne({ email: "ToChange@gmail.com" }))?._id?.toString() || "66f540faaf4e960d2f9bebfc"
+                    };
+
+                    await Promise.all(
+                        data.pages.map(async (page) => {
+                            let influencerId: Types.ObjectId | null = null;
+
+                            if (isMultiPromo) {
+                                const normalizedUsername = page.socialMediaUsername.trim().toLowerCase();
+                                const aggregationPipeline = [
+                                    {
+                                        $unwind: "$instagram",
+                                    },
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    {
+                                                        $eq: [
+                                                            {$toLower: {$trim: {input: "$instagram.instagramUsername"}}},
+                                                            normalizedUsername,
+                                                        ],
+                                                    },
+                                                    {
+                                                        $eq: [
+                                                            {$toInt: "$instagram.followersNumber"},
+                                                            page.followersNumber,
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    {
+                                        $project: {
+                                            influencerId: "$instagram._id",
+                                            socialMedia: "instagram",
+                                            price: "$instagram.price",
+                                            publicPrice: "$instagram.publicPrice",
+                                            dateRequest: data.timeline,
+                                            followersNumber: "$instagram.followersNumber",
+                                            countries: "$instagram.countries",
+                                            genres: null,
+                                        },
+                                    },
+                                ];
+
+                                const result = await this.influencerModel.aggregate(aggregationPipeline).exec();
+
+                                if (result.length > 0) {
+                                    influencerId = result[0].influencerId ? new Types.ObjectId(result[0].influencerId) : null;
+                                    let selectedCampaignContentItem: string | null = null;
+
+                                    const existingContent = campaign.campaignContent.find(
+                                        item => item.videoLink === page.videoLink && item.postDescription === page.postDescription
+                                    );
+
+                                    if (
+                                        page.videoLink &&
+                                        page.postDescription &&
+                                        !existingContent
+                                    ) {
+                                        const newId: string = new Types.ObjectId().toHexString();
+                                        selectedCampaignContentItem = newId;
+
+                                        campaign.campaignContent.push({
+                                            _id: newId,
+                                            videoLink: page.videoLink,
+                                            postDescription: page.postDescription,
+                                            storyTag: page.storyTag || "",
+                                            swipeUpLink: page.storyLink || "",
+                                            socialMedia: result[0].socialMedia,
+                                        });
+                                    } else if (existingContent) {
+                                        selectedCampaignContentItem = existingContent._id;
+                                    }
+
+                                    campaign.selectInfluencers.push({
+                                        ...result[0],
+                                        _id: new Types.ObjectId().toHexString(),
+                                        socialMediaUsername: page.socialMediaUsername,
+                                        selectedCampaignContentItem: selectedCampaignContentItem,
+                                    });
+
+                                    campaign.totalFollowers += parseInt(result[0].followersNumber);
+                                }
+                            } else {
+                                const platform = data.socialMedia;
+                                const normalizedUsername = page.socialMediaUsername.trim().toLowerCase();
+                                const aggregationPipeline = [
+                                    {$unwind: `$${platform}`},
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    {
+                                                        $eq: [
+                                                            {$toLower: {$trim: {input: `$${platform}.instagramUsername`}}},
+                                                            normalizedUsername,
+                                                        ],
+                                                    },
+                                                    {
+                                                        $eq: [
+                                                            {$toInt: `$${platform}.followersNumber`},
+                                                            page.followersNumber,
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    {
+                                        $project: {
+                                            accountId: `$${platform}._id`,
+                                            platform,
+                                        },
+                                    },
+                                ];
+
+                                const result = await this.influencerModel.aggregate(aggregationPipeline).exec();
+
+                                if (result.length > 0) {
+                                    influencerId = result[0].accountId ? new Types.ObjectId(result[0].accountId) : null;
+                                }
+                            }
+
+                            if (!influencerId) {
+                                console.warn(
+                                    `(SAVING XLSX CAMPAIGN) No social media account found for username: ${page.socialMediaUsername} with ${page.followersNumber} followers`
+                                );
+                            }
+                        })
+                    );
+
+                    await axios.put(`${process.env.SERVER}/proposal-system/save-proposal-campaign`, campaign)
+
+                    return {
+                        code: 200,
+                        message: "XLSX campaign saved successfully",
+                    };
+                } catch (err) {
+                    console.error("Error saving to proposalCampaignModel:", err);
+                    return {
+                        code: 500,
+                        message: "Error saving XLSX campaign to proposal",
+                    };
+                }
+            } else {
+                return {
+                    code: 400,
+                    message: `Unsupported storage type: ${typeOfStorage}`,
+                };
+            }
+        } catch (err) {
+            console.error("Error saving XLSXCampaign:", err);
+            return {
+                code: 500,
+                message: "Error saving XLSXCampaign",
             };
         }
     }

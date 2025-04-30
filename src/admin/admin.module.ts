@@ -10,6 +10,7 @@ import {Invoices} from "../invoice/schemas/invoices.schema";
 import {Payment} from "../payment/schemas/payment.entity";
 import {OffersTemp, OffersTempSchema} from "./schemas/offers-temp.schema";
 import {PromosCopies, PromosCopiesSchema} from "./schemas/promos-copies.schema";
+import {ProposalCampaign, ProposalCampaignSchema} from "../proposal-system/schemas/proposal-campaign.schema";
 
 @Module({
     imports: [
@@ -22,6 +23,7 @@ import {PromosCopies, PromosCopiesSchema} from "./schemas/promos-copies.schema";
             {name: Payment.name, schema: Payment},
             {name: OffersTemp.name, schema: OffersTempSchema},
             {name: PromosCopies.name, schema: PromosCopiesSchema},
+            { name: ProposalCampaign.name, schema: ProposalCampaignSchema },
         ]),
     ],
     controllers: [AdminController],

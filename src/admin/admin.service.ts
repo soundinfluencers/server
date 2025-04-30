@@ -24,7 +24,7 @@ import {AdminPutOfferToOffersDto} from "./dto/admin-put-offer-to-offers.dto";
 import {PromosService} from "../promos/promos.service";
 import {PromosCopies} from "./schemas/promos-copies.schema";
 import {AdminUpdateInfluencerFullAccountDto} from "./dto/admin-update-influencer-full-account.dto";
-import axios from "axios";
+import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 
 const fs = require("fs");
 const PDFDocument = require("pdfkit");
@@ -48,6 +48,8 @@ export class AdminService {
         private offersTempModel: mongoose.Model<OffersTemp>,
         @InjectModel(PromosCopies.name)
         private promosCopiesModel: mongoose.Model<PromosCopies>,
+        @InjectModel(ProposalCampaign.name)
+        private proposalCampaignModel: mongoose.Model<ProposalCampaign>
     ) {
     }
 
@@ -1628,7 +1630,7 @@ Soundinfluencers Team
             const offersTempPromise = this.offersTempModel.find();
 
             const socialMediaTypes = ["instagram", "tiktok", "facebook", "youtube", "spotify", "soundcloud", "press"];
-            const promosService = new PromosService(this.promosModel, this.clientModel, this.influencerModel, this.offersModel, this.promosCopiesModel);
+            const promosService = new PromosService(this.promosModel, this.clientModel, this.influencerModel, this.offersModel, this.promosCopiesModel, this.proposalCampaignModel);
 
             const socialMediaPromises = socialMediaTypes.map(socialMedia => promosService.getOffers(socialMedia));
             const socialMediaResults = await Promise.all(socialMediaPromises);
