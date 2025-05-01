@@ -2202,14 +2202,14 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 
                     const campaign = {
                         campaignId: new Types.ObjectId().toHexString(),
-                        campaignName: new Date().toISOString().split("T")[0],
+                        campaignName: null,
                         price: data.price || 0,
                         publicPrice: 0,
                         socialMedia: data.socialMedia || "multipromo",
                         selectInfluencers: [],
                         campaignContent: [],
                         totalFollowers: 0,
-                        clientId: (await this.clientModel.findOne({ email: "ToChange@gmail.com" }))?._id?.toString() || "66f540faaf4e960d2f9bebfc"
+                        clientId: (await this.clientModel.findOne({email: "ToChange@gmail.com"}))?._id?.toString() || "66f540faaf4e960d2f9bebfc"
                     };
 
                     await Promise.all(
@@ -2218,40 +2218,67 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 
                             if (isMultiPromo) {
                                 const normalizedUsername = page.socialMediaUsername.trim().toLowerCase();
+                                const socialMediaPlatforms = ['instagram', 'facebook', 'tiktok', 'youtube', 'spotify', 'soundcloud'];
+
                                 const aggregationPipeline = [
                                     {
-                                        $unwind: "$instagram",
-                                    },
-                                    {
-                                        $match: {
-                                            $expr: {
-                                                $and: [
-                                                    {
-                                                        $eq: [
-                                                            {$toLower: {$trim: {input: "$instagram.instagramUsername"}}},
-                                                            normalizedUsername,
-                                                        ],
+                                        $facet: socialMediaPlatforms.reduce((acc, platform) => {
+                                            acc[platform] = [
+                                                { $unwind: { path: `$${platform}`, preserveNullAndEmptyArrays: true } },
+                                                {
+                                                    $match: {
+                                                        $expr: {
+                                                            $and: [
+                                                                {
+                                                                    $eq: [
+                                                                        { $toLower: { $trim: { input: `$${platform}.instagramUsername` } } },
+                                                                        normalizedUsername,
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    $eq: [
+                                                                        { $toInt: `$${platform}.followersNumber` },
+                                                                        page.followersNumber,
+                                                                    ],
+                                                                },
+                                                            ],
+                                                        },
                                                     },
-                                                    {
-                                                        $eq: [
-                                                            {$toInt: "$instagram.followersNumber"},
-                                                            page.followersNumber,
-                                                        ],
+                                                },
+                                                {
+                                                    $project: {
+                                                        influencerId: `$${platform}._id`,
+                                                        socialMedia: platform,
+                                                        price: `$${platform}.price`,
+                                                        publicPrice: `$${platform}.publicPrice`,
+                                                        dateRequest: data.timeline,
+                                                        followersNumber: `$${platform}.followersNumber`,
+                                                        countries: `$${platform}.countries`,
+                                                        genres: null,
                                                     },
-                                                ],
-                                            },
-                                        },
+                                                },
+                                            ];
+                                            return acc;
+                                        }, {}),
                                     },
                                     {
                                         $project: {
-                                            influencerId: "$instagram._id",
-                                            socialMedia: "instagram",
-                                            price: "$instagram.price",
-                                            publicPrice: "$instagram.publicPrice",
-                                            dateRequest: data.timeline,
-                                            followersNumber: "$instagram.followersNumber",
-                                            countries: "$instagram.countries",
-                                            genres: null,
+                                            combined: {
+                                                $concatArrays: socialMediaPlatforms.map(platform => `$${platform}`),
+                                            },
+                                        },
+                                    },
+                                    { $unwind: '$combined' },
+                                    {
+                                        $project: {
+                                            influencerId: '$combined.influencerId',
+                                            socialMedia: '$combined.socialMedia',
+                                            price: '$combined.price',
+                                            publicPrice: '$combined.publicPrice',
+                                            dateRequest: '$combined.dateRequest',
+                                            followersNumber: '$combined.followersNumber',
+                                            countries: '$combined.countries',
+                                            genres: '$combined.genres',
                                         },
                                     },
                                 ];
@@ -2263,7 +2290,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                     let selectedCampaignContentItem: string | null = null;
 
                                     const existingContent = campaign.campaignContent.find(
-                                        item => item.videoLink === page.videoLink && item.postDescription === page.postDescription
+                                        item => item.videoLink === page.videoLink && item.postDescription === page.postDescription && item.socialMedia === result[0].socialMedia
                                     );
 
                                     if (
@@ -2299,31 +2326,27 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                 const platform = data.socialMedia;
                                 const normalizedUsername = page.socialMediaUsername.trim().toLowerCase();
                                 const aggregationPipeline = [
-                                    {$unwind: `$${platform}`},
+                                    { $unwind: `$${platform}` },
                                     {
                                         $match: {
                                             $expr: {
-                                                $and: [
-                                                    {
-                                                        $eq: [
-                                                            {$toLower: {$trim: {input: `$${platform}.instagramUsername`}}},
-                                                            normalizedUsername,
-                                                        ],
-                                                    },
-                                                    {
-                                                        $eq: [
-                                                            {$toInt: `$${platform}.followersNumber`},
-                                                            page.followersNumber,
-                                                        ],
-                                                    },
+                                                $eq: [
+                                                    { $toLower: { $trim: { input: `$${platform}.instagramUsername` } } },
+                                                    normalizedUsername,
                                                 ],
                                             },
                                         },
                                     },
                                     {
                                         $project: {
-                                            accountId: `$${platform}._id`,
-                                            platform,
+                                            influencerId: `$${platform}._id`,
+                                            socialMedia: platform,
+                                            price: `$${platform}.price`,
+                                            publicPrice: `$${platform}.publicPrice`,
+                                            dateRequest: data.timeline,
+                                            followersNumber: `$${platform}.followersNumber`,
+                                            countries: `$${platform}.countries`,
+                                            genres: null,
                                         },
                                     },
                                 ];
@@ -2331,7 +2354,41 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                 const result = await this.influencerModel.aggregate(aggregationPipeline).exec();
 
                                 if (result.length > 0) {
-                                    influencerId = result[0].accountId ? new Types.ObjectId(result[0].accountId) : null;
+                                    influencerId = result[0].influencerId ? new Types.ObjectId(result[0].influencerId) : null;
+                                    let selectedCampaignContentItem: string | null = null;
+
+                                    const existingContent = campaign.campaignContent.find(
+                                        item => item.videoLink === page.videoLink && item.postDescription === page.postDescription && item.socialMedia === result[0].socialMedia
+                                    );
+
+                                    if (
+                                        page.videoLink &&
+                                        page.postDescription &&
+                                        !existingContent
+                                    ) {
+                                        const newId: string = new Types.ObjectId().toHexString();
+                                        selectedCampaignContentItem = newId;
+
+                                        campaign.campaignContent.push({
+                                            _id: newId,
+                                            videoLink: page.videoLink,
+                                            postDescription: page.postDescription,
+                                            storyTag: page.storyTag || "",
+                                            swipeUpLink: page.storyLink || "",
+                                            socialMedia: result[0].socialMedia,
+                                        });
+                                    } else if (existingContent) {
+                                        selectedCampaignContentItem = existingContent._id;
+                                    }
+
+                                    campaign.selectInfluencers.push({
+                                        ...result[0],
+                                        _id: new Types.ObjectId().toHexString(),
+                                        socialMediaUsername: page.socialMediaUsername,
+                                        selectedCampaignContentItem: selectedCampaignContentItem,
+                                    });
+
+                                    campaign.totalFollowers += parseInt(result[0].followersNumber);
                                 }
                             }
 
@@ -2342,6 +2399,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                             }
                         })
                     );
+
+                    campaign.campaignName = `F: ${Math.ceil(campaign.totalFollowers)} D: ${new Date().toISOString().split("T")[0]}`
 
                     await axios.put(`${process.env.SERVER}/proposal-system/save-proposal-campaign`, campaign)
 
