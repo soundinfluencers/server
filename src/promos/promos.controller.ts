@@ -237,11 +237,6 @@ export class PromosController {
         return this.promosService.sendNewFullServicedCampaignRequest(data);
     }
 
-    @Post('migrate-promos')
-    migrateClosedPromosToPromosCopies() {
-        return this.promosService.migrateClosedPromosToPromosCopies();
-    }
-
     @Post('get-selected-social-accounts')
     getSelectedSocialMediaAccountsForCampaignStrategy(@Body() data: GetSelectedSocialAccountsDto) {
         return this.promosService.getSelectedSocialMediaAccountsForCampaignStrategy(data);

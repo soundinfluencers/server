@@ -14,18 +14,15 @@ import {Payment} from "../payment/schemas/payment.entity";
 import {AdminUpdateClientPayment} from "./dto/admin-update-client-payment.update";
 import sendMail from "../utils/sendMail";
 import {AdminUpdateCampaignDto} from "./dto/admin-update-promo.dto";
-import {AdminUpdateCampaignVideoDto} from "./dto/admin-update-promo-video.dto";
-import {AdminUpdateCampaignInfluencersDto} from "./dto/admin-update-promo-influencers.dto";
-import {AdminAddInfluencerToCampaignDto} from "./dto/admin-add-influencer-to-campaign.dto";
 import {AdminSendEmailToInfluencerDto} from "./dto/admin-send-email-to-influencer.dto";
-import {OffersTemp, OffersTempSchema} from "./schemas/offers-temp.schema";
+import {OffersTemp} from "./schemas/offers-temp.schema";
 import {AdminSaveOffersToTempDto} from "./dto/admin-save-offer-to-temp.dto";
 import {AdminPutOfferToOffersDto} from "./dto/admin-put-offer-to-offers.dto";
 import {PromosService} from "../promos/promos.service";
 import {PromosCopies} from "./schemas/promos-copies.schema";
 import {AdminUpdateInfluencerFullAccountDto} from "./dto/admin-update-influencer-full-account.dto";
 import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
-
+import {AdminUpdateFullCampaignDto} from "./dto/admin-update-full-campaign";
 const fs = require("fs");
 const PDFDocument = require("pdfkit");
 
@@ -49,7 +46,8 @@ export class AdminService {
         @InjectModel(PromosCopies.name)
         private promosCopiesModel: mongoose.Model<PromosCopies>,
         @InjectModel(ProposalCampaign.name)
-        private proposalCampaignModel: mongoose.Model<ProposalCampaign>
+        private proposalCampaignModel: mongoose.Model<ProposalCampaign>,
+        private readonly promosService: PromosService
     ) {
     }
 
@@ -1108,99 +1106,277 @@ export class AdminService {
         }
     }
 
-    async adminGetOneCampaign(campaignId: string) {
+    async adminGetOneCampaign(campaignId: string, isProposal?: boolean) {
         try {
-            let campaign: any = await this.promosModel.findOne({_id: campaignId}).lean().exec();
+            let campaign: any;
+
+            if (!isProposal) {
+                campaign = await this.promosModel.findOne({_id: campaignId}).lean().exec();
+                if (!campaign) {
+                    campaign = await this.promosCopiesModel.findOne({_id: campaignId}).lean().exec();
+                }
+            } else {
+                campaign = await this.proposalCampaignModel.findOne({_id: campaignId}).lean().exec();
+            }
 
             if (!campaign) {
-                campaign = await this.promosCopiesModel.findOne({_id: campaignId}).lean().exec();
-
-                if (!campaign) {
-                    return {
-                        status: 404,
-                        message: 'Promo not found',
-                    };
-                }
-            }
-
-            if (!campaign.isCopy) {
-                let totalFollowers = 0;
-
-                const socialMediaAccounts = campaign.selectInfluencers.map(acc => {
-                    if (acc.socialMediaUsername) {
-                        return {
-                            socialMediaUsername: acc.socialMediaUsername,
-                            socialMedia: acc.socialMedia,
-                        }
-                    } else throw new Error(`Can't find social media username ${acc.socialMediaUsername} (ADMIN PANEL GET ONE CAMPAIGN) ${new Date().toLocaleString()}`);
-                });
-
-                for (const account of socialMediaAccounts) {
-                    const thisAccFromInfluencersList = await this.influencerModel.findOne(
-                        {
-                            [`${account.socialMedia}.instagramUsername`]: account.socialMediaUsername
-                        },
-                        {
-                            [`${account.socialMedia}.$`]: 1,
-                            _id: 0
-                        }
-                    );
-
-                    const influencerAccount = thisAccFromInfluencersList?.[account.socialMedia]?.[0] || null;
-
-                    campaign.selectInfluencers.forEach((selectInfluencersAccount) => {
-                        if (
-                            selectInfluencersAccount.socialMediaUsername === account.socialMediaUsername &&
-                            selectInfluencersAccount.socialMedia === account.socialMedia
-                        ) {
-                            if (influencerAccount && influencerAccount.followersNumber) {
-                                const followersNumber = parseInt(influencerAccount.followersNumber.replace(/[\s,]/g, ''));
-                                selectInfluencersAccount.followersNumber = followersNumber;
-                                totalFollowers += followersNumber;
-                            } else {
-                                selectInfluencersAccount.followersNumber = 0;
-                            }
-                            selectInfluencersAccount.instagramUsername = account.socialMediaUsername;
-                        }
-                    });
-                }
-
-
                 return {
-                    status: 200,
-                    campaign: {
-                        ...campaign,
-                        totalFollowers,
-                        amount: campaign.campaignPrice || (campaign as any).amount,
-                        videos: campaign.campaignContent || (campaign as any).videos,
-                    },
-                };
-            } else {
-                return {
-                    status: 200,
-                    campaign: {
-                        ...campaign,
-                        amount: campaign.campaignPrice || (campaign as any).amount,
-                        videos: campaign.campaignContent || (campaign as any).videos,
-                        selectInfluencers: campaign.selectInfluencers.map((influencer: any) => {
-                            return {
-                                ...influencer,
-                                instagramUsername: influencer.socialMediaUsername || (influencer as any).instagramUsername,
-                            }
-                        })
-                    }
+                    status: 404,
+                    message: 'Promo not found',
                 };
             }
+
+            const campaignToReturn = {
+                _id: campaign._id,
+                clientId: campaign.clientId,
+                campaignName: campaign.campaignName ?? 'OLD CAMPAIGN',
+                price: campaign.campaignPrice ?? campaign.price ?? campaign.amount ?? 0,
+                publicPrice: campaign.campaignPrice ?? campaign.publicPrice ?? campaign.amount ?? 0,
+                addedAccounts: [],
+                campaignContent: campaign.campaignContent ?? campaign.videos ?? [],
+                socialMedia: campaign.socialMedia ?? 'instagram',
+                totalFollowers: campaign.totalFollowers ?? 0,
+                totalLikes: 0,
+                totalImpressions: 0,
+                createdAt: campaign.createdAt ?? 0,
+                isCopy: campaign.isCopy ?? false,
+                isCpmAndResultHidden: campaign.isCpmAndResultHidden ?? false,
+                isPriceHidden: campaign.isPriceHidden ?? false,
+                hiddenColumns: campaign.hiddenColumns ?? [],
+            };
+
+            for (const addedAccount of campaign.selectInfluencers) {
+                const normalizedUsername =
+                    addedAccount?.socialMediaUsername?.trim() ||
+                    addedAccount?.instagramUsername?.trim() ||
+                    '';
+
+                const accSocialMedia = addedAccount?.socialMedia || campaign.socialMedia !== 'multipromo' && campaign.socialMedia;
+
+                campaignToReturn.totalFollowers += addedAccount?.followersNumber ?? 0;
+                campaignToReturn.totalImpressions += parseInt(addedAccount.impressions?.replace(/[\s,]/g, '') || '0');
+                campaignToReturn.totalLikes += parseInt(addedAccount.like?.replace(/[\s,]/g, '') || '0');
+
+                const selectedCampaignContentItemId =
+                    addedAccount?.selectedCampaignContentItem ??
+                    (Array.isArray(campaign?.videos)
+                        ? campaign.videos.find((item) => item.videoLink === addedAccount?.selectedVideo)?._id
+                        : null) ??
+                    null;
+
+                let selectedCampaignContentItem = null;
+
+                if (selectedCampaignContentItemId) {
+                    selectedCampaignContentItem =
+                        (Array.isArray(campaign?.campaignContent)
+                            ? campaign.campaignContent.find(
+                                (item) => item?._id?.toString() === selectedCampaignContentItemId?.toString(),
+                            )
+                            : null) ??
+                        (Array.isArray(campaign?.videos) && campaign.videos.length > 0
+                            ? campaign.videos.find(
+                                (item) => item?._id?.toString() === selectedCampaignContentItemId?.toString(),
+                            )
+                            : null) ??
+                        null;
+                }
+
+                addedAccount.selectedCampaignContentItemId = selectedCampaignContentItemId;
+                addedAccount.selectedCampaignContentItem = selectedCampaignContentItem;
+                addedAccount.socialMedia = addedAccount?.socialMedia || accSocialMedia;
+                addedAccount.socialMediaUsername = normalizedUsername;
+
+                campaignToReturn.addedAccounts.push(addedAccount);
+            }
+
+            return {
+                status: 200,
+                campaign: campaignToReturn,
+            };
         } catch (err) {
             console.error(err);
             return {
                 status: 500,
-                message: err,
+                message: err.message || 'Internal server error',
             };
         }
     }
 
-    async adminUpdateCampaign(data: AdminUpdateCampaignDto) {
+    async adminUpdateCampaign(data: AdminUpdateFullCampaignDto) {
+        try {
+            const {
+                campaignId,
+                campaignName,
+                campaignPrice,
+                campaignContent,
+                isPriceHidden,
+                isCpmAndResultHidden,
+                isProposalCampaign,
+                hiddenColumns,
+                addedInfluencers
+            } = data;
+
+            if (
+                !campaignId ||
+                !campaignName ||
+                !campaignPrice ||
+                !campaignContent ||
+                !addedInfluencers ||
+                isPriceHidden == null ||
+                isCpmAndResultHidden == null ||
+                isProposalCampaign == null
+            ) {
+                return {
+                    status: 400,
+                    message: "Bad Request",
+                };
+            }
+
+            let campaign;
+
+            if (!isProposalCampaign) {
+                campaign = await this.promosModel.findById(campaignId) || await this.promosCopiesModel.findById(campaignId);
+            } else {
+                campaign = await this.proposalCampaignModel.findById(campaignId);
+            }
+
+            if (!campaign) {
+                return {
+                    code: 404,
+                    message: "No campaign found",
+                }
+            }
+
+            campaign.campaignName = campaignName.trim() ?? campaign.campaignName;
+            campaign.isPriceHidden = isPriceHidden ?? campaign.isPriceHidden;
+            campaign.isCpmAndResultHidden = isCpmAndResultHidden ?? campaign.isCpmAndResultHidden;
+            campaign.hiddenColumns = hiddenColumns || [];
+            campaign.campaignContent = campaignContent ?? campaign?.campaignContent ?? campaign?.videos ?? [];
+
+            if (!isProposalCampaign) {
+                campaign.campaignPrice = campaignPrice || campaign.campaignPrice;
+            } else {
+                campaign.price = campaignPrice || campaign.price;
+                campaign.publicPrice = campaignPrice || campaign.publicPrice;
+            }
+
+            const selectInfluencerIds = new Set(campaign.selectInfluencers.map((account) => account._id.toString()));
+            const addedInfluencerIds = new Set(addedInfluencers.map((item) => item._id.toString()));
+
+            campaign.selectInfluencers = campaign.selectInfluencers.filter((account) => {
+                const id = account._id.toString();
+                if (!addedInfluencerIds.has(id)) {
+                    if (isProposalCampaign) campaign.totalFollowers -= account.followersNumber;
+                    return false;
+                }
+
+                const thisAccountFromData = addedInfluencers.find((item) => item._id.toString() === id);
+                if (thisAccountFromData) {
+                    account.selectedCampaignContentItem = thisAccountFromData.selectedCampaignContentItemId;
+                    account.dateRequest = thisAccountFromData?.dateRequest ?? (account.dateRequest || "ASAP");
+                    account.postLink = thisAccountFromData?.postLink ?? (account.postLink || "");
+                    account.screenshot = thisAccountFromData?.screenshot ?? (account.screenshot || "");
+                    account.like = thisAccountFromData?.like ?? (account.like || "");
+                    account.impressions = thisAccountFromData?.impressions ?? (account.impressions || "");
+                }
+
+                return true;
+            });
+
+            if (!isProposalCampaign) {
+                addedInfluencers.forEach((newInfluencer) => {
+                    const id = newInfluencer._id.toString();
+                    if (!selectInfluencerIds.has(id)) {
+                        campaign.selectInfluencers.push({
+                            _id: new Types.ObjectId(),
+                            influencerId: newInfluencer.influencerId,
+                            socialMediaUsername: newInfluencer.socialMediaUsername,
+                            selectedCampaignContentItem: newInfluencer.selectedCampaignContentItemId,
+                            socialMedia: newInfluencer.socialMedia,
+                            dateRequest: newInfluencer.dateRequest ?? "ASAP",
+                            postLink: newInfluencer.postLink ?? "",
+                            screenshot: newInfluencer.screenshot ?? "",
+                            like: newInfluencer.like ?? "",
+                            impressions: newInfluencer.impressions ?? "",
+                            followersNumber: newInfluencer.followersNumber ?? 0,
+                            price: newInfluencer.price ?? "0",
+                            publicPrice: newInfluencer.publicPrice ?? "0",
+                        });
+                    }
+                });
+            } else {
+                for (const newInfluencer of addedInfluencers) {
+                    const id = newInfluencer._id.toString();
+                    if (!selectInfluencerIds.has(id)) {
+                        const aggregationPipeline = [
+                            { $unwind: `$${newInfluencer.socialMedia}` },
+                            {
+                                $match: {
+                                    $expr: {
+                                        $eq: [
+                                            { $trim: { input: `$${newInfluencer.socialMedia}.instagramUsername` } },
+                                            newInfluencer.socialMediaUsername,
+                                        ],
+                                    },
+                                },
+                            },
+                            {
+                                $project: {
+                                    influencerId: `$${newInfluencer.socialMedia}._id`,
+                                    followersNumber: `$${newInfluencer.socialMedia}.followersNumber`,
+                                    musicStyle: `$${newInfluencer.socialMedia}.musicStyle`,
+                                    musicStyleOther: `$${newInfluencer.socialMedia}.musicStyleOther`,
+                                    musicSubStyles: `$${newInfluencer.socialMedia}.musicSubStyles`,
+                                    countries: `$${newInfluencer.socialMedia}.countries`,
+                                },
+                            },
+                        ];
+
+                        const result = await this.influencerModel.aggregate(aggregationPipeline).exec();
+
+                        if (result.length > 0) {
+                            const formattedGenres = this.promosService.returnMusicStyles(result[0].musicStyle, result[0].musicStyleOther, result[0].musicSubStyles)
+
+                            campaign.totalFollowers += parseInt(result[0].followersNumber);
+                            campaign.selectInfluencers.push({
+                                _id: new Types.ObjectId(),
+                                influencerId: result[0].influencerId,
+                                socialMediaUsername: newInfluencer.socialMediaUsername,
+                                selectedCampaignContentItem: newInfluencer.selectedCampaignContentItemId,
+                                socialMedia: newInfluencer.socialMedia,
+                                dateRequest: newInfluencer.dateRequest ?? "ASAP",
+                                postLink: newInfluencer.postLink ?? "",
+                                screenshot: newInfluencer.screenshot ?? "",
+                                like: newInfluencer.like ?? "",
+                                impressions: newInfluencer.impressions ?? "",
+                                followersNumber: newInfluencer.followersNumber ?? 0,
+                                price: newInfluencer.price ?? "0",
+                                publicPrice: newInfluencer.publicPrice ?? "0",
+                                genres: formattedGenres || [],
+                                countries: result[0].countries
+                            });
+                        }
+                    }
+                }
+            }
+
+            campaign.markModified('selectInfluencers');
+            await campaign.save();
+
+            return {
+                code: 200,
+                message: "Campaign updated",
+            }
+        } catch (err) {
+            console.error('Error saving campaign:', err);
+            return {
+                code: 500,
+                message: err.message || 'Internal server error',
+            };
+        }
+    };
+
+    async adminUpdateCampaignUpdateFromCampaignsPage(data: AdminUpdateCampaignDto) {
         try {
             if (!data) {
                 return {
@@ -1285,238 +1461,6 @@ export class AdminService {
         }
     }
 
-    async adminUpdateCampaignVideo(data: AdminUpdateCampaignVideoDto) {
-        try {
-            let campaign = await this.promosModel.findOne({_id: data._id}).lean().exec();
-            if (!campaign) {
-                return {
-                    status: 404,
-                    message: 'Promo not found',
-                };
-            }
-
-            if (campaign.campaignContent && campaign.campaignContent.length > 0) {
-                const campaignContentItem = campaign.campaignContent.find((campaignContentItem) => campaignContentItem._id.toString() === data.campaignContentItemId) || (campaign as any).videos.find((video) => video._id.toString() === data.campaignContentItemId);
-
-                if (!campaignContentItem) {
-                    return {
-                        status: 404,
-                        message: 'Campaign content item not found',
-                    };
-                }
-
-                const influencer = campaign.selectInfluencers.find((influencer) => influencer._id.toString() === data.selectInfluencersAccountId);
-
-                if (influencer.selectedCampaignContentItem !== data.campaignContentItemId) {
-                    campaign.selectInfluencers = campaign.selectInfluencers.map((influencer) => {
-                        if (influencer._id.toString() === data.selectInfluencersAccountId) {
-                            influencer.selectedCampaignContentItem = data.campaignContentItemId;
-                        }
-                        return influencer;
-                    });
-
-                    await this.promosModel.findOneAndUpdate(
-                        {_id: data._id},
-                        {
-                            $set: {
-                                selectInfluencers: campaign.selectInfluencers,
-                            }
-                        },
-                    );
-                } else {
-                    campaignContentItem.postDescription = data.postDescription;
-                    campaignContentItem.storyTag = data.storyTag;
-                    campaignContentItem.swipeUpLink = data.swipeUpLink;
-                    campaignContentItem.specialWishes = data.specialWishes;
-
-                    campaign.campaignContent[campaign.campaignContent.findIndex((campaignContentItem) => campaignContentItem._id.toString() === data.campaignContentItemId)] = campaignContentItem;
-
-                    await this.promosModel.findOneAndUpdate(
-                        {_id: data._id},
-                        {
-                            $set: {
-                                campaignContent: campaign.campaignContent,
-                            }
-                        },
-                    );
-
-                    return {
-                        status: 200,
-                        message: 'Campaign video updated successfully',
-                    }
-                }
-            }
-        } catch (err) {
-            console.error('Error updating promo video:', err);
-            return {
-                status: 500,
-                message: err.message || 'An error occurred while updating the promo video',
-            };
-        }
-    }
-
-    async adminUpdateInfluencersListCampaign(data: AdminUpdateCampaignInfluencersDto) {
-        try {
-            let campaign = await this.promosModel.findOne({_id: data.campaignId}).lean().exec();
-
-            if (!campaign) {
-                return {
-                    status: 404,
-                    message: 'Promo not found',
-                };
-            }
-
-            const influencerIndex = campaign.selectInfluencers.findIndex(
-                (influencer) => (influencer.socialMediaUsername === data.socialMediaUsername || (influencer as any).instagramUsername === data.socialMediaUsername) && influencer._id.toString() === data.selectInfluencersAccountId
-            );
-
-            if (influencerIndex === -1) {
-                return {
-                    status: 404,
-                    message: 'Influencer not found in promo',
-                };
-            }
-
-            await this.promosModel.findOneAndUpdate(
-                {_id: data.campaignId},
-                {
-                    $set: {
-                        [`selectInfluencers.${influencerIndex}.confirmation`]: 'accept',
-                        [`selectInfluencers.${influencerIndex}.postLink`]: data.postLink,
-                        [`selectInfluencers.${influencerIndex}.screenshot`]: data.screenshot,
-                        [`selectInfluencers.${influencerIndex}.impressions`]: data.impressions,
-                        [`selectInfluencers.${influencerIndex}.like`]: data.like,
-                    },
-                },
-            );
-
-            return {
-                status: 200,
-                message: 'Influencer data updated successfully',
-            };
-        } catch (err) {
-            console.error('Error updating promo influencers:', err);
-            return {
-                status: 500,
-                message: err.message || 'An error occurred while updating the promo influencers',
-            };
-        }
-    }
-
-    async adminRemoveInfluencerFromCampaign(campaignId: string, selectInfluencersAccountId: string) {
-        try {
-            let campaign = await this.promosModel.findOne({_id: campaignId}) || await this.promosCopiesModel.findOne({_id: campaignId});
-
-            if (!campaign) {
-                return {
-                    status: 404,
-                    message: 'Campaign not found',
-                };
-            }
-
-            const influencerIndex = campaign.selectInfluencers.findIndex(
-                (influencer) => influencer._id.toString() === selectInfluencersAccountId
-            );
-
-            if (influencerIndex === -1) {
-                return {
-                    status: 404,
-                    message: 'Influencer not found in promo',
-                };
-            }
-
-            const influencersPrice = parseInt(campaign.selectInfluencers[influencerIndex].publicPrice);
-
-            campaign.selectInfluencers.splice(influencerIndex, 1);
-
-            campaign.campaignPrice = campaign.campaignPrice - influencersPrice;
-
-            await campaign.save();
-
-            return {
-                code: 200,
-                message: 'Influencer removed from promo successfully',
-            };
-        } catch (err) {
-            console.error('Error removing influencer from promo:', err);
-            return {
-                code: 500,
-                message: err.message || 'An error occurred while removing the influencer from the promo',
-            };
-        }
-    }
-
-    async adminAddInfluencerToCampaign(data: AdminAddInfluencerToCampaignDto) {
-        try {
-            let campaign = await this.promosModel.findOne({_id: data._id}) || await this.promosCopiesModel.findOne({_id: data._id});
-            if (!campaign) {
-                return {
-                    code: 404,
-                    message: 'Campaign not found',
-                };
-            }
-
-            const influencer = await this.influencerModel.findOne({_id: data.influencerId});
-
-            if (!influencer) {
-                return {
-                    code: 404,
-                    message: 'Influencer not found',
-                };
-            }
-
-            const price = influencer[data.socialMedia].find((acc) => acc.instagramUsername === data.socialMediaUsername).price;
-            const publicPrice = influencer[data.socialMedia].find((acc) => acc.instagramUsername === data.socialMediaUsername).publicPrice;
-
-            const selectedCampaignContentItem = data.selectedCampaignContentItem !== '' ? data.selectedCampaignContentItem : new mongoose.Types.ObjectId();
-            if (data.newVideoLink !== '' && data.selectedCampaignContentItem === '') {
-                const newCampaignContent = {
-                    _id: new mongoose.Types.ObjectId(selectedCampaignContentItem),
-                    videoLink: data.newVideoLink,
-                    postDescription: '',
-                    storyTag: '',
-                    swipeUpLink: '',
-                    specialWishes: '',
-                    socialMedia: data.socialMedia,
-                };
-                campaign.campaignContent.push(newCampaignContent);
-            }
-
-            campaign.selectInfluencers.push({
-                _id: new Types.ObjectId(),
-                influencerId: data.influencerId,
-                socialMediaUsername: data.socialMediaUsername,
-                confirmation: 'wait',
-                socialMedia: data.socialMedia,
-                selectedCampaignContentItem: selectedCampaignContentItem.toString(),
-                dateRequest: data.dateRequest,
-                closePromo: 'wait',
-                postLink: '',
-                screenshot: '',
-                impressions: '',
-                like: '',
-                price: price,
-                publicPrice: publicPrice,
-                followersNumber: influencer[data.socialMedia].find((acc) => acc.instagramUsername === data.socialMediaUsername).followersNumber,
-            });
-
-            campaign.campaignPrice = campaign.campaignPrice + parseInt(publicPrice);
-
-            await campaign.save();
-
-            return {
-                code: 200,
-                message: 'Influencer added to promo successfully',
-            };
-        } catch (err) {
-            console.error('Error adding influencer to promo:', err);
-            return {
-                code: 500,
-                message: err.message || 'An error occurred while adding the influencer to the promo',
-            };
-        }
-    }
-
     async adminAddInfluencerToTempList(campaignId: string, socialMediaUsername: string, socialMedia: string) {
         if (!campaignId || !socialMediaUsername) {
             return {
@@ -1526,7 +1470,10 @@ export class AdminService {
         }
 
         try {
-            let campaign = await this.promosModel.findOne({_id: campaignId}) || await this.promosCopiesModel.findOne({_id: campaignId});
+            let campaign =
+                await this.promosModel.findOne({_id: campaignId}) ||
+                await this.promosCopiesModel.findOne({_id: campaignId}) ||
+                await this.proposalCampaignModel.findOne({_id: campaignId});
 
             if (!campaign) {
                 return {
@@ -1546,17 +1493,33 @@ export class AdminService {
                 };
             }
 
-            const socialMediaAccountFollowers = influencer[socialMedia].find((acc) => acc.instagramUsername.toLowerCase() === socialMediaUsername.toLowerCase()).followersNumber;
-            const socialMediaAccountUsername = influencer[socialMedia].find((acc) => acc.instagramUsername.toLowerCase() === socialMediaUsername.toLowerCase()).instagramUsername;
+            const socialMediaAccount = influencer[socialMedia].find((acc) => acc.instagramUsername === socialMediaUsername);
+
+            if (!socialMediaAccount)
+                return {
+                    code: 404,
+                    message: 'Influencer not found',
+                }
 
             const influencerObj = {
                 _id: new Types.ObjectId(),
                 influencerId: new Types.ObjectId(influencer._id),
-                instagramUsername: socialMediaAccountUsername,
+                socialMediaUsername: socialMediaAccount.instagramUsername,
+                followersNumber: socialMediaAccount.followersNumber ?? 0,
+                price: socialMediaAccount.price,
+                publicPrice: socialMediaAccount.publicPrice,
                 socialMedia: socialMedia,
                 confirmation: 'wait',
-                selectedCampaignContentItem: '',
-                selectedVideo: '',
+                selectedCampaignContentItemId: null,
+                selectedCampaignContentItem: {
+                    _id: "",
+                    videoLink: "",
+                    postDescription: "",
+                    storyTag: "",
+                    swipeUpLink: "",
+                    specialWishes: '',
+                    socialMedia: '',
+                },
                 dateRequest: '',
                 closePromo: 'wait',
                 postLink: '',
@@ -1567,10 +1530,7 @@ export class AdminService {
 
             return {
                 code: 200,
-                account: {
-                    ...influencerObj,
-                    followersCount: socialMediaAccountFollowers,
-                },
+                account: influencerObj,
             };
         } catch (err) {
             console.error('Error adding influencer to promo:', err);
@@ -1910,88 +1870,6 @@ Soundinfluencers Team
         }
     }
 
-    async hideCpmAndResultForCampaign(campaignId: string) {
-        try {
-            let campaign = await this.promosModel.findOne({_id: campaignId});
-
-            if (!campaign) {
-                campaign = await this.promosCopiesModel.findOne({_id: campaignId});
-
-                if (!campaign) {
-                    return {
-                        status: 404,
-                        message: 'Campaign not found',
-                    };
-                }
-            }
-
-            const updateResult = await this.promosModel.updateOne(
-                {_id: campaignId},
-                {$set: {isCpmAndResultHidden: !campaign.isCpmAndResultHidden}}
-            );
-
-            if (updateResult.matchedCount === 0) {
-                await this.promosCopiesModel.updateOne(
-                    {_id: campaignId},
-                    {$set: {isCpmAndResultHidden: !campaign.isCpmAndResultHidden}}
-                );
-            }
-
-            return {
-                status: 200,
-                message: 'CPM and Result hidden successfully',
-            };
-        } catch (err) {
-            console.error('Error occurred:', err);
-            return {
-                status: 500,
-                message: 'An unknown error occurred',
-            };
-        }
-    };
-
-    async hidePriceForCampaign(campaignId: string) {
-        try {
-            const campaign = await this.promosModel.findOne({_id: campaignId}).lean().exec()
-                || await this.promosCopiesModel.findOne({_id: campaignId}).lean().exec();
-
-            if (!campaign) {
-                return {
-                    status: 404,
-                    message: 'Campaign not found',
-                }
-            }
-
-            const isPriceHidden = campaign.isPriceHidden !== undefined ? !campaign.isPriceHidden : true;
-
-            if (campaign.isCopy) {
-                try {
-                    await this.promosCopiesModel.updateOne({_id: campaignId}, {isPriceHidden});
-
-                    return {
-                        status: 200,
-                        message: 'Price hidden successfully',
-                    }
-                } catch (err) {
-                    throw new Error(err.message);
-                }
-            } else {
-                try {
-                    await this.promosModel.updateOne({_id: campaignId}, {isPriceHidden});
-
-                    return {
-                        status: 200,
-                        message: 'Price hidden successfully',
-                    }
-                } catch (err) {
-                    throw new Error(err.message);
-                }
-            }
-        } catch (err) {
-            console.error('Error while hiding price for campaign occurred:', err, Date.now());
-        }
-    };
-
     async adminGetInfluencerAccount(influencerId: string) {
         try {
             const influencer = await this.influencerModel.findOne({_id: influencerId});
@@ -2050,67 +1928,5 @@ Soundinfluencers Team
                 message: 'An unknown error occurred',
             };
         }
-    }
-
-    async adminAddInfluencerIdsToOffers() {
-        const offer = await this.offersModel.findOne({id: 15}).exec();
-        let ctr = 0;
-
-        // console.log('Before update:', offer.connectInfluencer);
-
-        if (offer.connectInfluencer && offer.connectInfluencer.length > 0) {
-            for (const influencerObj of offer.connectInfluencer) {
-                const influencerObjTyped = influencerObj as { instagramUsername: string; influencerId?: string };
-
-                if (!influencerObjTyped.influencerId) {
-                    const influencer = await this.influencerModel.findOne({
-                        'instagram.instagramUsername': influencerObjTyped.instagramUsername
-                    });
-                    // console.log(`Processing influencer ${influencer?._id.toString()}`);
-                    if (influencer) {
-                        influencerObjTyped.influencerId = influencer._id.toString();
-                        ctr++;
-                    } else {
-                        console.log(`No influencer found for ${influencerObjTyped.instagramUsername}`);
-                    }
-                }
-            }
-        }
-
-        // console.log('After update:', offer.connectInfluencer);
-
-        if (offer.musicStyles && offer.musicStyles.length > 0) {
-            for (const musicStyle of offer.musicStyles) {
-                console.log('Before update:', musicStyle.connectInfluencer);
-                await Promise.all(
-                    musicStyle.connectInfluencer.map(async (influencerObj: any) => {
-                        const influencerObjTyped = influencerObj as {
-                            instagramUsername: string;
-                            influencerId?: string
-                        };
-
-                        if (!influencerObjTyped.influencerId) {
-                            const influencer = await this.influencerModel.findOne({
-                                'instagram.instagramUsername': influencerObjTyped.instagramUsername
-                            });
-                            console.log(`Processing influencer ${influencer?._id.toString()}`);
-                            if (influencer) {
-                                influencerObjTyped.influencerId = influencer._id.toString();
-                                ctr++;
-                            } else {
-                                console.log(`No influencer found for ${influencerObjTyped.instagramUsername}`);
-                            }
-                        }
-                    })
-                );
-                console.log('After update:', musicStyle.connectInfluencer);
-            }
-        }
-
-        offer.markModified('connectInfluencer');
-        offer.markModified('musicStyles');
-        await offer.save();
-
-        console.log(`Total ${ctr} influencer ids added`);
     }
 }

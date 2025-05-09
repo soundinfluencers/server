@@ -125,7 +125,7 @@ export class ProposalSystemService {
                 await this.proposalCampaignModel.updateOne({
                     _id: new mongoose.Types.ObjectId(data.campaignId),
                 }, {
-                    clientId: data.clientId ? new mongoose.Types.ObjectId(data.clientId) : null,
+                    clientId: data.clientId ? new mongoose.Types.ObjectId(data.clientId) : new mongoose.Types.ObjectId("66f540faaf4e960d2f9bebfc") ,
                     campaignName: data.campaignName,
                     selectInfluencers: data.selectInfluencers,
                     campaignContent: data.campaignContent,
@@ -311,7 +311,7 @@ export class ProposalSystemService {
         }
     };
 
-    async sendMailToAdminAboutChangingProposalCampaign(campaignId: string, campaignName: string,) {
+    async sendMailToAdminAboutChangingProposalCampaign(campaignId: string, campaignName: string) {
         if (!campaignId || !campaignName) {
             return {
                 status: 400,

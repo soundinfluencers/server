@@ -7,7 +7,7 @@ export class SelectInfluencers {
     @Prop({ type: Types.ObjectId, required: true }) 
     _id: Types.ObjectId;
 
-    @Prop({ })
+    @Prop()
     influencerId: string;
     
     @Prop({default: 'instagram'})
@@ -134,6 +134,9 @@ export class Promos {
 
     @Prop({required: false, default: `${process.env.SERVER_CLIENT}`})
     shareLink: string;
+
+    @Prop({required: false, default: []})
+    hiddenColumns: string[];
     
     readonly createdAt?: Date;
     readonly updatedAt?: Date;

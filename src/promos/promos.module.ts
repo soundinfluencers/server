@@ -25,5 +25,6 @@ import {ProposalCampaign, ProposalCampaignSchema} from "../proposal-system/schem
   ],
   controllers: [PromosController],
   providers: [PromosService],
+  exports: [PromosService],
 })
 export class PromosModule {}

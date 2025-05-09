@@ -11,6 +11,7 @@ import {Payment} from "../payment/schemas/payment.entity";
 import {OffersTemp, OffersTempSchema} from "./schemas/offers-temp.schema";
 import {PromosCopies, PromosCopiesSchema} from "./schemas/promos-copies.schema";
 import {ProposalCampaign, ProposalCampaignSchema} from "../proposal-system/schemas/proposal-campaign.schema";
+import {PromosModule} from "../promos/promos.module";
 
 @Module({
     imports: [
@@ -23,8 +24,9 @@ import {ProposalCampaign, ProposalCampaignSchema} from "../proposal-system/schem
             {name: Payment.name, schema: Payment},
             {name: OffersTemp.name, schema: OffersTempSchema},
             {name: PromosCopies.name, schema: PromosCopiesSchema},
-            { name: ProposalCampaign.name, schema: ProposalCampaignSchema },
+            {name: ProposalCampaign.name, schema: ProposalCampaignSchema},
         ]),
+        PromosModule,
     ],
     controllers: [AdminController],
     providers: [AdminService],

@@ -83,7 +83,7 @@ const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignContentIt
 
 @Schema({timestamps: true})
 export class ProposalCampaign {
-    @Prop({required: false, default: 0})
+    @Prop({required: false})
     clientId: mongoose.Schema.Types.ObjectId;
     
     @Prop({required: true})
@@ -114,6 +114,15 @@ export class ProposalCampaign {
     
     @Prop({required: true, default: 'instagram'})
     socialMedia: string;
+
+    @Prop({required: false, default: false})
+    isPriceHidden: boolean;
+
+    @Prop({required: false, default: false})
+    isCpmAndResultHidden: boolean;
+
+    @Prop({required: false, default: []})
+    hiddenColumns: string[];
 
     readonly createdAt?: Date;
     readonly updatedAt?: Date;

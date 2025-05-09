@@ -220,8 +220,8 @@ ${emailVideoContent()}
 </p>`;
 
             await sendMail(
-                // "nazarkozynets030606@zohomail.eu",
-                "admin@soundinfluencers.com",
+                "nazarkozynets030606@zohomail.eu",
+                // "admin@soundinfluencers.com",
                 "soundinfluencers",
                 emailContent,
                 "html"
@@ -351,7 +351,8 @@ ${emailVideoContent()}
 //                 );
 //             }
 //
-//             await sendMail(
+//             await
+//             il(
 //                 // "nazarkozynets030606@zohomail.eu",
 //                 "admin@soundinfluencers.com",
 //                 "soundinfluencers",
@@ -543,8 +544,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 <p>Soundinfluencers Team</p>
 `;
                         try {
-                            await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
-                            // await sendMail("nazarkozynets030606@zohomail.eu", "soundinfluencers", emailToInfluencer, "html");
+                            // await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
+                            await sendMail("nazarkozynets030606@zohomail.eu", "soundinfluencers", emailToInfluencer, "html");
                         } catch (err) {
                             console.error('Error sending emails to influencers:', err);
                         }
@@ -1355,8 +1356,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewCampaign.clientId || (findNewCampaign as any).userId);
 
                 await sendMail(
-                    // "nazarkozynets030606@zohomail.eu",
-                    "admin@soundinfluencers.com",
+                    "nazarkozynets030606@zohomail.eu",
+                    // "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} accepted the offer for ${checkUserClient.email}'s campaign</p>
                 <p>Details:</p><br/>
@@ -2056,68 +2057,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
         }
     }
 
-    async migrateClosedPromosToPromosCopies() {
-        const closedCampaigns = await this.promosModel.find({statusCampaign: 'finally'}).lean().exec();
-
-        if (!closedCampaigns) {
-            return {
-                code: 404,
-                message: 'No closed promos found',
-            };
-        }
-
-        for (const campaign of closedCampaigns) {
-            let totalFollowers = 0
-
-            const selectInfluencers = await Promise.all(
-                campaign.selectInfluencers.map(async (item) => {
-                    const influencer = await this.influencerModel.findById(item.influencerId);
-                    const socialMediaAccount = influencer.instagram.find(
-                        (insta) => insta.instagramUsername === item.socialMediaUsername
-                    );
-
-                    if (!socialMediaAccount) {
-                        console.error(
-                            `Instagram account not found for influencerId: ${item.influencerId}, instagramUsername: ${item.socialMediaUsername}`
-                        );
-                        return {
-                            ...item,
-                            price: 0,
-                            publicPrice: 0,
-                            followersNumber: 0,
-                        };
-                    }
-
-                    const followersNumber = parseInt(socialMediaAccount.followersNumber || '0', 10);
-                    const price = parseInt(socialMediaAccount.price || '0', 10);
-                    const publicPrice = parseInt(socialMediaAccount.publicPrice || '0', 10);
-
-                    totalFollowers += followersNumber;
-
-                    return {
-                        ...item,
-                        price: price,
-                        publicPrice: publicPrice,
-                        followersNumber: followersNumber,
-                    };
-                })
-            );
-
-            await this.promosCopiesModel.create({
-                ...campaign,
-                statusCampaign: 'finally',
-                verifyCampaign: 'accept',
-                isCopy: true,
-                totalFollowers: totalFollowers,
-                selectInfluencers: selectInfluencers,
-                socialMedia: 'instagram',
-                amount: campaign.campaignPrice,
-            });
-
-            await this.promosModel.deleteOne({_id: campaign._id});
-        }
-    }
-
     async getSelectedSocialMediaAccountsForCampaignStrategy(data: GetSelectedSocialAccountsDto) {
         if (!data) {
             return {
@@ -2202,9 +2141,9 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 
                     const campaign = {
                         campaignId: new Types.ObjectId().toHexString(),
-                        campaignName: null,
+                        campaignName: data.campaignName,
                         price: data.price || 0,
-                        publicPrice: 0,
+                        publicPrice: data.price || 0,
                         socialMedia: data.socialMedia || "multipromo",
                         selectInfluencers: [],
                         campaignContent: [],
@@ -2217,8 +2156,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                             let influencerId: Types.ObjectId | null = null;
 
                             if (isMultiPromo) {
-                                const normalizedUsername = page.socialMediaUsername.trim().toLowerCase();
-                                const socialMediaPlatforms = ['instagram', 'facebook', 'tiktok', 'youtube', 'spotify', 'soundcloud'];
+                                const normalizedUsername = page.socialMediaUsername.trim();
+                                const socialMediaPlatforms = ['instagram', 'facebook', 'tiktok', 'youtube', 'spotify', 'soundcloud', 'press'];
 
                                 const aggregationPipeline = [
                                     {
@@ -2231,7 +2170,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                                             $and: [
                                                                 {
                                                                     $eq: [
-                                                                        { $toLower: { $trim: { input: `$${platform}.instagramUsername` } } },
+                                                                        { $trim: { input: `$${platform}.instagramUsername` } },
                                                                         normalizedUsername,
                                                                     ],
                                                                 },
@@ -2254,7 +2193,9 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                                         dateRequest: data.timeline,
                                                         followersNumber: `$${platform}.followersNumber`,
                                                         countries: `$${platform}.countries`,
-                                                        genres: null,
+                                                        musicStyle: `$${platform}.musicStyle`,
+                                                        musicSubStyles: `$${platform}.musicSubStyles`,
+                                                        musicStyleOther: `$${platform}.musicStyleOther`,
                                                     },
                                                 },
                                             ];
@@ -2278,7 +2219,9 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                             dateRequest: '$combined.dateRequest',
                                             followersNumber: '$combined.followersNumber',
                                             countries: '$combined.countries',
-                                            genres: '$combined.genres',
+                                            musicStyle: '$combined.musicStyle',
+                                            musicSubStyles: '$combined.musicSubStyles',
+                                            musicStyleOther: '$combined.musicStyleOther',
                                         },
                                     },
                                 ];
@@ -2313,25 +2256,28 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                         selectedCampaignContentItem = existingContent._id;
                                     }
 
+                                    const formattedGenres = this.returnMusicStyles(result[0].musicStyle, result[0].musicStyleOther, result[0].musicSubStyles)
+
                                     campaign.selectInfluencers.push({
                                         ...result[0],
                                         _id: new Types.ObjectId().toHexString(),
-                                        socialMediaUsername: page.socialMediaUsername,
+                                        socialMediaUsername: page.socialMediaUsername.trim(),
                                         selectedCampaignContentItem: selectedCampaignContentItem,
+                                        genres: formattedGenres
                                     });
 
                                     campaign.totalFollowers += parseInt(result[0].followersNumber);
                                 }
                             } else {
                                 const platform = data.socialMedia;
-                                const normalizedUsername = page.socialMediaUsername.trim().toLowerCase();
+                                const normalizedUsername = page.socialMediaUsername.trim();
                                 const aggregationPipeline = [
                                     { $unwind: `$${platform}` },
                                     {
                                         $match: {
                                             $expr: {
                                                 $eq: [
-                                                    { $toLower: { $trim: { input: `$${platform}.instagramUsername` } } },
+                                                    { $trim: { input: `$${platform}.instagramUsername` } },
                                                     normalizedUsername,
                                                 ],
                                             },
@@ -2346,7 +2292,9 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                             dateRequest: data.timeline,
                                             followersNumber: `$${platform}.followersNumber`,
                                             countries: `$${platform}.countries`,
-                                            genres: null,
+                                            musicStyle: `$${platform}.musicStyle`,
+                                            musicSubStyles: `$${platform}.musicSubStyles`,
+                                            musicStyleOther: `$${platform}.musicStyleOther`,
                                         },
                                     },
                                 ];
@@ -2381,11 +2329,14 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                         selectedCampaignContentItem = existingContent._id;
                                     }
 
+                                    const formattedGenres = this.returnMusicStyles(result[0].musicStyle, result[0].musicStyleOther, result[0].musicSubStyles)
+
                                     campaign.selectInfluencers.push({
                                         ...result[0],
                                         _id: new Types.ObjectId().toHexString(),
-                                        socialMediaUsername: page.socialMediaUsername,
+                                        socialMediaUsername: page.socialMediaUsername.trim(),
                                         selectedCampaignContentItem: selectedCampaignContentItem,
+                                        genres: formattedGenres
                                     });
 
                                     campaign.totalFollowers += parseInt(result[0].followersNumber);
@@ -2400,7 +2351,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                         })
                     );
 
-                    campaign.campaignName = `F: ${Math.ceil(campaign.totalFollowers)} D: ${new Date().toISOString().split("T")[0]}`
+                    campaign.campaignName = campaign.campaignName || `F: ${Math.ceil(campaign.totalFollowers)} D: ${new Date().toISOString().split("T")[0]}`
 
                     await axios.put(`${process.env.SERVER}/proposal-system/save-proposal-campaign`, campaign)
 
@@ -2427,6 +2378,41 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 code: 500,
                 message: "Error saving XLSXCampaign",
             };
+        }
+    }
+
+    returnMusicStyles = (musicStyle: string, musicStyleOther: string[], musicSubStyles: string[]) => {
+        const genresSet = new Set();
+
+        if (musicStyle !== undefined && musicStyle) {
+            if (musicSubStyles && musicSubStyles.length > 0) {
+                for (let i = 0; i < musicSubStyles.length; i++) {
+                    if (musicSubStyles[i] === "Melodic, Minimal") {
+                        genresSet.add("Techno (Melodic, Minimal)");
+                    }
+                    if (musicSubStyles[i] === "Hard, Peak") {
+                        genresSet.add("Techno (Hard, Peak)");
+                    }
+                    if (musicSubStyles[i] === "Tech House") {
+                        genresSet.add("House (Tech House)");
+                    }
+                    if (musicSubStyles[i] === "Melodic, Afro") {
+                        genresSet.add("House (Melodic, Afro)");
+                    }
+                }
+            } else {
+                genresSet.add(musicStyle);
+            }
+
+            if (musicStyleOther && musicStyleOther.length > 0) {
+                for (let i = 0; i < musicStyleOther.length; i++) {
+                    if (musicStyleOther[i] !== "House") {
+                        genresSet.add(musicStyleOther[i]);
+                    }
+                }
+            }
+
+            return Array.from(genresSet);
         }
     }
 }

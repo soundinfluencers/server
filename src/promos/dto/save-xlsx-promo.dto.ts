@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-interface page {
+interface Page {
     socialMediaUsername: string;
     followersNumber: number;
     videoLink: string | null;
@@ -11,6 +11,9 @@ interface page {
 
 export class SaveXlsxPromoDto {
     @ApiProperty({ required: false })
+    campaignName: string | null;
+
+    @ApiProperty({ required: false })
     price: number | null;
 
     @ApiProperty({ required: false })
@@ -20,5 +23,5 @@ export class SaveXlsxPromoDto {
     socialMedia: string | null;
 
     @ApiProperty({ required: false })
-    pages: page[];
+    pages: Page[];
 }
