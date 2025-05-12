@@ -1590,7 +1590,7 @@ Soundinfluencers Team
             const offersTempPromise = this.offersTempModel.find();
 
             const socialMediaTypes = ["instagram", "tiktok", "facebook", "youtube", "spotify", "soundcloud", "press"];
-            const promosService = new PromosService(this.promosModel, this.clientModel, this.influencerModel, this.offersModel, this.promosCopiesModel, this.proposalCampaignModel);
+            const promosService = new PromosService(this.promosModel, this.clientModel, this.influencerModel, this.offersModel, this.promosCopiesModel);
 
             const socialMediaPromises = socialMediaTypes.map(socialMedia => promosService.getOffers(socialMedia));
             const socialMediaResults = await Promise.all(socialMediaPromises);

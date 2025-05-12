@@ -16,7 +16,6 @@ import {GetSelectedSocialAccountsDto} from "./dto/get-selected-social-accounts.d
 import {decodeAndDecrypt} from "../utils/crypt";
 import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
 import {SaveXlsxPromoDto} from "./dto/save-xlsx-promo.dto";
-import {ProposalCampaign} from "src/proposal-system/schemas/proposal-campaign.schema";
 
 mongoose.Promise = global.Promise;
 
@@ -33,8 +32,6 @@ export class PromosService {
         private offersModel: mongoose.Model<Offers>,
         @InjectModel(PromosCopies.name)
         private promosCopiesModel: mongoose.Model<PromosCopies>,
-        @InjectModel(ProposalCampaign.name)
-        private proposalCampaignModel: mongoose.Model<ProposalCampaign>
     ) {
     }
 
@@ -220,8 +217,8 @@ ${emailVideoContent()}
 </p>`;
 
             await sendMail(
-                "nazarkozynets030606@zohomail.eu",
-                // "admin@soundinfluencers.com",
+                // "nazarkozynets030606@zohomail.eu",
+                "admin@soundinfluencers.com",
                 "soundinfluencers",
                 emailContent,
                 "html"
@@ -544,8 +541,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 <p>Soundinfluencers Team</p>
 `;
                         try {
-                            // await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
-                            await sendMail("nazarkozynets030606@zohomail.eu", "soundinfluencers", emailToInfluencer, "html");
+                            await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
+                            // await sendMail("nazarkozynets030606@zohomail.eu", "soundinfluencers", emailToInfluencer, "html");
                         } catch (err) {
                             console.error('Error sending emails to influencers:', err);
                         }
@@ -1356,8 +1353,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewCampaign.clientId || (findNewCampaign as any).userId);
 
                 await sendMail(
-                    "nazarkozynets030606@zohomail.eu",
-                    // "admin@soundinfluencers.com",
+                    // "nazarkozynets030606@zohomail.eu",
+                    "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} accepted the offer for ${checkUserClient.email}'s campaign</p>
                 <p>Details:</p><br/>
@@ -1418,8 +1415,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewCampaign.clientId || (findNewCampaign as any).userId);
 
                 await sendMail(
-                    "nazarkozynets030606@zohomail.eu",
-                    // "admin@soundinfluencers.com",
+                    // "nazarkozynets030606@zohomail.eu",
+                    "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} declined the offer for ${checkUserClient.email}'s campaign</p>
                 <p>Details:</p><br/>
