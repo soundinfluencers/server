@@ -1135,7 +1135,7 @@ export class AdminService {
                 addedAccounts: [],
                 campaignContent: campaign.campaignContent ?? campaign.videos ?? [],
                 socialMedia: campaign.socialMedia ?? 'instagram',
-                totalFollowers: campaign.totalFollowers ?? 0,
+                totalFollowers: 0,
                 totalLikes: 0,
                 totalImpressions: 0,
                 createdAt: campaign.createdAt ?? 0,

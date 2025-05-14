@@ -106,8 +106,8 @@ export class ProposalSystemService {
             });
 
             if (!proposalCampaign) {
-                await this.proposalCampaignModel.create({
-                    clientId: data.clientId ? new mongoose.Types.ObjectId(data.clientId) : null,
+                const res = await this.proposalCampaignModel.create({
+                    clientId: data.clientId ? new mongoose.Types.ObjectId(data.clientId) : new mongoose.Types.ObjectId("66f540faaf4e960d2f9bebfc"),
                     campaignName: data.campaignName,
                     selectInfluencers: data.selectInfluencers,
                     campaignContent: data.campaignContent,
@@ -119,6 +119,7 @@ export class ProposalSystemService {
 
                 return {
                     status: 201,
+                    campaignId: res._id,
                     message: 'Proposal campaign created successfully',
                 };
             } else {

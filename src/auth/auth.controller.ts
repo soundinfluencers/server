@@ -3,17 +3,15 @@ import {
     Get,
     Post,
     Body,
-    Patch,
     Param,
-    Delete,
     Query,
 } from '@nestjs/common';
 import {AuthService} from './auth.service';
 import {CreateClientDto} from './dto/create-client.dto';
 import {CreateInfluencerDto} from './dto/create-influencer.dto';
-import {LoginClientDto} from './dto/login-client.dto';
+import {LoginDto} from './dto/login.dto';
 import {VerifyDto} from './dto/verify.dto';
-import {ApiProperty, ApiQuery} from '@nestjs/swagger';
+import {ApiQuery} from '@nestjs/swagger';
 
 @Controller('auth')
 export class AuthController {
@@ -54,14 +52,9 @@ export class AuthController {
         );
     }
 
-    @Post('login/client')
-    loginClient(@Body() data: LoginClientDto) {
-        return this.authService.loginClient(data);
-    }
-
-    @Post('login/influencer')
-    loginInfluencer(@Body() data: LoginClientDto) {
-        return this.authService.loginInfluencer(data);
+    @Post('login')
+    loginUser(@Body() data: LoginDto) {
+        return this.authService.loginUser(data);
     }
 
     @Post('verify')

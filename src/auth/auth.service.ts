@@ -6,7 +6,7 @@ import {Client} from './schemas/client.schema';
 import mongoose from 'mongoose';
 import {Types} from 'mongoose';
 import {Influencer} from './schemas/influencer.schema';
-import {LoginClientDto} from './dto/login-client.dto';
+import {LoginDto} from './dto/login.dto';
 import {VerifyDto} from './dto/verify.dto';
 import sendMail from "../utils/sendMail";
 import {VerifyInfluencer} from './schemas/verifyInfluencer.schema';
@@ -477,85 +477,55 @@ export class AuthService {
         }
     }
 
-    async loginClient(loginClient: LoginClientDto) {
-        if (!loginClient.email || !loginClient.password) {
-            return {
-                code: 400,
-                message: 'Not enough arguments',
-            };
-        }
-
-        const checkUser = await this.clientModel.findOne({
-            email: loginClient.email,
-        });
-
-        if (!checkUser) {
-            return {
-                code: 404,
-                message: 'Not Found',
-            };
-        }
-
-        if (bcrypt.compareSync(loginClient.password, checkUser.password)) {
-            if (checkUser.statusVerify === 'wait') {
+    async loginUser(loginData: LoginDto) {
+        try {
+            if (!loginData.email || !loginData.password) {
                 return {
-                    code: 403,
-                    message: 'not verify account',
+                    code: 400,
+                    message: 'Not enough arguments',
                 };
             }
-            return {
-                code: 200,
-                token: jwt.sign(
-                    {id: checkUser.id, role: checkUser.role},
-                    this.secretKey,
-                ),
-            };
-        } else {
-            return {
-                code: 400,
-                message: 'Password is not correct',
-            };
-        }
-    }
 
-    async loginInfluencer(loginInfluencer: LoginClientDto) {
-        if (!loginInfluencer.email || !loginInfluencer.password) {
-            return {
-                code: 400,
-                message: 'Not enough arguments',
-            };
-        }
+            const checkUser =
+                await this.influencerModel.findOne({
+                    email: loginData.email,
+                }) || await this.clientModel.findOne({
+                    email: loginData.email,
+                });
 
-        const checkUser = await this.influencerModel.findOne({
-            email: loginInfluencer.email,
-        });
-
-        if (!checkUser) {
-            return {
-                code: 404,
-                message: 'Not Found',
-            };
-        }
-
-        if (bcrypt.compareSync(loginInfluencer.password, checkUser.password)) {
-            if (checkUser.statusVerify === 'wait') {
+            if (!checkUser) {
                 return {
-                    code: 403,
-                    message: 'not verify account',
+                    code: 404,
+                    message: 'Not Found',
                 };
             }
+
+            if (bcrypt.compareSync(loginData.password, checkUser.password)) {
+                if (checkUser.statusVerify === 'wait') {
+                    return {
+                        code: 403,
+                        message: 'not verify account',
+                    };
+                }
+                return {
+                    code: 200,
+                    token: jwt.sign(
+                        {id: checkUser.id, role: checkUser.role},
+                        this.secretKey,
+                    ),
+                    role: checkUser.role,
+                };
+            } else {
+                return {
+                    code: 400,
+                    message: 'Password is not correct',
+                };
+            }
+        } catch (error) {
             return {
-                code: 200,
-                token: jwt.sign(
-                    {id: checkUser.id, role: checkUser.role},
-                    this.secretKey,
-                ),
-            };
-        } else {
-            return {
-                code: 400,
-                message: 'Password is not correct',
-            };
+                code: 500,
+                message: "Server Error",
+            }
         }
     }
 
