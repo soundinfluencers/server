@@ -9,6 +9,9 @@ export class UpdateCampaignActionDto {
     
     @ApiProperty({ type: Number, required: false }) 
     rewardForInfluencer: number;
+
+    @ApiProperty({ type: String, required: false })
+    socialMedia: string;
 }
 
 export class UpsertCampaignHistoryDto {

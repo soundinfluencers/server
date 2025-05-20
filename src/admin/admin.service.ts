@@ -1929,4 +1929,58 @@ Soundinfluencers Team
             };
         }
     }
+
+    async adminChangeInfluencerUsernameInOffer() {
+        try {
+            const offers = await this.offersModel.find();
+
+            for (const offer of offers) {
+                let isModified = false;
+
+                if (offer.connectInfluencer && offer.connectInfluencer.length > 0) {
+                    offer.connectInfluencer = offer.connectInfluencer.map(item => {
+                        if (item.instagramUsername === "The Home of Techno") {
+                            isModified = true;
+                            return {
+                                ...item,
+                                instagramUsername: "Techno and House People",
+                                influencerId: "659cf0091bf12bc988f64da1"
+                            };
+                        }
+                        return item;
+                    });
+                }
+
+                if (offer.musicStyles && offer.musicStyles.length > 0) {
+                    offer.musicStyles = offer.musicStyles.map(style => {
+                        if (style.connectInfluencer && style.connectInfluencer.length > 0) {
+                            const updatedConnectInfluencer = style.connectInfluencer.map(item => {
+                                if (item.instagramUsername === "The Home of Techno") {
+                                    isModified = true;
+                                    return {
+                                        ...item,
+                                        instagramUsername: "Techno and House People",
+                                        influencerId: "659cf0091bf12bc988f64da1"
+                                    };
+                                }
+                                return item;
+                            });
+                            return {
+                                ...style,
+                                connectInfluencer: updatedConnectInfluencer
+                            };
+                        }
+                        return style;
+                    });
+                }
+
+                if (isModified) {
+                    await offer.save();
+                }
+            }
+        } catch (err) {
+            console.error('Error occurred:', err);
+            throw err;
+        }
+    }
 }

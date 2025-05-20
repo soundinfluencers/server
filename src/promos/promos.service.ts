@@ -499,6 +499,7 @@ ${emailVideoContent()}
                                 updatedCampaignAction: {
                                     actionNumber: 0,
                                     networkUsername: account.instagramUsername,
+                                    socialMedia: socialMedia,
                                     rewardForInfluencer: parseInt(account.price),
                                 },
                             });
@@ -945,16 +946,31 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
             }
 
             const [campaigns, finishedCampaigns] = await Promise.all([
-                this.promosModel.find({selectInfluencers: {$elemMatch: {influencerId, closePromo: "close"}}}).lean(),
+                this.promosModel.find({
+                    selectInfluencers: {
+                        $elemMatch: {
+                            influencerId,
+                            $or: [
+                                { closePromo: "close" },
+                                { screenshot: { $ne: "" } }
+                            ]
+                        }
+                    }
+                }).lean(),
+
                 this.promosCopiesModel.find({
                     selectInfluencers: {
                         $elemMatch: {
                             influencerId,
-                            closePromo: "close"
+                            $or: [
+                                { closePromo: "close" },
+                                { screenshot: { $ne: "" } }
+                            ]
                         }
                     }
                 }).lean()
             ]);
+
 
             const allCampaigns = [...campaigns, ...finishedCampaigns];
 
@@ -964,8 +980,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                     const client = await this.clientModel.findById(campaignItem.clientId || (campaignItem as any).userId);
 
                     return campaignItem.selectInfluencers.flatMap((influencerItem) => {
-                        if (influencerItem.influencerId.toString() !== influencerId || influencerItem.closePromo !== 'close') return [];
-
+                        if (influencerItem.influencerId.toString() !== influencerId || (influencerItem.closePromo !== 'close' && influencerItem.screenshot === "")) return [];
+ 
                         if (influencerItem.selectedCampaignContentItem) {
                             return [{
                                 socialMediaUsername: influencerItem.socialMediaUsername || (influencerItem as any).instagramUsername,
@@ -1311,7 +1327,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
             }
 
             if (campaignResponse === "accept") {
-                const price = parseInt(findNewCampaign.selectInfluencers.find(influencer => influencer.socialMediaUsername === socialMediaUsername || (influencer as any).instagramUsername === socialMediaUsername).price.replace(/\D/g, ''));
+                const selectInfluencersAcc = findNewCampaign.selectInfluencers.find(influencer => influencer._id.toString() === selectInfluencersId);
 
                 const resultOfSavingHistory = await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, {
                     influencerId: influencerId,
@@ -1320,7 +1336,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                     updatedCampaignAction: {
                         actionNumber: 1,
                         networkUsername: socialMediaUsername,
-                        rewardForInfluencer: price,
+                        socialMedia: selectInfluencersAcc.socialMedia,
+                        rewardForInfluencer: selectInfluencersAcc.price.replace(/\D/g, ''),
                     },
                 });
 
@@ -1356,11 +1373,11 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                     // "nazarkozynets030606@zohomail.eu",
                     "admin@soundinfluencers.com",
                     "soundinfluencers",
-                    `<p>${checkUserInfluencer.email} accepted the offer for ${checkUserClient.email}'s campaign</p>
-                <p>Details:</p><br/>
-                <p>Promo ID: ${findNewCampaign._id}</p>
-                <p>Client Name: ${checkUserClient.firstName}</p>
-                <p>Campaign Content: ${findNewCampaign.campaignContent ? findNewCampaign.campaignContent
+                    `<p>${checkUserInfluencer.email} accepted the offer for ${checkUserClient.email}'s campaign</p><br/>
+                <p><b>Details:</b></p>
+                <p><b>Campaign Name:</b> ${findNewCampaign.campaignName}</p>
+                <p><b>Client Name:</b> ${checkUserClient.firstName}</p>
+                <p><b>Campaign Content:</b> ${findNewCampaign.campaignContent ? findNewCampaign.campaignContent
                         .map((campaignContentItem) => `<a href="${campaignContentItem.videoLink}">${campaignContentItem.videoLink}</a>`)
                         .join(", ") : (findNewCampaign as any).videos.map((video) => `<a href="${video.videoLink}">${video.videoLink}</a>`)
                         .join(", ")}</p>`,
@@ -1372,7 +1389,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                     updateNewPromo,
                 };
             } else {
-                const price = parseInt(findNewCampaign.selectInfluencers.find(influencer => influencer.socialMediaUsername === socialMediaUsername || (influencer as any).instagramUsername === socialMediaUsername).price.replace(/\D/g, ''));
+                const selectInfluencersAcc = findNewCampaign.selectInfluencers.find(influencer => influencer._id.toString() === selectInfluencersId);
 
                 const resultOfSavingHistory = await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, {
                     influencerId: influencerId,
@@ -1381,7 +1398,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                     updatedCampaignAction: {
                         actionNumber: 2,
                         networkUsername: socialMediaUsername,
-                        rewardForInfluencer: price,
+                        socialMedia: selectInfluencersAcc.socialMedia,
+                        rewardForInfluencer: selectInfluencersAcc.price.replace(/\D/g, ''),
                     },
                 });
 
@@ -1405,7 +1423,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                     {
                         $set: {
                             "selectInfluencers.$.confirmation": campaignResponse,
-                            partialRefund: findNewCampaign.partialRefund + price,
+                            partialRefund: findNewCampaign.partialRefund + selectInfluencersAcc.price.replace(/\D/g, ''),
                         },
                     },
                     {new: true}
@@ -1418,11 +1436,11 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                     // "nazarkozynets030606@zohomail.eu",
                     "admin@soundinfluencers.com",
                     "soundinfluencers",
-                    `<p>${checkUserInfluencer.email} declined the offer for ${checkUserClient.email}'s campaign</p>
-                <p>Details:</p><br/>
-                <p>Promo ID: ${findNewCampaign._id}</p>
-                <p>Client Name: ${checkUserClient.firstName}</p>
-                <p>Campaign Content: ${findNewCampaign.campaignContent ? findNewCampaign.campaignContent
+                    `<p>${checkUserInfluencer.email} declined the offer for ${checkUserClient.email}'s campaign</p><br/>
+                <p><b>Details:</b></p>
+                <p><b>Campaign Name:</b> ${findNewCampaign.campaignName}</p>
+                <p><b>Client Name:</b> ${checkUserClient.firstName}</p>
+                <p><b>Campaign Content:</b> ${findNewCampaign.campaignContent ? findNewCampaign.campaignContent
                         .map((campaignContentItem) => `<a href="${campaignContentItem.videoLink}">${campaignContentItem.videoLink}</a>`)
                         .join(", ") : (findNewCampaign as any).videos.map((video) => `<a href="${video.videoLink}">${video.videoLink}</a>`)
                         .join(", ")}</p>`,
@@ -1481,7 +1499,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 
             const allSocialMediaAccounts = campaigns.flatMap((item) => {
                 return item.selectInfluencers.map((acc) => {
-                    if (acc.confirmation === 'accept' && acc.closePromo === 'wait' && acc.influencerId.toString() === influencerId) {
+                    if (acc.confirmation === 'accept' && acc.closePromo === 'wait' && acc.influencerId.toString() === influencerId && acc.screenshot === "") {
                         return {
                             selectInfluencersId: acc._id,
                             instagramUsername: acc.socialMediaUsername,
@@ -1627,7 +1645,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                     },
                 };
             } catch (err) {
-                console.log(err, `Error influencerGetOngoingCampaign. influencerId: ${influencerId}. socialMediaUsername: ${socialMediaUsername}. campaignId: ${campaignId}. campaignName: ${campaign.campaignName}`, new Date());
+                console.error(err, `Error influencerGetOngoingCampaign. influencerId: ${influencerId}. socialMediaUsername: ${socialMediaUsername}. campaignId: ${campaignId}. campaignName: ${campaign.campaignName}`, new Date());
                 return {
                     code: 500,
                     message: err,
@@ -1671,8 +1689,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 })
                 .lean()
                 .exec();
-
-            console.log(findNewCampaign, 'find campaign');
 
             if (!findNewCampaign) {
                 return {
@@ -1726,7 +1742,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                             updatedCampaignAction: {
                                 actionNumber: 3,
                                 networkUsername: socialMediaUsername,
-                                rewardForInfluencer: parseInt(findNewCampaign.selectInfluencers.find(influencer => influencer.socialMediaUsername === socialMediaUsername || (influencer as any).instagramUsername === socialMediaUsername).price.replace(/\D/g, '')),
+                                socialMedia: findNewCampaign.selectInfluencers.find(influencer => influencer._id.toString() === selectInfluencersId).socialMedia,
+                                rewardForInfluencer: parseInt(findNewCampaign.selectInfluencers.find(influencer => influencer._id.toString() === selectInfluencersId).price.replace(/\D/g, '')),
                             },
                         });
 
@@ -1790,7 +1807,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                             updatedCampaignAction: {
                                 actionNumber: 3,
                                 networkUsername: socialMediaUsername,
-                                rewardForInfluencer: parseInt(findNewCampaign.selectInfluencers.find(influencer => influencer.socialMediaUsername === socialMediaUsername || (influencer as any).instagramUsername === socialMediaUsername).price.replace(/\D/g, '')),
+                                socialMedia: findNewCampaign.selectInfluencers.find(influencer => influencer._id.toString() === selectInfluencersId).socialMedia,
+                                rewardForInfluencer: parseInt(findNewCampaign.selectInfluencers.find(influencer => influencer._id.toString() === selectInfluencersId).price.replace(/\D/g, '')),
                             },
                         });
 
@@ -1842,7 +1860,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                         data.screenshot
                     ) {
                         const isPromoAlreadyClosed = dataSocialMediaAccount.closePromo === "close";
-                        console.log(isPromoAlreadyClosed)
                         const resultOfSavingHistory = await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, {
                             influencerId: influencerId,
                             campaignId: new mongoose.Types.ObjectId(findNewCampaign._id),
@@ -1850,7 +1867,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                             updatedCampaignAction: {
                                 actionNumber: 3,
                                 networkUsername: socialMediaUsername,
-                                rewardForInfluencer: parseInt(findNewCampaign.selectInfluencers.find(influencer => influencer.socialMediaUsername === socialMediaUsername || (influencer as any).instagramUsername === socialMediaUsername).price.replace(/\D/g, '')),
+                                socialMedia: findNewCampaign.selectInfluencers.find(influencer => influencer._id.toString() === selectInfluencersId).socialMedia,
+                                rewardForInfluencer: parseInt(findNewCampaign.selectInfluencers.find(influencer => influencer._id.toString() === selectInfluencersId).price.replace(/\D/g, '')),
                             },
                         });
 
@@ -2247,6 +2265,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                             postDescription: page.postDescription,
                                             storyTag: page.storyTag || "",
                                             swipeUpLink: page.storyLink || "",
+                                            specialWishes: page.specialWishes || "",
                                             socialMedia: result[0].socialMedia,
                                         });
                                     } else if (existingContent) {
@@ -2320,6 +2339,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                             postDescription: page.postDescription,
                                             storyTag: page.storyTag || "",
                                             swipeUpLink: page.storyLink || "",
+                                            specialWishes: page.specialWishes || "",
                                             socialMedia: result[0].socialMedia,
                                         });
                                     } else if (existingContent) {

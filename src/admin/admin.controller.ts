@@ -216,4 +216,9 @@ export class AdminController {
     adminUpdateInfluencerAccount(@Body() data: AdminUpdateInfluencerFullAccountDto) {
         return this.adminService.adminUpdateInfluencerAccount(data);
     }
+
+    @Put('offers/update-instagram-username')
+    adminChangeInfluencerUsernameInOffer() {
+        return this.adminService.adminChangeInfluencerUsernameInOffer();
+    }
 }

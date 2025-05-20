@@ -13,6 +13,9 @@ export class Action {
     @Prop({ type: String, required: true })
     networkUsername: string;
 
+    @Prop({ type: String, required: false })
+    socialMedia: string;
+
     @Prop({ type: Number, required: true })
     currentBalance: number;
 

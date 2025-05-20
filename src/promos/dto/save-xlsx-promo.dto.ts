@@ -7,6 +7,7 @@ interface Page {
     storyTag: string | null;
     storyLink: string | null;
     postDescription: string | null;
+    specialWishes: string | null;
 }
 
 export class SaveXlsxPromoDto {

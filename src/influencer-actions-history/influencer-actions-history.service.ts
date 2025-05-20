@@ -34,7 +34,8 @@ export class InfluencerActionsHistoryService {
             const {
                 actionNumber,
                 networkUsername,
-                rewardForInfluencer
+                rewardForInfluencer,
+                socialMedia
             } = updatedCampaignAction;
 
             if (!campaignId && !campaignName && !actionNumber && !networkUsername && !rewardForInfluencer) {
@@ -57,6 +58,7 @@ export class InfluencerActionsHistoryService {
                                 actionNumber,
                                 networkUsername,
                                 rewardForInfluencer,
+                                socialMedia,
                                 currentBalance: parseInt(balance),
                                 date: new Date(),
                             }],
@@ -86,6 +88,7 @@ export class InfluencerActionsHistoryService {
                         actionNumber,
                         networkUsername,
                         rewardForInfluencer,
+                        socialMedia,
                         currentBalance: parseInt(balance),
                         date: new Date(),
                     }],
@@ -95,6 +98,7 @@ export class InfluencerActionsHistoryService {
                     actionNumber,
                     networkUsername,
                     rewardForInfluencer,
+                    socialMedia,
                     currentBalance: actionNumber === 3 ? parseInt(balance) + rewardForInfluencer : parseInt(balance),
                     date: new Date(),
                 });
@@ -236,6 +240,7 @@ export class InfluencerActionsHistoryService {
                             campaignId: campaign.campaignId,
                             campaignName: campaign.campaignName,
                             actionNumber: action.actionNumber,
+                            socialMedia: action.socialMedia,
                             networkUsername: action.networkUsername,
                             rewardForInfluencer: action.rewardForInfluencer,
                             currentBalance: action.currentBalance,
