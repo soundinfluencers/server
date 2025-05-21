@@ -151,9 +151,9 @@ export class AdminController {
         return this.adminService.adminAddInfluencerToTempList(campaignId, socialMediaUsername, socialMedia);
     }
 
-    @Post('promos/send-mail-influencer')
-    adminSendEmailToInfluencer(@Body() data: AdminSendEmailToInfluencerDto) {
-        return this.adminService.adminSendEmailToInfluencer(data);
+    @Post('promos/send-whats-app-message-to-influencer')
+    adminSendWhatsAppMessageToInfluencer(@Body() data: AdminSendEmailToInfluencerDto) {
+        return this.adminService.adminSendWhatsAppMessageToInfluencer(data);
     }
 
     @Put('promos/give-partial-refund/:userId/:partialRefund/:campaignId')

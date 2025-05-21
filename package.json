@@ -50,7 +50,8 @@
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
     "square": "^34.0.1",
-    "stripe": "^14.5.0"
+    "stripe": "^14.5.0",
+    "twilio": "^5.6.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

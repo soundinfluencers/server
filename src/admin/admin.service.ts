@@ -23,6 +23,7 @@ import {PromosCopies} from "./schemas/promos-copies.schema";
 import {AdminUpdateInfluencerFullAccountDto} from "./dto/admin-update-influencer-full-account.dto";
 import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 import {AdminUpdateFullCampaignDto} from "./dto/admin-update-full-campaign";
+import {TwilioWhatsappService} from "../services/Twilio.service";
 const fs = require("fs");
 const PDFDocument = require("pdfkit");
 
@@ -47,7 +48,8 @@ export class AdminService {
         private promosCopiesModel: mongoose.Model<PromosCopies>,
         @InjectModel(ProposalCampaign.name)
         private proposalCampaignModel: mongoose.Model<ProposalCampaign>,
-        private readonly promosService: PromosService
+        private readonly promosService: PromosService,
+        private readonly twilioService: TwilioWhatsappService
     ) {
     }
 
@@ -1541,46 +1543,55 @@ export class AdminService {
         }
     }
 
-    async adminSendEmailToInfluencer(data: AdminSendEmailToInfluencerDto) {
-        const emailToInfluencer = `
-Hi,
-You have received a new promo request on your account for the following:
-${data.socialMediaUsername} - Instagram Post & Story
-Post Details:
-  
-     Link:${data.videoLink || 'No link provided'}
-     Post Description: ${data.postDescription || 'No description provided'}
-     Story Tag: ${data.storyTag || 'No story tag provided'}
-     Swipe Up Link: ${data.storyLink || 'No post link provided'}
-   
-Access your account to accept or deny it here: https://go.soundinfluencers.com/account/influencer/new-promos     
-Thanks,
-Soundinfluencers Team
-`;
-
+    async adminSendWhatsAppMessageToInfluencer(data: AdminSendEmailToInfluencerDto) {
         try {
-            const influencer = await this.influencerModel.findOne({_id: data.influencerId});
+            const influencer = await this.influencerModel.findOne({ _id: data.influencerId });
+
             if (!influencer) {
                 return {
-                    status: 404,
+                    code: 404,
                     message: 'Influencer not found',
                 };
             }
-            const emailToSend = influencer.email;
-            await sendMail(
-                emailToSend,
-                "New Campaign Request",
-                emailToInfluencer,
-            );
+
+            const phoneNumber = influencer.phone;
+            if (!phoneNumber) {
+                return {
+                    code: 400,
+                    message: 'Phone number is missing for this influencer',
+                };
+            }
+
+            const message = [
+                `Hi,`,
+                `You have received a new promo request on your account for the following:`,
+                `${data.socialMediaUsername} - Instagram Post & Story`,
+                ``,
+                `Post Details:`,
+                `  • Link: ${data.videoLink || 'No link provided'}`,
+                `  • Post Description: ${data.postDescription || 'No description provided'}`,
+                `  • Story Tag: ${data.storyTag || 'No story tag provided'}`,
+                `  • Swipe Up Link: ${data.storyLink || 'No post link provided'}`,
+                ``,
+                `Access your account to accept or deny it here:`,
+                `https://go.soundinfluencers.com/account/influencer/new-promos`,
+                ``,
+                `Thanks,`,
+                `Soundinfluencers Team`
+            ].join('\n');
+
+            await this.twilioService.sendMessage(phoneNumber, message);
+
             return {
-                code: 201,
-                message: "ok",
+                code: 200,
+                message: 'Message sent successfully',
             };
         } catch (err) {
-            console.error(err);
+            console.error('Failed to send WhatsApp message:', err);
             return {
                 code: 500,
-                message: err,
+                message: 'Internal server error',
+                error: err.message || err,
             };
         }
     }
