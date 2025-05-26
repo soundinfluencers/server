@@ -20,7 +20,7 @@ export class AdminUpdatePersonalClientDto {
     companyType: string;
     
     @ApiProperty({ required: false })
-    balance: number;
+    isProposalClient: number;
     
     @ApiProperty({ required: false })
     internalNote: string;

@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendMail = (to = "", title = "", text = "", type = "", path = "") => {
+const sendMail = async (to = "", title = "", text = "", type = "", path = "") => {
   const mailOptions = (() => {
     if (type === "pdf") {
       return {

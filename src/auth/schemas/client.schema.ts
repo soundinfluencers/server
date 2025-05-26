@@ -44,6 +44,9 @@ export class Client {
     @Prop({default: false})
     isAdmin: boolean;
 
+    @Prop({default: false})
+    isProposalClient: boolean;
+
     @Prop({default: ''})
     internalNote: string;
 }

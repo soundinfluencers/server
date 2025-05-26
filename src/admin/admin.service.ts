@@ -105,80 +105,69 @@ export class AdminService {
 
     async adminGetClients() {
         try {
-            const clientsData = await this.clientModel.aggregate([
-                {
-                    $match: {statusVerify: 'accept'}
-                },
-                {
-                    $lookup: {
-                        from: 'promos',
-                        localField: '_id',
-                        foreignField: 'userId',
-                        as: 'campaigns'
-                    }
-                },
-                {
-                    $addFields: {
-                        campaignsCompleted: {
-                            $size: {
-                                $filter: {
-                                    input: '$campaigns',
-                                    as: 'campaign',
-                                    cond: {$eq: ['$$campaign.statusPromo', 'finally']}
-                                }
-                            }
-                        },
-                        campaignsDenied: {
-                            $size: {
-                                $filter: {
-                                    input: '$campaigns',
-                                    as: 'campaign',
-                                    cond: {
-                                        $gt: [
-                                            {
-                                                $size: {
-                                                    $filter: {
-                                                        input: '$$campaign.selectInfluencers',
-                                                        as: 'influencer',
-                                                        cond: {$ne: ['$$influencer.confirmation', 'accept']}
-                                                    }
-                                                }
-                                            },
-                                            0
-                                        ]
+            const clients = await this.clientModel.find();
+
+            const clientsData = await Promise.all(
+                clients.map(async (client) => {
+                    const clientOngoingCampaigns = await this.promosModel
+                        .find({ clientId: client.id })
+                        .sort({ createdAt: -1 });
+                    const clientCompletedCampaigns = await this.promosCopiesModel
+                        .find({ clientId: client.id })
+                        .sort({ createdAt: -1 });
+
+
+                    const clientCampaignsInfo = {
+                        campaignsCompleted: clientCompletedCampaigns?.length || 0,
+                        campaignsDenied: 0,
+                        campaignsOngoing: clientOngoingCampaigns?.length || 0,
+                        latestCampaign: null,
+                    };
+
+                    if (clientOngoingCampaigns?.length > 0 || clientCompletedCampaigns?.length > 0) {
+                        const latestOngoing = clientOngoingCampaigns[0] || null;
+                        const latestCompleted = clientCompletedCampaigns[0] || null;
+
+                        if (latestOngoing && latestCompleted) {
+                            clientCampaignsInfo.latestCampaign =
+                                latestOngoing.createdAt > latestCompleted.createdAt
+                                    ? {
+                                        campaignName: latestOngoing.campaignName,
+                                        campaignId: latestOngoing._id,
                                     }
-                                }
-                            }
-                        },
-                        campaignsOngoing: {
-                            $size: {
-                                $filter: {
-                                    input: '$campaigns',
-                                    as: 'campaign',
-                                    cond: {$eq: ['$$campaign.statusPromo', 'work']}
-                                }
-                            }
-                        },
-                        latestCampaign: {
-                            $arrayElemAt: [
-                                {
-                                    $sortArray: {
-                                        input: '$campaigns',
-                                        sortBy: {createdAt: -1}
-                                    }
-                                },
-                                0
-                            ]
+                                    : {
+                                        campaignName: latestCompleted.campaignName,
+                                        campaignId: latestCompleted._id,
+                                    };
+                        } else if (latestOngoing) {
+                            clientCampaignsInfo.latestCampaign = {
+                                campaignName: latestOngoing.campaignName,
+                                campaignId: latestOngoing._id,
+                            };
+                        } else if (latestCompleted) {
+                            clientCampaignsInfo.latestCampaign = {
+                                campaignName: latestCompleted.campaignName,
+                                campaignId: latestCompleted._id,
+                            };
                         }
                     }
-                },
-                {
-                    $project: {
-                        password: 0,
-                        campaigns: 0
-                    }
-                }
-            ]);
+
+                    return {
+                        company: client.company,
+                        companyType: client.companyType,
+                        firstName: client.firstName,
+                        email: client.email,
+                        phone: client.phone,
+                        _id: client._id,
+                        isProposalClient: client?.isProposalClient || false,
+                        campaignsCompleted: clientCampaignsInfo.campaignsCompleted,
+                        campaignsDenied: clientCampaignsInfo.campaignsDenied,
+                        campaignsOngoing: clientCampaignsInfo.campaignsOngoing,
+                        latestCampaign: clientCampaignsInfo.latestCampaign,
+                        internalNote: client?.internalNote || "",
+                    };
+                })
+            );
 
             return {
                 code: 200,
@@ -189,6 +178,34 @@ export class AdminService {
             return {
                 code: 500,
                 message: err,
+            };
+        }
+    }
+
+    async adminUpdateClientProposalStatus(clientId: string, newStatus: boolean) {
+        try {
+            const updatedClient = await this.clientModel.findByIdAndUpdate(
+                clientId,
+                { $set: { isProposalClient: newStatus } },
+                { new: true }
+            );
+
+            if (!updatedClient) {
+                return {
+                    code: 404,
+                    message: 'Client not found',
+                };
+            }
+
+            return {
+                code: 200,
+                message: 'Client proposal status updated successfully',
+            };
+        } catch (err) {
+            console.log(err);
+            return {
+                code: 500,
+                message: 'Internal Server Error',
             };
         }
     }

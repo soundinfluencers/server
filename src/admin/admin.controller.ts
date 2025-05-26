@@ -10,7 +10,7 @@ import {
     Query,
     UseInterceptors,
     UploadedFile,
-    Res,
+    Res, ParseBoolPipe,
 } from '@nestjs/common';
 import {AdminService} from "./admin.service";
 import {AdminUpdatePersonalClientDto} from "./dto/admin-update-client.dto";
@@ -34,6 +34,14 @@ export class AdminController {
     @Get('client/getAll')
     adminGetAllClients() {
         return this.adminService.adminGetClients();
+    }
+
+    @Put('client/update/client-proposal-status/:clientId/:newStatus')
+    async adminUpdateClientProposalStatus(
+        @Param('clientId') clientId: string,
+        @Param('newStatus', ParseBoolPipe) newStatus: boolean,
+    ) {
+        return this.adminService.adminUpdateClientProposalStatus(clientId, newStatus);
     }
 
     @Put('client/update')

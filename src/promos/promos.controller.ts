@@ -35,7 +35,7 @@ export class PromosController {
 
     @Post('estimate/:isPO')
     createPromosForEstimate(@Body() data: CreatePromosEstimateDto, @Param('isPO') isPO: boolean) {
-        return this.promosService.createPromosForEstimate(data, isPO);
+        return this.promosService.createPromosForEstimate();
     }
 
     @ApiQuery({name: 'promoId', required: true})

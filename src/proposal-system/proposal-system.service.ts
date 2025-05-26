@@ -108,7 +108,7 @@ export class ProposalSystemService {
             if (!proposalCampaign) {
                 const res = await this.proposalCampaignModel.create({
                     clientId: data.clientId ? new mongoose.Types.ObjectId(data.clientId) : new mongoose.Types.ObjectId("66f540faaf4e960d2f9bebfc"),
-                    campaignName: data.campaignName,
+                    campaignName: data.campaignName.trim(),
                     selectInfluencers: data.selectInfluencers,
                     campaignContent: data.campaignContent,
                     price: data.price,
@@ -127,7 +127,7 @@ export class ProposalSystemService {
                     _id: new mongoose.Types.ObjectId(data.campaignId),
                 }, {
                     clientId: data.clientId ? new mongoose.Types.ObjectId(data.clientId) : new mongoose.Types.ObjectId("66f540faaf4e960d2f9bebfc") ,
-                    campaignName: data.campaignName,
+                    campaignName: data.campaignName.trim(),
                     selectInfluencers: data.selectInfluencers,
                     campaignContent: data.campaignContent,
                     price: data.price,

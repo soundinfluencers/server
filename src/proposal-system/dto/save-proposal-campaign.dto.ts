@@ -20,8 +20,8 @@ interface selectInfluencersType {
     dateRequest: string;
     followersNumber: number; 
     socialMedia: string;
-    genres: string[];
-    countries: object[];
+    genres: string[] | undefined;
+    countries: object[] | undefined;
 }
 
 export class SaveProposalCampaignDto {
