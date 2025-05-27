@@ -62,47 +62,33 @@ export class AuthService {
                 };
             }
 
-            const checkUser = await (async () => {
-                const checkInfluencer = await this.influencerModel.findOne({
-                    email: data.email,
-                });
+            const [existingEmailUser, existingInstagramUser, existingPhoneUser] = await Promise.all([
+                this.influencerModel.findOne({ email: data.email }) || this.clientModel.findOne({ email: data.email }),
+                this.clientModel.findOne({ instagramUsername: data.instagramUsername }),
+                data.phone ? (this.influencerModel.findOne({ phone: data.phone }) || this.clientModel.findOne({ phone: data.phone })) : null,
+            ]);
 
-                if (checkInfluencer) return checkInfluencer;
-
-                const checkClient = await this.clientModel.findOne({
-                    email: data.email,
-                });
-                if (checkClient) return checkClient;
-
-                return null;
-            })();
-
-            if (checkUser) {
+            if (existingEmailUser) {
                 return {
                     code: 409,
-                    message: 'This user already exists',
+                    message: 'User with this email already exists',
+                    errType: "emailExists"
                 };
             }
 
-            const checkUserInstagram = await (async () => {
-                const checkInfluencer = await this.influencerModel.findOne({
-                    instagramUsername: data.instagramUsername,
-                });
-
-                if (checkInfluencer) return checkInfluencer;
-
-                const checkClient = await this.clientModel.findOne({
-                    instagramUsername: data.instagramUsername,
-                });
-                if (checkClient) return checkClient;
-
-                return null;
-            })();
-
-            if (checkUserInstagram) {
+            if (existingInstagramUser) {
                 return {
                     code: 409,
-                    message: 'This instagram already exists',
+                    message: 'User with this instagram already exists',
+                    errType: "instagramExists"
+                };
+            }
+
+            if (existingPhoneUser) {
+                return {
+                    code: 409,
+                    message: 'User with this phone number already exists',
+                    errType: "phoneExists"
                 };
             }
 
@@ -111,6 +97,8 @@ export class AuthService {
                 referenceNumber: generateRandomDigits(6),
                 password: bcrypt.hashSync(data.password),
                 balance: 0,
+                isProposalClient: false,
+                isAdmin: false,
             });
 
             const generateVerifyId = generateRandomString();
@@ -131,7 +119,7 @@ export class AuthService {
         <p>Email: ${data.email}</p>
         <p>Phone: ${data.phone}</p>
         <p>Referal Code: ${data.referalCode}</p>
-        <h2>Do you want to verify your account?</h2>
+        <h2>Do you want to verify this account?</h2>
         <a href="${process.env.SERVER}/auth/verify-client?verifyId=${generateVerifyId}&responseVerify=accept">ACCEPT</a>
         <a href="${process.env.SERVER}/auth/verify-client?verifyId=${generateVerifyId}&responseVerify=cancel">CANCEL</a>
         `,
