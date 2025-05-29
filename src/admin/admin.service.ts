@@ -1208,6 +1208,25 @@ export class AdminService {
                 campaignToReturn.addedAccounts.push(addedAccount);
             }
 
+            campaignToReturn.addedAccounts.sort((a, b) => {
+                const aContentId = a.selectedCampaignContentItemId;
+                const bContentId = b.selectedCampaignContentItemId;
+
+                const aIndex = Array.isArray(campaign.campaignContent)
+                    ? campaign.campaignContent.findIndex((content) => content?._id?.toString() === aContentId?.toString())
+                    : Array.isArray(campaign.videos)
+                        ? campaign.videos.findIndex((video) => video?._id?.toString() === aContentId?.toString())
+                        : -1;
+
+                const bIndex = Array.isArray(campaign.campaignContent)
+                    ? campaign.campaignContent.findIndex((content) => content?._id?.toString() === bContentId?.toString())
+                    : Array.isArray(campaign.videos)
+                        ? campaign.videos.findIndex((video) => video?._id?.toString() === bContentId?.toString())
+                        : -1;
+
+                return aIndex - bIndex;
+            });
+
             return {
                 status: 200,
                 campaign: campaignToReturn,

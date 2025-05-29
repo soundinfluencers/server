@@ -755,11 +755,34 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 })
             );
 
+            const sortedInfluencers = selectInfluencersWithDetails.sort((a, b) => {
+                try {
+                    const aContentId = a.selectedCampaignContentItem;
+                    const bContentId = b.selectedCampaignContentItem;
+
+                    const aIndex = campaign.campaignContent
+                        ? campaign.campaignContent.findIndex((content) => content._id.toString() === aContentId)
+                        : (campaign as any).videos
+                            ? (campaign as any).videos.findIndex((video) => video.videoLink === aContentId)
+                            : -1;
+
+                    const bIndex = campaign.campaignContent
+                        ? campaign.campaignContent.findIndex((content) => content._id.toString() === bContentId)
+                        : (campaign as any).videos
+                            ? (campaign as any).videos.findIndex((video) => video.videoLink === bContentId)
+                            : -1;
+
+                    return aIndex - bIndex;
+                } catch (err) {
+                    console.log(err, "Error sorting influencers by campaignContentItem index")
+                }
+            });
+
             return {
                 code: 200,
                 campaign: {
                     ...campaign,
-                    selectInfluencers: selectInfluencersWithDetails,
+                    selectInfluencers: sortedInfluencers || selectInfluencersWithDetails,
                     brand: clientData ? clientData.company : "No Data",
                     client: clientData ? clientData.firstName : "No Data",
                     dateRequest: campaign.createdAt,
@@ -1848,18 +1871,43 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 };
             }
 
+            const mappedInfluencers = campaign.selectInfluencers.map((item) => {
+                return {
+                    ...item,
+                    socialMediaUsername: item.socialMediaUsername || (item as any).instagramUsername,
+                    selectedCampaignContentItem: item.selectedCampaignContentItem || (item as any).selectedVideo,
+                    selectedCampaignContentItemObj: campaign.campaignContent
+                        ? campaign.campaignContent.find((campaignContentItem) => campaignContentItem._id.toString() === item.selectedCampaignContentItem)
+                        : (campaign as any).videos
+                            ? (campaign as any).videos.find((video) => video.videoLink === (item as any).selectedVideo)
+                            : null,
+                };
+            });
+
+            const sortedInfluencers = mappedInfluencers.sort((a, b) => {
+                const aContentId = a.selectedCampaignContentItem;
+                const bContentId = b.selectedCampaignContentItem;
+
+                const aIndex = campaign.campaignContent
+                    ? campaign.campaignContent.findIndex((content) => content._id.toString() === aContentId)
+                    : (campaign as any).videos
+                        ? (campaign as any).videos.findIndex((video) => video.videoLink === aContentId)
+                        : -1;
+
+                const bIndex = campaign.campaignContent
+                    ? campaign.campaignContent.findIndex((content) => content._id.toString() === bContentId)
+                    : (campaign as any).videos
+                        ? (campaign as any).videos.findIndex((video) => video.videoLink === bContentId)
+                        : -1;
+
+                return aIndex - bIndex;
+            });
+
             return {
                 code: 200,
                 campaign: {
                     ...campaign,
-                    selectInfluencers: campaign.selectInfluencers.map((item) => {
-                        return {
-                            ...item,
-                            socialMediaUsername: item.socialMediaUsername || (item as any).instagramUsername,
-                            selectedCampaignContentItem: item.selectedCampaignContentItem || (item as any).selectedVideo,
-                            selectedCampaignContentItemObj: campaign.campaignContent ? campaign.campaignContent.find((campaignContentItem) => campaignContentItem._id.toString() === item.selectedCampaignContentItem) : (campaign as any).videos ? (campaign as any).videos.find((video) => video.videoLink === (item as any).selectedVideo) : null,
-                        };
-                    }),
+                    selectInfluencers: sortedInfluencers,
                     amount: campaign.campaignPrice || (campaign as any).amount || 0,
                     campaignContent: campaign.campaignContent || (campaign as any).videos,
                 },

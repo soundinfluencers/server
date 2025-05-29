@@ -263,11 +263,26 @@ export class ProposalSystemService {
                 )
                 : [];
 
+            const sortedInfluencers = processedSelectInfluencers.length > 0 && processedSelectInfluencers.sort((a, b) => {
+                const aContentId = a.selectedCampaignContentItem;
+                const bContentId = b.selectedCampaignContentItem;
+
+                const aIndex = proposalCampaign.campaignContent
+                    ? proposalCampaign.campaignContent.findIndex((content) => content._id.toString() === aContentId)
+                        : -1;
+
+                const bIndex = proposalCampaign.campaignContent
+                    ? proposalCampaign.campaignContent.findIndex((content) => content._id.toString() === bContentId)
+                        : -1;
+
+                return aIndex - bIndex;
+            });
+
             return {
                 status: 200,
                 proposalCampaign: {
                     ...proposalCampaign,
-                    selectInfluencers: processedSelectInfluencers,
+                    selectInfluencers: sortedInfluencers || [],
                     client: client ? {
                         clientId: client._id,
                         firstName: client.firstName,
