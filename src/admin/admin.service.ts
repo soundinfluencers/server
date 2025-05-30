@@ -1432,7 +1432,7 @@ export class AdminService {
                 };
             }
 
-            await this.promosModel.findOneAndUpdate(
+            const updatedCampaign = await this.promosModel.findOneAndUpdate(
                 {_id: data._id},
                 {
                     ...data
@@ -1446,7 +1446,7 @@ export class AdminService {
 
             return {
                 code: 200,
-                message: 'Promo update',
+                message: 'Campaign updated',
             };
 
         } catch (err) {
