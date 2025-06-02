@@ -7,6 +7,9 @@ export class AdminSendEmailToInfluencerDto {
     @ApiProperty({required: true})
     socialMediaUsername: string;
 
+    @ApiProperty({required: true})
+    socialMedia: string;
+
     @ApiProperty({required: false})
     videoLink: string;
 

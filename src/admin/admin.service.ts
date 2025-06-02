@@ -23,7 +23,7 @@ import {PromosCopies} from "./schemas/promos-copies.schema";
 import {AdminUpdateInfluencerFullAccountDto} from "./dto/admin-update-influencer-full-account.dto";
 import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 import {AdminUpdateFullCampaignDto} from "./dto/admin-update-full-campaign";
-import {TwilioWhatsappService} from "../services/Twilio.service";
+import {TwilioSendNewPromoRequestVariables, TwilioWhatsappService} from "../services/Twilio.service";
 const fs = require("fs");
 const PDFDocument = require("pdfkit");
 
@@ -1598,25 +1598,16 @@ export class AdminService {
                 };
             }
 
-            const message = [
-                `Hi,`,
-                `You have received a new promo request on your account for the following:`,
-                `${data.socialMediaUsername} - Instagram Post & Story`,
-                ``,
-                `Post Details:`,
-                `  • Link: ${data.videoLink || 'No link provided'}`,
-                `  • Post Description: ${data.postDescription || 'No description provided'}`,
-                `  • Story Tag: ${data.storyTag || 'No story tag provided'}`,
-                `  • Swipe Up Link: ${data.storyLink || 'No post link provided'}`,
-                ``,
-                `Access your account to accept or deny it here:`,
-                `https://go.soundinfluencers.com/account/influencer/new-promos`,
-                ``,
-                `Thanks,`,
-                `Soundinfluencers Team`
-            ].join('\n');
+            const variablesToUse: TwilioSendNewPromoRequestVariables = {
+                socialMediaUsername: data.socialMediaUsername,
+                socialMedia: data.socialMedia,
+                link: data.videoLink,
+                postDesc: data.postDescription,
+                storyTag: data.storyTag,
+                storyLink: data.storyLink,
+            };
 
-            await this.twilioService.sendMessage(phoneNumber, message);
+            await this.twilioService.sendNewPromoRequest(phoneNumber.replace(/\s+/g, ''), variablesToUse);
 
             return {
                 code: 200,
