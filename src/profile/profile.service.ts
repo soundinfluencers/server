@@ -86,9 +86,9 @@ export class ProfileService {
             const updatedUser = await this.influencerModel.findOneAndUpdate(
                 {_id: data.id},
                 {
-                    firstName: data.firstName,
-                    email: data.email,
-                    phone: data.phone,
+                    firstName: data.firstName.trim(),
+                    email: data.email.trim(),
+                    phone: data.phone.trim(),
                 },
                 {new: true}
             );
