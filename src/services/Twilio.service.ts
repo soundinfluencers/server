@@ -54,6 +54,7 @@ export class TwilioWhatsappService {
                 to: `whatsapp:${to}`,
                 contentSid: process.env.TWILIO_NEW_PROMO_REQUEST_TEMPLATE_SID,
                 contentVariables: contentVariables,
+                statusCallback: `${process.env.SERVER}/twilio/status-callback?type=req-new-promo`
             });
 
             return response.sid;

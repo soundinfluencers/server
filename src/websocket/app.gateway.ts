@@ -14,9 +14,8 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
     handleDisconnect(client: Socket) {
     }
 
-    @SubscribeMessage('message')
-    handleMessage(@MessageBody() data: { sender: string; message: string }): void {
-        console.log('Received message:', data);
-        this.server.emit('message', data); 
+    @SubscribeMessage('req-new-promo')
+    handlePromo(@MessageBody() data: any): void {
+        this.server.emit('req-new-promo', data);
     }
 }
