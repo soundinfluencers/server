@@ -159,7 +159,7 @@ export class AuthService {
 
             if (checkUser) {
                 console.error(`Existing email was used while creating new influencer`);
-                return {code: 409, message: 'This user already exists'};
+                return {code: 409, message: 'User with this email already exists'};
             }
 
             const socialNetworks = ['instagram', 'tiktok', 'spotify', 'soundcloud', 'facebook', 'youtube', 'press'];
