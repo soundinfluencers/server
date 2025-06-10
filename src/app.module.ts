@@ -18,6 +18,7 @@ import {InfluencerActionsHistoryModule} from "./influencer-actions-history/influ
 import {ProposalSystemModule} from "./proposal-system/proposal-system.module";
 import {MultiPromoModule} from "./multipromos/multipromo.module";
 import {TwilioController} from "./websocket/twilio.controller";
+import {HealthController} from "./health/health.controller";
 
 @Module({
     imports: [
@@ -43,7 +44,7 @@ import {TwilioController} from "./websocket/twilio.controller";
             serveRoot: '/uploads',
         }),
     ],
-    controllers: [AppController, TwilioController],
+    controllers: [AppController, TwilioController, HealthController],
     providers: [AppService, AppGateway],
 })
 export class AppModule {
