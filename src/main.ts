@@ -20,7 +20,6 @@ async function bootstrap() {
     });
 
     app.use((req, res, next) => {
-        res.setHeader('Content-Security-Policy', 'frame-ancestors https://nazar.soundinfluencers.com https://go.soundinfluencers.com');
         res.removeHeader('X-Frame-Options');
         next();
     });
