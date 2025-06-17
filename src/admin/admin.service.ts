@@ -909,13 +909,11 @@ export class AdminService {
 
     async adminCloseCampaignForInfluencer(campaignId: string, selectInfluencersAccountId: string) {
         try {
-            let campaign = await this.promosModel.findOne({_id: campaignId}) || await this.promosCopiesModel.findOne({_id: campaignId});
+            let campaign = await this.promosModel.findOne({_id: campaignId})
+                || await this.promosCopiesModel.findOne({_id: campaignId});
 
             if (!campaign) {
-                return {
-                    code: 404,
-                    message: 'Promo not found',
-                };
+                return { code: 404, message: 'Promo not found' };
             }
 
             const influencerFromSelectInfluencers = campaign.selectInfluencers.find(
@@ -923,37 +921,53 @@ export class AdminService {
             );
 
             if (!influencerFromSelectInfluencers) {
-                return {
-                    code: 404,
-                    message: 'Influencer not found in promo',
-                };
+                return { code: 404, message: 'Influencer not found in promo' };
             }
 
             const influencerAccount = await this.influencerModel
-                .findOne({
-                    _id: influencerFromSelectInfluencers.influencerId,
-                })
+                .findOne({ _id: influencerFromSelectInfluencers.influencerId })
                 .lean()
                 .exec();
 
             if (!influencerAccount) {
-                return {
-                    code: 404,
-                    message: 'Influencer account not found',
-                };
+                return { code: 404, message: 'Influencer account not found' };
             }
 
-            const socialMediaAccFromInfModel = influencerAccount[influencerFromSelectInfluencers.socialMedia].find(
+            const socialMediaAccFromInfModel = influencerAccount[influencerFromSelectInfluencers.socialMedia]?.find(
                 (acc) => acc.instagramUsername === influencerFromSelectInfluencers.socialMediaUsername || acc.instagramUsername === (influencerFromSelectInfluencers as any).instagramUsername
             );
 
             const price = socialMediaAccFromInfModel?.price;
+            if (!price) {
+                return { code: 400, message: 'Price not found for influencer' };
+            }
 
-            if (price === null || price === undefined) {
-                return {
-                    code: 400,
-                    message: 'Price not found for influencer',
-                };
+            const oldConfirmation = influencerFromSelectInfluencers.confirmation;
+            const oldClosePromo = influencerFromSelectInfluencers.closePromo;
+            const oldBalance = influencerAccount.balance;
+
+            influencerFromSelectInfluencers.confirmation = 'accept';
+            influencerFromSelectInfluencers.closePromo = 'close';
+            await campaign.save();
+
+            let balance = parseInt(influencerAccount.balance.replace('€', '').trim(), 10);
+            if (isNaN(balance)) balance = 0;
+
+            const reward = parseInt(price.replace('€', '').trim(), 10);
+            balance += reward;
+            const updatedBalance = `${balance}`;
+
+            const updateBalanceResult = await this.influencerModel.findOneAndUpdate(
+                { _id: influencerFromSelectInfluencers.influencerId },
+                { balance: updatedBalance }
+            );
+
+            if (!updateBalanceResult) {
+                influencerFromSelectInfluencers.confirmation = oldConfirmation;
+                influencerFromSelectInfluencers.closePromo = oldClosePromo;
+                await campaign.save();
+
+                return { code: 500, message: 'Failed to update influencer balance, reverted campaign changes' };
             }
 
             const res = await axios.post(
@@ -966,49 +980,26 @@ export class AdminService {
                         actionNumber: 5,
                         networkUsername: influencerFromSelectInfluencers.socialMediaUsername,
                         socialMedia: influencerFromSelectInfluencers.socialMedia,
-                        rewardForInfluencer: parseInt(price),
+                        rewardForInfluencer: reward,
                     },
                 }
             );
 
             if (res.data.code !== 200) {
-                console.error("Error saving influencer history close campaign for inf through admin panel");
-                throw new Error("Error saving influencer history");
-            }
-
-            influencerFromSelectInfluencers.confirmation = 'accept';
-            influencerFromSelectInfluencers.closePromo = 'close';
-
-            let balance = parseInt(influencerAccount.balance.replace('€', '').trim(), 10);
-
-            if (isNaN(balance)) {
-                balance = 0;
-            }
-
-            balance += parseInt(price.replace('€', '').trim(), 10);
-
-            const updatedBalance = `${balance}`;
-
-            try {
                 await this.influencerModel.findOneAndUpdate(
-                    {
-                        _id: influencerFromSelectInfluencers.influencerId,
-                    },
-                    {balance: updatedBalance}
+                    { _id: influencerFromSelectInfluencers.influencerId },
+                    { balance: oldBalance }
                 );
+
+                influencerFromSelectInfluencers.confirmation = oldConfirmation;
+                influencerFromSelectInfluencers.closePromo = oldClosePromo;
                 await campaign.save();
-            } catch (err) {
-                console.error('Error while closing campaign for influencer', err);
-                return {
-                    code: 500,
-                    message: err.message || 'An error occurred while updating the influencer balance while closing the campaign for this him',
-                };
+
+                return { code: 500, message: 'Failed to update influencer history, reverted all changes' };
             }
 
-            return {
-                code: 200,
-                message: 'Promo closed for influencer successfully',
-            };
+            return { code: 200, message: 'Promo closed for influencer successfully' };
+
         } catch (err) {
             console.error('Error closing promo for influencer:', err);
             return {
