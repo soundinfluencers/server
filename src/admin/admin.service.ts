@@ -24,8 +24,10 @@ import {AdminUpdateInfluencerFullAccountDto} from "./dto/admin-update-influencer
 import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 import {AdminUpdateFullCampaignDto} from "./dto/admin-update-full-campaign";
 import {TwilioSendNewPromoRequestVariables, TwilioWhatsappService} from "../services/Twilio.service";
+import axios from "axios";
 const fs = require("fs");
 const PDFDocument = require("pdfkit");
+import * as process from "node:process";
 
 @Injectable()
 export class AdminService {
@@ -916,11 +918,11 @@ export class AdminService {
                 };
             }
 
-            const influencer = campaign.selectInfluencers.find(
+            const influencerFromSelectInfluencers = campaign.selectInfluencers.find(
                 (influencer) => influencer._id.toString() === selectInfluencersAccountId
             );
 
-            if (!influencer) {
+            if (!influencerFromSelectInfluencers) {
                 return {
                     code: 404,
                     message: 'Influencer not found in promo',
@@ -929,11 +931,7 @@ export class AdminService {
 
             const influencerAccount = await this.influencerModel
                 .findOne({
-                    _id: influencer.influencerId,
-                    $or: [
-                        {[`${influencer.socialMedia}.instagramUsername`]: influencer.socialMediaUsername},
-                        {[`${influencer.socialMedia}.instagramUsername`]: (influencer as any).instagramUsername}
-                    ]
+                    _id: influencerFromSelectInfluencers.influencerId,
                 })
                 .lean()
                 .exec();
@@ -945,19 +943,41 @@ export class AdminService {
                 };
             }
 
-            influencer.confirmation = 'accept';
-            influencer.closePromo = 'close';
+            const socialMediaAccFromInfModel = influencerAccount[influencerFromSelectInfluencers.socialMedia].find(
+                (acc) => acc.instagramUsername === influencerFromSelectInfluencers.socialMediaUsername || acc.instagramUsername === (influencerFromSelectInfluencers as any).instagramUsername
+            );
 
-            const price = influencerAccount[influencer.socialMedia].find(
-                (acc) => acc.instagramUsername === influencer.socialMediaUsername || acc.instagramUsername === (influencer as any).instagramUsername
-            )?.price;
+            const price = socialMediaAccFromInfModel?.price;
 
-            if (!price) {
+            if (price === null || price === undefined) {
                 return {
                     code: 400,
                     message: 'Price not found for influencer',
                 };
             }
+
+            const res = await axios.post(
+                `${process.env.SERVER}/influencer-actions-history/upsert/campaign`,
+                {
+                    influencerId: influencerAccount._id,
+                    campaignId: new mongoose.Types.ObjectId(campaignId),
+                    campaignName: campaign.campaignName,
+                    updatedCampaignAction: {
+                        actionNumber: 5,
+                        networkUsername: influencerFromSelectInfluencers.socialMediaUsername,
+                        socialMedia: influencerFromSelectInfluencers.socialMedia,
+                        rewardForInfluencer: parseInt(price),
+                    },
+                }
+            );
+
+            if (res.data.code !== 200) {
+                console.error("Error saving influencer history close campaign for inf through admin panel");
+                throw new Error("Error saving influencer history");
+            }
+
+            influencerFromSelectInfluencers.confirmation = 'accept';
+            influencerFromSelectInfluencers.closePromo = 'close';
 
             let balance = parseInt(influencerAccount.balance.replace('€', '').trim(), 10);
 
@@ -972,7 +992,7 @@ export class AdminService {
             try {
                 await this.influencerModel.findOneAndUpdate(
                     {
-                        _id: influencer.influencerId,
+                        _id: influencerFromSelectInfluencers.influencerId,
                     },
                     {balance: updatedBalance}
                 );
@@ -1322,26 +1342,43 @@ export class AdminService {
             });
 
             if (!isProposalCampaign) {
-                addedInfluencers.forEach((newInfluencer) => {
+                await Promise.all(addedInfluencers.map(async (newInfluencer) => {
                     const id = newInfluencer._id.toString();
                     if (!selectInfluencerIds.has(id)) {
-                        campaign.selectInfluencers.push({
-                            _id: new Types.ObjectId(),
+                        const response = await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, {
                             influencerId: newInfluencer.influencerId,
-                            socialMediaUsername: newInfluencer.socialMediaUsername,
-                            selectedCampaignContentItem: newInfluencer.selectedCampaignContentItemId,
-                            socialMedia: newInfluencer.socialMedia,
-                            dateRequest: newInfluencer.dateRequest ?? "ASAP",
-                            postLink: newInfluencer.postLink ?? "",
-                            screenshot: newInfluencer.screenshot ?? "",
-                            like: newInfluencer.like ?? "",
-                            impressions: newInfluencer.impressions ?? "",
-                            followersNumber: newInfluencer.followersNumber ?? 0,
-                            price: newInfluencer.price ?? "0",
-                            publicPrice: newInfluencer.publicPrice ?? "0",
+                            campaignId: new mongoose.Types.ObjectId(campaignId),
+                            campaignName: campaignName,
+                            updatedCampaignAction: {
+                                actionNumber: 4,
+                                networkUsername: newInfluencer.socialMediaUsername,
+                                socialMedia: newInfluencer.socialMedia,
+                                rewardForInfluencer: parseInt(newInfluencer.price),
+                            }
                         });
+
+                        if (response.data.code === 200) {
+                            campaign.selectInfluencers.push({
+                                _id: new Types.ObjectId(),
+                                influencerId: newInfluencer.influencerId,
+                                socialMediaUsername: newInfluencer.socialMediaUsername,
+                                selectedCampaignContentItem: newInfluencer.selectedCampaignContentItemId,
+                                socialMedia: newInfluencer.socialMedia,
+                                dateRequest: newInfluencer.dateRequest ?? "ASAP",
+                                postLink: newInfluencer.postLink ?? "",
+                                screenshot: newInfluencer.screenshot ?? "",
+                                like: newInfluencer.like ?? "",
+                                impressions: newInfluencer.impressions ?? "",
+                                followersNumber: newInfluencer.followersNumber ?? 0,
+                                price: newInfluencer.price ?? "0",
+                                publicPrice: newInfluencer.publicPrice ?? "0",
+                            });
+                        } else {
+                            console.error("Error adding influencer admin update campaign", campaignName, newInfluencer.socialMediaUsername)
+                            throw new Error("Error adding influencer")
+                        }
                     }
-                });
+                }));
             } else {
                 for (const newInfluencer of addedInfluencers) {
                     const id = newInfluencer._id.toString();

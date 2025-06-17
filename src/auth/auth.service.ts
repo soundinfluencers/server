@@ -109,8 +109,8 @@ export class AuthService {
             });
 
             await sendMail(
-                // 'nazarkozynets030606@zohomail.eu',
-                'admin@soundinfluencers.com',
+                'nazarkozynets030606@zohomail.eu',
+                // 'admin@soundinfluencers.com',
                 'soundinfluencers',
                 `<p>Request from a new client ${data.company}</p><b>Details:</b><br/><br/><p>First Name: ${data.firstName}</p>
         <p>Company: ${data.company}</p>
@@ -211,6 +211,7 @@ export class AuthService {
                 ...data,
                 ...processedData, 
                 password: bcrypt.hashSync(data.password),
+                currencyNote: ""
             });
 
             const generateVerifyId = generateRandomString();

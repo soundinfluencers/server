@@ -208,8 +208,8 @@ ${emailVideoContent()}
 </p>`;
 
             await sendMail(
-                "nazarkozynets030606@zohomail.eu",
-                // "admin@soundinfluencers.com",
+                // "nazarkozynets030606@zohomail.eu",
+                "admin@soundinfluencers.com",
                 "soundinfluencers",
                 emailContent,
                 "html"
@@ -299,30 +299,6 @@ ${emailVideoContent()}
                 };
             }
 
-            try {
-                const updateFields = {
-                    verifyCampaign: (checkCampaign as any)?.verifyCampaign,
-                    verifyPromo: (checkCampaign as any)?.verifyPromo
-                };
-                if ((checkCampaign as any).verifyPromo !== undefined) {
-                    updateFields.verifyPromo = status;
-                }
-                if (checkCampaign.verifyCampaign !== undefined) {
-                    updateFields.verifyCampaign = status;
-                }
-
-                await this.promosModel.updateOne(
-                    {_id: campaignId},
-                    {$set: updateFields}
-                );
-            } catch (err) {
-                console.error('Error updating promo status:', err);
-                return {
-                    code: 500,
-                    message: "error updating promo status",
-                };
-            }
-
             if (status === "accept" && checkCampaign.statusCampaign === "wait") {
                 const influencersIds = checkCampaign.selectInfluencers.map((item) => item.influencerId);
 
@@ -335,30 +311,54 @@ ${emailVideoContent()}
                     };
                 }
 
-                let dataToSaveInfluencersHistory = [];
-
                 const socialMedias = ['instagram', 'tiktok', 'spotify', 'soundcloud', 'facebook', 'youtube', 'press'];
 
                 for (let influencer of influencers) {
-                    const influencerSocialMediaAccounts = socialMedias.flatMap(socialMedia => influencer[socialMedia].flatMap((account) => {
-                        if (checkCampaign.selectInfluencers.some((influencerData) =>
-                            (influencerData.socialMediaUsername === account.instagramUsername || (influencerData as any).instagramUsername === account.instagramUsername) && influencerData.socialMedia === socialMedia
-                        )) {
-                            dataToSaveInfluencersHistory.push({
-                                influencerId: influencer._id,
-                                campaignId: new mongoose.Types.ObjectId(checkCampaign._id),
-                                campaignName: checkCampaign.campaignName,
-                                updatedCampaignAction: {
-                                    actionNumber: 0,
-                                    networkUsername: account.instagramUsername,
-                                    socialMedia: socialMedia,
-                                    rewardForInfluencer: parseInt(account.price),
-                                },
-                            });
-                        }
+                    const influencerSocialMediaAccountsNested = await Promise.all(
+                        socialMedias.map(async (socialMedia) => {
+                            const accounts = influencer[socialMedia];
 
-                        return account.instagramUsername;
-                    })).filter(Boolean);
+                            const usernames = await Promise.all(
+                                accounts.map(async (account) => {
+                                    if (
+                                        checkCampaign.selectInfluencers.some(
+                                            (influencerData) =>
+                                                (influencerData.socialMediaUsername === account.instagramUsername ||
+                                                    (influencerData as any).instagramUsername === account.instagramUsername) &&
+                                                influencerData.socialMedia === socialMedia
+                                        )
+                                    ) {
+                                        const res = await axios.post(
+                                            `${process.env.SERVER}/influencer-actions-history/upsert/campaign`,
+                                            {
+                                                influencerId: influencer._id,
+                                                campaignId: new mongoose.Types.ObjectId(checkCampaign._id),
+                                                campaignName: checkCampaign.campaignName,
+                                                updatedCampaignAction: {
+                                                    actionNumber: 0,
+                                                    networkUsername: account.instagramUsername,
+                                                    socialMedia: socialMedia,
+                                                    rewardForInfluencer: parseInt(account.price),
+                                                },
+                                            }
+                                        );
+
+                                        if (res.data.code !== 200) {
+                                            console.error("Error saving influencer history verify campaign");
+                                            throw new Error("Error saving influencer history");
+                                        }
+                                    }
+
+                                    return account.instagramUsername;
+                                })
+                            );
+
+                            return usernames.filter(Boolean);
+                        })
+                    );
+
+                    const influencerSocialMediaAccounts = influencerSocialMediaAccountsNested.flat();
+
 
                     const influencerSelectedCampaignContent = checkCampaign.campaignContent.filter((campaignContentItem) => {
                         return checkCampaign.selectInfluencers.some((influencerData) => {
@@ -394,29 +394,39 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 <p>Soundinfluencers Team</p>
 `;
                         try {
-                            // await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
-                            await sendMail("nazarkozynets030606@zohomail.eu", "soundinfluencers", emailToInfluencer, "html");
+                            await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
+                            // await sendMail("nazarkozynets030606@zohomail.eu", "soundinfluencers", emailToInfluencer, "html");
                         } catch (err) {
                             console.error('Error sending emails to influencers:', err);
                         }
                     }
                 }
 
-                try {
-                    for (const item of dataToSaveInfluencersHistory) {
-                        await axios.post(`${process.env.SERVER}/influencer-actions-history/upsert/campaign`, item);
-                    }
-                } catch (err) {
-                    return {
-                        code: 500,
-                        message: "error saving influencer actions history",
-                    };
+                const updateFields = {
+                    verifyCampaign: (checkCampaign as any)?.verifyCampaign,
+                    verifyPromo: (checkCampaign as any)?.verifyPromo
+                };
+                if ((checkCampaign as any).verifyPromo !== undefined) {
+                    updateFields.verifyPromo = status;
                 }
+                if (checkCampaign.verifyCampaign !== undefined) {
+                    updateFields.verifyCampaign = status;
+                }
+
+                await this.promosModel.updateOne(
+                    {_id: campaignId},
+                    {$set: updateFields}
+                );
 
                 return {
                     code: 200,
-                    message: "promo verified",
+                    message: "Campaign verified",
                 };
+            } else {
+                return {
+                    code: 200,
+                    message: "Campaign declined",
+                }
             }
         } catch (err) {
             console.error('Error verifying campaign:', err, new Date().toLocaleString())
@@ -1245,8 +1255,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewCampaign.clientId || (findNewCampaign as any).userId);
 
                 await sendMail(
-                    "nazarkozynets030606@zohomail.eu",
-                    // "admin@soundinfluencers.com",
+                    // "nazarkozynets030606@zohomail.eu",
+                    "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} accepted the offer for ${checkUserClient.email}'s campaign</p><br/>
                 <p><b>Details:</b></p>
@@ -1308,8 +1318,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 const checkUserClient = await this.clientModel.findById(findNewCampaign.clientId || (findNewCampaign as any).userId);
 
                 await sendMail(
-                    "nazarkozynets030606@zohomail.eu",
-                    // "admin@soundinfluencers.com",
+                    // "nazarkozynets030606@zohomail.eu",
+                    "admin@soundinfluencers.com",
                     "soundinfluencers",
                     `<p>${checkUserInfluencer.email} declined the offer for ${checkUserClient.email}'s campaign</p><br/>
                 <p><b>Details:</b></p>

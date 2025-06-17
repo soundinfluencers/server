@@ -91,6 +91,9 @@ export class Influencer extends Document {
 
     @Prop({default: ''})
     internalNote: string;
+
+    @Prop({default: ''})
+    currencyNote: string;
 }
 
 export const InfluencerSchema = SchemaFactory.createForClass(Influencer);

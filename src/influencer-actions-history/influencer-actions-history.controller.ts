@@ -1,4 +1,4 @@
-import {Body, Controller, Get, Post} from "@nestjs/common";
+import {Body, Controller, Get, Param, Post} from "@nestjs/common";
 import {InfluencerActionsHistoryService} from "./influencer-actions-history.service";
 import {UpsertCampaignHistoryDto} from "./dto/upsert-campaign-history.dto";
 import {UpsertInvoiceHistoryDto} from "./dto/upsert-invoice-history.dto";
@@ -21,5 +21,15 @@ export class InfluencerActionsHistoryController {
     @Get('get/all')
     async getActionsHistoryForAllOfInfluencers() {
         return this.influencerActionsHistoryService.getActionsHistoryForAllOfInfluencers();
+    }
+
+    @Get('get/one/:influencerId')
+    getActionsHistoryForInfluencer(@Param('influencerId') influencerId: string) {
+        return this.influencerActionsHistoryService.getActionsHistoryForInfluencer(influencerId);
+    }
+
+    @Get('get/last-updates')
+    getLastUpdates() {
+        return this.influencerActionsHistoryService.getLastUpdates();
     }
 }

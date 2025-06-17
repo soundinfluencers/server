@@ -18,4 +18,7 @@ export class AdminUpdateInfluencerPersonalDto {
 
     @ApiProperty({required: false})
     internalNote: string;
+
+    @ApiProperty({required: false})
+    currencyNote: string;
 }
