@@ -210,7 +210,7 @@ ${emailVideoContent()}
             await sendMail(
                 // "nazarkozynets030606@zohomail.eu",
                 "admin@soundinfluencers.com",
-                "soundinfluencers",
+                "SoundInfluencers",
                 emailContent,
                 "html"
             );
@@ -359,7 +359,6 @@ ${emailVideoContent()}
 
                     const influencerSocialMediaAccounts = influencerSocialMediaAccountsNested.flat();
 
-
                     const influencerSelectedCampaignContent = checkCampaign.campaignContent.filter((campaignContentItem) => {
                         return checkCampaign.selectInfluencers.some((influencerData) => {
                             return influencerData.selectedCampaignContentItem === campaignContentItem._id.toString() && influencerSocialMediaAccounts.includes(influencerData.socialMediaUsername);
@@ -367,18 +366,10 @@ ${emailVideoContent()}
                     });
 
                     if (influencerSelectedCampaignContent.length > 0) {
-                        const accountNames = socialMedias.map(socialMedia => influencer[socialMedia]
-                            .filter(account => influencerSelectedCampaignContent.some(campaignContentItem => {
-                                return checkCampaign.selectInfluencers.some(influencerData => influencerData.selectedCampaignContentItem === campaignContentItem._id.toString() && influencerData.socialMedia === campaignContentItem.socialMedia && influencerData.socialMediaUsername === account.instagramUsername);
-                            }))
-                            .map(account => account.instagramUsername)
-                            .join(', ')).filter(Boolean);
-
                         const emailToInfluencer = `
 <p>Hi,</p>
 <p>You have received a new promo request on your account for the following:</p>
-<p><strong>${accountNames} - ${checkCampaign.socialMedia.charAt(0).toUpperCase() + checkCampaign.socialMedia.slice(1)} Post & Story</strong></p>
-<p><strong>Post Details:</strong></p>
+<p><strong>${checkCampaign.socialMedia.charAt(0).toUpperCase() + checkCampaign.socialMedia.slice(1)} Post & Story</strong></p>
 ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
     <p><strong>Post Content ${index + 1}:</strong></p>
     <ul>
@@ -393,13 +384,18 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 <p>Thanks,</p>
 <p>Soundinfluencers Team</p>
 `;
+
                         try {
-                            await sendMail(influencer.email, "soundinfluencers", emailToInfluencer, "html");
-                            // await sendMail("nazarkozynets030606@zohomail.eu", "soundinfluencers", emailToInfluencer, "html");
+                            await  (influencer.email, "SoundInfluencers", emailToInfluencer, "html");
+                            // await sendMail("nazarkozynets030606@zohomail.eu", "SoundInfluencers", emailToInfluencer, "html");
                         } catch (err) {
                             console.error('Error sending emails to influencers:', err);
                         }
                     }
+                }
+
+                return {
+                    code: 500
                 }
 
                 const updateFields = {
@@ -1257,7 +1253,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 await sendMail(
                     // "nazarkozynets030606@zohomail.eu",
                     "admin@soundinfluencers.com",
-                    "soundinfluencers",
+                    "SoundInfluencers",
                     `<p>${checkUserInfluencer.email} accepted the offer for ${checkUserClient.email}'s campaign</p><br/>
                 <p><b>Details:</b></p>
                 <p><b>Campaign Name:</b> ${findNewCampaign.campaignName}</p>
@@ -1320,7 +1316,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 await sendMail(
                     // "nazarkozynets030606@zohomail.eu",
                     "admin@soundinfluencers.com",
-                    "soundinfluencers",
+                    "SoundInfluencers",
                     `<p>${checkUserInfluencer.email} declined the offer for ${checkUserClient.email}'s campaign</p><br/>
                 <p><b>Details:</b></p>
                 <p><b>Campaign Name:</b> ${findNewCampaign.campaignName}</p>
@@ -1960,7 +1956,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
             try {
                 await sendMail(
                     process.env.EMAIL_USER,
-                    'soundinfluencers',
+                    'SoundInfluencers',
                     emailText,
                     "html"
                 );
