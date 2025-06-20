@@ -238,7 +238,7 @@ export class ProfileService {
                 ...socialMediaAccounts[accountIndex],
                 instagramUsername: data.instagramUsername,
                 instagramLink: data.instagramLink,
-                followersNumber: data.followersNumber,
+                followersNumber: data.followersNumber.replace(/[.,]/g, ''),
                 logo: data.logo,
                 musicStyle: data.musicStyle,
                 musicSubStyles: data.musicSubStyles,
@@ -522,7 +522,7 @@ export class ProfileService {
                     <ul>
             <li><strong>${socialMedia === 'spotify' ? 'Spotify playlist name' : 'SoundCloud account name'}: ${item.instagramUsername}</strong></li>
             <li><strong>${socialMedia === 'spotify' ? 'Spotify playlist link' : 'SoundCloud link'}: ${item.instagramLink}</strong></li>
-            <li><strong>Followers: ${item.followersNumber}</strong></li>
+            <li><strong>Followers: ${item.followersNumber.replace(/[.,]/g, '')}</strong></li>
             <li><strong>Logo: ${item.logo}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
             <li><strong>Initial Price: ${item.initialPrice}</strong></li>
@@ -533,7 +533,7 @@ export class ProfileService {
                     <ul>
             <li><strong>Brand account name: ${item.instagramUsername}</strong></li>
             <li><strong>Website link: ${item.instagramLink}</strong></li>
-            <li><strong>Website link: ${item.followersNumber}</strong></li>
+            <li><strong>Website link: ${item.followersNumber.replace(/[.,]/g, '')}</strong></li>
             <li><strong>Logo: ${item.logo}</strong></li>
             <li><strong>Music Genres: ${formatGenres(item).join(', ')}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
@@ -597,6 +597,7 @@ export class ProfileService {
                     const accountId = new mongoose.Types.ObjectId();
                     socialMediaAccounts.push({
                         ...account,
+                        followersNumber: account.followersNumber.replace(/[.,]/g, ''),
                         publicPrice: publicPrice,
                         isHidden: false,
                         isDeleted: false,

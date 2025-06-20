@@ -9,8 +9,7 @@ import {
     Delete,
     Query,
     UseInterceptors,
-    UploadedFile,
-    Res,
+    UploadedFile, Res,
 } from '@nestjs/common';
 import {PromosService} from './promos.service';
 import {CreatePromosDto} from './dto/create-promo.dto';
@@ -22,6 +21,7 @@ import {GetSelectedSocialAccountsDto} from "./dto/get-selected-social-accounts.d
 import {decodeAndDecrypt} from "../utils/crypt";
 import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
 import {SaveXlsxPromoDto} from "./dto/save-xlsx-promo.dto";
+import { Response } from 'express';
 
 @Controller('promos')
 export class PromosController {
@@ -48,11 +48,71 @@ export class PromosController {
         return this.promosService.updateEstimatePromo(promoId, isPoNeed);
     }
 
-    @ApiQuery({name: 'promoId', required: true})
-    @ApiQuery({name: 'status', required: true})
     @Get('verify-promo')
-    verifyCampaign(@Query() args: { promoId: string; status: string }) {
-        return this.promosService.verifyCampaign(args.promoId, args.status);
+    async verifyCampaign(
+        @Query() args: { promoId: string; status: string },
+        @Res() res: Response
+    ) {
+        const result = await this.promosService.verifyCampaign(args.promoId, args.status);
+
+        if (result.code === 200) {
+            const successMessage = result.message || 'Campaign verified';
+            return res.send(`
+      <html>
+        <head>
+          <title>Campaign Verification</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 100vh;
+              background-color: #f4f4f8;
+              color: #333;
+              text-align: center;
+            }
+            .container {
+              max-width: 500px;
+              padding: 20px;
+              background-color: white;
+              border-radius: 10px;
+              box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            }
+            h1 {
+              color: #4CAF50;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>${successMessage}</h1>
+            <p>Thank you! This window can now be closed.</p>
+          </div>
+        </body>
+      </html>
+    `);
+        }
+
+        return res.status(result.code || 500).send(`
+    <html>
+      <head>
+        <title>Error</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 100px;
+            color: #c00;
+          }
+        </style>
+      </head>
+      <body>
+        <h1>Something went wrong</h1>
+        <p>${result.message || 'Unknown error occurred'}</p> 
+      </body>
+    </html>
+  `);
     }
 
     @Get('offers/:socialMedia')
@@ -64,7 +124,7 @@ export class PromosController {
     getOffersForCreateCampaignPage(@Param('socialMedia') socialMedia: string) {
         return this.promosService.getOffersForCreateCampaignPage(socialMedia);
     }
-    
+
     @Post('uploadScreenshot')
     @UseInterceptors(FileInterceptor('file'))
     uploadFile(@UploadedFile() file: File) {
@@ -110,7 +170,7 @@ export class PromosController {
         const decryptedCampaignId = decodeAndDecrypt(args.campaignId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
         const decodedSocialMediaUsername = decodeURI(args.socialMediaUsername);
         const decryptedSelectedCampaignContentItem = decodeAndDecrypt(args.selectedCampaignContentItem, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
-        
+
         return this.promosService.influencerPastCampaignOne(decryptedInfluencerId, decryptedCampaignId, decodedSocialMediaUsername, decryptedSelectedCampaignContentItem);
     }
 
@@ -148,7 +208,7 @@ export class PromosController {
     @Put('influencer-update-response-new-campaign')
     influencerUpdateResponseNewCampaign(
         @Query()
-            args: {
+        args: {
             influencerId: string;
             socialMediaUsername: string;
             campaignId: string;
@@ -182,7 +242,7 @@ export class PromosController {
     @Get('influencer-get-ongoing-campaign/one')
     influencerGetOngoingCampaign(
         @Query()
-            args: {
+        args: {
             influencerId: string;
             campaignId: string;
             socialNetworkUsername: string;
@@ -207,7 +267,7 @@ export class PromosController {
     @Put('influencer-update-ongoing')
     influencerUpdateOngoingCampaign(
         @Query()
-            args: {
+        args: {
             influencerId: string;
             socialNetworkUsername: string;
             campaignId: string;
@@ -243,7 +303,7 @@ export class PromosController {
     }
 
     @Post('save-xlsx-campaign/:typeOfStorage')
-    saveXLSXCampaign(@Param() args: {typeOfStorage: string}, @Body() data: SaveXlsxPromoDto) {
+    saveXLSXCampaign(@Param() args: { typeOfStorage: string }, @Body() data: SaveXlsxPromoDto) {
         return this.promosService.saveXLSXCampaign(args.typeOfStorage, data)
     }
 }

@@ -109,9 +109,9 @@ export class AuthService {
             });
 
             await sendMail(
-                'nazarkozynets030606@zohomail.eu',
-                // 'admin@soundinfluencers.com',
-                'soundinfluencers',
+                // 'nazarkozynets030606@zohomail.eu',
+                'admin@soundinfluencers.com',
+                'SoundInfluencers',
                 `<p>Request from a new client ${data.company}</p><b>Details:</b><br/><br/><p>First Name: ${data.firstName}</p>
         <p>Company: ${data.company}</p>
         <p>Company Type: ${data.companyType}</p>
@@ -127,7 +127,7 @@ export class AuthService {
             );
             await sendMail(
                 data.email,
-                'soundinfluencers',
+                'SoundInfluencers',
                 `<p>Dear ${data.firstName},</p>
       <p>Hello,</p>
       <p>Thank you for submitting your account request. We will inform you of the outcome shortly.</p>
@@ -198,6 +198,7 @@ export class AuthService {
 
                     return {
                         ...item,
+                        followersNumber: item.followersNumber.replace(/[.,]/g, ''),
                         musicStyle: musicStyle,
                         publicPrice: publicPrice,
                         isHidden: false,
@@ -256,7 +257,7 @@ export class AuthService {
             await sendMail(
                 // "nazarkozynets030606@zohomail.eu",
                 'admin@soundinfluencers.com',
-                'soundinfluencers',
+                'SoundInfluencers',
                 `<p>Request from a new partner ${data.firstName}</p>
             <b>Details:</b><br/><p>First Name: ${data.firstName}</p>
             <p>Email: ${data.email}</p>
@@ -282,7 +283,7 @@ export class AuthService {
 
             await sendMail(
                 data.email,
-                'soundinfluencers',
+                'SoundInfluencers',
                 `<p>Dear ${data.firstName},</p>
             <p>Thank you for submitting your subscription request.</p>
             <p>We will send you an email with a status update shortly.</p>
@@ -338,7 +339,7 @@ export class AuthService {
 
             sendMail(
                 checkInfluencer.email,
-                'soundinfluencers',
+                'SoundInfluencers',
                 `<p>Dear ${checkInfluencer.firstName},</p>
         <p>Thank you for confirming your information with us. Your account details have been successfully verified.</p> 
         <p>You can now access your personal account by clicking on the link below:</p>
@@ -362,7 +363,7 @@ export class AuthService {
             await this.verifyInfluencerModel.findOneAndDelete({verifyId: verifyId});
             sendMail(
                 checkInfluencer.email,
-                'soundinfluencers',
+                'SoundInfluencers',
                 `<p>Hi,</p>
       <p>thanks for the application!</p>
       <p>Unfortunately we're not sure there's a good fit for us right now.</p>
@@ -422,7 +423,7 @@ export class AuthService {
 
             sendMail(
                 checkClient.email,
-                'soundinfluencers',
+                'SoundInfluencers',
                 `<p>Dear ${checkClient.firstName},</p>
 <p>Thank you for confirming your information with us. Your account details have been successfully verified.</p>
 <p>You can now access your personal account by clicking on the link below:</p>
@@ -446,7 +447,7 @@ export class AuthService {
             await this.verifyClientModel.findOneAndDelete({verifyId: verifyId});
             sendMail(
                 checkClient.email,
-                'soundinfluencers',
+                'SoundInfluencers',
                 `<p>Hi,</p>
       <p>thanks for the application!</p>
       <p>Unfortunately we're not sure there's a good fit for us right now.</p>

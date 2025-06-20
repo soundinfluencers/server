@@ -67,7 +67,7 @@ export class PromosService {
                                 _id: new mongoose.Types.ObjectId(),
                                 price: socialMediaAccount.price,
                                 publicPrice: socialMediaAccount.publicPrice,
-                                followersNumber: parseInt(socialMediaAccount.followersNumber),
+                                followersNumber: parseInt(socialMediaAccount.followersNumber.replace(/[.,]/g, '')),
                                 dateRequest,
                             };
                         }
@@ -392,10 +392,6 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                             console.error('Error sending emails to influencers:', err);
                         }
                     }
-                }
-
-                return {
-                    code: 500
                 }
 
                 const updateFields = {
@@ -1877,6 +1873,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 };
             }
 
+            console.log(campaign, "campaign")
+
             const mappedInfluencers = campaign.selectInfluencers.map((item) => {
                 return {
                     ...item,
@@ -1969,7 +1967,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
 
             return {
                 code: 200,
-                message: `Successfully sent}`,
+                message: `Successfully sent`,
             }
         } catch (err) {
             console.error(`Error sending request of creating new full serviced campaign ${err} ${new Date().toLocaleDateString()}`)
@@ -2058,6 +2056,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                 };
             }
 
+
             if (typeOfStorage === "proposal") {
                 try {
                     const isMultiPromo = !data.socialMedia || data.socialMedia === "multipromo";
@@ -2071,7 +2070,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                         selectInfluencers: [],
                         campaignContent: [],
                         totalFollowers: 0,
-                        clientId: (await this.clientModel.findOne({email: "ToChange@gmail.com"}))?._id?.toString() || "66f540faaf4e960d2f9bebfc"
+                        clientId: "66f540faaf4e960d2f9bebfc"
                     };
 
                     await Promise.all(
@@ -2170,7 +2169,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                         campaign.campaignContent.push({
                                             _id: newId,
                                             videoLink: page.videoLink,
-                                            postDescription: page.postDescription,
+                                            postDescription: page.postDescription || "",
                                             storyTag: page.storyTag || "",
                                             swipeUpLink: page.storyLink || "",
                                             specialWishes: page.specialWishes || "",
@@ -2187,10 +2186,11 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                         _id: new Types.ObjectId().toHexString(),
                                         socialMediaUsername: page.socialMediaUsername.trim(),
                                         selectedCampaignContentItem: selectedCampaignContentItem,
-                                        genres: formattedGenres
+                                        genres: formattedGenres,
+                                        followersNumber: parseInt(result[0].followersNumber.replace(/[.,]/g, ''))
                                     });
 
-                                    campaign.totalFollowers += parseInt(result[0].followersNumber);
+                                    campaign.totalFollowers += parseInt(result[0].followersNumber.replace(/[.,]/g, ''));
                                 }
                             } else {
                                 const platform = data.socialMedia;
@@ -2244,7 +2244,7 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                         campaign.campaignContent.push({
                                             _id: newId,
                                             videoLink: page.videoLink,
-                                            postDescription: page.postDescription,
+                                            postDescription: page.postDescription || "",
                                             storyTag: page.storyTag || "",
                                             swipeUpLink: page.storyLink || "",
                                             specialWishes: page.specialWishes || "",
@@ -2261,10 +2261,11 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                                         _id: new Types.ObjectId().toHexString(),
                                         socialMediaUsername: page.socialMediaUsername.trim(),
                                         selectedCampaignContentItem: selectedCampaignContentItem,
-                                        genres: formattedGenres
+                                        genres: formattedGenres,
+                                        followersNumber: parseInt(result[0].followersNumber.replace(/[.,]/g, ''))
                                     });
 
-                                    campaign.totalFollowers += parseInt(result[0].followersNumber);
+                                    campaign.totalFollowers += parseInt(result[0].followersNumber.replace(/[.,]/g, ''));
                                 }
                             }
 
@@ -2277,6 +2278,8 @@ ${influencerSelectedCampaignContent.map((campaignContentItem, index) => `
                     );
 
                     campaign.campaignName = campaign.campaignName || `F: ${Math.ceil(campaign.totalFollowers)} D: ${new Date().toISOString().split("T")[0]}`
+
+                    console.log(campaign, 'campaign');
 
                     await axios.put(`${process.env.SERVER}/proposal-system/save-proposal-campaign`, campaign)
 
