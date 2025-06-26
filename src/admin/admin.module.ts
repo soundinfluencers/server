@@ -12,7 +12,6 @@ import {OffersTemp, OffersTempSchema} from "./schemas/offers-temp.schema";
 import {PromosCopies, PromosCopiesSchema} from "./schemas/promos-copies.schema";
 import {ProposalCampaign, ProposalCampaignSchema} from "../proposal-system/schemas/proposal-campaign.schema";
 import {PromosModule} from "../promos/promos.module";
-import {TwilioModule} from "../services/Twilio.service";
 
 @Module({
     imports: [
@@ -28,7 +27,6 @@ import {TwilioModule} from "../services/Twilio.service";
             {name: ProposalCampaign.name, schema: ProposalCampaignSchema},
         ]),
         PromosModule,
-        TwilioModule,
     ],
     controllers: [AdminController],
     providers: [AdminService],

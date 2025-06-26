@@ -19,7 +19,7 @@ import {AdminUpdateInfluencerInstagramDto} from "./dto/admin-update-influencer-i
 import {AdminUpdateInfluencerInvoiceDto} from "./dto/admin-update-influencer-invoice.dto";
 import {AdminUpdateClientPayment} from "./dto/admin-update-client-payment.update";
 import {AdminUpdateCampaignDto} from "./dto/admin-update-promo.dto";
-import {AdminSendEmailToInfluencerDto} from "./dto/admin-send-email-to-influencer.dto";
+import {AdminSendWhatsappMessageDto} from "./dto/admin-send-whatsapp-message.dto";
 import {AdminSaveOffersToTempDto} from "./dto/admin-save-offer-to-temp.dto";
 import {AdminPutOfferToOffersDto} from "./dto/admin-put-offer-to-offers.dto";
 import {AdminUpdateInfluencerFullAccountDto} from "./dto/admin-update-influencer-full-account.dto";
@@ -160,7 +160,7 @@ export class AdminController {
     }
 
     @Post('promos/send-whats-app-message-to-influencer')
-    adminSendWhatsAppMessageToInfluencer(@Body() data: AdminSendEmailToInfluencerDto) {
+    adminSendWhatsAppMessageToInfluencer(@Body() data: AdminSendWhatsappMessageDto) {
         return this.adminService.adminSendWhatsAppMessageToInfluencer(data);
     }
 

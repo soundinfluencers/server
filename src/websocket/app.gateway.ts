@@ -13,9 +13,4 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
 
     handleDisconnect(client: Socket) {
     }
-
-    @SubscribeMessage('req-new-promo')
-    handlePromo(@MessageBody() data: any): void {
-        this.server.emit('req-new-promo', data);
-    }
 }

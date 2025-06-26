@@ -14,7 +14,7 @@ import {Payment} from "../payment/schemas/payment.entity";
 import {AdminUpdateClientPayment} from "./dto/admin-update-client-payment.update";
 import sendMail from "../utils/sendMail";
 import {AdminUpdateCampaignDto} from "./dto/admin-update-promo.dto";
-import {AdminSendEmailToInfluencerDto} from "./dto/admin-send-email-to-influencer.dto";
+import {AdminSendWhatsappMessageDto} from "./dto/admin-send-whatsapp-message.dto";
 import {OffersTemp} from "./schemas/offers-temp.schema";
 import {AdminSaveOffersToTempDto} from "./dto/admin-save-offer-to-temp.dto";
 import {AdminPutOfferToOffersDto} from "./dto/admin-put-offer-to-offers.dto";
@@ -23,7 +23,6 @@ import {PromosCopies} from "./schemas/promos-copies.schema";
 import {AdminUpdateInfluencerFullAccountDto} from "./dto/admin-update-influencer-full-account.dto";
 import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 import {AdminUpdateFullCampaignDto} from "./dto/admin-update-full-campaign";
-import {TwilioSendNewPromoRequestVariables, TwilioWhatsappService} from "../services/Twilio.service";
 import axios from "axios";
 const fs = require("fs");
 const PDFDocument = require("pdfkit");
@@ -51,7 +50,6 @@ export class AdminService {
         @InjectModel(ProposalCampaign.name)
         private proposalCampaignModel: mongoose.Model<ProposalCampaign>,
         private readonly promosService: PromosService,
-        private readonly twilioService: TwilioWhatsappService
     ) {
     }
 
@@ -1607,8 +1605,15 @@ export class AdminService {
         }
     }
 
-    async adminSendWhatsAppMessageToInfluencer(data: AdminSendEmailToInfluencerDto) {
+    async adminSendWhatsAppMessageToInfluencer(data: AdminSendWhatsappMessageDto) {
         try {
+            if (!data.message) {
+                return {
+                    code: 400,
+                    message: 'Invalid message',
+                }
+            }
+
             const influencer = await this.influencerModel.findOne({ _id: data.influencerId });
 
             if (!influencer) {
@@ -1618,7 +1623,7 @@ export class AdminService {
                 };
             }
 
-            const phoneNumber = influencer.phone;
+            const phoneNumber = influencer.phone?.replace(/[^\d+]/g, '');
             if (!phoneNumber) {
                 return {
                     code: 400,
@@ -1626,21 +1631,19 @@ export class AdminService {
                 };
             }
 
-            const variablesToUse: TwilioSendNewPromoRequestVariables = {
-                socialMediaUsername: data.socialMediaUsername,
-                socialMedia: data.socialMedia,
-                link: data.videoLink,
-                postDesc: data.postDescription,
-                storyTag: data.storyTag,
-                storyLink: data.storyLink,
-            };
+            const res = await axios.post(`https://api.botassium.com/webhook/GPAqBGdAB94vzfxNaZg2`, {
+                action: "send-message",
+                type: "text",
+                content: data.message,
+                phone: phoneNumber
+            });
 
-            await this.twilioService.sendNewPromoRequest(phoneNumber.replace(/\s+/g, ''), variablesToUse);
-
-            return {
-                code: 200,
-                message: 'Message sent successfully',
-            };
+            if (res.status === 200) {
+                return {
+                    code: 200,
+                    message: 'Message sent successfully',
+                };
+            }
         } catch (err) {
             console.error('Failed to send WhatsApp message:', err);
             return {
