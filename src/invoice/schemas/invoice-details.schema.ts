@@ -6,7 +6,7 @@ import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
 export class InvoiceDetails {
   @Prop()
   id: string;
-  
+
   @Prop()
   userId: string;
 
@@ -24,10 +24,9 @@ export class InvoiceDetails {
 
   @Prop()
   vatNumber: string;
-  
+
   @Prop()
   company: string;
 }
 
-export const InvoiceDetailsSchema =
-  SchemaFactory.createForClass(InvoiceDetails);
+export const InvoiceDetailsSchema = SchemaFactory.createForClass(InvoiceDetails);

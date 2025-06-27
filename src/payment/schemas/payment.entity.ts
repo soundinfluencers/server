@@ -18,7 +18,7 @@ export class Payment {
 
   @Prop({ default: 'wait' })
   statusOrder: string;
-  
+
   @Prop()
   campaignName: string;
 }

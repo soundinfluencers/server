@@ -1,42 +1,42 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class AdminSaveOffersToTempDto {
-    @ApiProperty()
-    _id: string;
-    
-    @ApiProperty()
-    id: number;
+  @ApiProperty()
+  _id: string;
 
-    @ApiProperty()
-    price: number;
+  @ApiProperty()
+  id: number;
 
-    @ApiProperty()
-    followers: string;
-    
-    @ApiProperty()
-    network: string;
-    
-    @ApiProperty()
-    story: string;
-    
-    @ApiProperty()
-    maxInfluencer: number;
+  @ApiProperty()
+  price: number;
 
-    @ApiProperty()
-    connectInfluencer: [];
+  @ApiProperty()
+  followers: string;
 
-    @ApiProperty()
-    musicStyles: any[]; 
-    
-    @ApiProperty()
-    socialMedia: string;
+  @ApiProperty()
+  network: string;
 
-    @ApiProperty({required: true})
-    isDeleted: boolean; 
+  @ApiProperty()
+  story: string;
 
-    @ApiProperty({required: true})
-    isNew: boolean;
+  @ApiProperty()
+  maxInfluencer: number;
 
-    @ApiProperty({required: true})
-    isUpdated: boolean;
+  @ApiProperty()
+  connectInfluencer: [];
+
+  @ApiProperty()
+  musicStyles: any[];
+
+  @ApiProperty()
+  socialMedia: string;
+
+  @ApiProperty({ required: true })
+  isDeleted: boolean;
+
+  @ApiProperty({ required: true })
+  isNew: boolean;
+
+  @ApiProperty({ required: true })
+  isUpdated: boolean;
 }

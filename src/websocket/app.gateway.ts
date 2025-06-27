@@ -1,16 +1,28 @@
-import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
+import {
+  WebSocketGateway,
+  WebSocketServer,
+  OnGatewayInit,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { Module } from '@nestjs/common';
 
-@WebSocketGateway({ cors: true })
-export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-    @WebSocketServer() server: Server;
+@WebSocketGateway({ cors: true, path: '/socket.io' })
+export class AppGateway {
+  @WebSocketServer() server: Server;
 
-    afterInit(server: Server) {
-    }
+  handleConnection(client: Socket) {
+    client.join(client.id);
+  }
 
-    handleConnection(client: Socket) {
-    }
-
-    handleDisconnect(client: Socket) {
-    }
+  sendWhatsappMessageStatusUpdate(socketId: string, status: any) {
+    this.server.to(socketId).emit('whatsappMessageStatusUpdate', status);
+  }
 }
+
+@Module({
+  providers: [AppGateway],
+  exports: [AppGateway],
+})
+export class WebsocketModule {}

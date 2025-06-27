@@ -1,36 +1,36 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class AdminPutOfferToOffersDto {
-    @ApiProperty()
-    _id: string;
-    
-    @ApiProperty()
-    id: number;
+  @ApiProperty()
+  _id: string;
 
-    @ApiProperty()
-    price: number;
+  @ApiProperty()
+  id: number;
 
-    @ApiProperty()
-    followers: string;
+  @ApiProperty()
+  price: number;
 
-    @ApiProperty()
-    network: string;
+  @ApiProperty()
+  followers: string;
 
-    @ApiProperty()
-    story: string;
+  @ApiProperty()
+  network: string;
 
-    @ApiProperty()
-    maxInfluencer: number;
+  @ApiProperty()
+  story: string;
 
-    @ApiProperty()
-    connectInfluencer: [];
+  @ApiProperty()
+  maxInfluencer: number;
 
-    @ApiProperty()
-    musicStyles: any[];
-    
-    @ApiProperty()
-    socialMedia: string;
-    
-    @ApiProperty({required: false})
-    wasPublished: boolean;
+  @ApiProperty()
+  connectInfluencer: [];
+
+  @ApiProperty()
+  musicStyles: any[];
+
+  @ApiProperty()
+  socialMedia: string;
+
+  @ApiProperty({ required: false })
+  wasPublished: boolean;
 }

@@ -11,5 +11,4 @@ export class VerifyInfluencer {
   verifyId: string;
 }
 
-export const VerifyInfluencerSchema =
-  SchemaFactory.createForClass(VerifyInfluencer);
+export const VerifyInfluencerSchema = SchemaFactory.createForClass(VerifyInfluencer);

@@ -1,63 +1,60 @@
 import {
-    Controller,
-    Get,
-    Post,
-    Body,
-    Patch,
-    Put,
-    Param,
-    Delete,
-    Query,
-    UseInterceptors,
-    UploadedFile, Res,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Put,
+  Param,
+  Delete,
+  Query,
+  UseInterceptors,
+  UploadedFile,
+  Res,
 } from '@nestjs/common';
-import {PromosService} from './promos.service';
-import {CreatePromosDto} from './dto/create-promo.dto';
-import {CreatePromosEstimateDto} from "./dto/create-promo-estimate.dto";
-import {ApiQuery} from '@nestjs/swagger';
-import {FileInterceptor} from '@nestjs/platform-express';
+import { PromosService } from './promos.service';
+import { CreatePromosDto } from './dto/create-promo.dto';
+import { CreatePromosEstimateDto } from './dto/create-promo-estimate.dto';
+import { ApiQuery } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import File from 'multer';
-import {GetSelectedSocialAccountsDto} from "./dto/get-selected-social-accounts.dto";
-import {decodeAndDecrypt} from "../utils/crypt";
-import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
-import {SaveXlsxPromoDto} from "./dto/save-xlsx-promo.dto";
+import { GetSelectedSocialAccountsDto } from './dto/get-selected-social-accounts.dto';
+import { decodeAndDecrypt } from '../utils/crypt';
+import { SendNewFullServicedCampaignRequest } from './dto/send-new-full-serviced-campaign-request';
+import { SaveXlsxPromoDto } from './dto/save-xlsx-promo.dto';
 import { Response } from 'express';
 
 @Controller('promos')
 export class PromosController {
-    constructor(private readonly promosService: PromosService) {
-    }
+  constructor(private readonly promosService: PromosService) {}
 
-    @Post('client-create-campaign')
-    createPromos(@Body() data: CreatePromosDto) {
-        return this.promosService.createPromo(data);
-    }
+  @Post('client-create-campaign')
+  createPromos(@Body() data: CreatePromosDto) {
+    return this.promosService.createPromo(data);
+  }
 
-    @Post('estimate/:isPO')
-    createPromosForEstimate(@Body() data: CreatePromosEstimateDto, @Param('isPO') isPO: boolean) {
-        return this.promosService.createPromosForEstimate();
-    }
+  @Post('estimate/:isPO')
+  createPromosForEstimate(@Body() data: CreatePromosEstimateDto, @Param('isPO') isPO: boolean) {
+    return this.promosService.createPromosForEstimate();
+  }
 
-    @ApiQuery({name: 'promoId', required: true})
-    @ApiQuery({name: 'isPoNeed', required: true})
-    @Put('update-estimate')
-    async updateEstimatePromo(
-        @Query('promoId') promoId: string,
-        @Query('isPoNeed') isPoNeed: string
-    ) {
-        return this.promosService.updateEstimatePromo(promoId, isPoNeed);
-    }
+  @ApiQuery({ name: 'promoId', required: true })
+  @ApiQuery({ name: 'isPoNeed', required: true })
+  @Put('update-estimate')
+  async updateEstimatePromo(
+    @Query('promoId') promoId: string,
+    @Query('isPoNeed') isPoNeed: string,
+  ) {
+    return this.promosService.updateEstimatePromo(promoId, isPoNeed);
+  }
 
-    @Get('verify-promo')
-    async verifyCampaign(
-        @Query() args: { promoId: string; status: string },
-        @Res() res: Response
-    ) {
-        const result = await this.promosService.verifyCampaign(args.promoId, args.status);
+  @Get('verify-promo')
+  async verifyCampaign(@Query() args: { promoId: string; status: string }, @Res() res: Response) {
+    const result = await this.promosService.verifyCampaign(args.promoId, args.status);
 
-        if (result.code === 200) {
-            const successMessage = result.message || 'Campaign verified';
-            return res.send(`
+    if (result.code === 200) {
+      const successMessage = result.message || 'Campaign verified';
+      return res.send(`
       <html>
         <head>
           <title>Campaign Verification</title>
@@ -92,9 +89,9 @@ export class PromosController {
         </body>
       </html>
     `);
-        }
+    }
 
-        return res.status(result.code || 500).send(`
+    return res.status(result.code || 500).send(`
     <html>
       <head>
         <title>Error</title>
@@ -113,197 +110,256 @@ export class PromosController {
       </body>
     </html>
   `);
-    }
+  }
 
-    @Get('offers/:socialMedia')
-    getOffers(@Param('socialMedia') socialMedia: string) {
-        return this.promosService.getOffers(socialMedia);
-    }
+  @Get('offers/:socialMedia')
+  getOffers(@Param('socialMedia') socialMedia: string) {
+    return this.promosService.getOffers(socialMedia);
+  }
 
-    @Get('offers-create-campaign-page/:socialMedia')
-    getOffersForCreateCampaignPage(@Param('socialMedia') socialMedia: string) {
-        return this.promosService.getOffersForCreateCampaignPage(socialMedia);
-    }
+  @Get('offers-create-campaign-page/:socialMedia')
+  getOffersForCreateCampaignPage(@Param('socialMedia') socialMedia: string) {
+    return this.promosService.getOffersForCreateCampaignPage(socialMedia);
+  }
 
-    @Post('uploadScreenshot')
-    @UseInterceptors(FileInterceptor('file'))
-    uploadFile(@UploadedFile() file: File) {
-        return this.promosService.uploadDropBox(file);
-    }
+  @Post('uploadScreenshot')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadFile(@UploadedFile() file: File) {
+    return this.promosService.uploadDropBox(file);
+  }
 
-    @Get('check-upload-status')
-    async checkUploadStatus(@Query('fileName') fileName: string): Promise<boolean> {
-        return await this.promosService.checkUploadStatus(fileName);
-    }
+  @Get('check-upload-status')
+  async checkUploadStatus(@Query('fileName') fileName: string): Promise<boolean> {
+    return await this.promosService.checkUploadStatus(fileName);
+  }
 
-    @ApiQuery({name: 'id', required: true})
-    @Get('client-completed-campaigns/history')
-    clientCompletedCampaignsHistory(@Query() args: { id: string }) {
-        return this.promosService.clientCompletedCampaignsHistory(args.id);
-    }
+  @ApiQuery({ name: 'id', required: true })
+  @Get('client-completed-campaigns/history')
+  clientCompletedCampaignsHistory(@Query() args: { id: string }) {
+    return this.promosService.clientCompletedCampaignsHistory(args.id);
+  }
 
-    @ApiQuery({name: 'clientId', required: true})
-    @Get('ongoing-campaigns-client')
-    clientGetOngoingCampaigns(@Query() args: { clientId: string }) {
-        const decryptedClientId = decodeAndDecrypt(args.clientId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
-        return this.promosService.clientGetOngoingCampaigns(decryptedClientId);
-    }
+  @ApiQuery({ name: 'clientId', required: true })
+  @Get('ongoing-campaigns-client')
+  clientGetOngoingCampaigns(@Query() args: { clientId: string }) {
+    const decryptedClientId = decodeAndDecrypt(
+      args.clientId,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
+    return this.promosService.clientGetOngoingCampaigns(decryptedClientId);
+  }
 
-    @ApiQuery({name: 'influencerId', required: true})
-    @Get('influencer-completed-campaigns/history')
-    influencerCompletedCampaignsHistory(@Query() args: { influencerId: string }) {
-        return this.promosService.influencerCompletedCampaignsHistory(args.influencerId);
-    }
+  @ApiQuery({ name: 'influencerId', required: true })
+  @Get('influencer-completed-campaigns/history')
+  influencerCompletedCampaignsHistory(@Query() args: { influencerId: string }) {
+    return this.promosService.influencerCompletedCampaignsHistory(args.influencerId);
+  }
 
-    @ApiQuery({name: 'influencerId', required: true})
-    @ApiQuery({name: 'campaignId', required: true})
-    @ApiQuery({name: 'socialMediaUsername', required: true})
-    @ApiQuery({name: 'selectedCampaignContentItem', required: true})
-    @Get('influencer-completed-campaigns/one-campaign')
-    influencerPastCampaignOne(@Query() args: {
-        influencerId: string;
-        campaignId: string;
-        socialMediaUsername: string;
-        selectedCampaignContentItem: string
-    }) {
-        const decryptedInfluencerId = decodeAndDecrypt(args.influencerId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
-        const decryptedCampaignId = decodeAndDecrypt(args.campaignId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
-        const decodedSocialMediaUsername = decodeURI(args.socialMediaUsername);
-        const decryptedSelectedCampaignContentItem = decodeAndDecrypt(args.selectedCampaignContentItem, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
+  @ApiQuery({ name: 'influencerId', required: true })
+  @ApiQuery({ name: 'campaignId', required: true })
+  @ApiQuery({ name: 'socialMediaUsername', required: true })
+  @ApiQuery({ name: 'selectedCampaignContentItem', required: true })
+  @Get('influencer-completed-campaigns/one-campaign')
+  influencerPastCampaignOne(
+    @Query()
+    args: {
+      influencerId: string;
+      campaignId: string;
+      socialMediaUsername: string;
+      selectedCampaignContentItem: string;
+    },
+  ) {
+    const decryptedInfluencerId = decodeAndDecrypt(
+      args.influencerId,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
+    const decryptedCampaignId = decodeAndDecrypt(
+      args.campaignId,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
+    const decodedSocialMediaUsername = decodeURI(args.socialMediaUsername);
+    const decryptedSelectedCampaignContentItem = decodeAndDecrypt(
+      args.selectedCampaignContentItem,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
 
-        return this.promosService.influencerPastCampaignOne(decryptedInfluencerId, decryptedCampaignId, decodedSocialMediaUsername, decryptedSelectedCampaignContentItem);
-    }
+    return this.promosService.influencerPastCampaignOne(
+      decryptedInfluencerId,
+      decryptedCampaignId,
+      decodedSocialMediaUsername,
+      decryptedSelectedCampaignContentItem,
+    );
+  }
 
-    @ApiQuery({name: 'clientId', required: true})
-    @ApiQuery({name: 'campaignId', required: true})
-    @Get('client-completed-campaigns/one-campaign')
-    clientPastCampaignOne(@Query() args: { clientId: string; campaignId: string }) {
-        const decryptedClientId = decodeAndDecrypt(args.clientId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
-        const decryptedCampaignId = decodeAndDecrypt(args.campaignId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
-        return this.promosService.clientPastCampaignOne(decryptedClientId, decryptedCampaignId);
-    }
+  @ApiQuery({ name: 'clientId', required: true })
+  @ApiQuery({ name: 'campaignId', required: true })
+  @Get('client-completed-campaigns/one-campaign')
+  clientPastCampaignOne(@Query() args: { clientId: string; campaignId: string }) {
+    const decryptedClientId = decodeAndDecrypt(
+      args.clientId,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
+    const decryptedCampaignId = decodeAndDecrypt(
+      args.campaignId,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
+    return this.promosService.clientPastCampaignOne(decryptedClientId, decryptedCampaignId);
+  }
 
-    @ApiQuery({name: 'campaignId', required: true})
-    @ApiQuery({name: 'clientId', required: true})
-    @Get('client-campaign/one')
-    clientGetOngoingOrPastCampaign(@Query() args: { campaignId: string; clientId: string }) {
-        const decryptedCampaignId = decodeAndDecrypt(args.campaignId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
-        const decryptedClientId = decodeAndDecrypt(args.clientId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
-        return this.promosService.clientGetOngoingOrPastCampaign(decryptedCampaignId, decryptedClientId);
-    }
+  @ApiQuery({ name: 'campaignId', required: true })
+  @ApiQuery({ name: 'clientId', required: true })
+  @Get('client-campaign/one')
+  clientGetOngoingOrPastCampaign(@Query() args: { campaignId: string; clientId: string }) {
+    const decryptedCampaignId = decodeAndDecrypt(
+      args.campaignId,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
+    const decryptedClientId = decodeAndDecrypt(
+      args.clientId,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
+    return this.promosService.clientGetOngoingOrPastCampaign(
+      decryptedCampaignId,
+      decryptedClientId,
+    );
+  }
 
-    @ApiQuery({name: 'influencerId', required: true})
-    @Get('influencer-get-new-campaigns')
-    influencerGetNewCampaigns(@Query() args: { influencerId: string }) {
-        const decryptedInfluencerId = decodeAndDecrypt(args.influencerId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
+  @ApiQuery({ name: 'influencerId', required: true })
+  @Get('influencer-get-new-campaigns')
+  influencerGetNewCampaigns(@Query() args: { influencerId: string }) {
+    const decryptedInfluencerId = decodeAndDecrypt(
+      args.influencerId,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
 
-        return this.promosService.influencerGetNewCampaigns(decryptedInfluencerId);
-    }
+    return this.promosService.influencerGetNewCampaigns(decryptedInfluencerId);
+  }
 
-    @ApiQuery({name: 'influencerId', required: true})
-    @ApiQuery({name: 'socialMediaUsername', required: true})
-    @ApiQuery({name: 'campaignId', required: true})
-    @ApiQuery({name: 'campaignResponse', required: true})
-    @ApiQuery({name: 'selectInfluencersId', required: true})
-    @Put('influencer-update-response-new-campaign')
-    influencerUpdateResponseNewCampaign(
-        @Query()
-        args: {
-            influencerId: string;
-            socialMediaUsername: string;
-            campaignId: string;
-            campaignResponse: string;
-            selectInfluencersId: string;
-        },
-    ) {
-        const decryptedInfluencerId = decodeAndDecrypt(args.influencerId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
-        const decryptedCampaignId = decodeAndDecrypt(args.campaignId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
-        const decryptedSocialMediaUsername = decodeAndDecrypt(args.socialMediaUsername, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
+  @ApiQuery({ name: 'influencerId', required: true })
+  @ApiQuery({ name: 'socialMediaUsername', required: true })
+  @ApiQuery({ name: 'campaignId', required: true })
+  @ApiQuery({ name: 'campaignResponse', required: true })
+  @ApiQuery({ name: 'selectInfluencersId', required: true })
+  @Put('influencer-update-response-new-campaign')
+  influencerUpdateResponseNewCampaign(
+    @Query()
+    args: {
+      influencerId: string;
+      socialMediaUsername: string;
+      campaignId: string;
+      campaignResponse: string;
+      selectInfluencersId: string;
+    },
+  ) {
+    const decryptedInfluencerId = decodeAndDecrypt(
+      args.influencerId,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
+    const decryptedCampaignId = decodeAndDecrypt(
+      args.campaignId,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
+    const decryptedSocialMediaUsername = decodeAndDecrypt(
+      args.socialMediaUsername,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
 
-        return this.promosService.influencerUpdateResponseNewCampaign(
-            decryptedInfluencerId,
-            decryptedSocialMediaUsername,
-            decryptedCampaignId,
-            args.campaignResponse,
-            args.selectInfluencersId,
-        );
-    }
+    return this.promosService.influencerUpdateResponseNewCampaign(
+      decryptedInfluencerId,
+      decryptedSocialMediaUsername,
+      decryptedCampaignId,
+      args.campaignResponse,
+      args.selectInfluencersId,
+    );
+  }
 
-    @ApiQuery({name: 'influencerId', required: true})
-    @Get('influencer-get-ongoing-campaigns')
-    influencerGetOngoingCampaigns(@Query() args: { influencerId: string }) {
-        return this.promosService.influencerGetOngoingCampaigns(args.influencerId);
-    }
+  @ApiQuery({ name: 'influencerId', required: true })
+  @Get('influencer-get-ongoing-campaigns')
+  influencerGetOngoingCampaigns(@Query() args: { influencerId: string }) {
+    return this.promosService.influencerGetOngoingCampaigns(args.influencerId);
+  }
 
-    @ApiQuery({name: 'influencerId', required: true})
-    @ApiQuery({name: 'campaignId', required: true})
-    @ApiQuery({name: 'socialNetworkUsername', required: true})
-    @ApiQuery({name: 'selectInfluencersId', required: true})
-    @Get('influencer-get-ongoing-campaign/one')
-    influencerGetOngoingCampaign(
-        @Query()
-        args: {
-            influencerId: string;
-            campaignId: string;
-            socialNetworkUsername: string;
-            selectInfluencersId: string;
-        },
-    ) {
-        const decryptedInfluencerId = decodeAndDecrypt(args.influencerId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
-        const decryptedCampaignId = decodeAndDecrypt(args.campaignId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
+  @ApiQuery({ name: 'influencerId', required: true })
+  @ApiQuery({ name: 'campaignId', required: true })
+  @ApiQuery({ name: 'socialNetworkUsername', required: true })
+  @ApiQuery({ name: 'selectInfluencersId', required: true })
+  @Get('influencer-get-ongoing-campaign/one')
+  influencerGetOngoingCampaign(
+    @Query()
+    args: {
+      influencerId: string;
+      campaignId: string;
+      socialNetworkUsername: string;
+      selectInfluencersId: string;
+    },
+  ) {
+    const decryptedInfluencerId = decodeAndDecrypt(
+      args.influencerId,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
+    const decryptedCampaignId = decodeAndDecrypt(
+      args.campaignId,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
 
-        return this.promosService.influencerGetOngoingCampaign(
-            decryptedInfluencerId,
-            decryptedCampaignId,
-            args.socialNetworkUsername,
-            args.selectInfluencersId,
-        );
-    }
+    return this.promosService.influencerGetOngoingCampaign(
+      decryptedInfluencerId,
+      decryptedCampaignId,
+      args.socialNetworkUsername,
+      args.selectInfluencersId,
+    );
+  }
 
-    @ApiQuery({name: 'influencerId', required: true})
-    @ApiQuery({name: 'socialNetworkUsername', required: true})
-    @ApiQuery({name: 'campaignId', required: true})
-    @ApiQuery({name: 'selectInfluencersId', required: true})
-    @Put('influencer-update-ongoing')
-    influencerUpdateOngoingCampaign(
-        @Query()
-        args: {
-            influencerId: string;
-            socialNetworkUsername: string;
-            campaignId: string;
-            selectInfluencersId: string;
-        },
-        @Body() body,
-    ) {
-        const decryptedInfluencerId = decodeAndDecrypt(args.influencerId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
-        const decryptedCampaignId = decodeAndDecrypt(args.campaignId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY);
+  @ApiQuery({ name: 'influencerId', required: true })
+  @ApiQuery({ name: 'socialNetworkUsername', required: true })
+  @ApiQuery({ name: 'campaignId', required: true })
+  @ApiQuery({ name: 'selectInfluencersId', required: true })
+  @Put('influencer-update-ongoing')
+  influencerUpdateOngoingCampaign(
+    @Query()
+    args: {
+      influencerId: string;
+      socialNetworkUsername: string;
+      campaignId: string;
+      selectInfluencersId: string;
+    },
+    @Body() body,
+  ) {
+    const decryptedInfluencerId = decodeAndDecrypt(
+      args.influencerId,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
+    const decryptedCampaignId = decodeAndDecrypt(
+      args.campaignId,
+      process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    );
 
-        return this.promosService.influencerUpdateOngoingCampaign(
-            decryptedInfluencerId,
-            args.socialNetworkUsername,
-            decryptedCampaignId,
-            args.selectInfluencersId,
-            body,
-        );
-    }
+    return this.promosService.influencerUpdateOngoingCampaign(
+      decryptedInfluencerId,
+      args.socialNetworkUsername,
+      decryptedCampaignId,
+      args.selectInfluencersId,
+      body,
+    );
+  }
 
-    @Get('share-link/:campaignId/:socialMedia')
-    getCampaignByPublicShareLink(@Param() args: { campaignId: string; socialMedia: string }) {
-        return this.promosService.getCampaignByPublicShareLink(args.campaignId, args.socialMedia);
-    }
+  @Get('share-link/:campaignId/:socialMedia')
+  getCampaignByPublicShareLink(@Param() args: { campaignId: string; socialMedia: string }) {
+    return this.promosService.getCampaignByPublicShareLink(args.campaignId, args.socialMedia);
+  }
 
-    @Post('send-new-full-serviced-campaign-request')
-    sendNewFullServicedCampaignRequest(@Body() data: SendNewFullServicedCampaignRequest) {
-        return this.promosService.sendNewFullServicedCampaignRequest(data);
-    }
+  @Post('send-new-full-serviced-campaign-request')
+  sendNewFullServicedCampaignRequest(@Body() data: SendNewFullServicedCampaignRequest) {
+    return this.promosService.sendNewFullServicedCampaignRequest(data);
+  }
 
-    @Post('get-selected-social-accounts')
-    getSelectedSocialMediaAccountsForCampaignStrategy(@Body() data: GetSelectedSocialAccountsDto) {
-        return this.promosService.getSelectedSocialMediaAccountsForCampaignStrategy(data);
-    }
+  @Post('get-selected-social-accounts')
+  getSelectedSocialMediaAccountsForCampaignStrategy(@Body() data: GetSelectedSocialAccountsDto) {
+    return this.promosService.getSelectedSocialMediaAccountsForCampaignStrategy(data);
+  }
 
-    @Post('save-xlsx-campaign/:typeOfStorage')
-    saveXLSXCampaign(@Param() args: { typeOfStorage: string }, @Body() data: SaveXlsxPromoDto) {
-        return this.promosService.saveXLSXCampaign(args.typeOfStorage, data)
-    }
+  @Post('save-xlsx-campaign/:typeOfStorage')
+  saveXLSXCampaign(@Param() args: { typeOfStorage: string }, @Body() data: SaveXlsxPromoDto) {
+    return this.promosService.saveXLSXCampaign(args.typeOfStorage, data);
+  }
 }

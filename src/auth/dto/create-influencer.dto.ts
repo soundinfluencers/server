@@ -1,98 +1,98 @@
-import {ApiProperty} from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export interface ISocial {
-    musicStyle: string;
-    musicSubStyles: string[] | null;
-    musicStyleOther: string[] | null;
-    instagramUsername: string;
-    instagramLink: string;
-    followersNumber: string;
-    logo: string;
-    price: string;
-    countries: { country: string; percentage: number }[] | null;
-    categories: string[] | null;
-    initialPrice: string;
+  musicStyle: string;
+  musicSubStyles: string[] | null;
+  musicStyleOther: string[] | null;
+  instagramUsername: string;
+  instagramLink: string;
+  followersNumber: string;
+  logo: string;
+  price: string;
+  countries: { country: string; percentage: number }[] | null;
+  categories: string[] | null;
+  initialPrice: string;
 }
 
 export const typesSocialMedia = {
-    musicStyle: {type: 'string'},
-    musicSubStyles: {type: 'array', items: {type: 'string'}, nullable: true},
-    musicStyleOther: {type: 'array', items: {type: 'string'}, nullable: true},
-    instagramUsername: {type: 'string'},
-    instagramLink: {type: 'string'},
-    followersNumber: {type: 'string'},
-    logo: {type: 'string'},
-    price: {type: 'string'},
-    countries: {
-        type: 'array',
-        items: {
-            type: 'object',
-            properties: {
-                country: {type: 'string'},
-                percentage: {type: 'number'},
-            },
-        },
-        nullable: true,
+  musicStyle: { type: 'string' },
+  musicSubStyles: { type: 'array', items: { type: 'string' }, nullable: true },
+  musicStyleOther: { type: 'array', items: { type: 'string' }, nullable: true },
+  instagramUsername: { type: 'string' },
+  instagramLink: { type: 'string' },
+  followersNumber: { type: 'string' },
+  logo: { type: 'string' },
+  price: { type: 'string' },
+  countries: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        country: { type: 'string' },
+        percentage: { type: 'number' },
+      },
     },
-    categories: {type: 'array', items: {type: 'string'}, nullable: true},
-    initialPrice: {type: 'string'},
+    nullable: true,
+  },
+  categories: { type: 'array', items: { type: 'string' }, nullable: true },
+  initialPrice: { type: 'string' },
 };
 
 export class CreateInfluencerDto {
-    @ApiProperty()
-    firstName: string;
+  @ApiProperty()
+  firstName: string;
 
-    @ApiProperty({
-        type: 'array',
-        items: {type: 'object', properties: typesSocialMedia},
-    })
-    tiktok: ISocial[];
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', properties: typesSocialMedia },
+  })
+  tiktok: ISocial[];
 
-    @ApiProperty({
-        type: 'array',
-        items: {type: 'object', properties: typesSocialMedia},
-    })
-    soundcloud: ISocial[];
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', properties: typesSocialMedia },
+  })
+  soundcloud: ISocial[];
 
-    @ApiProperty({
-        type: 'array',
-        items: {type: 'object', properties: typesSocialMedia},
-    })
-    facebook: ISocial[];
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', properties: typesSocialMedia },
+  })
+  facebook: ISocial[];
 
-    @ApiProperty({
-        type: 'array',
-        items: {type: 'object', properties: typesSocialMedia},
-    })
-    instagram: ISocial[];
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', properties: typesSocialMedia },
+  })
+  instagram: ISocial[];
 
-    @ApiProperty({
-        type: 'array',
-        items: {type: 'object', properties: typesSocialMedia},
-    })
-    spotify: ISocial[];
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', properties: typesSocialMedia },
+  })
+  spotify: ISocial[];
 
-    @ApiProperty({
-        type: 'array',
-        items: {type: 'object', properties: typesSocialMedia},
-    })
-    press: ISocial[];
-    
-    @ApiProperty({
-        type: 'array',
-        items: {type: 'object', properties: typesSocialMedia},
-    })
-    youtube: ISocial[];
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', properties: typesSocialMedia },
+  })
+  press: ISocial[];
 
-    @ApiProperty()
-    email: string;
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', properties: typesSocialMedia },
+  })
+  youtube: ISocial[];
 
-    @ApiProperty()
-    phone: string;
+  @ApiProperty()
+  email: string;
 
-    @ApiProperty()
-    password: string;
-    
-    @ApiProperty()
-    internalNote: string;
+  @ApiProperty()
+  phone: string;
+
+  @ApiProperty()
+  password: string;
+
+  @ApiProperty()
+  internalNote: string;
 }

@@ -1,145 +1,145 @@
-import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
-import {Types} from "mongoose";
+import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
 
 // @Schema({strict: false})
 @Schema()
 export class SelectInfluencers {
-    @Prop({ type: Types.ObjectId, required: true }) 
-    _id: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, required: true })
+  _id: Types.ObjectId;
 
-    @Prop()
-    influencerId: string;
-    
-    @Prop({default: 'instagram'})
-    socialMedia: string;
+  @Prop()
+  influencerId: string;
 
-    @Prop()
-    socialMediaUsername: string;
+  @Prop({ default: 'instagram' })
+  socialMedia: string;
 
-    @Prop({default: 'wait'})
-    confirmation: string;
-    
-    @Prop({default: '0'})
-    price: string;
-    
-    @Prop({default: '0'})
-    publicPrice: string;
+  @Prop()
+  socialMediaUsername: string;
 
-    @Prop()
-    selectedCampaignContentItem: string;
+  @Prop({ default: 'wait' })
+  confirmation: string;
 
-    @Prop()
-    dateRequest: string;
+  @Prop({ default: '0' })
+  price: string;
 
-    @Prop({default: 'wait'})
-    closePromo: string;
+  @Prop({ default: '0' })
+  publicPrice: string;
 
-    @Prop({default: ''})
-    postLink: string;
+  @Prop()
+  selectedCampaignContentItem: string;
 
-    @Prop({default: ''})
-    screenshot: string;
+  @Prop()
+  dateRequest: string;
 
-    @Prop({default: ''})
-    impressions: string;
+  @Prop({ default: 'wait' })
+  closePromo: string;
 
-    @Prop({default: ''})
-    like: string;
+  @Prop({ default: '' })
+  postLink: string;
 
-    @Prop({default: 0})
-    followersNumber: number;
+  @Prop({ default: '' })
+  screenshot: string;
+
+  @Prop({ default: '' })
+  impressions: string;
+
+  @Prop({ default: '' })
+  like: string;
+
+  @Prop({ default: 0 })
+  followersNumber: number;
 }
 const SelectInfluencersSchema = SchemaFactory.createForClass(SelectInfluencers);
 
 @Schema()
 export class CampaignContentItem {
-    @Prop({ type: Types.ObjectId, required: true })
-    _id: Types.ObjectId;
-    
-    @Prop()
-    videoLink: string;
+  @Prop({ type: Types.ObjectId, required: true })
+  _id: Types.ObjectId;
 
-    @Prop()
-    postDescription: string;
+  @Prop()
+  videoLink: string;
 
-    @Prop()
-    storyTag: string;
+  @Prop()
+  postDescription: string;
 
-    @Prop()
-    swipeUpLink: string;
+  @Prop()
+  storyTag: string;
 
-    @Prop()
-    specialWishes: string;
+  @Prop()
+  swipeUpLink: string;
 
-    @Prop({required: false, default: 'instagram'})
-    socialMedia: string;
+  @Prop()
+  specialWishes: string;
+
+  @Prop({ required: false, default: 'instagram' })
+  socialMedia: string;
 }
 const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignContentItem);
 
 @Schema({
-    timestamps: true,
-    // strict: false,
+  timestamps: true,
+  // strict: false,
 })
 export class Promos {
-    @Prop({ type: Types.ObjectId })
-    clientId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId })
+  clientId: Types.ObjectId;
 
-    @Prop({
-        required: true,
-        type: [SelectInfluencersSchema],
-    })
-    selectInfluencers: SelectInfluencers[];
+  @Prop({
+    required: true,
+    type: [SelectInfluencersSchema],
+  })
+  selectInfluencers: SelectInfluencers[];
 
-    @Prop({
-        type: [CampaignContentItemSchema],
-    })
-    campaignContent: CampaignContentItem[];
+  @Prop({
+    type: [CampaignContentItemSchema],
+  })
+  campaignContent: CampaignContentItem[];
 
-    @Prop()
-    campaignName: string;
+  @Prop()
+  campaignName: string;
 
-    @Prop({required: true, default: 'payment'})
-    paymentType: string;
+  @Prop({ required: true, default: 'payment' })
+  paymentType: string;
 
-    @Prop({required: true, default: 'wait'})
-    paymentStatus: string;
+  @Prop({ required: true, default: 'wait' })
+  paymentStatus: string;
 
-    @Prop({required: true})
-    statusCampaign: string;
+  @Prop({ required: true })
+  statusCampaign: string;
 
-    @Prop({required: true})
-    campaignPrice: number;
+  @Prop({ required: true })
+  campaignPrice: number;
 
-    @Prop({default: 'wait'})
-    verifyCampaign: string;
+  @Prop({ default: 'wait' })
+  verifyCampaign: string;
 
-    @Prop({required: false, default: ''})
-    replacementsNotes: string;
+  @Prop({ required: false, default: '' })
+  replacementsNotes: string;
 
-    @Prop({required: false, default: 0})
-    partialRefund: number;
+  @Prop({ required: false, default: 0 })
+  partialRefund: number;
 
-    //TODO: заменить поле на массив использованных соц сетей 
-    @Prop({required: true})
-    socialMedia: string;
+  //TODO: заменить поле на массив использованных соц сетей
+  @Prop({ required: true })
+  socialMedia: string;
 
-    @Prop({required: false, default: false})
-    isCpmAndResultHidden: boolean;
+  @Prop({ required: false, default: false })
+  isCpmAndResultHidden: boolean;
 
-    @Prop({required: false, default: false})
-    isPriceHidden: boolean;
-    
-    @Prop({required: false, default: false})
-    isCopy: boolean;
+  @Prop({ required: false, default: false })
+  isPriceHidden: boolean;
 
-    @Prop({required: false, default: `${process.env.SERVER_CLIENT}`})
-    shareLink: string;
+  @Prop({ required: false, default: false })
+  isCopy: boolean;
 
-    @Prop({required: false, default: []})
-    hiddenColumns: string[];
-    
-    readonly createdAt?: Date;
-    readonly updatedAt?: Date;
+  @Prop({ required: false, default: `${process.env.SERVER_CLIENT}` })
+  shareLink: string;
+
+  @Prop({ required: false, default: [] })
+  hiddenColumns: string[];
+
+  readonly createdAt?: Date;
+  readonly updatedAt?: Date;
 }
 
 export const PromosSchema = SchemaFactory.createForClass(Promos);

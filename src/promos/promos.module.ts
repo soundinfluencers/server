@@ -4,13 +4,13 @@ import { PromosController } from './promos.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Promos, PromosSchema } from './schemas/promo.schema';
 import { Client, ClientSchema } from 'src/auth/schemas/client.schema';
-import {
-  Influencer,
-  InfluencerSchema,
-} from 'src/auth/schemas/influencer.schema';
+import { Influencer, InfluencerSchema } from 'src/auth/schemas/influencer.schema';
 import { Offers, OffersSchema } from './schemas/offers.schema';
-import {PromosCopies, PromosCopiesSchema} from "../admin/schemas/promos-copies.schema";
-import {ProposalCampaign, ProposalCampaignSchema} from "../proposal-system/schemas/proposal-campaign.schema";
+import { PromosCopies, PromosCopiesSchema } from '../admin/schemas/promos-copies.schema';
+import {
+  ProposalCampaign,
+  ProposalCampaignSchema,
+} from '../proposal-system/schemas/proposal-campaign.schema';
 
 @Module({
   imports: [

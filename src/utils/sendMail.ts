@@ -1,21 +1,21 @@
-const nodemailer = require("nodemailer");
-require("dotenv").config();
+const nodemailer = require('nodemailer');
+require('dotenv').config();
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.zoho.eu",
+  host: 'smtp.zoho.eu',
   port: 465,
   secure: true,
   auth: {
     user: process.env.EMAIL_USER,
     // user: 'nazarkozynets030606@zohomail.eu',
-     pass: process.env.EMAIL_PASS,
+    pass: process.env.EMAIL_PASS,
     // pass: 'NazKoz030606_'
   },
 });
 
-const sendMail = async (to = "", title = "", text = "", type = "", path = "") => {
+const sendMail = async (to = '', title = '', text = '', type = '', path = '') => {
   const mailOptions = (() => {
-    if (type === "pdf") {
+    if (type === 'pdf') {
       return {
         from: process.env.EMAIL_USER,
         to: to,
@@ -23,12 +23,12 @@ const sendMail = async (to = "", title = "", text = "", type = "", path = "") =>
         html: text,
         attachments: [
           {
-              filename: 'invoice.pdf',
-              path
-          }
-      ]
+            filename: 'invoice.pdf',
+            path,
+          },
+        ],
       };
-    } else if (type === "html") {
+    } else if (type === 'html') {
       return {
         from: process.env.EMAIL_USER,
         to: to,
@@ -46,15 +46,18 @@ const sendMail = async (to = "", title = "", text = "", type = "", path = "") =>
   })();
 
   transporter.sendMail(mailOptions, (error, info) => {
-    const timestamp = new Date().toLocaleString(); 
+    const timestamp = new Date().toLocaleString();
     if (error) {
-      console.error("Ошибка при отправке письма на почту " + mailOptions.to + ' ', error, timestamp);
+      console.error(
+        'Ошибка при отправке письма на почту ' + mailOptions.to + ' ',
+        error,
+        timestamp,
+      );
     } else {
-      console.log("Письмо успешно отправлено на почту " + mailOptions.to + ' ');
-      console.log("ID сообщения:", info.messageId, timestamp);
+      console.log('Письмо успешно отправлено на почту ' + mailOptions.to + ' ');
+      console.log('ID сообщения:', info.messageId, timestamp);
     }
   });
-
 };
 
 export default sendMail;

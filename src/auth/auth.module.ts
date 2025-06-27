@@ -4,14 +4,8 @@ import { AuthController } from './auth.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Client, ClientSchema } from './schemas/client.schema';
 import { Influencer, InfluencerSchema } from './schemas/influencer.schema';
-import {
-  VerifyInfluencer,
-  VerifyInfluencerSchema,
-} from './schemas/verifyInfluencer.schema';
-import {
-  VerifyClient,
-  VerifyClientSchema,
-} from './schemas/verifyClient.schema';
+import { VerifyInfluencer, VerifyInfluencerSchema } from './schemas/verifyInfluencer.schema';
+import { VerifyClient, VerifyClientSchema } from './schemas/verifyClient.schema';
 
 @Module({
   imports: [

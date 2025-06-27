@@ -9,7 +9,7 @@ export class CreateInvoiceDtoDto {
 
   @ApiProperty({ required: true })
   contactName: string;
-  
+
   @ApiProperty({ required: true })
   contactLastName: string;
 

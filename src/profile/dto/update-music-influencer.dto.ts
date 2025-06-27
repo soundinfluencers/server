@@ -6,6 +6,4 @@ export class UpdateMusicStyleInfluencerDto {
 
   @ApiProperty({ required: true })
   musicStyle: string;
-
-  
 }

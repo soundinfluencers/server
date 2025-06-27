@@ -3,11 +3,8 @@ import { ProfileService } from './profile.service';
 import { ProfileController } from './profile.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Client, ClientSchema } from 'src/auth/schemas/client.schema';
-import {
-  Influencer,
-  InfluencerSchema,
-} from 'src/auth/schemas/influencer.schema';
-import {AppGateway} from "../websocket/app.gateway";
+import { Influencer, InfluencerSchema } from 'src/auth/schemas/influencer.schema';
+import { AppGateway } from '../websocket/app.gateway';
 
 @Module({
   imports: [
