@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CreatePromosDto } from './dto/create-promo.dto';
 import { CreatePromosEstimateDto } from './dto/create-promo-estimate.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -21,6 +21,8 @@ mongoose.Promise = global.Promise;
 
 @Injectable()
 export class PromosService {
+  private readonly logger = new Logger();
+
   constructor(
     @InjectModel(Promos.name)
     private promosModel: mongoose.Model<Promos>,
@@ -387,8 +389,10 @@ ${emailVideoContent()}
                     );
 
                     if (res.data.code !== 200) {
-                      console.error('Error saving influencer history verify campaign');
-                      throw new Error('Error saving influencer history');
+                      this.logger.error(
+                        `Error saving influencer history (username: ${account.instagramUsername} influencerId: ${influencer._id}) verify campaign ${checkCampaign.campaignName}`,
+                      );
+                      throw new Error('Error saving influencer history verify campaign');
                     }
                   }
 
@@ -471,10 +475,13 @@ ${influencerSelectedCampaignContent
         };
       }
     } catch (err) {
-      console.error('Error verifying campaign:', err, new Date().toLocaleString());
+      this.logger.error(
+        `Failed to verify campaign: ${err}`,
+        err instanceof Error ? err.stack : undefined,
+      );
       return {
         code: 500,
-        message: 'error verifying campaign',
+        message: 'Error verifying campaign',
       };
     }
   }
