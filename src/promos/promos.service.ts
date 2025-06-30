@@ -2106,8 +2106,6 @@ ${influencerSelectedCampaignContent
         };
       }
 
-      console.log(campaign, 'campaign');
-
       const mappedInfluencers = campaign.selectInfluencers.map((item) => {
         return {
           ...item,

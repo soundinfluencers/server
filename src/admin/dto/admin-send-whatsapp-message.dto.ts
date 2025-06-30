@@ -6,4 +6,13 @@ export class AdminSendWhatsappMessageDto {
 
   @ApiProperty({ required: true })
   message: string;
+
+  @ApiProperty({ required: true })
+  socketId: string;
+
+  @ApiProperty({ required: true })
+  networkUsername: string;
+
+  @ApiProperty({ required: true })
+  campaignId: string;
 }

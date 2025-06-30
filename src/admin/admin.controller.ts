@@ -201,6 +201,11 @@ export class AdminController {
     return this.adminService.adminSendWhatsAppMessageToEachInfluencer(campaignId, socketId);
   }
 
+  @Put('campaign/convert-to-multipromo/:campaignId')
+  adminConvertCampaignToMultipromo(@Param('campaignId') campaignId: string) {
+    return this.adminService.adminConvertCampaignToMultipromo(campaignId);
+  }
+
   @Post('campaign/send-mail-to-influencer')
   adminSendMailToInfluencer(@Body() data: AdminSendMailToInfluencerDto) {
     return this.adminService.adminSendMailToInfluencer(data);

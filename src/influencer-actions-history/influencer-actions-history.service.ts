@@ -88,7 +88,7 @@ export class InfluencerActionsHistoryService {
         } catch (e) {
           return {
             code: 500,
-            message: e.message,
+            message: e,
           };
         }
       }

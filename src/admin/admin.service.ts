@@ -1726,14 +1726,34 @@ export class AdminService {
       });
 
       if (res.status === 200) {
+        this.appGateway.sendWhatsappMessageStatusUpdate(data.socketId, {
+          phone: phoneNumber,
+          status: 'sent',
+          usernames: [data.networkUsername],
+          campaignId: data.campaignId,
+          date: new Date().toLocaleString(),
+        });
         return {
           code: 200,
           message: 'Message sent successfully',
         };
+      } else {
+        this.appGateway.sendWhatsappMessageStatusUpdate(data.socketId, {
+          phone: phoneNumber,
+          status: 'error',
+          usernames: [data.networkUsername],
+          campaignId: data.campaignId,
+          date: new Date().toLocaleString(),
+        });
+        this.logger.error(`Failed to send WhatsApp message:`);
+        return {
+          code: 500,
+          message: 'Error occurred',
+        };
       }
     } catch (err) {
       this.logger.error(
-        `Failed to send WhatsApp message:"`,
+        `Failed to send WhatsApp message:`,
         err instanceof Error ? err.stack : undefined,
       );
       return {
@@ -1904,6 +1924,8 @@ SoundInfluencers Team
             phone: flattened[i].phone,
             status: 'sent',
             usernames: flattened[i].usernames,
+            campaignId: campaignId,
+            date: new Date().toLocaleString(),
           });
         } catch (err: any) {
           errorsList.push(
@@ -1914,6 +1936,8 @@ SoundInfluencers Team
             status: 'error',
             error: err.message,
             usernames: flattened[i].usernames,
+            campaignId: campaignId,
+            date: new Date().toLocaleString(),
           });
         }
       }
@@ -1932,6 +1956,37 @@ SoundInfluencers Team
         code: 500,
         message: 'Internal server error',
         error: err.message || null,
+      };
+    }
+  }
+
+  async adminConvertCampaignToMultipromo(campaignId: string) {
+    try {
+      const updated = await this.promosModel.findByIdAndUpdate(
+        campaignId,
+        {
+          $set: {
+            socialMedia: 'multipromo',
+            shareLink: `${process.env.SERVER_CLIENT}/promo-share/${campaignId}/multipromo`,
+          },
+        },
+        { new: true },
+      );
+
+      if (!updated) {
+        return { code: 404, message: 'Campaign not found' };
+      }
+
+      return {
+        code: 200,
+        message: 'Campaign converted to multipromo',
+      };
+    } catch (err) {
+      this.logger.error(`Failed to convert campaign ${campaignId}`, err);
+      return {
+        code: 500,
+        message: 'Internal server error',
+        error: err?.message || null,
       };
     }
   }
