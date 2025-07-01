@@ -1430,12 +1430,9 @@ export class AdminService {
                   publicPrice: newInfluencer.publicPrice ?? '0',
                 });
               } else {
-                console.error(
-                  'Error adding influencer admin update campaign',
-                  campaignName,
-                  newInfluencer.socialMediaUsername,
+                throw new Error(
+                  `Error adding influencer ${newInfluencer.socialMediaUsername} (${newInfluencer.socialMedia}) to campaign ${campaignName}`,
                 );
-                throw new Error('Error adding influencer');
               }
             }
           }),
@@ -1508,7 +1505,10 @@ export class AdminService {
         message: 'Campaign updated',
       };
     } catch (err) {
-      console.error('Error saving campaign:', err);
+      this.logger.error(
+        `Error saving campaign: ${err}`,
+        err instanceof Error ? err.stack : undefined,
+      );
       return {
         code: 500,
         message: err.message || 'Internal server error',

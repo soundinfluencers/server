@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import mongoose, { Model } from 'mongoose';
 import { InfluencerActionsHistory } from './schemas/influencer-actions-history.schema';
@@ -8,6 +8,8 @@ import { UpsertInvoiceHistoryDto } from './dto/upsert-invoice-history.dto';
 
 @Injectable()
 export class InfluencerActionsHistoryService {
+  private readonly logger = new Logger();
+
   constructor(
     @InjectModel(InfluencerActionsHistory.name)
     private influencerActionsHistoryModel: Model<InfluencerActionsHistory>,
@@ -16,130 +18,120 @@ export class InfluencerActionsHistoryService {
   ) {}
 
   async upsertInfluencerCampaignActionsHistory(data: UpsertCampaignHistoryDto) {
-    let { influencerId, campaignId, campaignName, updatedCampaignAction } = data;
+    const { influencerId, campaignId, campaignName, updatedCampaignAction } = data;
 
-    const { email, balance } = await this.influencerModel
+    const influencer = await this.influencerModel
       .findById(new mongoose.Types.ObjectId(influencerId))
       .select('email balance');
 
-    if (!email || !balance) {
+    if (!influencer) {
       return {
         code: 400,
         message: 'Influencer not found',
       };
     }
 
-    if (updatedCampaignAction) {
-      const { actionNumber, networkUsername, rewardForInfluencer, socialMedia } =
-        updatedCampaignAction;
+    const { email, balance } = influencer;
 
-      if (
-        !campaignId ||
-        !campaignName ||
-        actionNumber === null ||
-        actionNumber === undefined ||
-        !networkUsername ||
-        rewardForInfluencer === null ||
-        rewardForInfluencer === undefined
-      ) {
-        console.error(`SAVING INFLUENCER HISTORY INVALID REQ:
-                 \ncampaignId: ${campaignId}
-                 \ncampaignName: ${campaignName}
-                 \nactionNumber: ${actionNumber}
-                 \nnetworkUsername: ${networkUsername}
-                 \nrewardForInfluencer: ${rewardForInfluencer}`);
-        return {
-          code: 400,
-          message: 'Invalid request',
-        };
-      }
-
-      let influencerActionsHistory = await this.influencerActionsHistoryModel.findOne({
-        influencerId: new mongoose.Types.ObjectId(influencerId),
-      });
-
-      if (!influencerActionsHistory) {
-        try {
-          await this.influencerActionsHistoryModel.create({
-            influencerId,
-            campaigns: [
-              {
-                campaignId: campaignId,
-                campaignName: campaignName,
-                actions: [
-                  {
-                    actionNumber,
-                    networkUsername,
-                    rewardForInfluencer,
-                    socialMedia,
-                    currentBalance: parseInt(balance),
-                    date: new Date(),
-                  },
-                ],
-              },
-            ],
-            influencerEmail: email,
-          });
-
-          return {
-            code: 200,
-            message: 'Influencer actions history created',
-          };
-        } catch (e) {
-          return {
-            code: 500,
-            message: e,
-          };
-        }
-      }
-
-      const campaign = influencerActionsHistory.campaigns.find((c) => c.campaignId === campaignId);
-
-      if (!campaign) {
-        influencerActionsHistory.campaigns.push({
-          campaignId,
-          campaignName,
-          actions: [
-            {
-              actionNumber,
-              networkUsername,
-              rewardForInfluencer,
-              socialMedia,
-              currentBalance: parseInt(balance),
-              date: new Date(),
-            },
-          ],
-        });
-      } else {
-        campaign.actions.push({
-          actionNumber,
-          networkUsername,
-          rewardForInfluencer,
-          socialMedia,
-          currentBalance:
-            actionNumber === 3 ? parseInt(balance) + rewardForInfluencer : parseInt(balance),
-          date: new Date(),
-        });
-      }
-
-      try {
-        await influencerActionsHistory.save();
-        return {
-          code: 200,
-          message: 'Influencer actions history updated',
-        };
-      } catch (e) {
-        return {
-          code: 500,
-          message: e.message,
-        };
-      }
-    } else {
+    if (!updatedCampaignAction) {
       return {
         code: 400,
         message: 'Invalid request',
       };
     }
+
+    const { actionNumber, networkUsername, rewardForInfluencer, socialMedia } =
+      updatedCampaignAction;
+
+    if (
+      !campaignId ||
+      !campaignName ||
+      actionNumber === null ||
+      actionNumber === undefined ||
+      !networkUsername ||
+      rewardForInfluencer === null ||
+      rewardForInfluencer === undefined
+    ) {
+      this.logger.error(
+        `SAVING INFLUENCER HISTORY INVALID REQ:
+       \ncampaignId: ${campaignId}
+       \ncampaignName: ${campaignName}
+       \nactionNumber: ${actionNumber}
+       \nnetworkUsername: ${networkUsername}
+       \nrewardForInfluencer: ${rewardForInfluencer}`,
+        new Error().stack,
+      );
+      return {
+        code: 400,
+        message: 'Invalid request',
+      };
+    }
+
+    const action = {
+      actionNumber,
+      networkUsername,
+      rewardForInfluencer,
+      socialMedia,
+      currentBalance:
+        actionNumber === 3 ? parseInt(balance) + rewardForInfluencer : parseInt(balance),
+      date: new Date(),
+    };
+
+    const updateResult = await this.influencerActionsHistoryModel.findOneAndUpdate(
+      {
+        influencerId: new mongoose.Types.ObjectId(influencerId),
+        'campaigns.campaignId': campaignId,
+      },
+      {
+        $push: {
+          'campaigns.$.actions': action,
+        },
+      },
+      {
+        new: true,
+      },
+    );
+
+    if (updateResult) {
+      return {
+        code: 200,
+        message: 'Influencer actions history updated (existing campaign)',
+      };
+    }
+
+    const campaignPushResult = await this.influencerActionsHistoryModel.findOneAndUpdate(
+      {
+        influencerId: new mongoose.Types.ObjectId(influencerId),
+      },
+      {
+        $push: {
+          campaigns: {
+            campaignId,
+            campaignName,
+            actions: [action],
+          },
+        },
+        $setOnInsert: {
+          influencerEmail: email,
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+      },
+    );
+
+    if (campaignPushResult) {
+      return {
+        code: 200,
+        message: 'Influencer actions history updated (new campaign or document)',
+      };
+    }
+
+    return {
+      code: 500,
+      message: 'Failed to update influencer actions history',
+    };
   }
 
   async upsertInfluencerInvoiceHistory(data: UpsertInvoiceHistoryDto) {
