@@ -13,17 +13,18 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { PaymentModule } from './payment/payment.module';
 import { AdminModule } from './admin/admin.module';
-import { AppGateway, WebsocketModule } from './websocket/app.gateway';
+import { WebsocketModule } from './websocket/app.gateway';
 import { InfluencerActionsHistoryModule } from './influencer-actions-history/influencer-actions-history.module';
 import { ProposalSystemModule } from './proposal-system/proposal-system.module';
 import { MultiPromoModule } from './multipromos/multipromo.module';
 import { HealthController } from './health/health.controller';
+import { OffersRemakeModule } from './offers-remake/offers-remake.module';
 
 @Module({
   imports: [
     MongooseModule.forRoot(
-      `mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/music`,
-      // 'mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/dev_db',
+      // `mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/music`,
+      'mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/dev_db',
     ),
     AuthModule,
     ForgotModule,
@@ -38,6 +39,7 @@ import { HealthController } from './health/health.controller';
     ProposalSystemModule,
     MultiPromoModule,
     WebsocketModule,
+    OffersRemakeModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',

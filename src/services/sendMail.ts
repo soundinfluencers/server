@@ -9,7 +9,7 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     // user: 'nazarkozynets030606@zohomail.eu',
     pass: process.env.EMAIL_PASS,
-    // pass: 'NazKoz030606_'
+    // pass: 'NazKoz030606_',
   },
 });
 

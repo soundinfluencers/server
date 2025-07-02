@@ -6,7 +6,7 @@ import mongoose from 'mongoose';
 import { Payment } from './schemas/payment.entity';
 import { Client } from 'src/auth/schemas/client.schema';
 import { InvoiceDetails } from 'src/invoice/schemas/invoice-details.schema';
-import sendMail from 'src/utils/sendMail';
+import sendMail from 'src/services/sendMail';
 import { log } from 'console';
 import { Response } from 'express';
 const gocardless = require('gocardless-nodejs');

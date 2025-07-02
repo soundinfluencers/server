@@ -6,7 +6,7 @@ import { Influencer } from 'src/auth/schemas/influencer.schema';
 import { CreateInvoiceDtoDto } from './dto/create-invoice.dto';
 import { Invoices } from './schemas/invoices.schema';
 import { SaveInvoiceData } from './schemas/invoice-save.schema';
-import sendMail from 'src/utils/sendMail';
+import sendMail from 'src/services/sendMail';
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 
 const fs = require('fs');

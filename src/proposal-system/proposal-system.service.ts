@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 import { Influencer } from '../auth/schemas/influencer.schema';
 import { ProposalCampaign } from './schemas/proposal-campaign.schema';
 import { SaveProposalCampaignDto } from './dto/save-proposal-campaign.dto';
-import sendMail from '../utils/sendMail';
+import sendMail from '../services/sendMail';
 
 @Injectable()
 export class ProposalSystemService {
@@ -164,7 +164,7 @@ export class ProposalSystemService {
     }
   }
 
-  async getAllProposalCampaigns() {
+  async getAllProposalCampaigns(): Promise<any> {
     try {
       const proposalCampaigns = await this.proposalCampaignModel.find().lean().exec();
 
@@ -230,7 +230,7 @@ export class ProposalSystemService {
     }
   }
 
-  async getProposalCampaignById(campaignId: string) {
+  async getProposalCampaignById(campaignId: string): Promise<any> {
     if (!campaignId) {
       return {
         status: 400,

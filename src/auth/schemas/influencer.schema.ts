@@ -1,5 +1,5 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 interface typesInstagram {
   musicStyle: string;
@@ -45,6 +45,9 @@ const typesInstagramApi = {
   timestamps: true,
 })
 export class Influencer extends Document {
+  @Prop({ type: Types.ObjectId })
+  _id: Types.ObjectId;
+
   @Prop({ default: 'influencer' })
   role: string;
 

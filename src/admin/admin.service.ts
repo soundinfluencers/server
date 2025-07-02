@@ -12,7 +12,7 @@ import { Invoices } from '../invoice/schemas/invoices.schema';
 import { AdminUpdateInfluencerInvoiceDto } from './dto/admin-update-influencer-invoice.dto';
 import { Payment } from '../payment/schemas/payment.entity';
 import { AdminUpdateClientPayment } from './dto/admin-update-client-payment.update';
-import sendMail from '../utils/sendMail';
+import sendMail from '../services/sendMail';
 import { AdminUpdateCampaignDto } from './dto/admin-update-promo.dto';
 import { AdminSendWhatsappMessageDto } from './dto/admin-send-whatsapp-message.dto';
 import { OffersTemp } from './schemas/offers-temp.schema';

@@ -8,7 +8,7 @@ import { Types } from 'mongoose';
 import { Influencer } from './schemas/influencer.schema';
 import { LoginDto } from './dto/login.dto';
 import { VerifyDto } from './dto/verify.dto';
-import sendMail from '../utils/sendMail';
+import sendMail from '../services/sendMail';
 import { VerifyInfluencer } from './schemas/verifyInfluencer.schema';
 import { VerifyClient } from './schemas/verifyClient.schema';
 

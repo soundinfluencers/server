@@ -1,13 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CreatePromosDto } from './dto/create-promo.dto';
-import { CreatePromosEstimateDto } from './dto/create-promo-estimate.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Promos } from './schemas/promo.schema';
 import mongoose, { Types } from 'mongoose';
 import { Client } from 'src/auth/schemas/client.schema';
 import { Influencer } from 'src/auth/schemas/influencer.schema';
 import { Offers } from './schemas/offers.schema';
-import sendMail from 'src/utils/sendMail';
+import sendMail from 'src/services/sendMail';
 import { DropboxService } from 'src/services/Dropbox.service';
 import { PromosCopies } from '../admin/schemas/promos-copies.schema';
 import axios from 'axios';
