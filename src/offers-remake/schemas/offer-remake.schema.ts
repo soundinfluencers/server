@@ -52,10 +52,10 @@ export class OfferRemake {
   genre?: string | null;
 
   @Prop({ required: false, default: null })
-  combinedFollowers?: number | null;
+  combinedFollowers?: string | null;
 
   @Prop({ required: false, default: null })
-  networksAmount?: string | null;
+  networksAmount?: number | null;
 
   @Prop({ required: false, default: null })
   storyAndPostDetails?: string | null;

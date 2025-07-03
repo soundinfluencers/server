@@ -55,9 +55,7 @@ export class OfferDto {
   genre?: string | null;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsNumber({}, { message: 'combinedFollowers must be a number' })
-  combinedFollowers?: number | null;
+  combinedFollowers?: string | null;
 
   @IsOptional()
   @IsString({ message: 'networksAmount must be a string' })

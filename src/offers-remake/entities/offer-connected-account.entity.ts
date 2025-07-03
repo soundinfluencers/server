@@ -15,8 +15,9 @@ export class OfferConnectedAccount {
 
   @Prop({
     required: true,
+    type: Types.ObjectId,
   })
-  socialMediaUsername: string;
+  accountId: Types.ObjectId;
 }
 
 export const OfferConnectedAccountSchema = SchemaFactory.createForClass(OfferConnectedAccount);
