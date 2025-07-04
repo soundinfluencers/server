@@ -2,7 +2,6 @@ import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 interface typesInstagram {
-  _id: { type: Types.ObjectId; auto: true };
   musicStyle: string;
   musicSubStyles: string[] | null;
   musicStyleOther: string[] | null;
@@ -20,7 +19,6 @@ interface typesInstagram {
 }
 
 const typesInstagramApi = {
-  _id: { type: Types.ObjectId, auto: true },
   musicStyle: String,
   musicSubStyles: [String] || null,
   musicStyleOther: [String] || null,
@@ -47,9 +45,6 @@ const typesInstagramApi = {
   timestamps: true,
 })
 export class Influencer extends Document {
-  @Prop({ type: Types.ObjectId })
-  _id: Types.ObjectId;
-
   @Prop({ default: 'influencer' })
   role: string;
 

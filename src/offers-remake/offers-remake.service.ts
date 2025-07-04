@@ -166,11 +166,23 @@ export class OffersRemakeService {
   }> {
     if (data.every((item) => item.socialMedia !== 'press' && !item.genre)) {
       return {
-        code: 500,
+        code: 404,
         createdCount: 0,
         failedCount: 1,
         created: [],
         failed: [{ index: 0, error: 'Only press offers can be created without social media!' }],
+      };
+    }
+
+    // Проверка на одинаковую соц сеть
+    const socialMedia = data[0]?.socialMedia;
+    if (!socialMedia || data.some((dto) => dto.socialMedia !== socialMedia)) {
+      return {
+        code: 404,
+        createdCount: 0,
+        failedCount: 1,
+        created: [],
+        failed: [{ index: 0, error: 'All offers must have the same social media type' }],
       };
     }
 
@@ -179,12 +191,6 @@ export class OffersRemakeService {
     data.forEach((offerDto) => {
       offerDto.connectedAccounts.forEach((username) => allUsernames.add(username.trim()));
     });
-
-    // Проверка на одинаковую соц сеть
-    const socialMedia = data[0]?.socialMedia;
-    if (!socialMedia || data.some((dto) => dto.socialMedia !== socialMedia)) {
-      throw new Error('All offers must have the same social media type');
-    }
 
     // Выполнение запроса ко всем уникальным usernames
     const influencers = await this.influencerModel
@@ -280,20 +286,35 @@ export class OffersRemakeService {
             index: index,
             error: `No valid connected accounts found`,
           });
-          throw new Error(`Connected accounts is empty array ${offerDto.title}`);
+          throw new Error();
         }
 
-        const offer = {
-          title: offerDto.title,
-          socialMedia: offerDto.socialMedia,
-          connectedAccounts: connectedAccounts,
-          price: offerDto.price,
-          genre: offerDto.genre,
-          combinedFollowers: offerDto.socialMedia !== 'press' ? offerDto.title : null,
-          networksAmount: connectedAccounts.length || null,
-          storyAndPostDetails: offerDto.storyAndPostDetails,
-          _id: new Types.ObjectId(),
-        };
+        let offer: OfferRemake | null = null;
+        try {
+          offer = {
+            title: this.replaceFollowersInTitle(offerDto.title),
+            socialMedia: offerDto.socialMedia,
+            connectedAccounts: connectedAccounts,
+            price: offerDto.price,
+            genre: offerDto.genre,
+            combinedFollowers:
+              offerDto.socialMedia !== 'press' ? this.getFollowersNumberPart(offerDto.title) : null,
+            networksAmount: connectedAccounts.length || null,
+            storyAndPostDetails: offerDto.storyAndPostDetails,
+            _id: new Types.ObjectId(),
+          };
+        } catch (err) {
+          this.logger.error(
+            `Error initializing Offer: ${err}`,
+            err instanceof Error ? err.stack : new Error().stack,
+          );
+          failed.push({
+            title: offerDto.title,
+            index: index,
+            error: `Error initializing Offer`,
+          });
+          throw new Error();
+        }
 
         return await this.createOffer(offer);
       }),
@@ -315,4 +336,25 @@ export class OffersRemakeService {
       failed,
     };
   }
+
+  getFollowersNumberPart = (title: string): string => {
+    const match = title.match(/\b(\d+(\.\d+)?)M\b/);
+    if (!match) {
+      throw new Error(`Error getting followers from title: ${title}`);
+    }
+
+    const num = parseFloat(match[1]);
+
+    if (Number.isInteger(num)) {
+      return `${num}M`;
+    } else {
+      const inThousands = Math.round(num * 1000);
+      return `${inThousands}K`;
+    }
+  };
+
+  replaceFollowersInTitle = (title: string): string => {
+    const updatedNumber = this.getFollowersNumberPart(title);
+    return title.replace(/\b\d+(\.\d+)?M\b/, updatedNumber);
+  };
 }
