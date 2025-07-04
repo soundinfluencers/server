@@ -2342,20 +2342,36 @@ ${influencerSelectedCampaignContent
                         {
                           $match: {
                             $expr: {
-                              $and: [
-                                {
-                                  $eq: [
-                                    { $trim: { input: `$${platform}.instagramUsername` } },
-                                    normalizedUsername,
+                              $let: {
+                                vars: {
+                                  cleanFollowers: {
+                                    $replaceAll: {
+                                      input: {
+                                        $replaceAll: {
+                                          input: `$${platform}.followersNumber`,
+                                          find: '.',
+                                          replacement: '',
+                                        },
+                                      },
+                                      find: ',',
+                                      replacement: '',
+                                    },
+                                  },
+                                },
+                                in: {
+                                  $and: [
+                                    {
+                                      $eq: [
+                                        { $trim: { input: `$${platform}.instagramUsername` } },
+                                        normalizedUsername,
+                                      ],
+                                    },
+                                    {
+                                      $eq: [{ $toInt: '$$cleanFollowers' }, page.followersNumber],
+                                    },
                                   ],
                                 },
-                                {
-                                  $eq: [
-                                    { $toInt: `$${platform}.followersNumber` },
-                                    page.followersNumber,
-                                  ],
-                                },
-                              ],
+                              },
                             },
                           },
                         },
@@ -2547,8 +2563,6 @@ ${influencerSelectedCampaignContent
           campaign.campaignName =
             campaign.campaignName ||
             `F: ${Math.ceil(campaign.totalFollowers)} D: ${new Date().toISOString().split('T')[0]}`;
-
-          console.log(campaign, 'campaign');
 
           await axios.put(`${process.env.SERVER}/proposal-system/save-proposal-campaign`, campaign);
 

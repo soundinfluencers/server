@@ -1654,7 +1654,7 @@ export class AdminService {
 
       const influencerObj = {
         _id: new Types.ObjectId(),
-        influencerId: new Types.ObjectId(influencer._id),
+        influencerId: influencer._id,
         socialMediaUsername: socialMediaAccount.instagramUsername,
         followersNumber: socialMediaAccount.followersNumber ?? 0,
         price: socialMediaAccount.price,

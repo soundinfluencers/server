@@ -164,7 +164,7 @@ export class ProposalSystemService {
     }
   }
 
-  async getAllProposalCampaigns() {
+  async getAllProposalCampaigns(): Promise<any> {
     try {
       const proposalCampaigns = await this.proposalCampaignModel.find().lean().exec();
 
@@ -230,7 +230,7 @@ export class ProposalSystemService {
     }
   }
 
-  async getProposalCampaignById(campaignId: string) {
+  async getProposalCampaignById(campaignId: string): Promise<any> {
     if (!campaignId) {
       return {
         status: 400,
