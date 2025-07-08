@@ -5,7 +5,6 @@ import { Promos } from './schemas/promo.schema';
 import mongoose, { Types } from 'mongoose';
 import { Client } from 'src/auth/schemas/client.schema';
 import { Influencer } from 'src/auth/schemas/influencer.schema';
-import { Offers } from './schemas/offers.schema';
 import sendMail from 'src/services/sendMail';
 import { DropboxService } from 'src/services/Dropbox.service';
 import { PromosCopies } from '../admin/schemas/promos-copies.schema';
@@ -29,8 +28,6 @@ export class PromosService {
     private clientModel: mongoose.Model<Client>,
     @InjectModel(Influencer.name)
     private influencerModel: mongoose.Model<Influencer>,
-    @InjectModel(Offers.name)
-    private offersModel: mongoose.Model<Offers>,
     @InjectModel(PromosCopies.name)
     private promosCopiesModel: mongoose.Model<PromosCopies>,
   ) {}
@@ -488,163 +485,6 @@ ${influencerSelectedCampaignContent
         message: 'Error verifying campaign',
       };
     }
-  }
-
-  async getOffers(socialMedia: string) {
-    try {
-      const offers = await this.offersModel.find({ socialMedia }).lean();
-
-      const offersWithAvatars = await Promise.all(
-        offers.map(async (offer: any) => {
-          const connectInfluencerWithAvatars = await Promise.all(
-            (offer.connectInfluencer || []).map(async (influencer: any) => {
-              if (!influencer.influencerId || !influencer.instagramUsername) {
-                return influencer;
-              }
-
-              try {
-                const avatar = await this.getInfluencerAvatarById(
-                  influencer.influencerId,
-                  influencer.instagramUsername,
-                );
-
-                return {
-                  ...influencer,
-                  avatar,
-                };
-              } catch (error) {
-                return influencer;
-              }
-            }),
-          );
-
-          const musicStylesWithAvatars = await Promise.all(
-            (offer.musicStyles || []).map(async (style: any) => {
-              const connectInfluencersWithAvatars = await Promise.all(
-                (style.connectInfluencer || []).map(async (influencer: any) => {
-                  if (!influencer.influencerId || !influencer.instagramUsername) {
-                    return influencer;
-                  }
-
-                  try {
-                    const avatar = await this.getInfluencerAvatarById(
-                      influencer.influencerId,
-                      influencer.instagramUsername,
-                    );
-
-                    return {
-                      ...influencer,
-                      avatar,
-                    };
-                  } catch (error) {
-                    return influencer;
-                  }
-                }),
-              );
-
-              return {
-                ...style,
-                connectInfluencer: connectInfluencersWithAvatars,
-              };
-            }),
-          );
-
-          return {
-            ...offer,
-            connectInfluencer: connectInfluencerWithAvatars,
-            musicStyles: musicStylesWithAvatars,
-          };
-        }),
-      );
-
-      return {
-        code: 200,
-        offers: offersWithAvatars,
-      };
-    } catch (err) {
-      console.error('Error fetching offers:', err);
-
-      return {
-        code: 500,
-        message: err,
-      };
-    }
-  }
-
-  async getOffersForCreateCampaignPage(socialMedia: string) {
-    try {
-      const offers = await this.offersModel.find({ socialMedia }).lean();
-
-      const processedOffers = await Promise.all(
-        offers.map(async (offer: any) => {
-          let processedOffer = {
-            id: offer.id,
-            followers: offer.followers,
-            network: offer.network,
-            story: offer.story,
-            socialMedia: offer.socialMedia,
-            musicStylesAccounts: [],
-          };
-
-          if (offer.musicStyles && offer.musicStyles.length > 0) {
-            processedOffer.musicStylesAccounts = offer.musicStyles.map((style) => {
-              return {
-                genre: style.genres[0],
-                price: style.price,
-                accounts: style.connectInfluencer.map((item) => {
-                  return {
-                    instagramUsername: item.instagramUsername,
-                    influencerId: item.influencerId || (item as any)._id,
-                  };
-                }),
-              };
-            });
-          }
-
-          if (offer.connectInfluencer && offer.connectInfluencer.length > 0) {
-            processedOffer.musicStylesAccounts.push({
-              genre: 'Techno (Melodic)',
-              price: offer.price,
-              accounts: offer.connectInfluencer.map((item) => {
-                return {
-                  instagramUsername: item.instagramUsername,
-                  influencerId: item.influencerId || (item as any)._id,
-                };
-              }),
-            });
-          }
-
-          return processedOffer;
-        }),
-      );
-
-      return {
-        code: 200,
-        offers: processedOffers,
-      };
-    } catch (err) {
-      console.error('Error fetching offers:', err);
-
-      return {
-        code: 500,
-        message: err,
-      };
-    }
-  }
-
-  async getInfluencerAvatarById(influencerId: string, instagramName: string) {
-    const influencer = await this.influencerModel.findOne({
-      _id: new mongoose.Types.ObjectId(influencerId),
-    });
-
-    if (!influencer) {
-      throw new Error(`Influencer with ID ${influencerId} not found`);
-    }
-
-    const instagramAccount = influencer.instagram?.find(
-      (item) => item.instagramUsername === instagramName,
-    );
-    return instagramAccount?.logo || null;
   }
 
   async checkUploadStatus(fileName: string): Promise<boolean> {

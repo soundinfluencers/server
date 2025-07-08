@@ -9,7 +9,7 @@ import {
 @Schema({
   timestamps: true,
 })
-export class OfferRemake {
+export class Offer {
   @Prop({ required: true })
   title: string;
 
@@ -60,6 +60,12 @@ export class OfferRemake {
   @Prop({ required: false, default: null })
   storyAndPostDetails?: string | null;
 
+  @Prop({ required: false, default: false })
+  isPublished: boolean;
+
+  @Prop({ required: false, default: false })
+  isDeleted: boolean;
+
   @Prop({ type: Types.ObjectId })
   _id: Types.ObjectId;
 
@@ -70,4 +76,4 @@ export class OfferRemake {
   readonly updatedAt?: Date;
 }
 
-export const OfferRemakeSchema = SchemaFactory.createForClass(OfferRemake);
+export const OfferSchema = SchemaFactory.createForClass(Offer);

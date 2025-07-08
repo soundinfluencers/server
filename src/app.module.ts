@@ -18,13 +18,13 @@ import { InfluencerActionsHistoryModule } from './influencer-actions-history/inf
 import { ProposalSystemModule } from './proposal-system/proposal-system.module';
 import { MultiPromoModule } from './multipromos/multipromo.module';
 import { HealthController } from './health/health.controller';
-import { OffersRemakeModule } from './offers-remake/offers-remake.module';
+import { OffersModule } from './offers/offers.module';
 
 @Module({
   imports: [
     MongooseModule.forRoot(
-      // `mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/music`,
-      'mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/dev_db',
+      `mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/music`,
+      // 'mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/dev_db',
     ),
     AuthModule,
     ForgotModule,
@@ -39,7 +39,7 @@ import { OffersRemakeModule } from './offers-remake/offers-remake.module';
     ProposalSystemModule,
     MultiPromoModule,
     WebsocketModule,
-    OffersRemakeModule,
+    OffersModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
