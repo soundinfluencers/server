@@ -119,7 +119,6 @@ export class Promos {
   @Prop({ required: false, default: 0 })
   partialRefund: number;
 
-  //TODO: заменить поле на массив использованных соц сетей
   @Prop({ required: true })
   socialMedia: string;
 

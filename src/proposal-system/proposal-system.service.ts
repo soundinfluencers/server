@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 import { Influencer } from '../auth/schemas/influencer.schema';
 import { ProposalCampaign } from './schemas/proposal-campaign.schema';
 import { SaveProposalCampaignDto } from './dto/save-proposal-campaign.dto';
-import sendMail from '../utils/sendMail';
+import sendMail from '../services/sendMail';
 
 @Injectable()
 export class ProposalSystemService {

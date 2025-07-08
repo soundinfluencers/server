@@ -13,11 +13,12 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { PaymentModule } from './payment/payment.module';
 import { AdminModule } from './admin/admin.module';
-import { AppGateway, WebsocketModule } from './websocket/app.gateway';
+import { WebsocketModule } from './websocket/app.gateway';
 import { InfluencerActionsHistoryModule } from './influencer-actions-history/influencer-actions-history.module';
 import { ProposalSystemModule } from './proposal-system/proposal-system.module';
 import { MultiPromoModule } from './multipromos/multipromo.module';
 import { HealthController } from './health/health.controller';
+import { OffersModule } from './offers/offers.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { HealthController } from './health/health.controller';
     ProposalSystemModule,
     MultiPromoModule,
     WebsocketModule,
+    OffersModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',

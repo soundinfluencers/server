@@ -7,7 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { UpdatePasswordClientDto } from './dto/update-password.dto';
 import { UpdatePersonalInfluencerDto } from './dto/update-personal-influencer.dto';
 import { UpdateSocialMediaAccountDto } from './dto/update-social-media-account.dto';
-import sendMail from 'src/utils/sendMail';
+import sendMail from 'src/services/sendMail';
 import { AddSocialMediasDto } from './dto/add-social-medias.dto';
 import { SendMailPriceChangeDto } from './dto/send-mail-price-change.dto';
 import * as process from 'node:process';

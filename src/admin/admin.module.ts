@@ -4,11 +4,9 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Promos, PromosSchema } from '../promos/schemas/promo.schema';
 import { Client, ClientSchema } from '../auth/schemas/client.schema';
 import { Influencer, InfluencerSchema } from '../auth/schemas/influencer.schema';
-import { Offers, OffersSchema } from '../promos/schemas/offers.schema';
 import { AdminController } from './admin.controller';
 import { Invoices } from '../invoice/schemas/invoices.schema';
 import { Payment } from '../payment/schemas/payment.entity';
-import { OffersTemp, OffersTempSchema } from './schemas/offers-temp.schema';
 import { PromosCopies, PromosCopiesSchema } from './schemas/promos-copies.schema';
 import {
   ProposalCampaign,
@@ -23,10 +21,8 @@ import { WebsocketModule } from '../websocket/app.gateway';
       { name: Promos.name, schema: PromosSchema },
       { name: Client.name, schema: ClientSchema },
       { name: Influencer.name, schema: InfluencerSchema },
-      { name: Offers.name, schema: OffersSchema },
       { name: Invoices.name, schema: Invoices },
       { name: Payment.name, schema: Payment },
-      { name: OffersTemp.name, schema: OffersTempSchema },
       { name: PromosCopies.name, schema: PromosCopiesSchema },
       { name: ProposalCampaign.name, schema: ProposalCampaignSchema },
     ]),

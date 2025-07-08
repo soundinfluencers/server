@@ -4,7 +4,6 @@ import { Promos } from '../promos/schemas/promo.schema';
 import mongoose, { Types } from 'mongoose';
 import { Client } from '../auth/schemas/client.schema';
 import { Influencer } from '../auth/schemas/influencer.schema';
-import { Offers } from '../promos/schemas/offers.schema';
 import { AdminUpdatePersonalClientDto } from './dto/admin-update-client.dto';
 import { AdminUpdateInfluencerPersonalDto } from './dto/admin-update-influencer-personal.dto';
 import { AdminUpdateInfluencerInstagramDto } from './dto/admin-update-influencer-instagram.dto';
@@ -12,12 +11,9 @@ import { Invoices } from '../invoice/schemas/invoices.schema';
 import { AdminUpdateInfluencerInvoiceDto } from './dto/admin-update-influencer-invoice.dto';
 import { Payment } from '../payment/schemas/payment.entity';
 import { AdminUpdateClientPayment } from './dto/admin-update-client-payment.update';
-import sendMail from '../utils/sendMail';
+import sendMail from '../services/sendMail';
 import { AdminUpdateCampaignDto } from './dto/admin-update-promo.dto';
 import { AdminSendWhatsappMessageDto } from './dto/admin-send-whatsapp-message.dto';
-import { OffersTemp } from './schemas/offers-temp.schema';
-import { AdminSaveOffersToTempDto } from './dto/admin-save-offer-to-temp.dto';
-import { AdminPutOfferToOffersDto } from './dto/admin-put-offer-to-offers.dto';
 import { PromosService } from '../promos/promos.service';
 import { PromosCopies } from './schemas/promos-copies.schema';
 import { AdminUpdateInfluencerFullAccountDto } from './dto/admin-update-influencer-full-account.dto';
@@ -42,14 +38,10 @@ export class AdminService {
     private clientModel: mongoose.Model<Client>,
     @InjectModel(Influencer.name)
     private influencerModel: mongoose.Model<Influencer>,
-    @InjectModel(Offers.name)
-    private offersModel: mongoose.Model<Offers>,
     @InjectModel(Invoices.name)
     private invoicesModel: mongoose.Model<Invoices>,
     @InjectModel(Payment.name)
     private paymentModel: mongoose.Model<Payment>,
-    @InjectModel(OffersTemp.name)
-    private offersTempModel: mongoose.Model<OffersTemp>,
     @InjectModel(PromosCopies.name)
     private promosCopiesModel: mongoose.Model<PromosCopies>,
     @InjectModel(ProposalCampaign.name)
@@ -2079,268 +2071,6 @@ SoundInfluencers Team
     }
   }
 
-  async adminGetAllOffers() {
-    try {
-      const offersTempPromise = this.offersTempModel.find();
-
-      const socialMediaTypes = [
-        'instagram',
-        'tiktok',
-        'facebook',
-        'youtube',
-        'spotify',
-        'soundcloud',
-        'press',
-      ];
-      const promosService = new PromosService(
-        this.promosModel,
-        this.clientModel,
-        this.influencerModel,
-        this.offersModel,
-        this.promosCopiesModel,
-      );
-
-      const socialMediaPromises = socialMediaTypes.map((socialMedia) =>
-        promosService.getOffers(socialMedia),
-      );
-      const socialMediaResults = await Promise.all(socialMediaPromises);
-
-      const socialMedias = socialMediaTypes.reduce((acc, socialMedia, index) => {
-        acc[socialMedia] = socialMediaResults[index];
-        return acc;
-      }, {});
-
-      const offersTemp = await offersTempPromise;
-
-      return {
-        status: 200,
-        data: {
-          offersTemp,
-          socialMedias,
-        },
-      };
-    } catch (err) {
-      console.error('Error occurred:', err);
-      return {
-        status: 500,
-        message: err.message || 'An unknown error occurred',
-      };
-    }
-  }
-
-  async adminDeleteOfferAndSaveToTemp(data: AdminSaveOffersToTempDto) {
-    try {
-      const offer = await this.offersModel.findOne({ _id: data._id });
-
-      if (Array.isArray(data.connectInfluencer) && data.connectInfluencer.length === 0) {
-        data.connectInfluencer = null;
-      }
-
-      if (offer) await offer.deleteOne();
-
-      const findOfferInTemp = await this.offersTempModel.findOne({ _id: data._id });
-
-      if (!findOfferInTemp) {
-        const offersTemp = new this.offersTempModel(data);
-        await offersTemp.save();
-
-        return {
-          status: 200,
-          message: 'Offer deleted and saved to temp successfully',
-        };
-      } else {
-        await this.offersTempModel.updateOne({ _id: data._id }, { isDeleted: true });
-      }
-    } catch (err) {
-      console.error('Error occurred:', err);
-      return {
-        status: 500,
-        message: 'An unknown error occurred',
-      };
-    }
-  }
-
-  async adminSaveOffersToTemp(data: AdminSaveOffersToTempDto) {
-    try {
-      const existingOffer = await this.offersTempModel.findOne({ _id: data._id });
-
-      if (Array.isArray(data.connectInfluencer) && data.connectInfluencer.length === 0) {
-        data.connectInfluencer = null;
-      }
-
-      if (existingOffer) {
-        await this.offersTempModel.updateOne({ _id: data._id }, { ...data });
-        return {
-          status: 200,
-          message: 'Offer updated successfully',
-        };
-      } else {
-        const offersTemp = new this.offersTempModel(data);
-        await offersTemp.save();
-        return {
-          status: 201,
-          message: 'Offer created successfully',
-        };
-      }
-    } catch (err) {
-      console.error('Error occurred:', err.message);
-      console.error('Full error:', err);
-      return {
-        status: 500,
-        message: `An error occurred: ${err.message}`,
-      };
-    }
-  }
-
-  async adminDeleteOffer(offerId: string) {
-    try {
-      let offer;
-      offer = await this.offersTempModel.findById(offerId);
-
-      if (!offer) {
-        offer = await this.offersModel.findById(offerId);
-
-        if (!offer) {
-          return {
-            status: 404,
-            message: 'Offer not found',
-          };
-        }
-      }
-
-      await offer.deleteOne();
-
-      return {
-        status: 200,
-        message: 'Offer deleted successfully',
-      };
-    } catch (err) {
-      console.error('Error occurred:', err);
-      return {
-        status: 500,
-        message: 'An unknown error occurred',
-      };
-    }
-  }
-
-  async adminReturnOfferFromDeleted(data: AdminPutOfferToOffersDto) {
-    try {
-      if (Array.isArray(data.connectInfluencer) && data.connectInfluencer.length === 0) {
-        data.connectInfluencer = null;
-      }
-
-      if (data.wasPublished) {
-        const offer = await this.offersModel.findOne({ _id: data._id });
-
-        if (offer) {
-          return {
-            status: 400,
-            message: 'Offer already published',
-          };
-        }
-
-        await this.offersModel.create(data);
-        await this.offersTempModel.deleteOne({ _id: data._id });
-      } else if (!data.wasPublished) {
-        const offer = await this.offersTempModel.findOne({ _id: data._id });
-
-        if (!offer) {
-          return {
-            status: 400,
-            message: 'Offer not found',
-          };
-        }
-
-        await this.offersTempModel.updateOne({ _id: data._id }, { isDeleted: false });
-      }
-    } catch (err) {
-      console.error('Error occurred:', err);
-      return {
-        status: 500,
-        message: 'An unknown error occurred',
-      };
-    }
-  }
-
-  async adminPublishOffers() {
-    try {
-      const offersTemp = await this.offersTempModel.find({ isDeleted: false });
-
-      if (!offersTemp || offersTemp.length === 0) {
-        return {
-          status: 404,
-          message: 'No offers found',
-        };
-      }
-
-      for (const offer of offersTemp) {
-        const existingOffer = await this.offersModel.findOne({ _id: offer._id });
-
-        if (existingOffer) {
-          await this.offersModel.updateOne({ _id: offer._id }, { ...offer.toObject() });
-        } else {
-          const newOffer = {
-            ...offer.toObject(),
-            _id: new Types.ObjectId(),
-          };
-          await this.offersModel.create(newOffer);
-        }
-      }
-
-      await this.offersTempModel.deleteMany({ isDeleted: false });
-
-      return {
-        status: 200,
-        message: 'Offers published successfully',
-      };
-    } catch (err) {
-      console.error('Error occurred:', err);
-      return {
-        status: 500,
-        message: 'An unknown error occurred',
-      };
-    }
-  }
-
-  async adminUpdateOldOffer(data: AdminSaveOffersToTempDto) {
-    try {
-      const offer = await this.offersModel.findOne({ _id: data._id });
-
-      if (Array.isArray(data.connectInfluencer) && data.connectInfluencer.length === 0) {
-        data.connectInfluencer = null;
-      }
-
-      if (offer) {
-        await this.offersTempModel.create({ ...data, isNew: true });
-        await this.offersModel.deleteOne({ _id: data._id });
-
-        return {
-          status: 200,
-          message: 'Offer updated successfully',
-        };
-      } else {
-        const offerTemp = await this.offersTempModel.findOne({ _id: data._id });
-
-        if (!offerTemp) {
-          return {
-            status: 404,
-            message: 'Offer not found',
-          };
-        }
-
-        await this.offersTempModel.updateOne({ _id: data._id }, { ...data });
-
-        return {
-          status: 200,
-          message: 'Offer updated successfully',
-        };
-      }
-    } catch (err) {
-      console.error('Error occurred:', err);
-      throw new Error('An unknown error occurred');
-    }
-  }
-
   async adminHideInstagramAccount(influencerId, instagramUsername) {
     try {
       const influencer = await this.influencerModel.findOne({ _id: influencerId });
@@ -2437,60 +2167,6 @@ SoundInfluencers Team
         status: 500,
         message: 'An unknown error occurred',
       };
-    }
-  }
-
-  async adminChangeInfluencerUsernameInOffer() {
-    try {
-      const offers = await this.offersModel.find();
-
-      for (const offer of offers) {
-        let isModified = false;
-
-        if (offer.connectInfluencer && offer.connectInfluencer.length > 0) {
-          offer.connectInfluencer = offer.connectInfluencer.map((item) => {
-            if (item.instagramUsername === 'The Home of Techno') {
-              isModified = true;
-              return {
-                ...item,
-                instagramUsername: 'Techno and House People',
-                influencerId: '659cf0091bf12bc988f64da1',
-              };
-            }
-            return item;
-          });
-        }
-
-        if (offer.musicStyles && offer.musicStyles.length > 0) {
-          offer.musicStyles = offer.musicStyles.map((style) => {
-            if (style.connectInfluencer && style.connectInfluencer.length > 0) {
-              const updatedConnectInfluencer = style.connectInfluencer.map((item) => {
-                if (item.instagramUsername === 'The Home of Techno') {
-                  isModified = true;
-                  return {
-                    ...item,
-                    instagramUsername: 'Techno and House People',
-                    influencerId: '659cf0091bf12bc988f64da1',
-                  };
-                }
-                return item;
-              });
-              return {
-                ...style,
-                connectInfluencer: updatedConnectInfluencer,
-              };
-            }
-            return style;
-          });
-        }
-
-        if (isModified) {
-          await offer.save();
-        }
-      }
-    } catch (err) {
-      console.error('Error occurred:', err);
-      throw err;
     }
   }
 }

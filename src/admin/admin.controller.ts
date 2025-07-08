@@ -1,18 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Put,
-  Param,
-  Delete,
-  Query,
-  UseInterceptors,
-  UploadedFile,
-  Res,
-  ParseBoolPipe,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, ParseBoolPipe } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminUpdatePersonalClientDto } from './dto/admin-update-client.dto';
 import { AdminUpdateInfluencerPersonalDto } from './dto/admin-update-influencer-personal.dto';
@@ -21,8 +7,6 @@ import { AdminUpdateInfluencerInvoiceDto } from './dto/admin-update-influencer-i
 import { AdminUpdateClientPayment } from './dto/admin-update-client-payment.update';
 import { AdminUpdateCampaignDto } from './dto/admin-update-promo.dto';
 import { AdminSendWhatsappMessageDto } from './dto/admin-send-whatsapp-message.dto';
-import { AdminSaveOffersToTempDto } from './dto/admin-save-offer-to-temp.dto';
-import { AdminPutOfferToOffersDto } from './dto/admin-put-offer-to-offers.dto';
 import { AdminUpdateInfluencerFullAccountDto } from './dto/admin-update-influencer-full-account.dto';
 import { decodeAndDecrypt } from '../utils/crypt';
 import { AdminUpdateFullCampaignDto } from './dto/admin-update-full-campaign';
@@ -229,41 +213,6 @@ export class AdminController {
     return this.adminService.adminClosePromo(decryptedCampaignId);
   }
 
-  @Get('offers/getAll')
-  adminGetAllOffers() {
-    return this.adminService.adminGetAllOffers();
-  }
-
-  @Put('offers/delete-and-save-to-temp')
-  adminDeleteOfferAndSaveToTemp(@Body() data: AdminSaveOffersToTempDto) {
-    return this.adminService.adminDeleteOfferAndSaveToTemp(data);
-  }
-
-  @Put('offers/save-to-temp')
-  adminSaveOffersToTemp(@Body() data: AdminSaveOffersToTempDto) {
-    return this.adminService.adminSaveOffersToTemp(data);
-  }
-
-  @Put('offers/delete-from-temp/:offerId')
-  adminDeleteOffer(@Param('offerId') offerId: string) {
-    return this.adminService.adminDeleteOffer(offerId);
-  }
-
-  @Put('offers/return-from-deleted')
-  adminReturnOfferFromDeleted(@Body() data: AdminPutOfferToOffersDto) {
-    return this.adminService.adminReturnOfferFromDeleted(data);
-  }
-
-  @Put('offers/publish')
-  adminPublishOffers() {
-    return this.adminService.adminPublishOffers();
-  }
-
-  @Put('offers/update')
-  adminUpdateOldOffer(@Body() data: AdminSaveOffersToTempDto) {
-    return this.adminService.adminUpdateOldOffer(data);
-  }
-
   @Put('influencer/hide-instagram/:influencerId/:instagramUsername')
   adminHideInstagramAccount(
     @Param('influencerId') influencerId: string,
@@ -280,10 +229,5 @@ export class AdminController {
   @Put('edit-influencer/updateInfluencerAccount')
   adminUpdateInfluencerAccount(@Body() data: AdminUpdateInfluencerFullAccountDto) {
     return this.adminService.adminUpdateInfluencerAccount(data);
-  }
-
-  @Put('offers/update-instagram-username')
-  adminChangeInfluencerUsernameInOffer() {
-    return this.adminService.adminChangeInfluencerUsernameInOffer();
   }
 }

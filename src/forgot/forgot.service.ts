@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import { Client } from 'src/auth/schemas/client.schema';
 import { Influencer } from 'src/auth/schemas/influencer.schema';
 import { Forgot } from './schemas/forgot.schema';
-import sendMail from 'src/utils/sendMail';
+import sendMail from 'src/services/sendMail';
 const bcrypt = require('bcryptjs');
 
 function generateFourDigitCode() {
