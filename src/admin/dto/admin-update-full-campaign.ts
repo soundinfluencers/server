@@ -12,6 +12,8 @@ interface Influencer {
   like: string | null;
   impressions: string | null;
   socialMedia: string | 'instagram';
+  rating: number | null;
+  adminChecked: boolean | null;
   price: string;
   publicPrice: string;
 }

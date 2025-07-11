@@ -1628,6 +1628,17 @@ ${influencerSelectedCampaignContent
             dataSocialMediaAccount.socialMedia === 'spotify' ||
             dataSocialMediaAccount.socialMedia === 'soundcloud'
           ) {
+            if (dataSocialMediaAccount.socialMedia === 'spotify' && !data.rating) {
+              this.logger.error(
+                `${dataSocialMediaAccount.socialMediaUsername} tried to update spotify promo (${findNewCampaign.campaignName}) without rating`,
+                new Error().stack,
+              );
+              return {
+                code: 400,
+                message: "Rating isn't valid",
+              };
+            }
+
             if (data.screenshot === '' || data.screenshot === null) {
               console.error(`Screenshot is empty (Updating spotify campaign: ${campaignId})`);
               return {

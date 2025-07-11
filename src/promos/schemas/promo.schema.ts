@@ -46,6 +46,12 @@ export class SelectInfluencers {
   @Prop({ default: '' })
   like: string;
 
+  @Prop({ default: null })
+  rating: number | null;
+
+  @Prop({ default: false })
+  adminChecked: boolean | null;
+
   @Prop({ default: 0 })
   followersNumber: number;
 }

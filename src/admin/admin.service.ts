@@ -874,6 +874,7 @@ export class AdminService {
             userId: campaign.clientId || (campaign as any).userId,
             statusPromo: campaign.statusCampaign || (campaign as any).statusPromo,
             verifyPromo: campaign.verifyCampaign || (campaign as any).verifyPromo,
+            createdAt: campaign.createdAt,
           };
         }),
       );
@@ -1102,6 +1103,8 @@ export class AdminService {
                 screenshot: influencer.screenshot || '',
                 impressions: influencer.impressions || '',
                 like: influencer.like || '',
+                rating: influencer.rating || null,
+                adminChecked: false,
               };
             }
             return influencer;
@@ -1380,6 +1383,9 @@ export class AdminService {
           account.screenshot = thisAccountFromData?.screenshot ?? (account.screenshot || '');
           account.like = thisAccountFromData?.like ?? (account.like || '');
           account.impressions = thisAccountFromData?.impressions ?? (account.impressions || '');
+          account.rating = thisAccountFromData?.rating ?? (account.rating || undefined);
+          account.adminChecked =
+            thisAccountFromData?.adminChecked ?? (account.adminChecked || undefined);
         }
 
         return true;
@@ -1478,6 +1484,8 @@ export class AdminService {
                 screenshot: newInfluencer.screenshot ?? '',
                 like: newInfluencer.like ?? '',
                 impressions: newInfluencer.impressions ?? '',
+                rating: newInfluencer.rating ?? undefined,
+                adminChecked: newInfluencer.adminChecked ?? undefined,
                 followersNumber: newInfluencer.followersNumber ?? 0,
                 price: newInfluencer.price ?? '0',
                 publicPrice: newInfluencer.publicPrice ?? '0',

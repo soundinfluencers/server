@@ -212,7 +212,7 @@ export class AuthService {
 
           return {
             ...item,
-            followersNumber: item.followersNumber.replace(/[.,]/g, ''),
+            followersNumber: item.followersNumber.toString(),
             musicStyle: musicStyle,
             publicPrice: publicPrice,
             isHidden: false,
