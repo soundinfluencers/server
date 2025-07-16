@@ -26,6 +26,10 @@ const PDFDocument = require('pdfkit');
 import * as process from 'node:process';
 import { AdminSendMailToInfluencerDto } from './dto/admin-send-mail-to-influencer.dto';
 import { AppGateway } from '../websocket/app.gateway';
+import {
+  AccountObjectForCreateNewPromoRequestMessage, createNewPromoRequestHTMLMessage,
+  createNewPromoRequestTextMessage,
+} from '../utils/new-promo-message';
 
 @Injectable()
 export class AdminService {
@@ -1214,6 +1218,18 @@ export class AdminService {
         hiddenColumns: campaign.hiddenColumns ?? [],
       };
 
+      // key type for map: 'account.influencerId' or 'account.influencerId-account._id'
+      // first means that account was connected when campaign was created
+      // second means that account was connected after that by admin
+      let influencersMap: Map<
+        string,
+        {
+          message: string | null;
+          firstName: string;
+          accounts: AccountObjectForCreateNewPromoRequestMessage[];
+        }
+      > = new Map();
+
       for (const addedAccount of campaign.selectInfluencers) {
         const normalizedUsername =
           addedAccount?.socialMediaUsername?.trim() ||
@@ -1259,7 +1275,75 @@ export class AdminService {
         addedAccount.socialMedia = addedAccount?.socialMedia || accSocialMedia;
         addedAccount.socialMediaUsername = normalizedUsername;
 
+        if (!campaign.isCopy) {
+          const isOriginalAccount =
+            new Date(addedAccount.createdAt).getTime() === new Date(campaign.createdAt).getTime();
+
+          const key = isOriginalAccount
+            ? addedAccount.influencerId
+            : `${addedAccount.influencerId}-${addedAccount._id}`;
+
+          if (!influencersMap.has(key)) {
+            const influencerFirstName =
+              (await this.influencerModel.findById(addedAccount.influencerId).lean().exec())?.firstName ||
+              'Unknown';
+
+            influencersMap.set(key, {
+              message: null,
+              firstName: influencerFirstName,
+              accounts: [
+                {
+                  pageName: addedAccount.socialMediaUsername,
+                  reward: addedAccount.price,
+                  socialMedia: addedAccount.socialMedia,
+                  contentLink: addedAccount.selectedCampaignContentItem?.videoLink ?? '',
+                  description: addedAccount.selectedCampaignContentItem?.postDescription,
+                  storyTag: addedAccount.selectedCampaignContentItem?.storyTag,
+                  storyLink: addedAccount.selectedCampaignContentItem?.storyLink,
+                  specialRequests: addedAccount.selectedCampaignContentItem?.specialRequests,
+                },
+              ],
+            });
+          } else {
+            const influencerData = influencersMap.get(key);
+            if (influencerData) {
+              influencerData.accounts.push({
+                pageName: addedAccount.socialMediaUsername,
+                reward: addedAccount.price,
+                socialMedia: addedAccount.socialMedia,
+                contentLink: addedAccount.selectedCampaignContentItem?.videoLink ?? '',
+                description: addedAccount.selectedCampaignContentItem?.postDescription,
+                storyTag: addedAccount.selectedCampaignContentItem?.storyTag,
+                storyLink: addedAccount.selectedCampaignContentItem?.storyLink,
+                specialRequests: addedAccount.selectedCampaignContentItem?.specialRequests,
+              });
+            }
+          }
+        }
+
         campaignToReturn.addedAccounts.push(addedAccount);
+      }
+
+      if (!campaign.isCopy) {
+        for (const account of campaignToReturn?.addedAccounts) {
+          const isOriginalAccount =
+            new Date(account.createdAt).getTime() === new Date(campaignToReturn.createdAt).getTime();
+
+          const key = isOriginalAccount
+            ? account.influencerId
+            : `${account.influencerId}-${account._id}`;
+
+          const infMapItem = influencersMap.get(key);
+
+          if (!infMapItem) continue;
+
+          account.message =
+            infMapItem.message ??
+            createNewPromoRequestTextMessage({
+              firstName: infMapItem.firstName,
+              accountsAndDetails: infMapItem.accounts,
+            });
+        }
       }
 
       campaignToReturn.addedAccounts.sort((a, b) => {
@@ -1995,7 +2079,7 @@ SoundInfluencers Team
     try {
       const { campaignId, selectInfluencersAccountId } = data;
 
-      const campaign = await this.promosModel.findById(campaignId);
+      const campaign = await this.promosModel.findById(campaignId).lean();
 
       if (!campaign) {
         return {
@@ -2012,28 +2096,19 @@ SoundInfluencers Team
         throw new Error(`Can't find selectInfluencers account ${selectInfluencersAccountId}`);
       }
 
-      const campaignContent = campaign.campaignContent.find(
-        (item) => item._id.toString() === selectInfluencersItem.selectedCampaignContentItem,
-      );
-
-      if (!campaignContent) {
-        throw new Error(
-          `Can't find selected campaign content item ${selectInfluencersItem.selectedCampaignContentItem}`,
-        );
-      }
-
-      const influencer = await this.influencerModel.findById(selectInfluencersItem.influencerId);
+      const influencer = await this.influencerModel.findById(selectInfluencersItem.influencerId).lean();
 
       if (!influencer) {
         this.logger.error(
-          `Can't find influencers account ${selectInfluencersAccountId}`,
+          `Can't find influencer ${selectInfluencersItem.influencerId}`,
           new Error().stack,
         );
         return {
           code: 404,
-          message: `Can't find influencers account`,
+          message: `Influencer not found`,
         };
       }
+
       if (!influencer.email) {
         this.logger.error(
           `Invalid email address: ${influencer._id} - ${influencer.firstName} - ${influencer.email}`,
@@ -2045,30 +2120,71 @@ SoundInfluencers Team
         };
       }
 
-      const messageContent = `Hi, you have a new promo request!
-${selectInfluencersItem.socialMedia.replace(/^./, (match: string) => match.toUpperCase())} account: ${selectInfluencersItem.socialMediaUsername}
+      const influencerAccounts = campaign.selectInfluencers.filter(
+        (acc) => acc.influencerId === selectInfluencersItem.influencerId,
+      );
 
-Post Details:
-• Link: ${campaignContent.videoLink || 'Not provided'}
-• Description: ${campaignContent.postDescription || 'Not provided'}
-• Story Tag: ${campaignContent.storyTag || 'Not provided'}
-• Story Link: ${campaignContent.swipeUpLink || 'Not provided'}
-• Special Requests: ${campaignContent.specialWishes || 'Not provided'}
+      const isSameDate = (a: Date, b: Date): boolean =>
+        new Date(a).getTime() === new Date(b).getTime();
 
-Manage your request here: https://go.soundinfluencers.com/account/influencer/new-promos
+      const originalAccounts = influencerAccounts.filter((acc) =>
+        isSameDate(acc.createdAt, campaign.createdAt),
+      );
 
-Thanks,
-SoundInfluencers Team
-`;
+      const laterAccounts = influencerAccounts.filter((acc) =>
+        !isSameDate(acc.createdAt, campaign.createdAt),
+      );
 
-      await sendMail(influencer.email, 'New Promo Request', messageContent);
+      const mapToPromoAccountObject = (
+        acc: any,
+        campaignContent: any,
+      ): AccountObjectForCreateNewPromoRequestMessage => ({
+        pageName: acc.socialMediaUsername,
+        reward: acc.price,
+        socialMedia: acc.socialMedia,
+        contentLink: campaignContent?.videoLink ?? '',
+        description: campaignContent?.postDescription,
+        storyTag: campaignContent?.storyTag,
+        storyLink: campaignContent?.swipeUpLink,
+        specialRequests: campaignContent?.specialWishes,
+      });
+
+      if (originalAccounts.length > 0) {
+        const promoObjects = originalAccounts.map((acc) => {
+          const content = campaign.campaignContent.find(
+            (c) => c._id.toString() === acc.selectedCampaignContentItem,
+          );
+          return mapToPromoAccountObject(acc, content);
+        });
+
+        const message = createNewPromoRequestHTMLMessage({
+          firstName: influencer.firstName,
+          accountsAndDetails: promoObjects,
+        });
+
+        await sendMail(influencer.email, 'New Promo Request', message, 'html');
+      }
+
+      for (const acc of laterAccounts) {
+        const content = campaign.campaignContent.find(
+          (c) => c._id.toString() === acc.selectedCampaignContentItem,
+        );
+
+        const message = createNewPromoRequestHTMLMessage({
+          firstName: influencer.firstName,
+          accountsAndDetails: [mapToPromoAccountObject(acc, content)],
+        });
+
+        await sendMail(influencer.email, 'New Promo Request', message, 'html');
+      }
+
       return {
         code: 201,
-        message: 'Mail sent!',
+        message: 'Mail(s) sent!',
       };
     } catch (err) {
       this.logger.error(
-        `Failed to send email message to influencer: ${err}"`,
+        `Failed to send email to influencer: ${err}`,
         err instanceof Error ? err.stack : undefined,
       );
       return {
@@ -2176,5 +2292,27 @@ SoundInfluencers Team
         message: 'An unknown error occurred',
       };
     }
+  }
+
+  async adminAddCreatedAtFieldToSelectInfluencersInCampaign() {
+    const campaigns = await this.promosModel.find({
+      'selectInfluencers.createdAt': { $exists: false },
+    });
+
+    for (const campaign of campaigns) {
+      const campaignCreatedAt = campaign.createdAt ? new Date(campaign.createdAt) : new Date();
+
+      for (let i = 0; i < campaign.selectInfluencers.length; i++) {
+        const influencer = campaign.selectInfluencers[i];
+        if (!influencer.createdAt) {
+          await this.promosModel.updateOne(
+            { _id: campaign._id, 'selectInfluencers._id': influencer._id },
+            { $set: { 'selectInfluencers.$.createdAt': campaignCreatedAt } },
+          );
+        }
+      }
+    }
+
+    this.logger.debug(`Added 'createdAt' field to ${campaigns.length} campaigns`);
   }
 }

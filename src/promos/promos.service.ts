@@ -14,6 +14,10 @@ import { GetSelectedSocialAccountsDto } from './dto/get-selected-social-accounts
 import { decodeAndDecrypt } from '../utils/crypt';
 import { SendNewFullServicedCampaignRequest } from './dto/send-new-full-serviced-campaign-request';
 import { SaveXlsxPromoDto } from './dto/save-xlsx-promo.dto';
+import {
+  AccountObjectForCreateNewPromoRequestMessage,
+  createNewPromoRequestHTMLMessage,
+} from '../utils/new-promo-message';
 
 mongoose.Promise = global.Promise;
 
@@ -41,6 +45,8 @@ export class PromosService {
     }
 
     try {
+      const createdAt = new Date();
+
       const processedInfluencers = await Promise.all(
         data.selectInfluencers.map(async (influencer) => {
           try {
@@ -70,6 +76,7 @@ export class PromosService {
                 price: socialMediaAccount.price,
                 publicPrice: socialMediaAccount.publicPrice,
                 followersNumber: parseInt(socialMediaAccount.followersNumber.replace(/[.,]/g, '')),
+                createdAt,
                 dateRequest,
               };
             }
@@ -107,6 +114,7 @@ export class PromosService {
           verifyCampaign: 'wait',
           shareLink: `${process.env.SERVER_CLIENT}/promo-share/${campaignId}/${data.socialMedia}`,
           campaignContent: processedCampaignContent,
+          createdAt
         });
       } catch (err) {
         return {
@@ -400,56 +408,41 @@ ${emailVideoContent()}
             }),
           );
 
-          const influencerSocialMediaAccounts = influencerSocialMediaAccountsNested.flat();
-
-          const influencerSelectedCampaignContent = checkCampaign.campaignContent.filter(
-            (campaignContentItem) => {
-              return checkCampaign.selectInfluencers.some((influencerData) => {
-                return (
-                  influencerData.selectedCampaignContentItem ===
-                    campaignContentItem._id.toString() &&
-                  influencerSocialMediaAccounts.includes(influencerData.socialMediaUsername)
-                );
-              });
-            },
+          const influencerAccounts = checkCampaign.selectInfluencers.filter(
+            (acc) => acc.influencerId.toString() === influencer._id.toString()
           );
 
-          if (influencerSelectedCampaignContent.length > 0) {
-            const emailToInfluencer = `
-<p>Hi,</p>
-<p>You have received a new promo request on your account for the following:</p>
-<p><strong>${checkCampaign.socialMedia.charAt(0).toUpperCase() + checkCampaign.socialMedia.slice(1)} Post & Story</strong></p>
-${influencerSelectedCampaignContent
-  .map(
-    (campaignContentItem, index) => `
-    <p><strong>Post Content ${index + 1}:</strong></p>
-    <ul>
-        <li><strong>Link:</strong> ${campaignContentItem.videoLink || 'No link provided'}</li>
-        <li><strong>Post Description:</strong> ${campaignContentItem.postDescription || 'No description provided'}</li>
-        <li><strong>Story Tag:</strong> ${campaignContentItem.storyTag || 'No story tag provided'}</li>
-        <li><strong>Swipe Up Link:</strong> ${campaignContentItem.swipeUpLink || 'No post link provided'}</li>
-        <li><strong>Special Requests:</strong> ${campaignContentItem.specialWishes || 'None'}</li>
-    </ul>
-`,
-  )
-  .join('')}      
-<p>Access your account to accept or deny it here: https://go.soundinfluencers.com/account/influencer/new-promos</p>     
-<p>Thanks,</p>
-<p>Soundinfluencers Team</p>
-`;
+          const accountDetails: AccountObjectForCreateNewPromoRequestMessage[] = influencerAccounts.map(acc => {
+            const content = checkCampaign.campaignContent.find(
+              (c) => c._id.toString() === acc.selectedCampaignContentItem?.toString()
+            );
 
-            try {
-              await sendMail(
-                // 'nazarkozynets030606@zohomail.eu',
-                influencer.email,
-                'SoundInfluencers',
-                emailToInfluencer,
-                'html',
-              );
-            } catch (err) {
-              console.error('Error sending emails to influencers:', err);
-            }
-          }
+            return {
+              pageName: acc.socialMediaUsername,
+              reward: acc.price,
+              socialMedia: acc.socialMedia,
+              contentLink: content?.videoLink || '',
+              description: content?.postDescription,
+              storyTag: content?.storyTag,
+              storyLink: content?.swipeUpLink,
+              specialRequests: content?.specialWishes,
+            };
+          });
+
+          if (accountDetails.length === 0) continue;
+
+          const emailBody = createNewPromoRequestHTMLMessage({
+            firstName: influencer.firstName,
+            accountsAndDetails: accountDetails,
+          });
+
+          await sendMail(
+            influencer.email,
+            // 'nazarkozynets030606@gmail.com',
+            'New Promo Request',
+            emailBody,
+            'html'
+          );
         }
 
         const updateFields = {

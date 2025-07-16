@@ -1,8 +1,7 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 
-// @Schema({strict: false})
-@Schema()
+@Schema({ timestamps: true })
 export class SelectInfluencers {
   @Prop({ type: Types.ObjectId, required: true })
   _id: Types.ObjectId;
@@ -54,7 +53,14 @@ export class SelectInfluencers {
 
   @Prop({ default: 0 })
   followersNumber: number;
+
+  @Prop({ type: Date })
+  createdAt?: Date;
+
+  @Prop({ type: Date })
+  updatedAt?: Date;
 }
+
 const SelectInfluencersSchema = SchemaFactory.createForClass(SelectInfluencers);
 
 @Schema()
@@ -80,6 +86,7 @@ export class CampaignContentItem {
   @Prop({ required: false, default: 'instagram' })
   socialMedia: string;
 }
+
 const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignContentItem);
 
 @Schema({
@@ -143,8 +150,11 @@ export class Promos {
   @Prop({ required: false, default: [] })
   hiddenColumns: string[];
 
-  readonly createdAt?: Date;
-  readonly updatedAt?: Date;
+  @Prop({ type: Date })
+  createdAt?: Date;
+
+  @Prop({ type: Date })
+  updatedAt?: Date;
 }
 
 export const PromosSchema = SchemaFactory.createForClass(Promos);

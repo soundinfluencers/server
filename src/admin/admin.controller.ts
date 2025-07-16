@@ -230,4 +230,9 @@ export class AdminController {
   adminUpdateInfluencerAccount(@Body() data: AdminUpdateInfluencerFullAccountDto) {
     return this.adminService.adminUpdateInfluencerAccount(data);
   }
+
+  @Put('campaign/add-created-at-field')
+  adminAddCreatedAtFieldToSelectInfluencersInCampaign() {
+    return this.adminService.adminAddCreatedAtFieldToSelectInfluencersInCampaign();
+  };
 }
