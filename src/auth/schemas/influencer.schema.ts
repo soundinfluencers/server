@@ -9,6 +9,7 @@ interface typesInstagram {
   instagramLink: string;
   followersNumber: string;
   logo: string;
+  profileCategory: "community" | "creator";
   price: string;
   publicPrice: string;
   countries: { country: string; percentage: number }[] | null;
@@ -26,6 +27,11 @@ const typesInstagramApi = {
   instagramLink: String,
   followersNumber: String,
   logo: String,
+  profileCategory: {
+    type: String,
+    enum: ['community', 'creator'],
+    default: 'community',
+  },
   price: String,
   publicPrice: String,
   countries:

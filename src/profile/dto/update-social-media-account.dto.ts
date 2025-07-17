@@ -42,4 +42,7 @@ export class UpdateSocialMediaAccountDto {
 
   @ApiProperty({ required: true })
   categories: string[];
+
+  @ApiProperty({ required: false })
+  profileCategory: string;
 }
