@@ -246,6 +246,9 @@ export class ProfileService {
         price: data.price,
         publicPrice: data.publicPrice,
         profileCategory: data.profileCategory ?? "community",
+        ...(data.profileCategory === "creator" && {
+          creatorCategories: data.creatorCategories ?? [],
+        }),
         isVerified: true,
       };
 
@@ -610,6 +613,9 @@ export class ProfileService {
           const accountId = new mongoose.Types.ObjectId();
           socialMediaAccounts.push({
             ...account,
+            ...(account.profileCategory === "creator" && {
+              creatorCategories: account.creatorCategories ?? [],
+            }),
             followersNumber: account.followersNumber.replace(/[.,]/g, ''),
             publicPrice: publicPrice,
             isHidden: false,
@@ -630,8 +636,8 @@ export class ProfileService {
 
     try {
       await sendMail(
-        "nazarkozynets030606@zohomail.eu",
-        // 'admin@soundinfluencers.com',
+        // "nazarkozynets030606@zohomail.eu",
+        'admin@soundinfluencers.com',
         'soundinfluencers',
         `<p>Request from ${influencer.firstName} (${influencer.email}) to add a new Brand</p>
             <b>Details:</b><br/>

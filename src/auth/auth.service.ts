@@ -212,6 +212,9 @@ export class AuthService {
 
           return {
             ...item,
+            ...(item.profileCategory === "creator" && {
+              creatorCategories: item.creatorCategories ?? [],
+            }),
             followersNumber: item.followersNumber.toString(),
             musicStyle: musicStyle,
             publicPrice: publicPrice,

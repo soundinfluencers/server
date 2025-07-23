@@ -9,10 +9,14 @@ export interface ISocial {
   followersNumber: string;
   logo: string;
   price: string;
+  publicPrice: string;
   countries: { country: string; percentage: number }[] | null;
   categories: string[] | null;
-  initialPrice: string;
+  creatorCategories?: string[] | null;
+  profileCategory: 'community' | 'creator';
+  initialPrice?: string;
 }
+
 
 export const typesSocialMedia = {
   musicStyle: { type: 'string' },
@@ -23,6 +27,7 @@ export const typesSocialMedia = {
   followersNumber: { type: 'string' },
   logo: { type: 'string' },
   price: { type: 'string' },
+  publicPrice: { type: 'string' },
   countries: {
     type: 'array',
     items: {
@@ -35,8 +40,18 @@ export const typesSocialMedia = {
     nullable: true,
   },
   categories: { type: 'array', items: { type: 'string' }, nullable: true },
+  creatorCategories: {
+    type: 'array',
+    items: { type: 'string' },
+    nullable: true,
+  },
+  profileCategory: {
+    type: 'string',
+    enum: ['community', 'creator'],
+  },
   initialPrice: { type: 'string' },
 };
+
 
 export class CreateInfluencerDto {
   @ApiProperty()

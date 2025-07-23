@@ -14,6 +14,7 @@ interface typesInstagram {
   publicPrice: string;
   countries: { country: string; percentage: number }[] | null;
   categories: string[] | null;
+  creatorCategories: string[];
   isHidden: boolean;
   isDeleted: boolean;
   isVerified: boolean;
@@ -42,6 +43,10 @@ const typesInstagramApi = {
       },
     ] || null,
   categories: [String] || null,
+  creatorCategories: {
+    type: [String],
+    required: false,
+  },
   isHidden: Boolean,
   isDeleted: Boolean,
   isVerified: Boolean,

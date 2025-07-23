@@ -132,17 +132,21 @@ export class OffersService {
       // Обновление connectedAccounts в оферах
       const updatedOffers = offers.map((offer) => ({
         ...offer,
-        connectedAccounts: offer.connectedAccounts.map((account) => {
-          const accountData = accountMap.get(
-            `${account.influencerId.toString()}:${account.accountId.toString()}`,
-          );
+        connectedAccounts: offer.connectedAccounts
+          .map((account) => {
+            const accountData = accountMap.get(
+              `${account.influencerId.toString()}:${account.accountId.toString()}`,
+            );
 
-          return {
-            ...account,
-            socialMediaUsername: accountData?.socialMediaUsername,
-            logo: accountData?.logo,
-          };
-        }),
+            if (!accountData) return null;
+
+            return {
+              ...account,
+              socialMediaUsername: accountData.socialMediaUsername,
+              logo: accountData.logo,
+            };
+          })
+          .filter((acc) => acc !== null),
       }));
 
       return {

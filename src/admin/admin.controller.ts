@@ -11,6 +11,7 @@ import { AdminUpdateInfluencerFullAccountDto } from './dto/admin-update-influenc
 import { decodeAndDecrypt } from '../utils/crypt';
 import { AdminUpdateFullCampaignDto } from './dto/admin-update-full-campaign';
 import { AdminSendMailToInfluencerDto } from './dto/admin-send-mail-to-influencer.dto';
+import { AddSocialMediasDto } from '../profile/dto/add-social-medias.dto';
 
 @Controller('admin')
 export class AdminController {
@@ -229,6 +230,11 @@ export class AdminController {
   @Put('edit-influencer/updateInfluencerAccount')
   adminUpdateInfluencerAccount(@Body() data: AdminUpdateInfluencerFullAccountDto) {
     return this.adminService.adminUpdateInfluencerAccount(data);
+  }
+
+  @Put('edit-influencer/add-new-brands')
+  adminAddNewBrandsToInfluencerAccount(@Body() data: AddSocialMediasDto) {
+    return this.adminService.adminAddNewBrandsToInfluencerAccount(data);
   }
 
   @Put('campaign/add-created-at-field')

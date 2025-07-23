@@ -30,6 +30,7 @@ import {
   AccountObjectForCreateNewPromoRequestMessage, createNewPromoRequestHTMLMessage,
   createNewPromoRequestTextMessage,
 } from '../utils/new-promo-message';
+import { AddSocialMediasDto } from '../profile/dto/add-social-medias.dto';
 
 @Injectable()
 export class AdminService {
@@ -1851,176 +1852,123 @@ export class AdminService {
   async adminSendWhatsAppMessageToEachInfluencer(campaignId: string, socketId: string) {
     try {
       if (!campaignId) {
-        return {
-          code: 400,
-          message: 'Invalid Campaign Id',
-        };
+        return { code: 400, message: 'Invalid Campaign Id' };
       }
 
       const campaign = await this.promosModel.findById(campaignId);
-
       if (!campaign) {
-        return {
-          code: 404,
-          message: 'Campaign not found',
-        };
+        return { code: 404, message: 'Campaign not found' };
       }
 
       const errorsList: string[] = [];
       const successList: string[] = [];
 
-      //сбор валидных номеров
-      const phoneNumbersFromDataBase: Array<{
-        phone: string;
-        username: string;
-        socialMedia: string;
-        selectedCampaignContentItemId: string;
-      }> | null = await Promise.all(
-        campaign.selectInfluencers.map(async (influencerItem) => {
-          const influencerFromDb = await this.influencerModel.findById(influencerItem.influencerId);
-
-          if (influencerFromDb?.phone && influencerFromDb.phone.trim() !== '') {
-            const phone = influencerFromDb.phone.replace(/\D/g, '');
-            return {
-              phone,
-              username: influencerItem.socialMediaUsername,
-              socialMedia: influencerItem.socialMedia,
-              selectedCampaignContentItemId: influencerItem.selectedCampaignContentItem,
-            };
-          } else {
-            errorsList.push(`Can't find ${influencerItem.socialMediaUsername}'s phone number!`);
-            return null;
-          }
-        }),
-      );
-
-      const influencersNumbers: Record<
+      const influencerMap: Map<
         string,
         {
-          usernames: string[];
-          socialMedia: string;
-          selectedCampaignContentItemId: string;
-        }[]
-      > = {};
+          phone: string;
+          firstName: string;
+          accounts: {
+            username: string;
+            socialMedia: string;
+            reward: string;
+            selectedCampaignContentItemId: string;
+          }[];
+        }
+      > = new Map();
 
-      // формирование номеров и объединение дубликатов
-      for (const entry of phoneNumbersFromDataBase) {
-        if (!entry) continue;
+      for (const item of campaign.selectInfluencers) {
+        const influencerFromDb = await this.influencerModel.findById(item.influencerId);
 
-        if (!influencersNumbers[entry.phone]) {
-          influencersNumbers[entry.phone] = [];
+        if (!influencerFromDb?.phone?.trim()) {
+          errorsList.push(`Can't find ${item.socialMediaUsername}'s phone number!`);
+          continue;
         }
 
-        //попытка найти уже существующий обьект с тем же selectedCampaignContentItemId и socialMedia
-        const existingItem = influencersNumbers[entry.phone].find(
-          (item) =>
-            item.selectedCampaignContentItemId === entry.selectedCampaignContentItemId &&
-            item.socialMedia === entry.socialMedia,
-        );
+        const phone = influencerFromDb.phone.replace(/\D/g, '');
+        const firstName = influencerFromDb.firstName ?? 'there';
 
-        if (existingItem) {
-          existingItem.usernames.push(entry.username);
-        } else {
-          influencersNumbers[entry.phone].push({
-            usernames: [entry.username],
-            socialMedia: entry.socialMedia,
-            selectedCampaignContentItemId: entry.selectedCampaignContentItemId,
-          });
+        if (!influencerMap.has(phone)) {
+          influencerMap.set(phone, { phone, firstName, accounts: [] });
         }
+
+        influencerMap.get(phone)!.accounts.push({
+          username: item.socialMediaUsername,
+          socialMedia: item.socialMedia,
+          reward: item.price,
+          selectedCampaignContentItemId: item.selectedCampaignContentItem,
+        });
       }
 
-      //из Record в массив
-      const entries = Object.entries(influencersNumbers);
+      const messagesToSend = Array.from(influencerMap.values());
 
-      const flattened: {
-        phone: string;
-        usernames: string[];
-        socialMedia: string;
-        selectedCampaignContentItemId: string;
-      }[] = [];
-
-      //приведение к массиву с телефоном и данными аккаунта
-      for (const [phone, items] of entries) {
-        for (const item of items) {
-          flattened.push({
-            phone,
-            usernames: item.usernames,
-            socialMedia: item.socialMedia,
-            selectedCampaignContentItemId: item.selectedCampaignContentItemId,
-          });
-        }
+      if (messagesToSend.length === 0) {
+        throw new Error('No influencers to message.');
       }
 
-      if (flattened.length === 0) {
-        throw new Error(`Flattened array is empty. Possibly no data to process.`);
-      }
-
-      for (let i = 0; i < flattened.length; i++) {
-        //таймер для отправки с промежутком времени
+      for (let i = 0; i < messagesToSend.length; i++) {
         if (i !== 0) {
           const delayMs = Math.floor(Math.random() * (15 - 5 + 1) + 5) * 1000;
           await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
 
-        const campaignContentItem = campaign.campaignContent.find(
-          (item) => item._id.toString() === flattened[i].selectedCampaignContentItemId,
-        );
+        const { phone, firstName, accounts } = messagesToSend[i];
 
-        if (!campaignContentItem) {
-          this.logger.error(
-            `\nCan't find campaignContentItem with id ${flattened[i].selectedCampaignContentItemId}\n in campaign ${campaign._id}.\n Processing influencer: ${flattened[i].usernames}`,
-            new Error().stack,
+        const accountsAndDetails = accounts.map((account) => {
+          const contentItem = campaign.campaignContent.find(
+            (item) => item._id.toString() === account.selectedCampaignContentItemId,
           );
-          errorsList.push(
-            `Error sending message to ${flattened[i].phone} (${flattened[i].usernames.join(', ')})!`,
-          );
-          continue;
-        }
 
-        const messageContent = `Hi, you have a new promo request!
-${flattened[i].socialMedia.replace(/^./, (match: string) => match.toUpperCase())} accounts: ${flattened[i].usernames.join(', ')}
+          if (!contentItem) {
+            this.logger.error(
+              `Can't find campaignContentItem with id ${account.selectedCampaignContentItemId} for ${account.username}`,
+              new Error().stack,
+            );
+          }
 
-Post Details:
-• Link: ${campaignContentItem.videoLink || 'Not provided'}
-• Description: ${campaignContentItem.postDescription || 'Not provided'}
-• Story Tag: ${campaignContentItem.storyTag || 'Not provided'}
-• Story Link: ${campaignContentItem.swipeUpLink || 'Not provided'}
-• Special Requests: ${campaignContentItem.specialWishes || 'Not provided'}
+          return {
+            pageName: account.username,
+            reward: account.reward,
+            socialMedia: account.socialMedia,
+            contentLink: contentItem?.videoLink ?? '',
+            description: contentItem?.postDescription,
+            storyTag: contentItem?.storyTag,
+            storyLink: contentItem?.swipeUpLink,
+            specialRequests: contentItem?.specialWishes,
+          };
+        });
 
-Manage your request here: https://go.soundinfluencers.com/account/influencer/new-promos
-
-Thanks,
-SoundInfluencers Team
-`;
+        const messageContent = createNewPromoRequestTextMessage({
+          firstName,
+          accountsAndDetails,
+        });
 
         try {
           await axios.post('https://api.botassium.com/webhook/GPAqBGdAB94vzfxNaZg2', {
             action: 'send-message',
             type: 'text',
             content: messageContent,
-            phone: flattened[i].phone,
+            phone,
           });
-          successList.push(
-            `Message sent successfully to ${flattened[i].phone} (${flattened[i].usernames.join(', ')})!`,
-          );
-          //websocket отправка статуса
+
+          successList.push(`Message sent successfully to ${phone}!`);
+
           this.appGateway.sendWhatsappMessageStatusUpdate(socketId, {
-            phone: flattened[i].phone,
+            phone,
             status: 'sent',
-            usernames: flattened[i].usernames,
-            campaignId: campaignId,
+            usernames: accounts.map((a) => a.username),
+            campaignId,
             date: new Date().toLocaleString(),
           });
         } catch (err: any) {
-          errorsList.push(
-            `Error sending message to ${flattened[i].phone} (${flattened[i].usernames.join(', ')})!`,
-          );
+          errorsList.push(`Error sending message to ${phone}!`);
+
           this.appGateway.sendWhatsappMessageStatusUpdate(socketId, {
-            phone: flattened[i].phone,
+            phone,
             status: 'error',
             error: err.message,
-            usernames: flattened[i].usernames,
-            campaignId: campaignId,
+            usernames: accounts.map((a) => a.username),
+            campaignId,
             date: new Date().toLocaleString(),
           });
         }
@@ -2028,12 +1976,12 @@ SoundInfluencers Team
 
       return {
         code: 200,
-        successList: successList,
+        successList,
         errorList: errorsList,
       };
     } catch (err) {
       this.logger.error(
-        `Failed to send WhatsApp messages for each influencer: ${err}"`,
+        `Failed to send WhatsApp messages for each influencer: ${err}`,
         err instanceof Error ? err.stack : undefined,
       );
       return {
@@ -2290,6 +2238,105 @@ SoundInfluencers Team
       return {
         status: 500,
         message: 'An unknown error occurred',
+      };
+    }
+  }
+
+  async adminAddNewBrandsToInfluencerAccount(data: AddSocialMediasDto) {
+    let errors = [];
+
+    if (!data) {
+      errors.push('Not enough arguments');
+      return {
+        code: 400,
+        message: 'Not enough arguments',
+        errors,
+      };
+    }
+
+    const influencer = await this.influencerModel.findOne({ _id: data.influencerId });
+
+    if (!influencer) {
+      errors.push('User not found');
+      return {
+        code: 404,
+        message: 'User not found',
+        errors,
+      };
+    }
+
+    const socialNetworks = [
+      'instagram',
+      'tiktok',
+      'spotify',
+      'soundcloud',
+      'facebook',
+      'youtube',
+      'press',
+    ];
+
+    for (const network of socialNetworks) {
+      const accounts = data[network] || [];
+      const usernames = accounts.map((item) => item.instagramUsername);
+
+      const networkFilter = {
+        [`${network}.instagramUsername`]: { $in: usernames },
+        isDeleted: { $ne: true },
+      };
+
+      const isUsernameUsed = await this.influencerModel.exists(networkFilter);
+      if (isUsernameUsed) {
+        errors.push(`This ${network} username already exists`);
+        return {
+          code: 409,
+          message: `This ${network} username already exists`,
+          errors,
+        };
+      }
+    }
+
+    for (const network of socialNetworks) {
+      const accounts = data[network] || [];
+      const socialMediaAccounts = influencer[network] || [];
+
+      try {
+        for (const account of accounts) {
+          const sanitizedPrice = parseFloat(String(account.price).replace(/[^\d.-]/g, '')) || 0;
+          const publicPrice = (sanitizedPrice * 2).toString();
+          const accountId = new mongoose.Types.ObjectId();
+
+          socialMediaAccounts.push({
+            ...account,
+            ...(account.profileCategory === "creator" && {
+              creatorCategories: account.creatorCategories ?? [],
+            }),
+            followersNumber: account.followersNumber.replace(/[.,]/g, ''),
+            publicPrice: publicPrice,
+            isHidden: false,
+            isDeleted: false,
+            isVerified: true,
+            _id: accountId,
+          });
+
+          influencer[network] = socialMediaAccounts;
+        }
+      } catch (err) {
+        console.error('Error adding social media account:', err);
+        errors.push(`Error adding ${network} account. ${err}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      return {
+        code: 500,
+        message: 'Internal server error',
+        errors,
+      };
+    } else {
+      await influencer.save();
+      return {
+        code: 200,
+        message: 'Social media accounts added successfully',
       };
     }
   }
