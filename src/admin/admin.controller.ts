@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, ParseBoolPipe } from '@nestjs/common';
+import {Controller, Get, Post, Body, Put, Param, Delete, ParseBoolPipe, UsePipes, ValidationPipe} from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminUpdatePersonalClientDto } from './dto/admin-update-client.dto';
 import { AdminUpdateInfluencerPersonalDto } from './dto/admin-update-influencer-personal.dto';
@@ -12,6 +12,7 @@ import { decodeAndDecrypt } from '../utils/crypt';
 import { AdminUpdateFullCampaignDto } from './dto/admin-update-full-campaign';
 import { AdminSendMailToInfluencerDto } from './dto/admin-send-mail-to-influencer.dto';
 import { AddSocialMediasDto } from '../profile/dto/add-social-medias.dto';
+import {AdminImportXlsxInfluencersDto} from "./dto/admin-import-xlsx-influencers";
 
 @Controller('admin')
 export class AdminController {
@@ -235,6 +236,12 @@ export class AdminController {
   @Put('edit-influencer/add-new-brands')
   adminAddNewBrandsToInfluencerAccount(@Body() data: AddSocialMediasDto) {
     return this.adminService.adminAddNewBrandsToInfluencerAccount(data);
+  }
+
+  @Put('influencer/import-xlsx')
+  @UsePipes(new ValidationPipe({ transform: true }))
+  adminImportXlsxInfluencers(@Body() data: AdminImportXlsxInfluencersDto) {
+    return this.adminService.adminImportXlsxInfluencers(data);
   }
 
   @Put('campaign/add-created-at-field')

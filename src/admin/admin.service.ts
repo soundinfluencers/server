@@ -23,6 +23,7 @@ import axios from 'axios';
 
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
+const bcrypt = require('bcryptjs');
 import * as process from 'node:process';
 import { AdminSendMailToInfluencerDto } from './dto/admin-send-mail-to-influencer.dto';
 import { AppGateway } from '../websocket/app.gateway';
@@ -31,6 +32,7 @@ import {
   createNewPromoRequestTextMessage,
 } from '../utils/new-promo-message';
 import { AddSocialMediasDto } from '../profile/dto/add-social-medias.dto';
+import {AdminImportXlsxInfluencersDto, CountryObj} from "./dto/admin-import-xlsx-influencers";
 
 @Injectable()
 export class AdminService {
@@ -2338,6 +2340,122 @@ export class AdminService {
         code: 200,
         message: 'Social media accounts added successfully',
       };
+    }
+  }
+
+  async adminImportXlsxInfluencers(data: AdminImportXlsxInfluencersDto) {
+    if (!data.influencers) return {
+      code: 400,
+      message: 'Empty accounts array',
+    }
+
+    try {
+      const accountsFromDataMap: Map<
+          string,
+          {
+            email: string;
+            phone: string;
+            firstName: string;
+            username: string;
+            link: string;
+            price: number;
+            followersNumber: number;
+            countries: CountryObj[];
+            creatorCategories?: string[];
+          }[]
+      > = new Map();
+
+      let createdCount = 0;
+      let updatedCount = 0;
+
+      for (const account of data.influencers) {
+        const { email } = account;
+
+        if (!accountsFromDataMap.has(email)) {
+          accountsFromDataMap.set(email, [account]);
+        } else {
+          accountsFromDataMap.get(email)!.push(account);
+        }
+      }
+
+      for (const [email, accountsFromData] of accountsFromDataMap.entries()) {
+        try {
+          const influencerInDatabase = await this.influencerModel.findOne({email: email});
+
+          const accountsToSave = accountsFromData.map(item => ({
+            _id: new Types.ObjectId(),
+            profileCategory: "creator" as const,
+            musicStyle: "Techno",
+            musicSubStyles: ["Hard, Peak", "Melodic, Minimal", "Tech House", "Melodic, Afro"],
+            musicStyleOther: ["House", "EDM", "D&B", "Bass", "Psy, Trance", "Dubstep"],
+            instagramUsername: item.username,
+            instagramLink: item.link,
+            followersNumber: item.followersNumber.toString(),
+            logo: "https://dl.dropboxusercontent.com/scl/fi/c5ibdvebsopuz6ydi5l3t/2025-07-29T15-50-59.661Zdefault-avatar-profile-icon-social-600nw-1677509740.webp?rlkey=55mdiffm86fhrks7263e8sfrr&dl=0",
+            price: item.price.toString(),
+            publicPrice: (item.price * 2).toString(),
+            countries: item.countries,
+            categories: [],
+            creatorCategories: item.creatorCategories || [],
+            isHidden: false,
+            isDeleted: false,
+            isVerified: true
+          }));
+
+            if (influencerInDatabase) {
+                const existingTiktokAccounts = influencerInDatabase.tiktok || [];
+
+                const newUniqueAccounts = accountsToSave.filter(newAcc => {
+                    return !existingTiktokAccounts.some(existingAcc =>
+                        existingAcc.instagramUsername === newAcc.instagramUsername
+                    );
+                });
+
+                if (newUniqueAccounts.length > 0) {
+                    influencerInDatabase.tiktok.push(...newUniqueAccounts);
+                    await influencerInDatabase.save();
+                    updatedCount++;
+                }
+            } else {
+            await this.influencerModel.create({
+              _id: new Types.ObjectId(),
+              email: email,
+              phone: accountsFromData[0]?.phone || "",
+              password: bcrypt.hashSync(email),
+              firstName: accountsFromData[0].firstName,
+              role: "influencer",
+              balance: "0",
+              statusVerify: "accept",
+              instagram: [],
+              tiktok: accountsToSave,
+              spotify: [],
+              soundcloud: [],
+              facebook: [],
+              youtube: [],
+              press: []
+            })
+            createdCount++;
+          }
+        } catch (err) {
+            this.logger.warn(`${err}`, err instanceof Error ? err.stack : new Error().stack);
+        }
+      }
+
+      return {
+        code: 201,
+        message: "Successfully imported",
+        createdCount,
+        updatedCount,
+      }
+    } catch (err) {
+      this.logger.error(
+          `Unexpected error: ${err}`,
+          err instanceof Error ? err.stack : new Error().stack,
+      )
+      return {
+        code: 500,
+        message: 'Internal server error',
+      }
     }
   }
 
