@@ -2396,6 +2396,8 @@ export class AdminService {
             publicPrice: (item.price * 2).toString(),
             countries: item.countries,
             categories: [],
+            engagementRate: 0,
+            averageViews: 0,
             creatorCategories: item.creatorCategories || [],
             isHidden: false,
             isDeleted: false,

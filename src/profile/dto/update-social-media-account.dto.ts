@@ -48,4 +48,10 @@ export class UpdateSocialMediaAccountDto {
 
   @ApiProperty({ required: false })
   profileCategory: string;
+
+  @ApiProperty({ required: true })
+  engagementRate: number | null;
+
+  @ApiProperty({ required: true })
+  averageViews: number | null;
 }

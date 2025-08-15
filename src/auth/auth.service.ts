@@ -215,6 +215,8 @@ export class AuthService {
             ...(item.profileCategory === "creator" && {
               creatorCategories: item.creatorCategories ?? [],
             }),
+            engagementRate: ['instagram', 'tiktok'].includes(network) ? 0 : null,
+            averageViews: ['instagram', 'tiktok'].includes(network) ? 0 : null,
             followersNumber: item.followersNumber.toString(),
             musicStyle: musicStyle,
             publicPrice: publicPrice,

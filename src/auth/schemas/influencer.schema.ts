@@ -14,6 +14,8 @@ interface typesInstagram {
   publicPrice: string;
   countries: { country: string; percentage: number }[] | null;
   categories: string[] | null;
+  engagementRate: number | null;
+  averageViews: number | null;
   creatorCategories: string[];
   isHidden: boolean;
   isDeleted: boolean;
@@ -43,6 +45,8 @@ const typesInstagramApi = {
       },
     ] || null,
   categories: [String] || null,
+  engagementRate: Number || null,
+  averageViews: Number || null,
   creatorCategories: {
     type: [String],
     required: false,

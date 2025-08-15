@@ -12,6 +12,8 @@ export interface ISocial {
   publicPrice: string;
   countries: { country: string; percentage: number }[] | null;
   categories: string[] | null;
+  engagementRate: number | null;
+  averageViews: number | null;
   creatorCategories?: string[] | null;
   profileCategory: 'community' | 'creator';
   initialPrice?: string;
@@ -40,6 +42,8 @@ export const typesSocialMedia = {
     nullable: true,
   },
   categories: { type: 'array', items: { type: 'string' }, nullable: true },
+  engagementRate: { type: 'number', nullable: true },
+  averageViews: { type: 'number', nullable: true },
   creatorCategories: {
     type: 'array',
     items: { type: 'string' },
