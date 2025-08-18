@@ -2360,6 +2360,8 @@ export class AdminService {
             link: string;
             price: number;
             followersNumber: number;
+            engagementRate: number | string | null;
+            averageViews: number | null;
             countries: CountryObj[];
             creatorCategories?: string[];
           }[]
@@ -2396,8 +2398,8 @@ export class AdminService {
             publicPrice: (item.price * 2).toString(),
             countries: item.countries,
             categories: [],
-            engagementRate: 0,
-            averageViews: 0,
+            engagementRate: item.engagementRate !== null ? Number(item.engagementRate) : null,
+            averageViews: item.averageViews ?? null,
             creatorCategories: item.creatorCategories || [],
             isHidden: false,
             isDeleted: false,

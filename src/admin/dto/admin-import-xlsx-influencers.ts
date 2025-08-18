@@ -60,6 +60,13 @@ class Account {
     @Min(0)
     followersNumber: number;
 
+    engagementRate: number;
+
+    @ApiProperty()
+    @IsNumber()
+    @Min(0)
+    averageViews: number;
+
     @ApiProperty({ type: [CountryObj] })
     @IsArray()
     @ValidateNested({ each: true })
