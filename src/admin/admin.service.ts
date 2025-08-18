@@ -2369,6 +2369,7 @@ export class AdminService {
 
       let createdCount = 0;
       let updatedCount = 0;
+      let errors = [];
 
       for (const account of data.influencers) {
         const { email } = account;
@@ -2442,6 +2443,7 @@ export class AdminService {
           }
         } catch (err) {
             this.logger.warn(`${err}`, err instanceof Error ? err.stack : new Error().stack);
+            errors.push(`[${email}] - [${accountsFromData.map(acc => accountsFromData[accountsFromData.length - 1].username === acc.username ? `${acc.username}` : `${acc.username}, `)}] Error adding social media accounts:`, err);
         }
       }
 
@@ -2450,6 +2452,7 @@ export class AdminService {
         message: "Successfully imported",
         createdCount,
         updatedCount,
+        errors
       }
     } catch (err) {
       this.logger.error(
