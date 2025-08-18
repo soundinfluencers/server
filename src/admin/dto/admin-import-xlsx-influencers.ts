@@ -32,8 +32,6 @@ class Account {
     @IsNotEmpty()
     email: string;
 
-    @ApiProperty()
-    @IsString()
     phone: string;
 
     @ApiProperty()

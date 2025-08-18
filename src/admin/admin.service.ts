@@ -2419,7 +2419,7 @@ export class AdminService {
                 if (newUniqueAccounts.length > 0) {
                     influencerInDatabase.tiktok.push(...newUniqueAccounts);
                     await influencerInDatabase.save();
-                    updatedCount++;
+                    updatedCount += newUniqueAccounts.length;
                 }
             } else {
             await this.influencerModel.create({
@@ -2439,7 +2439,7 @@ export class AdminService {
               youtube: [],
               press: []
             })
-            createdCount++;
+            createdCount += accountsToSave.length;
           }
         } catch (err) {
             this.logger.warn(`${err}`, err instanceof Error ? err.stack : new Error().stack);
