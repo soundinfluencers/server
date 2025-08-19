@@ -77,6 +77,11 @@ class Account {
     @ArrayNotEmpty()
     @IsString({ each: true })
     creatorCategories?: string[];
+
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    password: string;
 }
 
 export class AdminImportXlsxInfluencersDto {

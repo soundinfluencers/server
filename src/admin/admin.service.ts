@@ -2354,6 +2354,7 @@ export class AdminService {
           string,
           {
             email: string;
+            password: string;
             phone: string;
             firstName: string;
             username: string;
@@ -2426,7 +2427,7 @@ export class AdminService {
               _id: new Types.ObjectId(),
               email: email,
               phone: accountsFromData[0]?.phone || "",
-              password: bcrypt.hashSync(email),
+              password: bcrypt.hashSync(accountsFromData[0].password),
               firstName: accountsFromData[0].firstName,
               role: "influencer",
               balance: "0",
@@ -2486,5 +2487,30 @@ export class AdminService {
     }
 
     this.logger.debug(`Added 'createdAt' field to ${campaigns.length} campaigns`);
+  }
+
+  async adminDeleteYesterdayAccounts() {
+    try {
+      const start = new Date("2025-08-18T00:00:00.000Z");
+      const end = new Date("2025-08-18T23:59:59.999Z");
+
+      const result = await this.influencerModel.deleteMany({
+        createdAt: { $gte: start, $lte: end },
+      });
+
+      return {
+        code: 200,
+        message: `Deleted ${result.deletedCount} accounts created on 2025-08-18`,
+      };
+    } catch (err) {
+      this.logger.error(
+          `Unexpected error: ${err}`,
+          err instanceof Error ? err.stack : new Error().stack,
+      );
+      return {
+        code: 500,
+        message: 'Internal server error',
+      };
+    }
   }
 }

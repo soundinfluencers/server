@@ -248,4 +248,9 @@ export class AdminController {
   adminAddCreatedAtFieldToSelectInfluencersInCampaign() {
     return this.adminService.adminAddCreatedAtFieldToSelectInfluencersInCampaign();
   };
+
+  @Delete('influencers/delete/yesterday')
+  adminDeleteYesterday() {
+    return this.adminService.adminDeleteYesterdayAccounts();
+  }
 }
