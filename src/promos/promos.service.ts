@@ -516,10 +516,9 @@ ${emailVideoContent()}
 
       const campaignsToReturn = await Promise.all(
         campaigns.map(async (item) => {
-          const clientId = item.clientId || (item as any).userId;
-          const clientName = await this.clientModel.findById(clientId);
+          const clientName = checkUser.firstName;
           if (!clientName) return { ...item, client: 'No Data' };
-          return { ...item, client: clientName.firstName };
+          return { ...item, client: checkUser.firstName };
         }),
       );
 
@@ -668,7 +667,7 @@ ${emailVideoContent()}
               influencerItem.socialMediaUsername || (influencerItem as any).instagramUsername,
             firstName: influencerData.firstName,
             followersNumber: followersNumber,
-            logo: socialMediaAccount.logo,
+            logo: socialMediaAccount?.logo ?? "",
           };
         }),
       );
