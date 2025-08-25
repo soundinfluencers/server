@@ -18,6 +18,7 @@ import {
   AccountObjectForCreateNewPromoRequestMessage,
   createNewPromoRequestHTMLMessage,
 } from '../utils/new-promo-message';
+import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 
 mongoose.Promise = global.Promise;
 
@@ -34,6 +35,8 @@ export class PromosService {
     private influencerModel: mongoose.Model<Influencer>,
     @InjectModel(PromosCopies.name)
     private promosCopiesModel: mongoose.Model<PromosCopies>,
+    @InjectModel(ProposalCampaign.name)
+    private proposalCampaignModel: mongoose.Model<ProposalCampaign>,
   ) {}
 
   async createPromo(data: CreatePromosDto) {
@@ -2469,4 +2472,45 @@ ${emailVideoContent()}
       return Array.from(genresSet);
     }
   };
+
+  async getClientProposalPromos(clientId: string) {
+    if (!clientId) {
+      return {
+        code: 400,
+        message: 'Invalid Client Id',
+      };
+    }
+
+    const client = await this.clientModel.findById(clientId);
+    if (!client) {
+      return {
+        code: 404,
+        message: 'Client does not exist',
+      };
+    }
+    if (!client.isProposalClient) {
+      return {
+        code: 403,
+        message: 'Not enough access',
+      };
+    }
+
+    const proposalPromos = await this.proposalCampaignModel.find({ clientId });
+
+    if (proposalPromos.length === 0) {
+      return {
+        code: 204,
+        message: "No content"
+      }
+    }
+
+    return {
+      code: 200,
+      proposalPromos: proposalPromos.map(p => ({
+        _id: p._id,
+        campaignName: p.campaignName,
+        createdAt: p.createdAt,
+      })),
+    };
+  }
 }

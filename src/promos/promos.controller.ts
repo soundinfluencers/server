@@ -352,4 +352,11 @@ export class PromosController {
   saveXLSXCampaign(@Param() args: { typeOfStorage: string }, @Body() data: SaveXlsxPromoDto) {
     return this.promosService.saveXLSXCampaign(args.typeOfStorage, data);
   }
+
+  @Get('client/get-proposal-promos/:clientId')
+  getClientProposalPromos(@Param('clientId') clientId: string) {
+    const decryptedClientId = decodeAndDecrypt(clientId, process.env.SERVER_API_ENCRYPTION_SECRET_KEY)
+
+    return this.promosService.getClientProposalPromos(decryptedClientId);
+  }
 }
