@@ -588,135 +588,94 @@ ${emailVideoContent()}
 
   async clientGetOngoingOrPastCampaign(campaignId: string, clientId: string) {
     try {
-      if (!campaignId) {
-        return {
-          status: 400,
-          message: 'Not enough arguments',
-        };
-      }
+      if (!campaignId) return { status: 400, message: 'Not enough arguments' };
 
-      const checkUser = await this.clientModel.findById(clientId);
-      if (!checkUser) {
-        return {
-          code: 404,
-          message: 'User not found',
-        };
-      }
+      const client = await this.clientModel.findById(clientId);
+      if (!client) return { status: 404, message: 'User not found' };
 
-      let campaign = await this.promosModel.findById(campaignId).lean();
-      let totalFollowers = 0;
+      let campaign: any = await this.promosModel.findById(campaignId).lean();
+      if (!campaign) campaign = await this.promosCopiesModel.findById(campaignId).lean();
+      if (!campaign) return { status: 404, message: 'Promo not found' };
 
-      if (!campaign) {
-        const campaignCopy = await this.promosCopiesModel.findById(campaignId).lean();
-        if (campaignCopy) {
-          totalFollowers = campaignCopy.totalFollowers || 0;
-          campaign = campaignCopy;
-        } else {
-          return {
-            code: 404,
-            message: 'Promo not found',
-          };
-        }
-      }
+      const campaignToReturn: any = {
+        _id: campaign._id,
+        clientId: campaign.clientId,
+        campaignName: campaign.campaignName ?? 'OLD CAMPAIGN',
+        price: campaign.campaignPrice ?? campaign.price ?? campaign.amount ?? 0,
+        publicPrice: campaign.campaignPrice ?? campaign.publicPrice ?? campaign.amount ?? 0,
+        addedAccounts: [],
+        campaignContent: campaign.campaignContent ?? campaign.videos ?? [],
+        socialMedia: campaign.socialMedia ?? 'instagram',
+        totalFollowers: 0,
+        totalLikes: 0,
+        totalImpressions: 0,
+        createdAt: campaign.createdAt ?? 0,
+        isCopy: campaign.isCopy ?? false,
+        isCpmAndResultHidden: campaign.isCpmAndResultHidden ?? false,
+        isPriceHidden: campaign.isPriceHidden ?? false,
+        hiddenColumns: campaign.hiddenColumns ?? [],
+      };
 
-      const clientData = await this.clientModel.findById(clientId);
+      for (const addedAccount of campaign.selectInfluencers) {
+        const normalizedUsername =
+            addedAccount?.socialMediaUsername?.trim() || addedAccount?.instagramUsername?.trim() || '';
 
-      const selectInfluencersWithDetails = await Promise.all(
-        campaign.selectInfluencers.map(async (influencerItem) => {
-          const influencerData = await this.influencerModel.findById(influencerItem.influencerId);
+        const socialMedia =
+            addedAccount?.socialMedia || (campaign.socialMedia !== 'multipromo' && campaign.socialMedia);
 
-          if (!influencerData) {
-            return {
-              ...influencerItem,
-              firstName: '',
-            };
-          }
+        const selectedCampaignContentItemId =
+            addedAccount?.selectedCampaignContentItem ??
+            (Array.isArray(campaign?.videos)
+                ? campaign.videos.find((v) => v.videoLink === addedAccount?.selectedVideo)?._id
+                : null) ?? null;
 
-          const socialMediaToUse =
-            campaign.socialMedia === 'multipromo'
-              ? influencerItem.socialMedia
-              : campaign.socialMedia;
-
-          const socialMediaAccount = influencerData[socialMediaToUse].find(
-            (item) =>
-              item.instagramUsername ===
-              (influencerItem.socialMediaUsername || (influencerItem as any).instagramUsername),
-          );
-
-          if (!campaign.isCopy) totalFollowers += parseInt(socialMediaAccount.followersNumber);
-          let followersNumber = !campaign.isCopy
-            ? socialMediaAccount.followersNumber
-            : influencerItem.followersNumber;
-
-          return {
-            ...influencerItem,
-            selectedCampaignContentItem:
-              influencerItem.selectedCampaignContentItem || (influencerItem as any).selectedVideo,
-            selectedCampaignContentItemObj: campaign.campaignContent
-              ? campaign.campaignContent.find(
-                  (campaignContentItem) =>
-                    campaignContentItem._id.toString() ===
-                    influencerItem.selectedCampaignContentItem,
-                )
-              : (campaign as any).videos
-                ? (campaign as any).videos.find(
-                    (video) => video.videoLink === (influencerItem as any).selectedVideo,
+        let selectedCampaignContentItem = null;
+        if (selectedCampaignContentItemId) {
+          selectedCampaignContentItem =
+              (Array.isArray(campaign.campaignContent)
+                  ? campaign.campaignContent.find(
+                      (item) => item?._id?.toString() === selectedCampaignContentItemId?.toString(),
                   )
-                : null,
-            socialMediaUsername:
-              influencerItem.socialMediaUsername || (influencerItem as any).instagramUsername,
-            firstName: influencerData.firstName,
-            followersNumber: followersNumber,
-            logo: socialMediaAccount?.logo ?? "",
-          };
-        }),
-      );
-
-      const sortedInfluencers = selectInfluencersWithDetails.sort((a, b) => {
-        try {
-          const aContentId = a.selectedCampaignContentItem;
-          const bContentId = b.selectedCampaignContentItem;
-
-          const aIndex = campaign.campaignContent
-            ? campaign.campaignContent.findIndex((content) => content._id.toString() === aContentId)
-            : (campaign as any).videos
-              ? (campaign as any).videos.findIndex((video) => video.videoLink === aContentId)
-              : -1;
-
-          const bIndex = campaign.campaignContent
-            ? campaign.campaignContent.findIndex((content) => content._id.toString() === bContentId)
-            : (campaign as any).videos
-              ? (campaign as any).videos.findIndex((video) => video.videoLink === bContentId)
-              : -1;
-
-          return aIndex - bIndex;
-        } catch (err) {
-          console.log(err, 'Error sorting influencers by campaignContentItem index');
+                  : null) ??
+              (Array.isArray(campaign.videos)
+                  ? campaign.videos.find(
+                      (item) => item?._id?.toString() === selectedCampaignContentItemId?.toString(),
+                  )
+                  : null) ?? null;
         }
+
+        addedAccount.selectedCampaignContentItemId = selectedCampaignContentItemId;
+        addedAccount.selectedCampaignContentItem = selectedCampaignContentItem;
+        addedAccount.socialMedia = socialMedia;
+        addedAccount.socialMediaUsername = normalizedUsername;
+
+        campaignToReturn.totalFollowers += addedAccount?.followersNumber ?? 0;
+        campaignToReturn.totalLikes += parseInt(addedAccount.like?.replace(/[\s,]/g, '') || '0');
+        campaignToReturn.totalImpressions += parseInt(addedAccount.impressions?.replace(/[\s,]/g, '') || '0');
+
+        campaignToReturn.addedAccounts.push(addedAccount);
+      }
+
+      campaignToReturn.addedAccounts.sort((a, b) => {
+        const aIndex = Array.isArray(campaign.campaignContent)
+            ? campaign.campaignContent.findIndex((c) => c?._id?.toString() === a.selectedCampaignContentItemId?.toString())
+            : Array.isArray(campaign.videos)
+                ? campaign.videos.findIndex((v) => v?._id?.toString() === a.selectedCampaignContentItemId?.toString())
+                : -1;
+
+        const bIndex = Array.isArray(campaign.campaignContent)
+            ? campaign.campaignContent.findIndex((c) => c?._id?.toString() === b.selectedCampaignContentItemId?.toString())
+            : Array.isArray(campaign.videos)
+                ? campaign.videos.findIndex((v) => v?._id?.toString() === b.selectedCampaignContentItemId?.toString())
+                : -1;
+
+        return aIndex - bIndex;
       });
 
-      return {
-        code: 200,
-        campaign: {
-          ...campaign,
-          selectInfluencers: sortedInfluencers || selectInfluencersWithDetails,
-          brand: clientData ? clientData.company : 'No Data',
-          client: clientData ? clientData.firstName : 'No Data',
-          dateRequest: campaign.createdAt,
-          campaignContent: campaign.campaignContent || (campaign as any).videos,
-          paymentStatus: campaign.paymentStatus,
-          paymentType: campaign.paymentType,
-          amount: campaign.campaignPrice || (campaign as any).amount || 0,
-          campaignName: campaign.campaignName,
-          totalFollowers: totalFollowers,
-        },
-      };
+      return { status: 200, campaign: campaignToReturn };
     } catch (err) {
-      console.log(err);
-      return {
-        code: 500,
-        message: err.message || 'Internal Server Error',
-      };
+      console.error(err);
+      return { status: 500, message: err.message || 'Internal server error' };
     }
   }
 

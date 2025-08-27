@@ -1,4 +1,16 @@
-import {Controller, Get, Post, Body, Put, Param, Delete, ParseBoolPipe, UsePipes, ValidationPipe} from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Put,
+  Param,
+  Delete,
+  ParseBoolPipe,
+  UsePipes,
+  ValidationPipe,
+  Patch
+} from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminUpdatePersonalClientDto } from './dto/admin-update-client.dto';
 import { AdminUpdateInfluencerPersonalDto } from './dto/admin-update-influencer-personal.dto';

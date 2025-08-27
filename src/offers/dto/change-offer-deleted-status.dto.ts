@@ -1,4 +1,4 @@
-import { IsBoolean, IsNotEmpty, IsString, ValidationArguments } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsString } from 'class-validator';
 
 export class ChangeOfferDeletedStatusDto {
   @IsString({

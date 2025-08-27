@@ -14,6 +14,7 @@ import {Promos, PromosSchema} from "../promos/schemas/promo.schema";
             { name: Promos.name, schema: PromosSchema },
         ]),
     ],
+    exports: [ScrapersService],
     controllers: [ScrapersController],
     providers: [ScrapersService]
 })

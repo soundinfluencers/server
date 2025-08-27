@@ -20,6 +20,7 @@ import {MultiPromoModule} from './multipromos/multipromo.module';
 import {HealthController} from './health/health.controller';
 import {OffersModule} from './offers/offers.module';
 import {ScrapersModule} from './scrapers/scrapers.module';
+import { ReportsSizesModule } from './reports-sizes/reports-sizes.module';
 
 @Module({
     imports: [
@@ -46,6 +47,7 @@ import {ScrapersModule} from './scrapers/scrapers.module';
             rootPath: join(__dirname, '..', 'uploads'),
             serveRoot: '/uploads',
         }),
+        ReportsSizesModule,
     ],
     controllers: [AppController, HealthController],
     providers: [AppService],
