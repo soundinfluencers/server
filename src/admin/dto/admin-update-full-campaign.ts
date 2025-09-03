@@ -4,7 +4,10 @@ interface Influencer {
   _id: string;
   influencerId: string;
   socialMediaUsername: string;
-  selectedCampaignContentItemId: string;
+  selectedContent: {
+    campaignContentItemId: string;
+    postDescriptionId: string;
+  };
   followersNumber: number;
   dateRequest: string | null;
   postLink: string | null;
@@ -21,7 +24,10 @@ interface Influencer {
 interface CampaignContentItem {
   _id: string;
   videoLink: string;
-  postDescription: string;
+  postDescriptions: {
+    _id: string;
+    description: string;
+  }[];
   storyTag: string | null;
   storyLink: string | null;
   specialWishes: string;

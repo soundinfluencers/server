@@ -287,18 +287,18 @@ export class ProposalSystemService {
       const sortedInfluencers =
         processedSelectInfluencers.length > 0 &&
         processedSelectInfluencers.sort((a, b) => {
-          const aContentId = a.selectedCampaignContentItem;
-          const bContentId = b.selectedCampaignContentItem;
+          const aContentId = a.selectedContent;
+          const bContentId = b.selectedContent;
 
           const aIndex = proposalCampaign.campaignContent
             ? proposalCampaign.campaignContent.findIndex(
-                (content) => content._id.toString() === aContentId,
+                (content) => content._id.toString() === aContentId.campaignContentItemId.toString(),
               )
             : -1;
 
           const bIndex = proposalCampaign.campaignContent
             ? proposalCampaign.campaignContent.findIndex(
-                (content) => content._id.toString() === bContentId,
+                (content) => content._id.toString() === bContentId.campaignContentItemId.toString(),
               )
             : -1;
 

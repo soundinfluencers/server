@@ -1,4 +1,4 @@
 export class GetReportSizeDto {
-    campaignId: string;
-    userId?: string;
+  campaignId: string;
+  userId?: string;
 }

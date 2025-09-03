@@ -9,7 +9,7 @@ import {
   ParseBoolPipe,
   UsePipes,
   ValidationPipe,
-  Patch
+  Patch,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminUpdatePersonalClientDto } from './dto/admin-update-client.dto';
@@ -24,7 +24,7 @@ import { decodeAndDecrypt } from '../utils/crypt';
 import { AdminUpdateFullCampaignDto } from './dto/admin-update-full-campaign';
 import { AdminSendMailToInfluencerDto } from './dto/admin-send-mail-to-influencer.dto';
 import { AddSocialMediasDto } from '../profile/dto/add-social-medias.dto';
-import {AdminImportXlsxInfluencersDto} from "./dto/admin-import-xlsx-influencers";
+import { AdminImportXlsxInfluencersDto } from './dto/admin-import-xlsx-influencers';
 
 @Controller('admin')
 export class AdminController {
@@ -256,13 +256,8 @@ export class AdminController {
     return this.adminService.adminImportXlsxInfluencers(data);
   }
 
-  @Put('campaign/add-created-at-field')
-  adminAddCreatedAtFieldToSelectInfluencersInCampaign() {
-    return this.adminService.adminAddCreatedAtFieldToSelectInfluencersInCampaign();
-  };
-
-  @Delete('influencers/delete/yesterday')
-  adminDeleteYesterday() {
-    return this.adminService.adminDeleteYesterdayAccounts();
+  @Patch('campaigns/update-to-date')
+  adminUpdateCampaignsUpToDate() {
+    return this.adminService.adminUpdateCampaignsUpToDate();
   }
 }

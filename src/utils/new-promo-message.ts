@@ -15,7 +15,7 @@ interface CreateNewPromoRequestMessageProps {
 }
 
 export const createNewPromoRequestTextMessage = (
-  data: CreateNewPromoRequestMessageProps
+  data: CreateNewPromoRequestMessageProps,
 ): string => {
   const { firstName, accountsAndDetails } = data;
 
@@ -36,7 +36,7 @@ Let us know if you'd like to take part in this campaign(s)
 };
 
 export const createNewPromoRequestHTMLMessage = (
-  data: CreateNewPromoRequestMessageProps
+  data: CreateNewPromoRequestMessageProps,
 ): string => {
   const { firstName, accountsAndDetails } = data;
 
@@ -129,7 +129,8 @@ function formatAccountHTML(acc: AccountObjectForCreateNewPromoRequestMessage): s
       if (acc.description) lines.push(`<strong>Description:</strong> ${acc.description}`);
       if (acc.storyTag) lines.push(`<strong>Story Tag:</strong> ${acc.storyTag}`);
       if (acc.storyLink) lines.push(`<strong>Story Link:</strong> ${acc.storyLink}`);
-      if (acc.specialRequests) lines.push(`<strong>Special Requests:</strong> ${acc.specialRequests}`);
+      if (acc.specialRequests)
+        lines.push(`<strong>Special Requests:</strong> ${acc.specialRequests}`);
       break;
     case 'spotify':
       lines.push(`<strong>Playlist:</strong> ${acc.pageName}`);
@@ -149,7 +150,8 @@ function formatAccountHTML(acc: AccountObjectForCreateNewPromoRequestMessage): s
       if (acc.description) lines.push(`<strong>Description:</strong> ${acc.description}`);
       if (acc.storyTag) lines.push(`<strong>Story Tag:</strong> ${acc.storyTag}`);
       if (acc.storyLink) lines.push(`<strong>Story Link:</strong> ${acc.storyLink}`);
-      if (acc.specialRequests) lines.push(`<strong>Special Requests:</strong> ${acc.specialRequests}`);
+      if (acc.specialRequests)
+        lines.push(`<strong>Special Requests:</strong> ${acc.specialRequests}`);
       break;
   }
 

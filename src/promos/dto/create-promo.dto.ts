@@ -1,44 +1,73 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-interface selectInfluencersType {
+export class SelectedCampaignContentItemDto {
+  @ApiProperty()
+  campaignContentItemId: string;
+
+  @ApiProperty()
+  postDescriptionId: string;
+}
+
+export class SelectInfluencerDto {
+  @ApiProperty()
   socialMediaAccountId: string;
+
+  @ApiProperty()
   socialMedia: string;
+
+  @ApiProperty()
   socialMediaUsername: string;
-  selectedCampaignContentItem: string;
+
+  @ApiProperty({ type: () => SelectedCampaignContentItemDto })
+  selectedCampaignContentItem: SelectedCampaignContentItemDto;
+
+  @ApiProperty()
   dateRequest: string;
 }
 
-interface campaignContentItemType {
+export class PostDescriptionDto {
+  @ApiProperty()
   _id: string;
+
+  @ApiProperty()
+  description: string;
+}
+
+export class CampaignContentItemDto {
+  @ApiProperty()
+  _id: string;
+
+  @ApiProperty()
   videoLink: string;
-  postDescription: string;
+
+  @ApiProperty({ type: () => [PostDescriptionDto] })
+  postDescriptions: PostDescriptionDto[];
+
+  @ApiProperty()
   storyTag: string;
+
+  @ApiProperty({ required: false, default: undefined })
   swipeUpLink: string;
-  specialWishes: string;
+
+  @ApiProperty({ required: false, default: undefined })
+  specialWishes?: string;
+
+  @ApiProperty({ required: true, default: 'instagram' })
   socialMedia: string;
+
+  @ApiProperty({ required: true, default: 'main' })
+  socialMediaGroup: string;
 }
 
 export class CreatePromosDto {
   @ApiProperty({ required: true })
   clientId: string;
 
-  @ApiProperty({
-    required: true,
-    type: 'array',
-    items: {
-      type: 'object',
-    },
-  })
-  selectInfluencers: selectInfluencersType[];
+  @ApiProperty({ type: () => [SelectInfluencerDto] })
+  selectInfluencers: SelectInfluencerDto[];
 
-  @ApiProperty({
-    required: true,
-    type: 'array',
-    items: {
-      type: 'object',
-    },
-  })
-  campaignContent: campaignContentItemType[];
+  @ApiProperty({ type: () => [CampaignContentItemDto] })
+  campaignContent: CampaignContentItemDto[];
 
   @ApiProperty({ required: true })
   campaignName: string;

@@ -247,8 +247,8 @@ export class ProfileService {
         averageViews: data.averageViews ?? null,
         price: data.price,
         publicPrice: data.publicPrice,
-        profileCategory: data.profileCategory ?? "community",
-        ...(data.profileCategory === "creator" && {
+        profileCategory: data.profileCategory ?? 'community',
+        ...(data.profileCategory === 'creator' && {
           creatorCategories: data.creatorCategories ?? [],
         }),
         isVerified: true,
@@ -615,7 +615,7 @@ export class ProfileService {
           const accountId = new mongoose.Types.ObjectId();
           socialMediaAccounts.push({
             ...account,
-            ...(account.profileCategory === "creator" && {
+            ...(account.profileCategory === 'creator' && {
               creatorCategories: account.creatorCategories ?? [],
             }),
             followersNumber: account.followersNumber.replace(/[.,]/g, ''),

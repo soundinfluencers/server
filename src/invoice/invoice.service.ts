@@ -219,23 +219,23 @@ export class InvoiceService {
         .map((account) => `<br /> - ${account.instagramUsername}`)
         .join('');
       const tiktokAccounts = checkUser.tiktok
-          .map((account) => `<br /> - ${account.instagramUsername}`)
-          .join('');
+        .map((account) => `<br /> - ${account.instagramUsername}`)
+        .join('');
       const spotifyAccounts = checkUser.spotify
-          .map((account) => `<br /> - ${account.instagramUsername}`)
-          .join('');
+        .map((account) => `<br /> - ${account.instagramUsername}`)
+        .join('');
       const soundcloudAccounts = checkUser.soundcloud
-          .map((account) => `<br /> - ${account.instagramUsername}`)
-          .join('');
+        .map((account) => `<br /> - ${account.instagramUsername}`)
+        .join('');
       const facebookAccounts = checkUser.facebook
-          .map((account) => `<br /> - ${account.instagramUsername}`)
-          .join('');
+        .map((account) => `<br /> - ${account.instagramUsername}`)
+        .join('');
       const youtubeAccounts = checkUser.youtube
-          .map((account) => `<br /> - ${account.instagramUsername}`)
-          .join('');
+        .map((account) => `<br /> - ${account.instagramUsername}`)
+        .join('');
       const pressAccounts = checkUser.press
-          .map((account) => `<br /> - ${account.instagramUsername}`)
-          .join('');
+        .map((account) => `<br /> - ${account.instagramUsername}`)
+        .join('');
 
       await this.createPDF(result, data)
         .then(async (pdfPath) => {
@@ -245,13 +245,13 @@ export class InvoiceService {
             `${checkUser.email}`,
             `<p>Invoice from ${checkUser.email} <b>(Contact email: ${data.contactEmail})</b> </p>
                     <p><b>ID:</b> ${result?._id}</p>
-                    <p><b>Instagram Accounts:</b> ${instagramAccounts || "0 accounts"}</p>
-                    <p><b>TikTok Accounts:</b> ${tiktokAccounts || "0 accounts"}</p>
-                    <p><b>Spotify Accounts:</b> ${spotifyAccounts || "0 accounts"}</p>
-                    <p><b>SoundCloud Accounts:</b> ${soundcloudAccounts || "0 accounts"}</p>
-                    <p><b>Facebook Accounts:</b> ${facebookAccounts || "0 accounts"}</p>
-                    <p><b>YouTube Accounts:</b> ${youtubeAccounts || "0 accounts"}</p>
-                    <p><b>Press Accounts:</b> ${pressAccounts || "0 accounts"}</p>
+                    <p><b>Instagram Accounts:</b> ${instagramAccounts || '0 accounts'}</p>
+                    <p><b>TikTok Accounts:</b> ${tiktokAccounts || '0 accounts'}</p>
+                    <p><b>Spotify Accounts:</b> ${spotifyAccounts || '0 accounts'}</p>
+                    <p><b>SoundCloud Accounts:</b> ${soundcloudAccounts || '0 accounts'}</p>
+                    <p><b>Facebook Accounts:</b> ${facebookAccounts || '0 accounts'}</p>
+                    <p><b>YouTube Accounts:</b> ${youtubeAccounts || '0 accounts'}</p>
+                    <p><b>Press Accounts:</b> ${pressAccounts || '0 accounts'}</p>
                     <p><b>Selected Payment Method:</b> ${data.selectedPaymentMethod}</p>`,
             'pdf',
             pdfPath as string,

@@ -212,7 +212,7 @@ export class AuthService {
 
           return {
             ...item,
-            ...(item.profileCategory === "creator" && {
+            ...(item.profileCategory === 'creator' && {
               creatorCategories: item.creatorCategories ?? [],
             }),
             engagementRate: ['instagram', 'tiktok'].includes(network) ? 0 : null,

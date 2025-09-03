@@ -1,5 +1,11 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
 import mongoose from 'mongoose';
+import {
+  CampaignContentItem,
+  CampaignContentItemSchema,
+  SelectedContent,
+  SelectedContentSchema
+} from "../../promos/schemas/promo.schema";
 
 @Schema()
 export class SelectInfluencers {
@@ -24,8 +30,8 @@ export class SelectInfluencers {
   @Prop({ default: '0' })
   publicPrice: string;
 
-  @Prop()
-  selectedCampaignContentItem: string;
+  @Prop({ type: SelectedContentSchema })
+  selectedContent: SelectedContent;
 
   @Prop()
   dateRequest: string;
@@ -55,31 +61,6 @@ export class SelectInfluencers {
   countries: object[];
 }
 export const SelectInfluencersSchema = SchemaFactory.createForClass(SelectInfluencers);
-
-@Schema()
-export class CampaignContentItem {
-  @Prop()
-  _id: mongoose.Schema.Types.ObjectId;
-
-  @Prop()
-  videoLink: string;
-
-  @Prop()
-  postDescription: string;
-
-  @Prop()
-  storyTag: string;
-
-  @Prop()
-  swipeUpLink: string;
-
-  @Prop()
-  specialWishes: string;
-
-  @Prop()
-  socialMedia: string;
-}
-const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignContentItem);
 
 @Schema({ timestamps: true })
 export class ProposalCampaign {

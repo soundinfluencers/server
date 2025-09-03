@@ -9,7 +9,7 @@ interface typesInstagram {
   instagramLink: string;
   followersNumber: string;
   logo: string;
-  profileCategory: "community" | "creator";
+  profileCategory: 'community' | 'creator';
   price: string;
   publicPrice: string;
   countries: { country: string; percentage: number }[] | null;

@@ -19,7 +19,6 @@ export interface ISocial {
   initialPrice?: string;
 }
 
-
 export const typesSocialMedia = {
   musicStyle: { type: 'string' },
   musicSubStyles: { type: 'array', items: { type: 'string' }, nullable: true },
@@ -55,7 +54,6 @@ export const typesSocialMedia = {
   },
   initialPrice: { type: 'string' },
 };
-
 
 export class CreateInfluencerDto {
   @ApiProperty()

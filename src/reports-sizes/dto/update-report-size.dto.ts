@@ -1,5 +1,5 @@
 export class UpdateReportSizeDto {
-    campaignId: string;
-    userId?: string;
-    columnSizes: object[];
+  campaignId: string;
+  userId?: string;
+  columnSizes: object[];
 }

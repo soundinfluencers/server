@@ -1,13 +1,27 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 
+@Schema({ _id: false, timestamps: false })
+export class SelectedContent {
+  @Prop({ type: Types.ObjectId, required: true })
+  campaignContentItemId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, required: true })
+  postDescriptionId: Types.ObjectId;
+}
+
+export const SelectedContentSchema = SchemaFactory.createForClass(SelectedContent);
+
 @Schema({ timestamps: true })
 export class SelectInfluencers {
   @Prop({ type: Types.ObjectId, required: true })
   _id: Types.ObjectId;
 
-  @Prop()
-  influencerId: string;
+  @Prop({ type: Types.ObjectId, required: true })
+  influencerId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, required: true })
+  accountId: Types.ObjectId;
 
   @Prop({ default: 'instagram' })
   socialMedia: string;
@@ -24,8 +38,8 @@ export class SelectInfluencers {
   @Prop({ default: '0' })
   publicPrice: string;
 
-  @Prop()
-  selectedCampaignContentItem: string;
+  @Prop({ type: SelectedContentSchema })
+  selectedContent: SelectedContent;
 
   @Prop()
   dateRequest: string;
@@ -72,22 +86,28 @@ export class CampaignContentItem {
   videoLink: string;
 
   @Prop()
-  postDescription: string;
+  postDescriptions: {
+    _id: Types.ObjectId;
+    description: string;
+  }[];
 
-  @Prop()
+  @Prop({ required: false, default: undefined })
   storyTag: string;
 
-  @Prop()
+  @Prop({ required: false, default: undefined })
   swipeUpLink: string;
 
-  @Prop()
+  @Prop({ required: false, default: undefined })
   specialWishes: string;
 
-  @Prop({ required: false, default: 'instagram' })
+  @Prop({ required: true, default: 'instagram' })
   socialMedia: string;
+
+  @Prop({ required: true, default: 'main' })
+  socialMediaGroup: string;
 }
 
-const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignContentItem);
+export const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignContentItem);
 
 @Schema({
   timestamps: true,
