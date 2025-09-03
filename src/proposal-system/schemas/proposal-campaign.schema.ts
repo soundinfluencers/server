@@ -6,7 +6,7 @@ export class SelectInfluencers {
   @Prop()
   _id: mongoose.Schema.Types.ObjectId;
 
-  @Prop()
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Influencer' })
   influencerId: mongoose.Schema.Types.ObjectId;
 
   @Prop()
@@ -83,7 +83,7 @@ const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignContentIt
 
 @Schema({ timestamps: true })
 export class ProposalCampaign {
-  @Prop({ required: false })
+  @Prop({ required: false, type: mongoose.Schema.Types.ObjectId, ref: 'Client' })
   clientId: mongoose.Schema.Types.ObjectId;
 
   @Prop({ required: true })
