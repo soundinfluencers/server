@@ -12,6 +12,8 @@ interface typesInstagram {
   profileCategory: "community" | "creator";
   price: string;
   publicPrice: string;
+  currency: string | null;
+  initialPrice: number;
   countries: { country: string; percentage: number }[] | null;
   categories: string[] | null;
   engagementRate: number | null;
@@ -37,6 +39,8 @@ const typesInstagramApi = {
   },
   price: String,
   publicPrice: String,
+  currency: String || null,
+  initialPrice: Number,
   countries:
     [
       {
