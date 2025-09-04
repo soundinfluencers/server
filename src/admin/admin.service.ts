@@ -1281,7 +1281,7 @@ export class AdminService {
                 addedAccount.socialMedia = addedAccount?.socialMedia || accSocialMedia;
                 addedAccount.socialMediaUsername = normalizedUsername;
 
-                if (!campaign.isCopy) {
+                if (!campaign.isCopy && !isProposal) {
                     const isOriginalAccount =
                         new Date(addedAccount.createdAt).getTime() === new Date(campaign.createdAt).getTime();
 
@@ -1294,7 +1294,7 @@ export class AdminService {
                             (await this.influencerModel.findById(addedAccount.influencerId).lean().exec()) ||
                             null
 
-                        const account = influencer[addedAccount.socialMedia].find(acc => acc.instagramUsername === addedAccount.socialMediaUsername) ?? null
+                        const account = influencer[addedAccount.socialMedia]?.find(acc => acc.instagramUsername === addedAccount.socialMediaUsername) ?? null
 
                         influencersMap.set(key, {
                             message: null,
