@@ -34,6 +34,7 @@ import {
 import {AddSocialMediasDto} from '../profile/dto/add-social-medias.dto';
 import {AdminImportXlsxInfluencersDto, CountryObj} from "./dto/admin-import-xlsx-influencers";
 import {ScrapersService} from "../scrapers/scrapers.service";
+import any = jasmine.any;
 
 @Injectable()
 export class AdminService {
@@ -1289,23 +1290,25 @@ export class AdminService {
                         : `${addedAccount.influencerId}-${addedAccount._id}`;
 
                     if (!influencersMap.has(key)) {
-                        const influencerFirstName =
-                            (await this.influencerModel.findById(addedAccount.influencerId).lean().exec())?.firstName ||
-                            'Unknown';
+                        const influencer =
+                            (await this.influencerModel.findById(addedAccount.influencerId).lean().exec()) ||
+                            null
+
+                        const account = influencer[addedAccount.socialMedia].find(acc => acc.instagramUsername === addedAccount.socialMediaUsername) ?? null
 
                         influencersMap.set(key, {
                             message: null,
-                            firstName: influencerFirstName,
+                            firstName: account?.firstName ?? "Unknown",
                             accounts: [
                                 {
                                     pageName: addedAccount.socialMediaUsername,
-                                    reward: addedAccount.price,
+                                    reward: `${(account as any).initialPrice ?? addedAccount.price?.replace(/\D/g, '')}${(account as any).currency ?? "EUR"}`,
                                     socialMedia: addedAccount.socialMedia,
                                     contentLink: addedAccount.selectedCampaignContentItem?.videoLink ?? '',
                                     description: addedAccount.selectedCampaignContentItem?.postDescription,
                                     storyTag: addedAccount.selectedCampaignContentItem?.storyTag,
                                     storyLink: addedAccount.selectedCampaignContentItem?.storyLink,
-                                    specialRequests: addedAccount.selectedCampaignContentItem?.specialRequests,
+                                    specialRequests: addedAccount.selectedCampaignContentItem?.specialWishes,
                                 },
                             ],
                         });
@@ -1314,13 +1317,13 @@ export class AdminService {
                         if (influencerData) {
                             influencerData.accounts.push({
                                 pageName: addedAccount.socialMediaUsername,
-                                reward: addedAccount.price,
+                                reward: `${addedAccount.initialPrice ?? addedAccount.price?.replace(/\D/g, '')}${addedAccount.currency ?? "EUR"}`,
                                 socialMedia: addedAccount.socialMedia,
                                 contentLink: addedAccount.selectedCampaignContentItem?.videoLink ?? '',
                                 description: addedAccount.selectedCampaignContentItem?.postDescription,
                                 storyTag: addedAccount.selectedCampaignContentItem?.storyTag,
                                 storyLink: addedAccount.selectedCampaignContentItem?.storyLink,
-                                specialRequests: addedAccount.selectedCampaignContentItem?.specialRequests,
+                                specialRequests: addedAccount.selectedCampaignContentItem?.specialWishes,
                             });
                         }
                     }
@@ -2306,6 +2309,7 @@ export class AdminService {
             try {
                 for (const account of accounts) {
                     const sanitizedPrice = parseFloat(String(account.price).replace(/[^\d.-]/g, '')) || 0;
+                    const sanitizedInitialPrice = parseInt(String(account.initialPrice).replace(/[^\d.-]/g, '')) || 0
                     const publicPrice = (sanitizedPrice * 2).toString();
                     const accountId = new mongoose.Types.ObjectId();
 
@@ -2316,6 +2320,8 @@ export class AdminService {
                         }),
                         followersNumber: account.followersNumber.replace(/[.,]/g, ''),
                         publicPrice: publicPrice,
+                        currency: account.currency ?? "EUR",
+                        initialPrice: sanitizedInitialPrice,
                         isHidden: false,
                         isDeleted: false,
                         isVerified: true,
@@ -2400,6 +2406,8 @@ export class AdminService {
                         logo: "https://dl.dropboxusercontent.com/scl/fi/c5ibdvebsopuz6ydi5l3t/2025-07-29T15-50-59.661Zdefault-avatar-profile-icon-social-600nw-1677509740.webp?rlkey=55mdiffm86fhrks7263e8sfrr&dl=0",
                         price: item.price.toString(),
                         publicPrice: (item.price * 2).toString(),
+                        currency: "EUR",
+                        initialPrice: item.price,
                         countries: item.countries,
                         categories: [],
                         engagementRate: item.engagementRate !== null ? Number(item.engagementRate) : null,
