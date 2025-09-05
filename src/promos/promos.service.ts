@@ -1,77 +1,75 @@
-import {Injectable, Logger} from '@nestjs/common';
-import {CreatePromosDto} from './dto/create-promo.dto';
-import {InjectModel} from '@nestjs/mongoose';
-import {Promos} from './schemas/promo.schema';
-import mongoose, {Types} from 'mongoose';
-import {Client} from 'src/auth/schemas/client.schema';
-import {Influencer} from 'src/auth/schemas/influencer.schema';
+import { Injectable, Logger } from '@nestjs/common';
+import { CreatePromosDto } from './dto/create-promo.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { Promos } from './schemas/promo.schema';
+import mongoose, { Types } from 'mongoose';
+import { Client } from 'src/auth/schemas/client.schema';
+import { Influencer } from 'src/auth/schemas/influencer.schema';
 import sendMail from 'src/services/sendMail';
-import {DropboxService} from 'src/services/Dropbox.service';
-import {PromosCopies} from '../admin/schemas/promos-copies.schema';
+import { DropboxService } from 'src/services/Dropbox.service';
+import { PromosCopies } from '../admin/schemas/promos-copies.schema';
 import axios from 'axios';
 import * as process from 'node:process';
-import {GetSelectedSocialAccountsDto} from './dto/get-selected-social-accounts.dto';
-import {decodeAndDecrypt} from '../utils/crypt';
-import {SendNewFullServicedCampaignRequest} from './dto/send-new-full-serviced-campaign-request';
-import {SaveXlsxPromoDto} from './dto/save-xlsx-promo.dto';
+import { GetSelectedSocialAccountsDto } from './dto/get-selected-social-accounts.dto';
+import { decodeAndDecrypt } from '../utils/crypt';
+import { SendNewFullServicedCampaignRequest } from './dto/send-new-full-serviced-campaign-request';
+import { SaveXlsxPromoDto } from './dto/save-xlsx-promo.dto';
 import {
-    AccountObjectForCreateNewPromoRequestMessage,
-    createNewPromoRequestHTMLMessage,
+  AccountObjectForCreateNewPromoRequestMessage,
+  createNewPromoRequestHTMLMessage,
 } from '../utils/new-promo-message';
-import {ProposalCampaign} from '../proposal-system/schemas/proposal-campaign.schema';
-import {getSocialMediaGroup} from "../utils/socialMedia";
+import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 
 mongoose.Promise = global.Promise;
 
 @Injectable()
 export class PromosService {
-    private readonly logger = new Logger();
+  private readonly logger = new Logger();
 
-    constructor(
-        @InjectModel(Promos.name)
-        private promosModel: mongoose.Model<Promos>,
-        @InjectModel(Client.name)
-        private clientModel: mongoose.Model<Client>,
-        @InjectModel(Influencer.name)
-        private influencerModel: mongoose.Model<Influencer>,
-        @InjectModel(PromosCopies.name)
-        private promosCopiesModel: mongoose.Model<PromosCopies>,
-        @InjectModel(ProposalCampaign.name)
-        private proposalCampaignModel: mongoose.Model<ProposalCampaign>,
-    ) {
+  constructor(
+    @InjectModel(Promos.name)
+    private promosModel: mongoose.Model<Promos>,
+    @InjectModel(Client.name)
+    private clientModel: mongoose.Model<Client>,
+    @InjectModel(Influencer.name)
+    private influencerModel: mongoose.Model<Influencer>,
+    @InjectModel(PromosCopies.name)
+    private promosCopiesModel: mongoose.Model<PromosCopies>,
+    @InjectModel(ProposalCampaign.name)
+    private proposalCampaignModel: mongoose.Model<ProposalCampaign>,
+  ) {}
+
+  async createPromo(data: CreatePromosDto) {
+    if (!data) {
+      return {
+        status: 400,
+        message: 'Not enough arguments',
+      };
     }
 
-    async createPromo(data: CreatePromosDto) {
-        if (!data) {
-            return {
-                status: 400,
-                message: 'Not enough arguments',
-            };
-        }
+    try {
+      const createdAt = new Date();
 
-        try {
-            const createdAt = new Date();
+      const processedInfluencers = await Promise.all(
+        data.selectInfluencers.map(async (influencer) => {
+          try {
+            const dateRequest = influencer.dateRequest;
 
-            const processedInfluencers = await Promise.all(
-                data.selectInfluencers.map(async (influencer) => {
-                    try {
-                        const dateRequest = influencer.dateRequest;
+            const influencerData = await this.influencerModel
+              .findOne({
+                [`${influencer.socialMedia}._id`]: new mongoose.Types.ObjectId(
+                  influencer.socialMediaAccountId,
+                ),
+              })
+              .lean()
+              .exec();
+            const influencerId = influencerData._id.toString();
 
-                        const influencerData = await this.influencerModel
-                            .findOne({
-                                [`${influencer.socialMedia}._id`]: new mongoose.Types.ObjectId(
-                                    influencer.socialMediaAccountId,
-                                ),
-                            })
-                            .lean()
-                            .exec();
-                        const influencerId = influencerData._id;
-
-                        const socialMediaAccount = influencerData[influencer.socialMedia].find(
-                            (account) =>
-                                account.instagramUsername === influencer.socialMediaUsername &&
-                                account._id.toString() === influencer.socialMediaAccountId,
-                        );
+            const socialMediaAccount = influencerData[influencer.socialMedia].find(
+              (account) =>
+                account.instagramUsername === influencer.socialMediaUsername &&
+                account._id.toString() === influencer.socialMediaAccountId,
+            );
 
                         if (socialMediaAccount) {
                             return {
@@ -117,7 +115,7 @@ export class PromosService {
                 })),
             );
 
-            let result;
+      let result;
 
             try {
                 const campaignId = new mongoose.Types.ObjectId();
@@ -141,31 +139,31 @@ export class PromosService {
                 };
             }
 
-            let dataClient = await this.clientModel.findOne({_id: data.clientId});
+      let dataClient = await this.clientModel.findOne({ _id: data.clientId });
 
-            const emailStartContent = () => {
-                if (data.socialMedia === 'spotify' || data.socialMedia === 'soundcloud') {
-                    return `
+      const emailStartContent = () => {
+        if (data.socialMedia === 'spotify' || data.socialMedia === 'soundcloud') {
+          return `
                     <p>Hi,</p>
 <p>The Client ${dataClient.firstName} has requested the following post for this list of influencers on the ${data.socialMedia}:</p>
 <p><strong>Post Details:</strong></p>
 <p><strong>Campaign Name: ${data.campaignName}</strong></p>
                     `;
-                } else if (data.socialMedia === 'press') {
-                    return `
+        } else if (data.socialMedia === 'press') {
+          return `
                     <p>Hi,</p>
 <p>The client ${dataClient.firstName} has requested the following article for inclusion in this list of magazines in the press:</p>
 <p><strong>Post Details:</strong></p>
 <p><strong>Campaign Name: ${data.campaignName}</strong></p>`;
-                } else {
-                    return `
+        } else {
+          return `
                     <p>Hi,</p>
 <p>The Client ${dataClient.firstName} has requested the following post for this list of influencers on the ${data.socialMedia}:</p>
 <p><strong>Post Details:</strong></p>
 <p><strong>Campaign Name: ${data.campaignName}</strong></p>
                     `;
-                }
-            };
+        }
+      };
 
             const emailVideoContent = () => {
                 if (data.socialMedia === 'spotify' || data.socialMedia === 'soundcloud') {
@@ -273,7 +271,7 @@ export class PromosService {
                 }
             };
 
-            const emailContent = `
+      const emailContent = `
 ${emailStartContent()}
 ${emailVideoContent()}
 <p>Payment Method Used: ${result.paymentType}</p>
@@ -294,116 +292,116 @@ ${emailVideoContent()}
                 'html',
             );
 
-            return {
-                code: 201,
-                result,
-            };
-        } catch (err) {
-            console.error('Error creating promo:', err, new Date().toLocaleString());
-            return {
-                code: 500,
-                message: err.message,
-            };
+      return {
+        code: 201,
+        result,
+      };
+    } catch (err) {
+      console.error('Error creating promo:', err, new Date().toLocaleString());
+      return {
+        code: 500,
+        message: err.message,
+      };
+    }
+  }
+
+  async createPromosForEstimate() {
+    return {
+      code: 500,
+      message: 'Server error',
+    };
+  }
+
+  async updateEstimatePromo(promoId: string, isPoNeed: string) {
+    try {
+      const findPromo = await this.promosModel.findOne({ _id: promoId }).lean().exec();
+
+      if (!findPromo) {
+        return { status: 404, message: 'Promo not found' };
+      }
+
+      let updateFields: any = {
+        statusCampaign: findPromo.statusCampaign,
+        verifyCampaign: findPromo.verifyCampaign,
+      };
+
+      const isPoNeedBool = isPoNeed === 'true';
+
+      const paymentType = findPromo.paymentType.trim().toLowerCase();
+      const statusCampaign = findPromo.statusCampaign.trim().toLowerCase();
+
+      if (isPoNeedBool === true && paymentType === 'po request') {
+        if (statusCampaign === 'po waiting') {
+          updateFields.statusCampaign = 'wait';
+          updateFields.verifyCampaign = 'accept';
         }
+      } else if (isPoNeedBool === false && paymentType === 'po request') {
+        if (statusCampaign === 'estimate') {
+          updateFields.statusCampaign = 'po waiting';
+        }
+      } else if (statusCampaign === 'estimate' && paymentType !== 'po request') {
+        updateFields.statusCampaign = 'wait';
+        updateFields.verifyCampaign = 'accept';
+      }
+
+      if (
+        updateFields.statusCampaign !== findPromo.statusCampaign ||
+        updateFields.verifyCampaign !== findPromo.verifyCampaign
+      ) {
+        await this.promosModel.findOneAndUpdate({ _id: promoId }, updateFields);
+      }
+
+      return { status: 200, message: 'estimate Promo status updated successfully' };
+    } catch (err) {
+      console.error('Error updating promo status:', err);
+      return { status: 500, message: err.message };
+    }
+  }
+
+  async verifyCampaign(campaignId: string, status: string) {
+    if (!campaignId || !status) {
+      return {
+        status: 400,
+        message: 'Not enough arguments',
+      };
     }
 
-    async createPromosForEstimate() {
+    try {
+      const checkCampaign = await this.promosModel.findOne({ _id: campaignId }).lean();
+
+      if (!checkCampaign) {
         return {
-            code: 500,
-            message: 'Server error',
+          code: 404,
+          message: 'Campaign not found',
         };
-    }
+      }
 
-    async updateEstimatePromo(promoId: string, isPoNeed: string) {
-        try {
-            const findPromo = await this.promosModel.findOne({_id: promoId}).lean().exec();
+      if (status === 'accept' && checkCampaign.statusCampaign === 'wait') {
+        const influencersIds = checkCampaign.selectInfluencers.map((item) => item.influencerId);
 
-            if (!findPromo) {
-                return {status: 404, message: 'Promo not found'};
-            }
+        const influencers = await this.influencerModel.find({ _id: { $in: influencersIds } });
 
-            let updateFields: any = {
-                statusCampaign: findPromo.statusCampaign,
-                verifyCampaign: findPromo.verifyCampaign,
-            };
-
-            const isPoNeedBool = isPoNeed === 'true';
-
-            const paymentType = findPromo.paymentType.trim().toLowerCase();
-            const statusCampaign = findPromo.statusCampaign.trim().toLowerCase();
-
-            if (isPoNeedBool === true && paymentType === 'po request') {
-                if (statusCampaign === 'po waiting') {
-                    updateFields.statusCampaign = 'wait';
-                    updateFields.verifyCampaign = 'accept';
-                }
-            } else if (isPoNeedBool === false && paymentType === 'po request') {
-                if (statusCampaign === 'estimate') {
-                    updateFields.statusCampaign = 'po waiting';
-                }
-            } else if (statusCampaign === 'estimate' && paymentType !== 'po request') {
-                updateFields.statusCampaign = 'wait';
-                updateFields.verifyCampaign = 'accept';
-            }
-
-            if (
-                updateFields.statusCampaign !== findPromo.statusCampaign ||
-                updateFields.verifyCampaign !== findPromo.verifyCampaign
-            ) {
-                await this.promosModel.findOneAndUpdate({_id: promoId}, updateFields);
-            }
-
-            return {status: 200, message: 'estimate Promo status updated successfully'};
-        } catch (err) {
-            console.error('Error updating promo status:', err);
-            return {status: 500, message: err.message};
-        }
-    }
-
-    async verifyCampaign(campaignId: string, status: string) {
-        if (!campaignId || !status) {
-            return {
-                status: 400,
-                message: 'Not enough arguments',
-            };
+        if (!influencers) {
+          return {
+            code: 404,
+            message: 'Influencers not found',
+          };
         }
 
-        try {
-            const checkCampaign = await this.promosModel.findOne({_id: campaignId}).lean();
+        const socialMedias = [
+          'instagram',
+          'tiktok',
+          'spotify',
+          'soundcloud',
+          'facebook',
+          'youtube',
+          'press',
+        ];
 
-            if (!checkCampaign) {
-                return {
-                    code: 404,
-                    message: 'Campaign not found',
-                };
-            }
-
-            if (status === 'accept' && checkCampaign.statusCampaign === 'wait') {
-                const influencersIds = checkCampaign.selectInfluencers.map((item) => item.influencerId);
-
-                const influencers = await this.influencerModel.find({_id: {$in: influencersIds}});
-
-                if (!influencers) {
-                    return {
-                        code: 404,
-                        message: 'Influencers not found',
-                    };
-                }
-
-                const socialMedias = [
-                    'instagram',
-                    'tiktok',
-                    'spotify',
-                    'soundcloud',
-                    'facebook',
-                    'youtube',
-                    'press',
-                ];
-
-                for (let influencer of influencers) {
-                    const influencerSocialMediaAccountsNested = await Promise.all(
-                        socialMedias.map(async (socialMedia) => {
-                            const accounts = influencer[socialMedia];
+        for (let influencer of influencers) {
+          const influencerSocialMediaAccountsNested = await Promise.all(
+            socialMedias.map(async (socialMedia) => {
+              const accounts = influencer[socialMedia];
 
                             const usernames = await Promise.all(
                                 accounts.map(async (account) => {
@@ -431,25 +429,25 @@ ${emailVideoContent()}
                                             },
                                         );
 
-                                        if (res.data.code !== 200) {
-                                            this.logger.error(
-                                                `Error saving influencer history (username: ${account.instagramUsername} influencerId: ${influencer._id}) verify campaign ${checkCampaign.campaignName}`,
-                                            );
-                                            throw new Error('Error saving influencer history verify campaign');
-                                        }
-                                    }
+                    if (res.data.code !== 200) {
+                      this.logger.error(
+                        `Error saving influencer history (username: ${account.instagramUsername} influencerId: ${influencer._id}) verify campaign ${checkCampaign.campaignName}`,
+                      );
+                      throw new Error('Error saving influencer history verify campaign');
+                    }
+                  }
 
-                                    return account.instagramUsername;
-                                }),
-                            );
+                  return account.instagramUsername;
+                }),
+              );
 
-                            return usernames.filter(Boolean);
-                        }),
-                    );
+              return usernames.filter(Boolean);
+            }),
+          );
 
-                    const influencerAccounts = checkCampaign.selectInfluencers.filter(
-                        (acc) => acc.influencerId.toString() === influencer._id.toString(),
-                    );
+          const influencerAccounts = checkCampaign.selectInfluencers.filter(
+            (acc) => acc.influencerId.toString() === influencer._id.toString()
+          );
 
                     const accountDetails: AccountObjectForCreateNewPromoRequestMessage[] =
                         influencerAccounts.map((acc) => {
@@ -472,21 +470,21 @@ ${emailVideoContent()}
                             };
                         });
 
-                    if (accountDetails.length === 0) continue;
+          if (accountDetails.length === 0) continue;
 
-                    const emailBody = createNewPromoRequestHTMLMessage({
-                        firstName: influencer.firstName,
-                        accountsAndDetails: accountDetails,
-                    });
+          const emailBody = createNewPromoRequestHTMLMessage({
+            firstName: influencer.firstName,
+            accountsAndDetails: accountDetails,
+          });
 
-                    await sendMail(
-                        influencer.email,
-                        // 'nazarkozynets030606@gmail.com',
-                        'New Promo Request',
-                        emailBody,
-                        'html',
-                    );
-                }
+          await sendMail(
+            influencer.email,
+            // 'nazarkozynets030606@gmail.com',
+            'New Promo Request',
+            emailBody,
+            'html'
+          );
+        }
 
                 const updateFields = {verifyCampaign: (checkCampaign as any)?.verifyCampaign};
 
@@ -494,34 +492,34 @@ ${emailVideoContent()}
                     updateFields.verifyCampaign = status;
                 }
 
-                await this.promosModel.updateOne({_id: campaignId}, {$set: updateFields});
+        await this.promosModel.updateOne({ _id: campaignId }, { $set: updateFields });
 
-                return {
-                    code: 200,
-                    message: 'Campaign verified',
-                };
-            } else {
-                return {
-                    code: 200,
-                    message: 'Campaign declined',
-                };
-            }
-        } catch (err) {
-            this.logger.error(
-                `Failed to verify campaign: ${err}`,
-                err instanceof Error ? err.stack : undefined,
-            );
-            return {
-                code: 500,
-                message: 'Error verifying campaign',
-            };
-        }
+        return {
+          code: 200,
+          message: 'Campaign verified',
+        };
+      } else {
+        return {
+          code: 200,
+          message: 'Campaign declined',
+        };
+      }
+    } catch (err) {
+      this.logger.error(
+        `Failed to verify campaign: ${err}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+      return {
+        code: 500,
+        message: 'Error verifying campaign',
+      };
     }
+  }
 
-    async checkUploadStatus(fileName: string): Promise<boolean> {
-        const dropboxService = new DropboxService();
-        return await dropboxService.isFileUploaded(fileName);
-    }
+  async checkUploadStatus(fileName: string): Promise<boolean> {
+    const dropboxService = new DropboxService();
+    return await dropboxService.isFileUploaded(fileName);
+  }
 
     async clientCompletedCampaignsHistory(id: string) {
         try {
@@ -579,21 +577,21 @@ ${emailVideoContent()}
                 };
             }
 
-            const checkClient = await this.clientModel.findById(id);
+      const checkClient = await this.clientModel.findById(id);
 
-            if (!checkClient) {
-                return {
-                    code: 404,
-                    message: 'User not found',
-                };
-            }
+      if (!checkClient) {
+        return {
+          code: 404,
+          message: 'User not found',
+        };
+      }
 
-            const campaigns = await this.promosModel
-                .find({
-                    clientId: id,
-                    statusCampaign: {$in: ['work', 'wait', 'estimate', 'po waiting']},
-                })
-                .lean();
+      const campaigns = await this.promosModel
+        .find({
+          clientId: id,
+          statusCampaign: { $in: ['work', 'wait', 'estimate', 'po waiting'] },
+        })
+        .lean();
 
             const campaignToReturn = await Promise.all(
                 campaigns.map(async (item) => {
@@ -608,29 +606,29 @@ ${emailVideoContent()}
                 }),
             );
 
-            return {
-                code: 200,
-                campaigns: campaignToReturn,
-            };
-        } catch (err) {
-            console.log(err);
-            return {
-                code: 500,
-                message: err,
-            };
-        }
+      return {
+        code: 200,
+        campaigns: campaignToReturn,
+      };
+    } catch (err) {
+      console.log(err);
+      return {
+        code: 500,
+        message: err,
+      };
     }
+  }
 
-    async clientGetOngoingOrPastCampaign(campaignId: string, clientId: string) {
-        try {
-            if (!campaignId) return {status: 400, message: 'Not enough arguments'};
+  async clientGetOngoingOrPastCampaign(campaignId: string, clientId: string) {
+    try {
+      if (!campaignId) return { status: 400, message: 'Not enough arguments' };
 
-            const client = await this.clientModel.findById(clientId);
-            if (!client) return {status: 404, message: 'User not found'};
+      const client = await this.clientModel.findById(clientId);
+      if (!client) return { status: 404, message: 'User not found' };
 
-            let campaign: any = await this.promosModel.findById(campaignId).lean();
-            if (!campaign) campaign = await this.promosCopiesModel.findById(campaignId).lean();
-            if (!campaign) return {status: 404, message: 'Promo not found'};
+      let campaign: any = await this.promosModel.findById(campaignId).lean();
+      if (!campaign) campaign = await this.promosCopiesModel.findById(campaignId).lean();
+      if (!campaign) return { status: 404, message: 'Promo not found' };
 
             const campaignToReturn: any = {
                 _id: campaign._id,
@@ -748,22 +746,22 @@ ${emailVideoContent()}
         }
     }
 
-    async influencerCompletedCampaignsHistory(influencerId: string) {
-        try {
-            if (!influencerId) {
-                return {
-                    status: 400,
-                    message: 'Not enough arguments',
-                };
-            }
+  async influencerCompletedCampaignsHistory(influencerId: string) {
+    try {
+      if (!influencerId) {
+        return {
+          status: 400,
+          message: 'Not enough arguments',
+        };
+      }
 
-            const checkInfluencer = await this.influencerModel.findOne({_id: influencerId});
-            if (!checkInfluencer) {
-                return {
-                    code: 404,
-                    message: 'User not found',
-                };
-            }
+      const checkInfluencer = await this.influencerModel.findOne({ _id: influencerId });
+      if (!checkInfluencer) {
+        return {
+          code: 404,
+          message: 'User not found',
+        };
+      }
 
             const [campaigns, finishedCampaigns] = await Promise.all([
                 this.promosModel
@@ -789,7 +787,7 @@ ${emailVideoContent()}
                     .lean(),
             ]);
 
-            const allCampaigns = [...campaigns, ...finishedCampaigns];
+      const allCampaigns = [...campaigns, ...finishedCampaigns];
 
             const campaignsNested = await Promise.all(
                 allCampaigns
@@ -824,70 +822,71 @@ ${emailVideoContent()}
             const campaignsToReturn = campaignsNested?.flat()
                 .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-            return {
-                code: 200,
-                promos: campaignsToReturn,
-            };
-        } catch (err) {
-            console.log(err);
-            return {
-                code: 500,
-                message: err,
-            };
-        }
+      return {
+        code: 200,
+        promos: campaignsToReturn.flat(),
+      };
+    } catch (err) {
+      console.log(err);
+      return {
+        code: 500,
+        message: err,
+      };
+    }
+  }
+
+  async influencerPastCampaignOne(
+    influencerId: string,
+    campaignId: string,
+    socialMediaUsername: string,
+    selectedCampaignContentItem: string,
+  ) {
+    if (!influencerId || !campaignId || !socialMediaUsername || !selectedCampaignContentItem) {
+      return {
+        status: 400,
+        message: 'Not enough arguments',
+      };
     }
 
-    async influencerPastCampaignOne(
-        campaignId: string,
-        influencerId: string,
-        selectInfluencersId: string,
-    ) {
-        if (!selectInfluencersId || !campaignId || !influencerId) {
-            return {
-                status: 400,
-                message: 'Not enough arguments',
-            };
-        }
-
-        try {
-            const influencer = await this.influencerModel.findById(influencerId);
-            if (!influencer) {
-                return {
-                    code: 404,
-                    message: 'Influencer not found',
-                };
-            }
+    try {
+      const influencer = await this.influencerModel.findById(influencerId);
+      if (!influencer) {
+        return {
+          code: 404,
+          message: 'Influencer not found',
+        };
+      }
 
             let campaign = await this.promosCopiesModel.findOne({_id: campaignId}).lean().exec();
 
             if (!campaign) {
                 campaign = (await this.promosModel.findOne({_id: campaignId}).lean().exec()) as any;
 
-                if (!campaign) {
-                    return {
-                        code: 404,
-                        message: 'Campaign not found',
-                    };
-                }
-            }
+        if (!campaign) {
+          return {
+            code: 404,
+            message: 'Campaign not found',
+          };
+        }
+      }
 
-            const client = await this.clientModel.findById(campaign.clientId || (campaign as any).userId);
+      const client = await this.clientModel.findById(campaign.clientId || (campaign as any).userId);
 
-            if (!client) {
-                return {
-                    code: 404,
-                    message: 'Client not found',
-                };
-            }
+      if (!client) {
+        return {
+          code: 404,
+          message: 'Client not found',
+        };
+      }
 
             const selectedAccount = campaign.selectInfluencers.find((influencerItem) => influencerItem._id.toString() === selectInfluencersId);
 
-            if (!selectedAccount) {
-                return {
-                    code: 404,
-                    message: 'Account data not found',
-                };
-            }
+      if (!selectedAccount) {
+        return {
+          code: 404,
+          message: 'Not found',
+        };
+      }
 
             let contentItem: {
                 _id: string,
@@ -921,12 +920,12 @@ ${emailVideoContent()}
                 }
             }
 
-            if (!contentItem) {
-                return {
-                    code: 404,
-                    message: 'Campaign content not found',
-                };
-            }
+      if (!contentItem) {
+        return {
+          code: 404,
+          message: 'Campaign content not found',
+        };
+      }
 
             return {
                 code: 200,
@@ -1111,15 +1110,15 @@ ${emailVideoContent()}
             };
         }
 
-        try {
-            const findNewCampaign = await this.promosModel.findById(campaignId).lean().exec();
+    try {
+      const findNewCampaign = await this.promosModel.findById(campaignId).lean().exec();
 
-            if (!findNewCampaign) {
-                return {
-                    code: 404,
-                    message: 'Promo not found',
-                };
-            }
+      if (!findNewCampaign) {
+        return {
+          code: 404,
+          message: 'Promo not found',
+        };
+      }
 
             if (campaignResponse === 'accept') {
                 const selectInfluencersAcc = findNewCampaign.selectInfluencers.find(
@@ -1141,13 +1140,13 @@ ${emailVideoContent()}
                     },
                 );
 
-                if (resultOfSavingHistory.data.code !== 200) {
-                    console.error('Error saving history:', resultOfSavingHistory.data.message);
-                    return {
-                        code: 500,
-                        message: 'Internal Server Error',
-                    };
-                }
+        if (resultOfSavingHistory.data.code !== 200) {
+          console.error('Error saving history:', resultOfSavingHistory.data.message);
+          return {
+            code: 500,
+            message: 'Internal Server Error',
+          };
+        }
 
                 const updateNewPromo = await this.promosModel.findOneAndUpdate(
                     {
@@ -1204,14 +1203,14 @@ ${emailVideoContent()}
                     'html',
                 );
 
-                return {
-                    code: 200,
-                    updateNewPromo,
-                };
-            } else {
-                const selectInfluencersAcc = findNewCampaign.selectInfluencers.find(
-                    (influencer) => influencer._id.toString() === selectInfluencersId,
-                );
+        return {
+          code: 200,
+          updateNewPromo,
+        };
+      } else {
+        const selectInfluencersAcc = findNewCampaign.selectInfluencers.find(
+          (influencer) => influencer._id.toString() === selectInfluencersId,
+        );
 
                 const resultOfSavingHistory = await axios.post(
                     `${process.env.SERVER}/influencer-actions-history/upsert/campaign`,
@@ -1228,13 +1227,13 @@ ${emailVideoContent()}
                     },
                 );
 
-                if (resultOfSavingHistory.data.code !== 200) {
-                    console.error('Error saving history:', resultOfSavingHistory.data.message);
-                    return {
-                        code: 500,
-                        message: 'Internal Server Error',
-                    };
-                }
+        if (resultOfSavingHistory.data.code !== 200) {
+          console.error('Error saving history:', resultOfSavingHistory.data.message);
+          return {
+            code: 500,
+            message: 'Internal Server Error',
+          };
+        }
 
                 const updatePromo = await this.promosModel.findOneAndUpdate(
                     {
@@ -1297,19 +1296,19 @@ ${emailVideoContent()}
                     'html',
                 );
 
-                return {
-                    code: 200,
-                    updatePromo,
-                };
-            }
-        } catch (err) {
-            console.log(err);
-            return {
-                code: 500,
-                message: err.message || 'Internal Server Error',
-            };
-        }
+        return {
+          code: 200,
+          updatePromo,
+        };
+      }
+    } catch (err) {
+      console.log(err);
+      return {
+        code: 500,
+        message: err.message || 'Internal Server Error',
+      };
     }
+  }
 
     async influencerGetOngoingCampaigns(influencerId: string) {
         try {
@@ -1320,16 +1319,16 @@ ${emailVideoContent()}
                 };
             }
 
-            const checkInfluencer = await this.influencerModel.findOne({
-                _id: influencerId,
-            });
+      const checkInfluencer = await this.influencerModel.findOne({
+        _id: influencerId,
+      });
 
-            if (!checkInfluencer) {
-                return {
-                    code: 404,
-                    message: 'User not found',
-                };
-            }
+      if (!checkInfluencer) {
+        return {
+          code: 404,
+          message: 'User not found',
+        };
+      }
 
             const campaigns = await this.promosModel
                 .find({
@@ -1386,18 +1385,18 @@ ${emailVideoContent()}
                 }),
             );
 
-            return {
-                code: 200,
-                promos: campaignsName,
-            };
-        } catch (err) {
-            console.log(err);
-            return {
-                code: 500,
-                message: err,
-            };
-        }
+      return {
+        code: 200,
+        promos: campaignsName,
+      };
+    } catch (err) {
+      console.log(err);
+      return {
+        code: 500,
+        message: err,
+      };
     }
+  }
 
     async influencerGetOngoingCampaign(
         influencerId: string,
@@ -1544,12 +1543,12 @@ ${emailVideoContent()}
                 .lean()
                 .exec();
 
-            if (!findNewCampaign) {
-                return {
-                    code: 404,
-                    message: 'Not found',
-                };
-            }
+      if (!findNewCampaign) {
+        return {
+          code: 404,
+          message: 'not found',
+        };
+      }
 
             const dataSocialMediaAccount = findNewCampaign.selectInfluencers.find(
                 (item) => item._id.toString() === selectInfluencersId,
@@ -1606,13 +1605,13 @@ ${emailVideoContent()}
                             };
                         }
 
-                        if (data.screenshot === '' || data.screenshot === null) {
-                            console.error(`Screenshot is empty (Updating spotify campaign: ${campaignId})`);
-                            return {
-                                code: 400,
-                                message: 'Screenshot is empty',
-                            };
-                        }
+            if (data.screenshot === '' || data.screenshot === null) {
+              console.error(`Screenshot is empty (Updating spotify campaign: ${campaignId})`);
+              return {
+                code: 400,
+                message: 'Screenshot is empty',
+              };
+            }
 
                         const isPromoAlreadyClosed = dataSocialMediaAccount.closePromo === 'close';
 
@@ -1678,28 +1677,28 @@ ${emailVideoContent()}
                                 },
                             );
 
-                            if (!isPromoAlreadyClosed) await paymentGo();
+              if (!isPromoAlreadyClosed) await paymentGo();
 
-                            return {
-                                code: 200,
-                            };
-                        } catch (err) {
-                            console.error(
-                                `Error updating promo: ${campaignId} ${err} ${new Date().toLocaleString()}`,
-                            );
-                            return {
-                                code: 500,
-                                message: 'Internal Server Error',
-                            };
-                        }
-                    } else if (dataSocialMediaAccount.socialMedia === 'press') {
-                        if (data.postLink === '' || data.postLink === null)
-                            return {
-                                code: 400,
-                                message: `Post link is empty (Updating press campaign: ${campaignId})`,
-                            };
+              return {
+                code: 200,
+              };
+            } catch (err) {
+              console.error(
+                `Error updating promo: ${campaignId} ${err} ${new Date().toLocaleString()}`,
+              );
+              return {
+                code: 500,
+                message: 'Internal Server Error',
+              };
+            }
+          } else if (dataSocialMediaAccount.socialMedia === 'press') {
+            if (data.postLink === '' || data.postLink === null)
+              return {
+                code: 400,
+                message: `Post link is empty (Updating press campaign: ${campaignId})`,
+              };
 
-                        const isPromoAlreadyClosed = dataSocialMediaAccount.closePromo === 'close';
+            const isPromoAlreadyClosed = dataSocialMediaAccount.closePromo === 'close';
 
                         const resultOfSavingHistory = await axios.post(
                             `${process.env.SERVER}/influencer-actions-history/upsert/campaign`,
@@ -1833,7 +1832,7 @@ ${emailVideoContent()}
                                 },
                             );
 
-                            if (!isPromoAlreadyClosed) await paymentGo();
+              if (!isPromoAlreadyClosed) await paymentGo();
 
                             return {
                                 code: 200,
@@ -1876,14 +1875,14 @@ ${emailVideoContent()}
         }
     }
 
-    async uploadDropBox(file: any) {
-        const dropboxService = new DropboxService();
-        const screenshotUrl = await dropboxService.uploadFile(file.buffer, file.originalname);
-        return {
-            code: 200,
-            data: screenshotUrl,
-        };
-    }
+  async uploadDropBox(file: any) {
+    const dropboxService = new DropboxService();
+    const screenshotUrl = await dropboxService.uploadFile(file.buffer, file.originalname);
+    return {
+      code: 200,
+      data: screenshotUrl,
+    };
+  }
 
     async getCampaignByPublicShareLink(campaignId: string, socialMedia: string) {
         try {
@@ -2008,7 +2007,7 @@ ${emailVideoContent()}
                 };
             }
 
-            const emailText = `
+      const emailText = `
     <p>${clientObj.firstName} (${clientObj.email}) requested the full serviced campaign.</p>
     <p>Details:</p><br/>
     <p><strong>Campaign Goal:</strong> ${campaignGoal}</p>
@@ -2027,20 +2026,20 @@ ${emailVideoContent()}
                 };
             }
 
-            return {
-                code: 200,
-                message: `Successfully sent`,
-            };
-        } catch (err) {
-            console.error(
-                `Error sending request of creating new full serviced campaign ${err} ${new Date().toLocaleDateString()}`,
-            );
-            return {
-                code: 500,
-                message: 'Server error',
-            };
-        }
+      return {
+        code: 200,
+        message: `Successfully sent`,
+      };
+    } catch (err) {
+      console.error(
+        `Error sending request of creating new full serviced campaign ${err} ${new Date().toLocaleDateString()}`,
+      );
+      return {
+        code: 500,
+        message: 'Server error',
+      };
     }
+  }
 
     async getSelectedSocialMediaAccountsForCampaignStrategy(data: GetSelectedSocialAccountsDto) {
         if (!data) {
@@ -2099,19 +2098,19 @@ ${emailVideoContent()}
                 };
             }
 
-            return {
-                code: 200,
-                data: dataToSend,
-            };
-        } catch (err) {
-            console.error('Error fetching selected social media accounts for campaign strategy:', err);
+      return {
+        code: 200,
+        data: dataToSend,
+      };
+    } catch (err) {
+      console.error('Error fetching selected social media accounts for campaign strategy:', err);
 
-            return {
-                code: 500,
-                message: 'Error fetching selected social media accounts for campaign strategy',
-            };
-        }
+      return {
+        code: 500,
+        message: 'Error fetching selected social media accounts for campaign strategy',
+      };
     }
+  }
 
     async saveXLSXCampaign(typeOfStorage: string, data: SaveXlsxPromoDto) {
         try {
@@ -2476,40 +2475,40 @@ ${emailVideoContent()}
         }
     }
 
-    returnMusicStyles = (musicStyle: string, musicStyleOther: string[], musicSubStyles: string[]) => {
-        const genresSet = new Set();
+  returnMusicStyles = (musicStyle: string, musicStyleOther: string[], musicSubStyles: string[]) => {
+    const genresSet = new Set();
 
-        if (musicStyle !== undefined && musicStyle) {
-            if (musicSubStyles && musicSubStyles.length > 0) {
-                for (let i = 0; i < musicSubStyles.length; i++) {
-                    if (musicSubStyles[i] === 'Melodic, Minimal') {
-                        genresSet.add('Techno (Melodic, Minimal)');
-                    }
-                    if (musicSubStyles[i] === 'Hard, Peak') {
-                        genresSet.add('Techno (Hard, Peak)');
-                    }
-                    if (musicSubStyles[i] === 'Tech House') {
-                        genresSet.add('House (Tech House)');
-                    }
-                    if (musicSubStyles[i] === 'Melodic, Afro') {
-                        genresSet.add('House (Melodic, Afro)');
-                    }
-                }
-            } else {
-                genresSet.add(musicStyle);
-            }
-
-            if (musicStyleOther && musicStyleOther.length > 0) {
-                for (let i = 0; i < musicStyleOther.length; i++) {
-                    if (musicStyleOther[i] !== 'House') {
-                        genresSet.add(musicStyleOther[i]);
-                    }
-                }
-            }
-
-            return Array.from(genresSet);
+    if (musicStyle !== undefined && musicStyle) {
+      if (musicSubStyles && musicSubStyles.length > 0) {
+        for (let i = 0; i < musicSubStyles.length; i++) {
+          if (musicSubStyles[i] === 'Melodic, Minimal') {
+            genresSet.add('Techno (Melodic, Minimal)');
+          }
+          if (musicSubStyles[i] === 'Hard, Peak') {
+            genresSet.add('Techno (Hard, Peak)');
+          }
+          if (musicSubStyles[i] === 'Tech House') {
+            genresSet.add('House (Tech House)');
+          }
+          if (musicSubStyles[i] === 'Melodic, Afro') {
+            genresSet.add('House (Melodic, Afro)');
+          }
         }
-    };
+      } else {
+        genresSet.add(musicStyle);
+      }
+
+      if (musicStyleOther && musicStyleOther.length > 0) {
+        for (let i = 0; i < musicStyleOther.length; i++) {
+          if (musicStyleOther[i] !== 'House') {
+            genresSet.add(musicStyleOther[i]);
+          }
+        }
+      }
+
+      return Array.from(genresSet);
+    }
+  };
 
     async getClientProposalPromos(clientId: string) {
         if (!clientId) {

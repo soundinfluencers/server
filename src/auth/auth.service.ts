@@ -209,6 +209,7 @@ export class AuthService {
 
           const sanitizedPrice = parseFloat(String(item.price).replace(/[^\d.-]/g, '')) || 0;
           const publicPrice = (sanitizedPrice * 2).toString();
+          const sanitizedInitialPrice = parseInt(String(item.initialPrice).replace(/[^\d.-]/g, '')) || 0
 
           return {
             ...item,
@@ -220,6 +221,7 @@ export class AuthService {
             followersNumber: item.followersNumber.toString(),
             musicStyle: musicStyle,
             publicPrice: publicPrice,
+            initialPrice: sanitizedInitialPrice,
             isHidden: false,
             isDeleted: false,
             isVerified: true,

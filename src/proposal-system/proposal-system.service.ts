@@ -166,60 +166,69 @@ export class ProposalSystemService {
 
   async getAllProposalCampaigns(): Promise<any> {
     try {
-      const proposalCampaigns = await this.proposalCampaignModel.find().lean().exec();
+      const proposalCampaigns = await this.proposalCampaignModel
+          .find()
+          .populate('clientId', 'firstName email')
+          .populate({
+            path: 'selectInfluencers.influencerId',
+            select: 'instagram tiktok youtube spotify soundcloud facebook press',
+          })
+          .lean()
+          .exec();
 
-      const campaigns = await Promise.all(
-        proposalCampaigns.map(async (campaign) => {
-          let client = null;
-          try {
-            client = await this.clientModel.findOne({
-              _id: campaign.clientId,
-            });
-          } catch (err) {
-            console.error('Error fetching client:', err);
-          }
+      const duplicatesMap = proposalCampaigns.reduce((acc, campaign) => {
+        const name = campaign.campaignName;
+        acc[name] = (acc[name] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
 
-          const processedSelectInfluencers = campaign.selectInfluencers?.length
-            ? await Promise.all(
-                campaign.selectInfluencers.map(async (acc) => {
-                  const influencer = await this.influencerModel.findOne(
-                    {
-                      _id: acc.influencerId,
-                      [`${acc.socialMedia}.instagramUsername`]: acc.socialMediaUsername,
-                    },
-                    {
-                      [`${acc.socialMedia}.$`]: 1,
-                    },
-                  );
+      Object.entries(duplicatesMap)
+          .filter(([_, count]) => count > 1)
+          .forEach(([name, count]) => {
+            console.warn(`⚠️ Proposal System Дубликаты: "${name}" — ${count} шт.`);
+          });
 
-                  const accountId: string = influencer?.[acc.socialMedia]?.[0]?._id.toString();
-                  return {
-                    ...acc,
-                    accountId,
-                  };
-                }),
-              )
-            : [];
+      const campaigns = proposalCampaigns.map((campaign) => {
+        const clientDoc = campaign.clientId as any;
+        const client = clientDoc
+            ? {
+              clientId: clientDoc._id,
+              firstName: clientDoc.firstName,
+              email: clientDoc.email,
+            }
+            : null;
 
-          return {
-            ...campaign,
-            selectInfluencers: processedSelectInfluencers,
-            client: client
-              ? {
-                  clientId: client._id,
-                  firstName: client.firstName,
-                  email: client.email,
-                }
-              : null,
-          };
-        }),
-      );
+        const processedSelectInfluencers =
+            campaign.selectInfluencers?.map((acc) => {
+              let accountId: string | undefined;
+
+              if (acc.influencerId) {
+                const influencer = acc.influencerId;
+                const accounts = influencer[acc.socialMedia] || [];
+                const account = accounts.find(
+                    (a) => a.instagramUsername === acc.socialMediaUsername,
+                );
+                accountId = account?._id?.toString();
+              }
+
+              return {
+                ...acc,
+                accountId,
+              };
+            }) ?? [];
+
+        return {
+          ...campaign,
+          selectInfluencers: processedSelectInfluencers,
+          client,
+        };
+      });
 
       return {
         status: 200,
-        proposalCampaigns: campaigns.sort((a, b) => {
-          return a.createdAt > b.createdAt ? -1 : 1;
-        }),
+        proposalCampaigns: campaigns.sort((a, b) =>
+            a.createdAt > b.createdAt ? -1 : 1,
+        ),
       };
     } catch (err) {
       console.error('Error fetching proposal campaigns:', err);

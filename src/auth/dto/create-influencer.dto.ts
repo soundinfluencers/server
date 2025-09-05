@@ -10,6 +10,7 @@ export interface ISocial {
   logo: string;
   price: string;
   publicPrice: string;
+  currency: string | null;
   countries: { country: string; percentage: number }[] | null;
   categories: string[] | null;
   engagementRate: number | null;
@@ -29,6 +30,7 @@ export const typesSocialMedia = {
   logo: { type: 'string' },
   price: { type: 'string' },
   publicPrice: { type: 'string' },
+  currency: { type: 'string', nullable: true, default: 'EUR' },
   countries: {
     type: 'array',
     items: {

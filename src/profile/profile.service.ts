@@ -245,10 +245,12 @@ export class ProfileService {
         categories: data.categories,
         engagementRate: data.engagementRate ?? null,
         averageViews: data.averageViews ?? null,
-        price: data.price,
-        publicPrice: data.publicPrice,
-        profileCategory: data.profileCategory ?? 'community',
-        ...(data.profileCategory === 'creator' && {
+        price: data.canUpdatePrice ? data.price : socialMediaAccounts[accountIndex].price,
+        publicPrice: data.canUpdatePrice ? data.publicPrice : socialMediaAccounts[accountIndex].publicPrice,
+        currency: data.canUpdatePrice ? data.currency : socialMediaAccounts[accountIndex].currency,
+        initialPrice: data.canUpdatePrice ? parseInt(String(data.initialPrice).replace(/[^\d.-]/g, '')) : socialMediaAccounts[accountIndex].initialPrice,
+        profileCategory: data.profileCategory ?? "community",
+        ...(data.profileCategory === "creator" && {
           creatorCategories: data.creatorCategories ?? [],
         }),
         isVerified: true,
@@ -611,17 +613,21 @@ export class ProfileService {
       try {
         for (const account of accounts) {
           const sanitizedPrice = parseFloat(String(account.price).replace(/[^\d.-]/g, '')) || 0;
+          const sanitizedInitialPrice = parseInt(String(account.initialPrice).replace(/[^\d.-]/g, '')) || 0
+
           const publicPrice = (sanitizedPrice * 2).toString();
           const accountId = new mongoose.Types.ObjectId();
           socialMediaAccounts.push({
             ...account,
-            ...(account.profileCategory === 'creator' && {
+            ...(account.profileCategory === "creator" && {
               creatorCategories: account.creatorCategories ?? [],
             }),
             followersNumber: account.followersNumber.replace(/[.,]/g, ''),
             engagementRate: ['instagram', 'tiktok'].includes(network) ? 0 : null,
             averageViews: ['instagram', 'tiktok'].includes(network) ? 0 : null,
             publicPrice: publicPrice,
+            currency: account.currency,
+            initialPrice: sanitizedInitialPrice,
             isHidden: false,
             isDeleted: false,
             isVerified: false,

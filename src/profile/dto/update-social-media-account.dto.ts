@@ -29,6 +29,12 @@ export class UpdateSocialMediaAccountDto {
   publicPrice: string;
 
   @ApiProperty({ required: true })
+  currency: string;
+
+  @ApiProperty({ required: false })
+  initialPrice: string;
+
+  @ApiProperty({ required: true })
   musicStyle: string;
 
   @ApiProperty({ required: true })
@@ -54,4 +60,7 @@ export class UpdateSocialMediaAccountDto {
 
   @ApiProperty({ required: true })
   averageViews: number | null;
+
+  @ApiProperty({ required: false, default: false })
+  canUpdatePrice: boolean;
 }

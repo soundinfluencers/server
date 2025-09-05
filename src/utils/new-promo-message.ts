@@ -113,7 +113,7 @@ function formatAccountText(acc: AccountObjectForCreateNewPromoRequestMessage): s
       break;
   }
 
-  lines.push(`*Reward:* ${acc.reward?.replace(/\D/g, '') + '€' || ''}`);
+  lines.push(`*Reward:* ${acc.reward}`);
   return lines.join('\n');
 }
 
