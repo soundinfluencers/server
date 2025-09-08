@@ -1,6 +1,6 @@
 import {Injectable, Logger} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
-import {Promos} from '../promos/schemas/promo.schema';
+import {CampaignContentItem, Promos} from '../promos/schemas/promo.schema';
 import mongoose, {Types} from 'mongoose';
 import {Client} from '../auth/schemas/client.schema';
 import {Influencer} from '../auth/schemas/influencer.schema';
@@ -867,23 +867,34 @@ export class AdminService {
                     }
 
                     return {
-                        ...campaign,
+                        _id: campaign._id,
+                        campaignName: campaign.campaignName,
+                        userId: campaign.clientId,
+                        selectInfluencers: campaign.selectInfluencers,
                         amount: campaign.campaignPrice || (campaign as any).amount,
-                        userId: campaign.clientId || (campaign as any).userId,
-                        statusPromo: campaign.statusCampaign || (campaign as any).statusPromo,
-                        verifyPromo: campaign.verifyCampaign || (campaign as any).verifyPromo,
+                        socialMedia: campaign.socialMedia ?? 'instagram',
                         totalFollowers,
+                        statusPromo: campaign.statusCampaign,
+                        verifyPromo: campaign.verifyCampaign,
+                        shareLink: campaign.shareLink,
+                        isCopy: campaign.isCopy ?? true,
+                        createdAt: campaign.createdAt,
                     };
                 }),
             );
             const resultCampaignsCopies = await Promise.all(
                 campaignsCopies.map(async (campaign) => {
                     return {
-                        ...campaign,
-                        amount: campaign.campaignPrice || (campaign as any).amount,
+                        _id: campaign._id,
+                        campaignName: campaign.campaignName,
                         userId: campaign.clientId || (campaign as any).userId,
+                        selectInfluencers: campaign.selectInfluencers,
+                        amount: campaign.campaignPrice || (campaign as any).amount,
+                        socialMedia: campaign.socialMedia ?? 'instagram',
                         statusPromo: campaign.statusCampaign || (campaign as any).statusPromo,
                         verifyPromo: campaign.verifyCampaign || (campaign as any).verifyPromo,
+                        shareLink: campaign.shareLink,
+                        isCopy: campaign.isCopy ?? true,
                         createdAt: campaign.createdAt,
                     };
                 }),
@@ -1098,6 +1109,7 @@ export class AdminService {
                             return {
                                 _id: influencer._id,
                                 influencerId: influencer.influencerId,
+                                accountId: socialMediaAccountProfile._id ?? null,
                                 socialMediaUsername:
                                     influencer.socialMediaUsername || (influencer as any).instagramUsername,
                                 confirmation: influencer.confirmation,
@@ -1105,8 +1117,8 @@ export class AdminService {
                                 closePromo: 'close',
                                 price: cleanedPrice,
                                 publicPrice: cleanedPublicPrice,
-                                selectedCampaignContentItem:
-                                    influencer.selectedCampaignContentItem || (influencer as any).selectedVideo,
+                                selectedContent:
+                                    influencer.selectedContent || (influencer as any).selectedVideo,
                                 followersNumber: parseInt(followersCount),
                                 dateRequest: influencer.dateRequest || '',
                                 postLink: influencer.postLink || '',
@@ -1190,137 +1202,118 @@ export class AdminService {
             let campaign: any;
 
             if (!isProposal) {
-                campaign = await this.promosModel.findOne({_id: campaignId}).lean().exec();
+                campaign = await this.promosModel.findOne({ _id: campaignId }).lean().exec();
                 if (!campaign) {
-                    campaign = await this.promosCopiesModel.findOne({_id: campaignId}).lean().exec();
+                    campaign = await this.promosCopiesModel.findOne({ _id: campaignId }).lean().exec();
                 }
             } else {
-                campaign = await this.proposalCampaignModel.findOne({_id: campaignId}).lean().exec();
+                campaign = await this.proposalCampaignModel.findOne({ _id: campaignId }).lean().exec();
             }
 
             if (!campaign) {
-                return {
-                    status: 404,
-                    message: 'Promo not found',
-                };
+                return { status: 404, message: 'Promo not found' };
             }
 
-      const campaignToReturn = {
-        _id: campaign._id,
-        clientId: campaign.clientId,
-        campaignName: campaign.campaignName ?? 'OLD CAMPAIGN',
-        price: campaign.campaignPrice ?? campaign.price ?? campaign.amount ?? 0,
-        publicPrice: campaign.campaignPrice ?? campaign.publicPrice ?? campaign.amount ?? 0,
-        addedAccounts: [],
-        campaignContent: campaign.campaignContent ?? campaign.videos ?? [],
-        socialMedia: campaign.socialMedia ?? 'instagram',
-        totalFollowers: 0,
-        totalLikes: 0,
-        totalImpressions: 0,
-        createdAt: campaign.createdAt ?? 0,
-        isCopy: campaign.isCopy ?? false,
-        isCpmAndResultHidden: campaign.isCpmAndResultHidden ?? false,
-        isPriceHidden: campaign.isPriceHidden ?? false,
-        hiddenColumns: campaign.hiddenColumns ?? [],
-      };
+            const campaignToReturn: any = {
+                _id: campaign._id,
+                clientId: campaign.clientId,
+                campaignName: campaign.campaignName ?? 'OLD CAMPAIGN',
+                price: campaign.campaignPrice ?? campaign.price ?? campaign.amount ?? 0,
+                publicPrice: campaign.campaignPrice ?? campaign.publicPrice ?? campaign.amount ?? 0,
+                addedAccounts: [],
+                campaignContent: campaign.campaignContent ?? campaign.videos ?? [],
+                socialMedia: campaign.socialMedia ?? 'instagram',
+                totalFollowers: 0,
+                totalLikes: 0,
+                totalImpressions: 0,
+                createdAt: campaign.createdAt ?? 0,
+                isCopy: campaign.isCopy ?? false,
+                isCpmAndResultHidden: campaign.isCpmAndResultHidden ?? false,
+                isPriceHidden: campaign.isPriceHidden ?? false,
+                hiddenColumns: campaign.hiddenColumns ?? [],
+            };
 
-            // key type for map: 'account.influencerId' or 'account.influencerId-account._id'
-            // first means that account was connected when campaign was created
-            // second means that account was connected after that by admin
-            let influencersMap: Map<
+            const influencerIds = campaign.selectInfluencers.map(acc => acc.influencerId);
+            const influencers = await this.influencerModel.find({ _id: { $in: influencerIds } }).lean().exec();
+            const influencerMap = new Map(influencers.map(inf => [inf._id.toString(), inf]));
+
+            type ContentItemWithIndex = { item: CampaignContentItem; index: number };
+            const campaignContentMap: Map<string, ContentItemWithIndex> = new Map(
+                (campaign.campaignContent || []).map((c, idx) => [c._id.toString(), { item: c, index: idx }])
+            );
+
+            const videosMap: Map<string, any> = new Map(
+                (campaign.videos || []).map((v, idx) => [v._id.toString(), { item: v, index: idx }])
+            );
+
+            const influencersMap = new Map<
                 string,
-                {
-                    message: string | null;
-                    firstName: string;
-                    accounts: AccountObjectForCreateNewPromoRequestMessage[];
-                }
-            > = new Map();
+                { message: string | null; firstName: string; accounts: any[] }
+            >();
 
             for (const addedAccount of campaign.selectInfluencers) {
                 const normalizedUsername =
-                    addedAccount?.socialMediaUsername?.trim() ||
-                    addedAccount?.instagramUsername?.trim() ||
-                    '';
-
-                const accSocialMedia =
-                    addedAccount?.socialMedia ||
-                    (campaign.socialMedia !== 'multipromo' && campaign.socialMedia);
+                    addedAccount?.socialMediaUsername?.trim() || addedAccount?.instagramUsername?.trim() || '';
+                const accSocialMedia = addedAccount?.socialMedia || (campaign.socialMedia !== 'multipromo' && campaign.socialMedia);
 
                 campaignToReturn.totalFollowers += addedAccount?.followersNumber ?? 0;
-                campaignToReturn.totalImpressions += parseInt(
-                    addedAccount.impressions?.replace(/[\s,]/g, '') || '0',
-                );
+                campaignToReturn.totalImpressions += parseInt(addedAccount.impressions?.replace(/[\s,]/g, '') || '0');
                 campaignToReturn.totalLikes += parseInt(addedAccount.like?.replace(/[\s,]/g, '') || '0');
 
-        const selectedCampaignContentItemId: string =
-          addedAccount?.selectedContent?.campaignContentItemId?.toString() ??
-            addedAccount.selectedCampaignContentItem ??
-          (Array.isArray(campaign?.videos)
-            ? campaign.videos.find((item) => item.videoLink === addedAccount?.selectedVideo)?._id?.toString()
-            : null) ??
-          null;
+                const selectedCampaignContentItemId =
+                    addedAccount?.selectedContent?.campaignContentItemId?.toString() ??
+                    addedAccount.selectedCampaignContentItem ??
+                    (Array.isArray(campaign?.videos)
+                        ? campaign.videos.find(v => v.videoLink === addedAccount?.selectedVideo)?._id?.toString()
+                        : null) ?? null;
 
                 let selectedCampaignContentItem = null;
+                if (selectedCampaignContentItemId) {
+                    const contentItem =
+                        campaignContentMap.get(selectedCampaignContentItemId)?.item ||
+                        videosMap.get(selectedCampaignContentItemId)?.item ||
+                        null;
 
-        if (selectedCampaignContentItemId) {
-          selectedCampaignContentItem =
-              (Array.isArray(campaign.campaignContent)
-                  ? (() => {
-                    const contentItem = campaign.campaignContent.find(
-                        (item) => item?._id.toString() === selectedCampaignContentItemId,
-                    );
-                    if (!contentItem) return null;
+                    if (contentItem) {
+                        const postDescription =
+                            contentItem.postDescriptions?.find(
+                                pd => pd._id.toString() === addedAccount.selectedContent?.postDescriptionId?.toString()
+                            )?.description ?? contentItem?.postDescription ?? '';
 
-                    const postDescription =
-                        contentItem.postDescriptions?.find(
-                            (pd) => pd._id.toString() === addedAccount.selectedContent.postDescriptionId.toString(),
-                        )?.description ?? contentItem?.postDescription ?? '';
+                        selectedCampaignContentItem = {
+                            _id: contentItem._id,
+                            videoLink: contentItem.videoLink,
+                            postDescription,
+                            storyTag: contentItem.storyTag || null,
+                            storyLink: contentItem.swipeUpLink || null,
+                            specialWishes: contentItem.specialWishes,
+                        };
+                    }
+                }
 
-                    return {
-                      _id: contentItem._id,
-                      videoLink: contentItem.videoLink,
-                      postDescription: postDescription,
-                      storyTag: contentItem.storyTag || null,
-                      storyLink: contentItem.swipeUpLink || null,
-                      specialWishes: contentItem.specialWishes,
-                    };
-                  })()
-                  : null) ??
-            (Array.isArray(campaign?.videos) && campaign.videos.length > 0
-              ? campaign.videos.find(
-                  (item) => item?._id?.toString() === selectedCampaignContentItemId,
-                )
-              : null) ??
-            null;
-        }
-
-        addedAccount.selectedCampaignContentItemId = selectedCampaignContentItemId;
-        addedAccount.selectedCampaignContentItem = selectedCampaignContentItem;
-        addedAccount.socialMedia = addedAccount?.socialMedia || accSocialMedia;
-        addedAccount.socialMediaUsername = normalizedUsername;
+                addedAccount.selectedCampaignContentItemId = selectedCampaignContentItemId;
+                addedAccount.selectedCampaignContentItem = selectedCampaignContentItem;
+                addedAccount.socialMedia = accSocialMedia;
+                addedAccount.socialMediaUsername = normalizedUsername;
 
                 if (!campaign.isCopy && !isProposal) {
                     const isOriginalAccount =
                         new Date(addedAccount.createdAt).getTime() === new Date(campaign.createdAt).getTime();
-
-                    const key = isOriginalAccount
-                        ? addedAccount.influencerId
-                        : `${addedAccount.influencerId}-${addedAccount._id}`;
+                    const key = isOriginalAccount ? addedAccount.influencerId : `${addedAccount.influencerId}-${addedAccount._id}`;
 
                     if (!influencersMap.has(key)) {
-                        const influencer =
-                            (await this.influencerModel.findById(addedAccount.influencerId).lean().exec()) ||
-                            null
-
-                        const account = influencer[addedAccount.socialMedia]?.find(acc => acc.instagramUsername === addedAccount.socialMediaUsername) ?? null
+                        const influencer = influencerMap.get(addedAccount.influencerId.toString()) || null;
+                        const account = influencer?.[addedAccount.socialMedia]?.find(
+                            acc => acc.instagramUsername === addedAccount.socialMediaUsername
+                        ) ?? null;
 
                         influencersMap.set(key, {
                             message: null,
-                            firstName: account?.firstName ?? "Unknown",
+                            firstName: account?.firstName ?? 'Unknown',
                             accounts: [
                                 {
                                     pageName: addedAccount.socialMediaUsername,
-                                    reward: `${(account as any).initialPrice ?? addedAccount.price?.replace(/\D/g, '')}${(account as any).currency ?? "EUR"}`,
+                                    reward: `${account?.initialPrice ?? addedAccount.price?.replace(/\D/g, '')}${account?.currency ?? 'EUR'}`,
                                     socialMedia: addedAccount.socialMedia,
                                     contentLink: addedAccount.selectedCampaignContentItem?.videoLink ?? '',
                                     description: addedAccount.selectedCampaignContentItem?.postDescription,
@@ -1331,19 +1324,16 @@ export class AdminService {
                             ],
                         });
                     } else {
-                        const influencerData = influencersMap.get(key);
-                        if (influencerData) {
-                            influencerData.accounts.push({
-                                pageName: addedAccount.socialMediaUsername,
-                                reward: `${addedAccount.initialPrice ?? addedAccount.price?.replace(/\D/g, '')}${addedAccount.currency ?? "EUR"}`,
-                                socialMedia: addedAccount.socialMedia,
-                                contentLink: addedAccount.selectedCampaignContentItem?.videoLink ?? '',
-                                description: addedAccount.selectedCampaignContentItem?.postDescription,
-                                storyTag: addedAccount.selectedCampaignContentItem?.storyTag,
-                                storyLink: addedAccount.selectedCampaignContentItem?.storyLink,
-                                specialRequests: addedAccount.selectedCampaignContentItem?.specialWishes,
-                            });
-                        }
+                        influencersMap.get(key)?.accounts.push({
+                            pageName: addedAccount.socialMediaUsername,
+                            reward: `${addedAccount.initialPrice ?? addedAccount.price?.replace(/\D/g, '')}${addedAccount.currency ?? 'EUR'}`,
+                            socialMedia: addedAccount.socialMedia,
+                            contentLink: addedAccount.selectedCampaignContentItem?.videoLink ?? '',
+                            description: addedAccount.selectedCampaignContentItem?.postDescription,
+                            storyTag: addedAccount.selectedCampaignContentItem?.storyTag,
+                            storyLink: addedAccount.selectedCampaignContentItem?.storyLink,
+                            specialRequests: addedAccount.selectedCampaignContentItem?.specialWishes,
+                        });
                     }
                 }
 
@@ -1351,16 +1341,11 @@ export class AdminService {
             }
 
             if (!campaign.isCopy) {
-                for (const account of campaignToReturn?.addedAccounts) {
+                for (const account of campaignToReturn.addedAccounts) {
                     const isOriginalAccount =
                         new Date(account.createdAt).getTime() === new Date(campaignToReturn.createdAt).getTime();
-
-                    const key = isOriginalAccount
-                        ? account.influencerId
-                        : `${account.influencerId}-${account._id}`;
-
+                    const key = isOriginalAccount ? account.influencerId : `${account.influencerId}-${account._id}`;
                     const infMapItem = influencersMap.get(key);
-
                     if (!infMapItem) continue;
 
                     account.message =
@@ -1373,84 +1358,60 @@ export class AdminService {
             }
 
             campaignToReturn.addedAccounts.sort((a, b) => {
-                const aContentId = a.selectedCampaignContentItemId;
-                const bContentId = b.selectedCampaignContentItemId;
-
-        const aIndex = Array.isArray(campaign.campaignContent)
-          ? campaign.campaignContent.findIndex(
-              (content) => content?._id?.toString() === aContentId?.toString(),
-            )
-          : Array.isArray(campaign.videos)
-            ? campaign.videos.findIndex(
-                (video) => video?._id?.toString() === aContentId?.toString(),
-              )
-            : -1;
-
-        const bIndex = Array.isArray(campaign.campaignContent)
-          ? campaign.campaignContent.findIndex(
-              (content) => content?._id?.toString() === bContentId?.toString(),
-            )
-          : Array.isArray(campaign.videos)
-            ? campaign.videos.findIndex(
-                (video) => video?._id?.toString() === bContentId?.toString(),
-              )
-            : -1;
-
+                const aIndex = campaignContentMap.get(a.selectedCampaignContentItemId)?.index ??
+                    videosMap.get(a.selectedCampaignContentItemId)?.index ?? -1;
+                const bIndex = campaignContentMap.get(b.selectedCampaignContentItemId)?.index ??
+                    videosMap.get(b.selectedCampaignContentItemId)?.index ?? -1;
                 return aIndex - bIndex;
             });
 
-            return {
-                status: 200,
-                campaign: campaignToReturn,
-            };
+            return { status: 200, campaign: campaignToReturn };
         } catch (err) {
             console.error(err);
-            return {
-                status: 500,
-                message: err.message || 'Internal server error',
-            };
+            return { status: 500, message: err.message || 'Internal server error' };
         }
     }
 
-  async adminUpdateCampaign(data: AdminUpdateFullCampaignDto) {
-    try {
-      const {
-        campaignId,
-        campaignName,
-        campaignPrice,
-        campaignContent,
-        isPriceHidden,
-        isCpmAndResultHidden,
-        isProposalCampaign,
-        hiddenColumns,
-        addedInfluencers,
-      } = data;
 
-      if (
-        !campaignId ||
-        !campaignName ||
-        !campaignPrice ||
-        !campaignContent ||
-        !addedInfluencers ||
-        isPriceHidden == null ||
-        isCpmAndResultHidden == null ||
-        isProposalCampaign == null
-      ) {
-        return {
-          status: 400,
-          message: 'Bad Request',
-        };
-      }
+    async adminUpdateCampaign(data: AdminUpdateFullCampaignDto) {
+        try {
+            const {
+                campaignId,
+                campaignName,
+                campaignPrice,
+                campaignContent,
+                isPriceHidden,
+                isCpmAndResultHidden,
+                isProposalCampaign,
+                hiddenColumns,
+                addedInfluencers,
+            } = data;
+
+            if (
+                !campaignId ||
+                !campaignName ||
+                !campaignPrice ||
+                !campaignContent ||
+                !addedInfluencers ||
+                isPriceHidden == null ||
+                isCpmAndResultHidden == null ||
+                isProposalCampaign == null
+            ) {
+                return {
+                    status: 400,
+                    message: 'Bad Request',
+                };
+            }
 
             let campaign;
 
-      if (!isProposalCampaign) {
-        campaign =
-          (await this.promosModel.findById(campaignId)) ||
-          (await this.promosCopiesModel.findById(campaignId));
-      } else {
-        campaign = await this.proposalCampaignModel.findById(campaignId);
-      }
+            if (!isProposalCampaign) {
+                campaign =
+                    (await this.promosModel.findById(campaignId)) ||
+                    (await this.promosCopiesModel.findById(campaignId));
+            } else {
+                campaign = await this.proposalCampaignModel.findById(campaignId);
+            }
 
             if (!campaign) {
                 return {
@@ -1459,12 +1420,12 @@ export class AdminService {
                 };
             }
 
-      campaign.campaignName = campaignName.trim() ?? campaign.campaignName;
-      campaign.isPriceHidden = isPriceHidden ?? campaign.isPriceHidden;
-      campaign.isCpmAndResultHidden = isCpmAndResultHidden ?? campaign.isCpmAndResultHidden;
-      campaign.hiddenColumns = hiddenColumns || [];
-      campaign.campaignContent =
-        campaignContent ?? campaign?.campaignContent ?? campaign?.videos ?? [];
+            campaign.campaignName = campaignName.trim() ?? campaign.campaignName;
+            campaign.isPriceHidden = isPriceHidden ?? campaign.isPriceHidden;
+            campaign.isCpmAndResultHidden = isCpmAndResultHidden ?? campaign.isCpmAndResultHidden;
+            campaign.hiddenColumns = hiddenColumns || [];
+            campaign.campaignContent =
+                campaignContent ?? campaign?.campaignContent ?? campaign?.videos ?? [];
 
             if (!isProposalCampaign) {
                 campaign.campaignPrice = campaignPrice || campaign.campaignPrice;
@@ -1485,93 +1446,93 @@ export class AdminService {
                     return false;
                 }
 
-        const thisAccountFromData = addedInfluencers.find((item) => item._id.toString() === id);
-        if (thisAccountFromData) {
-          account.selectedCampaignContentItem = thisAccountFromData.selectedContent.campaignContentItemId;
-          account.dateRequest = thisAccountFromData?.dateRequest ?? (account.dateRequest || 'ASAP');
-          account.postLink = thisAccountFromData?.postLink ?? (account.postLink || '');
-          account.screenshot = thisAccountFromData?.screenshot ?? (account.screenshot || '');
-          account.like = thisAccountFromData?.like ?? (account.like || '');
-          account.impressions = thisAccountFromData?.impressions ?? (account.impressions || '');
-          account.rating = thisAccountFromData?.rating ?? (account.rating || undefined);
-          account.adminChecked =
-            thisAccountFromData?.adminChecked ?? (account.adminChecked || undefined);
-        }
+                const thisAccountFromData = addedInfluencers.find((item) => item._id.toString() === id);
+                if (thisAccountFromData) {
+                    account.selectedCampaignContentItem = thisAccountFromData.selectedContent.campaignContentItemId;
+                    account.dateRequest = thisAccountFromData?.dateRequest ?? (account.dateRequest || 'ASAP');
+                    account.postLink = thisAccountFromData?.postLink ?? (account.postLink || '');
+                    account.screenshot = thisAccountFromData?.screenshot ?? (account.screenshot || '');
+                    account.like = thisAccountFromData?.like ?? (account.like || '');
+                    account.impressions = thisAccountFromData?.impressions ?? (account.impressions || '');
+                    account.rating = thisAccountFromData?.rating ?? (account.rating || undefined);
+                    account.adminChecked =
+                        thisAccountFromData?.adminChecked ?? (account.adminChecked || undefined);
+                }
 
                 return true;
             });
 
-      if (!isProposalCampaign) {
-        await Promise.all(
-          addedInfluencers.map(async (newInfluencer) => {
-            const id = newInfluencer._id.toString();
-            if (!selectInfluencerIds.has(id)) {
-              const response = await axios.post(
-                `${process.env.SERVER}/influencer-actions-history/upsert/campaign`,
-                {
-                  influencerId: newInfluencer.influencerId,
-                  campaignId: new mongoose.Types.ObjectId(campaignId),
-                  campaignName: campaignName,
-                  updatedCampaignAction: {
-                    actionNumber: 4,
-                    networkUsername: newInfluencer.socialMediaUsername,
-                    socialMedia: newInfluencer.socialMedia,
-                    rewardForInfluencer: parseInt(newInfluencer.price),
-                  },
-                },
-              );
+            if (!isProposalCampaign) {
+                await Promise.all(
+                    addedInfluencers.map(async (newInfluencer) => {
+                        const id = newInfluencer._id.toString();
+                        if (!selectInfluencerIds.has(id)) {
+                            const response = await axios.post(
+                                `${process.env.SERVER}/influencer-actions-history/upsert/campaign`,
+                                {
+                                    influencerId: newInfluencer.influencerId,
+                                    campaignId: new mongoose.Types.ObjectId(campaignId),
+                                    campaignName: campaignName,
+                                    updatedCampaignAction: {
+                                        actionNumber: 4,
+                                        networkUsername: newInfluencer.socialMediaUsername,
+                                        socialMedia: newInfluencer.socialMedia,
+                                        rewardForInfluencer: parseInt(newInfluencer.price),
+                                    },
+                                },
+                            );
 
-              if (response.data.code === 200) {
-                campaign.selectInfluencers.push({
-                  _id: new Types.ObjectId(),
-                  influencerId: newInfluencer.influencerId,
-                  socialMediaUsername: newInfluencer.socialMediaUsername,
-                  selectedContent: newInfluencer.selectedContent,
-                  socialMedia: newInfluencer.socialMedia,
-                  dateRequest: newInfluencer.dateRequest ?? 'ASAP',
-                  postLink: newInfluencer.postLink ?? '',
-                  screenshot: newInfluencer.screenshot ?? '',
-                  like: newInfluencer.like ?? '',
-                  impressions: newInfluencer.impressions ?? '',
-                  followersNumber: newInfluencer.followersNumber ?? 0,
-                  price: newInfluencer.price ?? '0',
-                  publicPrice: newInfluencer.publicPrice ?? '0',
-                });
-              } else {
-                throw new Error(
-                  `Error adding influencer ${newInfluencer.socialMediaUsername} (${newInfluencer.socialMedia}) to campaign ${campaignName}`,
+                            if (response.data.code === 200) {
+                                campaign.selectInfluencers.push({
+                                    _id: new Types.ObjectId(),
+                                    influencerId: newInfluencer.influencerId,
+                                    socialMediaUsername: newInfluencer.socialMediaUsername,
+                                    selectedContent: newInfluencer.selectedContent,
+                                    socialMedia: newInfluencer.socialMedia,
+                                    dateRequest: newInfluencer.dateRequest ?? 'ASAP',
+                                    postLink: newInfluencer.postLink ?? '',
+                                    screenshot: newInfluencer.screenshot ?? '',
+                                    like: newInfluencer.like ?? '',
+                                    impressions: newInfluencer.impressions ?? '',
+                                    followersNumber: newInfluencer.followersNumber ?? 0,
+                                    price: newInfluencer.price ?? '0',
+                                    publicPrice: newInfluencer.publicPrice ?? '0',
+                                });
+                            } else {
+                                throw new Error(
+                                    `Error adding influencer ${newInfluencer.socialMediaUsername} (${newInfluencer.socialMedia}) to campaign ${campaignName}`,
+                                );
+                            }
+                        }
+                    }),
                 );
-              }
-            }
-          }),
-        );
-      } else {
-        for (const newInfluencer of addedInfluencers) {
-          const id = newInfluencer._id.toString();
-          if (!selectInfluencerIds.has(id)) {
-            const aggregationPipeline = [
-              { $unwind: `$${newInfluencer.socialMedia}` },
-              {
-                $match: {
-                  $expr: {
-                    $eq: [
-                      { $trim: { input: `$${newInfluencer.socialMedia}.instagramUsername` } },
-                      newInfluencer.socialMediaUsername,
-                    ],
-                  },
-                },
-              },
-              {
-                $project: {
-                  influencerId: `$${newInfluencer.socialMedia}._id`,
-                  followersNumber: `$${newInfluencer.socialMedia}.followersNumber`,
-                  musicStyle: `$${newInfluencer.socialMedia}.musicStyle`,
-                  musicStyleOther: `$${newInfluencer.socialMedia}.musicStyleOther`,
-                  musicSubStyles: `$${newInfluencer.socialMedia}.musicSubStyles`,
-                  countries: `$${newInfluencer.socialMedia}.countries`,
-                },
-              },
-            ];
+            } else {
+                for (const newInfluencer of addedInfluencers) {
+                    const id = newInfluencer._id.toString();
+                    if (!selectInfluencerIds.has(id)) {
+                        const aggregationPipeline = [
+                            {$unwind: `$${newInfluencer.socialMedia}`},
+                            {
+                                $match: {
+                                    $expr: {
+                                        $eq: [
+                                            {$trim: {input: `$${newInfluencer.socialMedia}.instagramUsername`}},
+                                            newInfluencer.socialMediaUsername,
+                                        ],
+                                    },
+                                },
+                            },
+                            {
+                                $project: {
+                                    influencerId: `$${newInfluencer.socialMedia}._id`,
+                                    followersNumber: `$${newInfluencer.socialMedia}.followersNumber`,
+                                    musicStyle: `$${newInfluencer.socialMedia}.musicStyle`,
+                                    musicStyleOther: `$${newInfluencer.socialMedia}.musicStyleOther`,
+                                    musicSubStyles: `$${newInfluencer.socialMedia}.musicSubStyles`,
+                                    countries: `$${newInfluencer.socialMedia}.countries`,
+                                },
+                            },
+                        ];
 
                         const result = await this.influencerModel.aggregate(aggregationPipeline).exec();
 
@@ -1582,30 +1543,30 @@ export class AdminService {
                                 result[0].musicSubStyles,
                             );
 
-              campaign.totalFollowers += parseInt(result[0].followersNumber);
-              campaign.selectInfluencers.push({
-                _id: new Types.ObjectId(),
-                influencerId: result[0].influencerId,
-                socialMediaUsername: newInfluencer.socialMediaUsername,
-                selectedContent: newInfluencer.selectedContent,
-                socialMedia: newInfluencer.socialMedia,
-                dateRequest: newInfluencer.dateRequest ?? 'ASAP',
-                postLink: newInfluencer.postLink ?? '',
-                screenshot: newInfluencer.screenshot ?? '',
-                like: newInfluencer.like ?? '',
-                impressions: newInfluencer.impressions ?? '',
-                rating: newInfluencer.rating ?? undefined,
-                adminChecked: newInfluencer.adminChecked ?? undefined,
-                followersNumber: newInfluencer.followersNumber ?? 0,
-                price: newInfluencer.price ?? '0',
-                publicPrice: newInfluencer.publicPrice ?? '0',
-                genres: formattedGenres || [],
-                countries: result[0].countries,
-              });
+                            campaign.totalFollowers += parseInt(result[0].followersNumber);
+                            campaign.selectInfluencers.push({
+                                _id: new Types.ObjectId(),
+                                influencerId: result[0].influencerId,
+                                socialMediaUsername: newInfluencer.socialMediaUsername,
+                                selectedContent: newInfluencer.selectedContent,
+                                socialMedia: newInfluencer.socialMedia,
+                                dateRequest: newInfluencer.dateRequest ?? 'ASAP',
+                                postLink: newInfluencer.postLink ?? '',
+                                screenshot: newInfluencer.screenshot ?? '',
+                                like: newInfluencer.like ?? '',
+                                impressions: newInfluencer.impressions ?? '',
+                                rating: newInfluencer.rating ?? undefined,
+                                adminChecked: newInfluencer.adminChecked ?? undefined,
+                                followersNumber: newInfluencer.followersNumber ?? 0,
+                                price: newInfluencer.price ?? '0',
+                                publicPrice: newInfluencer.publicPrice ?? '0',
+                                genres: formattedGenres || [],
+                                countries: result[0].countries,
+                            });
+                        }
+                    }
+                }
             }
-          }
-        }
-      }
 
             campaign.markModified('selectInfluencers');
             await campaign.save();
@@ -1762,31 +1723,31 @@ export class AdminService {
                     message: 'Influencer not found',
                 };
 
-      const influencerObj = {
-        _id: new Types.ObjectId(),
-        influencerId: influencer._id,
-        socialMediaUsername: socialMediaAccount.instagramUsername,
-        followersNumber: socialMediaAccount.followersNumber ?? 0,
-        price: socialMediaAccount.price,
-        publicPrice: socialMediaAccount.publicPrice,
-        socialMedia: socialMedia,
-        confirmation: 'wait',
-        selectedContent: null,
-        selectedCampaignContentItem: {
-          _id: '',
-          videoLink: '',
-          postDescription: '',
-          storyTag: '',
-          swipeUpLink: '',
-          specialWishes: '',
-        },
-        dateRequest: '',
-        closePromo: 'wait',
-        postLink: '',
-        screenshot: '',
-        impressions: '',
-        like: '',
-      };
+            const influencerObj = {
+                _id: new Types.ObjectId(),
+                influencerId: influencer._id,
+                socialMediaUsername: socialMediaAccount.instagramUsername,
+                followersNumber: socialMediaAccount.followersNumber ?? 0,
+                price: socialMediaAccount.price,
+                publicPrice: socialMediaAccount.publicPrice,
+                socialMedia: socialMedia,
+                confirmation: 'wait',
+                selectedContent: null,
+                selectedCampaignContentItem: {
+                    _id: '',
+                    videoLink: '',
+                    postDescription: '',
+                    storyTag: '',
+                    swipeUpLink: '',
+                    specialWishes: '',
+                },
+                dateRequest: '',
+                closePromo: 'wait',
+                postLink: '',
+                screenshot: '',
+                impressions: '',
+                like: '',
+            };
 
             return {
                 code: 200,
@@ -1887,22 +1848,22 @@ export class AdminService {
             const errorsList: string[] = [];
             const successList: string[] = [];
 
-      const influencerMap: Map<
-        string,
-        {
-          phone: string;
-          firstName: string;
-          accounts: {
-            username: string;
-            socialMedia: string;
-            reward: string;
-            selectedContent: {
-              campaignContentItemId: Types.ObjectId;
-              postDescriptionId: Types.ObjectId;
-            };
-          }[];
-        }
-      > = new Map();
+            const influencerMap: Map<
+                string,
+                {
+                    phone: string;
+                    firstName: string;
+                    accounts: {
+                        username: string;
+                        socialMedia: string;
+                        reward: string;
+                        selectedContent: {
+                            campaignContentItemId: Types.ObjectId;
+                            postDescriptionId: Types.ObjectId;
+                        };
+                    }[];
+                }
+            > = new Map();
 
             for (const item of campaign.selectInfluencers) {
                 const influencerFromDb = await this.influencerModel.findById(item.influencerId);
@@ -1919,13 +1880,13 @@ export class AdminService {
                     influencerMap.set(phone, {phone, firstName, accounts: []});
                 }
 
-        influencerMap.get(phone)!.accounts.push({
-          username: item.socialMediaUsername,
-          socialMedia: item.socialMedia,
-          reward: item.price,
-          selectedContent: item.selectedContent,
-        });
-      }
+                influencerMap.get(phone)!.accounts.push({
+                    username: item.socialMediaUsername,
+                    socialMedia: item.socialMedia,
+                    reward: item.price,
+                    selectedContent: item.selectedContent,
+                });
+            }
 
             const messagesToSend = Array.from(influencerMap.values());
 
@@ -1941,30 +1902,30 @@ export class AdminService {
 
                 const {phone, firstName, accounts} = messagesToSend[i];
 
-        const accountsAndDetails = accounts.map((account) => {
-          const contentItem = campaign.campaignContent.find(
-            (item) => item._id === account.selectedContent.campaignContentItemId,
-          );
-          const postDescription = contentItem.postDescriptions.find(pd => pd._id === account.selectedContent.postDescriptionId)?.description ?? "";
+                const accountsAndDetails = accounts.map((account) => {
+                    const contentItem = campaign.campaignContent.find(
+                        (item) => item._id === account.selectedContent.campaignContentItemId,
+                    );
+                    const postDescription = contentItem.postDescriptions.find(pd => pd._id === account.selectedContent.postDescriptionId)?.description ?? "";
 
-          if (!contentItem) {
-            this.logger.error(
-              `Can't find campaignContentItem with id ${account.selectedContent.campaignContentItemId} for ${account.username}`,
-              new Error().stack,
-            );
-          }
+                    if (!contentItem) {
+                        this.logger.error(
+                            `Can't find campaignContentItem with id ${account.selectedContent.campaignContentItemId} for ${account.username}`,
+                            new Error().stack,
+                        );
+                    }
 
-          return {
-            pageName: account.username,
-            reward: account.reward,
-            socialMedia: account.socialMedia,
-            contentLink: contentItem?.videoLink ?? '',
-            description: postDescription,
-            storyTag: contentItem?.storyTag,
-            storyLink: contentItem?.swipeUpLink,
-            specialRequests: contentItem?.specialWishes,
-          };
-        });
+                    return {
+                        pageName: account.username,
+                        reward: account.reward,
+                        socialMedia: account.socialMedia,
+                        contentLink: contentItem?.videoLink ?? '',
+                        description: postDescription,
+                        storyTag: contentItem?.storyTag,
+                        storyLink: contentItem?.swipeUpLink,
+                        specialRequests: contentItem?.specialWishes,
+                    };
+                });
 
                 const messageContent = createNewPromoRequestTextMessage({
                     firstName,
@@ -2111,86 +2072,86 @@ export class AdminService {
                 !isSameDate(acc.createdAt, campaign.createdAt),
             );
 
-      const mapToPromoAccountObject = (
-        acc: any,
-        campaignContent: any,
-      ): AccountObjectForCreateNewPromoRequestMessage => ({
-        pageName: acc.socialMediaUsername,
-        reward: acc.price,
-        socialMedia: acc.socialMedia,
-        contentLink: campaignContent?.videoLink ?? '',
-        description: null,
-        storyTag: campaignContent?.storyTag,
-        storyLink: campaignContent?.swipeUpLink,
-        specialRequests: campaignContent?.specialWishes,
-      });
+            const mapToPromoAccountObject = (
+                acc: any,
+                campaignContent: any,
+            ): AccountObjectForCreateNewPromoRequestMessage => ({
+                pageName: acc.socialMediaUsername,
+                reward: acc.price,
+                socialMedia: acc.socialMedia,
+                contentLink: campaignContent?.videoLink ?? '',
+                description: null,
+                storyTag: campaignContent?.storyTag,
+                storyLink: campaignContent?.swipeUpLink,
+                specialRequests: campaignContent?.specialWishes,
+            });
 
-      if (originalAccounts.length > 0) {
-        const promoObjects = originalAccounts.map((acc) => {
-          const content = campaign.campaignContent.find(
-            (c) => c._id === acc.selectedContent.campaignContentItemId,
-          );
-          return mapToPromoAccountObject(acc, {
-            ...content,
-            postDescription: content.postDescriptions.find(pd => pd._id === acc.selectedContent.postDescriptionId)?.description ?? ""
-          });
-        });
+            if (originalAccounts.length > 0) {
+                const promoObjects = originalAccounts.map((acc) => {
+                    const content = campaign.campaignContent.find(
+                        (c) => c._id === acc.selectedContent.campaignContentItemId,
+                    );
+                    return mapToPromoAccountObject(acc, {
+                        ...content,
+                        postDescription: content.postDescriptions.find(pd => pd._id === acc.selectedContent.postDescriptionId)?.description ?? ""
+                    });
+                });
 
-        const message = createNewPromoRequestHTMLMessage({
-          firstName: influencer.firstName,
-          accountsAndDetails: promoObjects,
-        });
+                const message = createNewPromoRequestHTMLMessage({
+                    firstName: influencer.firstName,
+                    accountsAndDetails: promoObjects,
+                });
 
-        await sendMail(influencer.email, 'New Promo Request', message, 'html');
-      }
+                await sendMail(influencer.email, 'New Promo Request', message, 'html');
+            }
 
-      for (const acc of laterAccounts) {
-        const content = campaign.campaignContent.find(
-          (c) => c._id === acc.selectedContent.campaignContentItemId,
-        );
+            for (const acc of laterAccounts) {
+                const content = campaign.campaignContent.find(
+                    (c) => c._id === acc.selectedContent.campaignContentItemId,
+                );
 
-        const message = createNewPromoRequestHTMLMessage({
-          firstName: influencer.firstName,
-          accountsAndDetails: [mapToPromoAccountObject(acc, {
-            ...content,
-            postDescription: content.postDescriptions.find(pd => pd._id === acc.selectedContent.postDescriptionId)?.description ?? ""
-          })],
-        });
+                const message = createNewPromoRequestHTMLMessage({
+                    firstName: influencer.firstName,
+                    accountsAndDetails: [mapToPromoAccountObject(acc, {
+                        ...content,
+                        postDescription: content.postDescriptions.find(pd => pd._id === acc.selectedContent.postDescriptionId)?.description ?? ""
+                    })],
+                });
 
-        await sendMail(influencer.email, 'New Promo Request', message, 'html');
-      }
+                await sendMail(influencer.email, 'New Promo Request', message, 'html');
+            }
 
-      return {
-        code: 201,
-        message: 'Mail(s) sent!',
-      };
-    } catch (err) {
-      this.logger.error(
-        `Failed to send email to influencer: ${err}`,
-        err instanceof Error ? err.stack : undefined,
-      );
-      return {
-        code: 500,
-        message: 'Internal server error',
-        error: err.message || null,
-      };
+            return {
+                code: 201,
+                message: 'Mail(s) sent!',
+            };
+        } catch (err) {
+            this.logger.error(
+                `Failed to send email to influencer: ${err}`,
+                err instanceof Error ? err.stack : undefined,
+            );
+            return {
+                code: 500,
+                message: 'Internal server error',
+                error: err.message || null,
+            };
+        }
     }
-  }
 
-  async adminHideInstagramAccount(influencerId, instagramUsername) {
-    try {
-      const influencer = await this.influencerModel.findOne({ _id: influencerId });
+    async adminHideInstagramAccount(influencerId, instagramUsername) {
+        try {
+            const influencer = await this.influencerModel.findOne({_id: influencerId});
 
-      if (!influencer) {
-        return {
-          status: 404,
-          message: 'Influencer not found',
-        };
-      }
+            if (!influencer) {
+                return {
+                    status: 404,
+                    message: 'Influencer not found',
+                };
+            }
 
-      const instagram = influencer.instagram.find(
-        (insta) => insta.instagramUsername === instagramUsername,
-      );
+            const instagram = influencer.instagram.find(
+                (insta) => insta.instagramUsername === instagramUsername,
+            );
 
             if (!instagram) {
                 return {
@@ -2504,142 +2465,273 @@ export class AdminService {
         }
     }
 
-  async adminUpdateCampaignsUpToDate() {
-    const campaigns = await this.promosModel.find().lean();
-    if (!campaigns?.length) return { code: 500, message: 'Ongoing campaigns not found' };
+    async adminUpdateCampaignsUpToDate() {
+        const campaigns = await this.promosModel.find().lean();
+        if (!campaigns?.length) return { code: 500, message: 'Ongoing campaigns not found' };
 
-    // Кэш: key = `${influencerId}|${socialMedia}` -> array of accounts for that influencer+platform
-    const influencersMap = new Map<string, { _id: Types.ObjectId; instagramUsername: string; socialMedia: string }[]>();
+        const influencersMap = new Map<string, { _id: Types.ObjectId; instagramUsername: string; socialMedia: string }[]>();
 
-    for (const campaign of campaigns) {
-      // Мап: старый content._id -> новый postDescriptions[0]._id
-      const contentIdToPostDesc = new Map<string, Types.ObjectId>();
+        for (const campaign of campaigns) {
+            const videoLinkMap = new Map<string, { _id: Types.ObjectId; description: string }[]>();
+            const contentIdToVideoLink = new Map<string, string>();
+            const oldContentIdToPostDescriptions = new Map<string, Types.ObjectId[]>();
 
-      const updatedContent: any[] = [];
-      const updatedInfluencers: any[] = [];
+            // 1. Собираем все postDescriptions по videoLink
+            for (const contentItem of (campaign.campaignContent ?? [])) {
+                const videoLink = contentItem.videoLink;
+                contentIdToVideoLink.set(contentItem._id.toString(), videoLink);
 
-      for (const contentItem of (campaign.campaignContent ?? [])) {
-        let postDescriptions: { _id: Types.ObjectId; description: string }[] = [];
+                if (!videoLinkMap.has(videoLink)) {
+                    videoLinkMap.set(videoLink, []);
+                }
 
-        if (Array.isArray(contentItem.postDescriptions) && contentItem.postDescriptions.length) {
-          postDescriptions = contentItem.postDescriptions.map((pd: any) => ({
-            _id: pd._id ? new Types.ObjectId(pd._id) : new Types.ObjectId(),
-            description: (pd as any).description ?? ((contentItem as any).postDescription ?? ''),
-          }));
-        } else {
-          postDescriptions = [
-            {
-              _id: new Types.ObjectId(),
-              description: (contentItem as any).postDescription ?? '',
-            },
-          ];
+                const postDescriptions: { _id: Types.ObjectId; description: string }[] = [];
+                if (Array.isArray(contentItem.postDescriptions) && contentItem.postDescriptions.length) {
+                    for (const pd of contentItem.postDescriptions) {
+                        const newId = pd._id ? new Types.ObjectId(pd._id) : new Types.ObjectId();
+                        postDescriptions.push({
+                            _id: newId,
+                            description: pd.description ?? '',
+                        });
+                    }
+                } else {
+                    const newId = new Types.ObjectId();
+                    postDescriptions.push({
+                        _id: newId,
+                        description: (contentItem as any).postDescription ?? '',
+                    });
+                }
+
+                // Сохраняем для старого _id все новые _id postDescriptions
+                oldContentIdToPostDescriptions.set(contentItem._id.toString(), postDescriptions.map(pd => pd._id));
+
+                // Добавляем к videoLinkMap
+                videoLinkMap.get(videoLink)!.push(...postDescriptions);
+            }
+
+            // 2. Создаём новые CampaignContentItem
+            const videoLinkToContentId = new Map<string, Types.ObjectId>();
+            const updatedContent: any[] = [];
+
+            for (const [videoLink, postDescriptions] of videoLinkMap.entries()) {
+                const contentItemId = new Types.ObjectId();
+                videoLinkToContentId.set(videoLink, contentItemId);
+
+                updatedContent.push({
+                    _id: contentItemId,
+                    videoLink,
+                    postDescriptions,
+                    storyTag: campaign.campaignContent.find(c => c.videoLink === videoLink)?.storyTag,
+                    swipeUpLink: campaign.campaignContent.find(c => c.videoLink === videoLink)?.swipeUpLink,
+                    specialWishes: campaign.campaignContent.find(c => c.videoLink === videoLink)?.specialWishes,
+                    socialMedia: campaign.socialMedia,
+                    socialMediaGroup: 'main',
+                });
+            }
+
+            // 3. Обновляем инфлюенсеров с корректным selectedContent
+            const updatedInfluencers: any[] = [];
+            for (const acc of (campaign.selectInfluencers ?? [])) {
+                const key = `${acc.influencerId?.toString?.() ?? acc.influencerId}|${acc.socialMedia}`;
+                let accounts = influencersMap.get(key);
+
+                if (!accounts) {
+                    try {
+                        const aggr = await this.influencerModel.aggregate([
+                            { $match: { _id: new Types.ObjectId(acc.influencerId), statusVerify: 'accept' } },
+                            { $unwind: `$${acc.socialMedia}` },
+                            { $match: { [`${acc.socialMedia}.isVerified`]: true } },
+                            { $sort: { [`${acc.socialMedia}.createdAt`]: -1 } },
+                            { $project: { _id: `$${acc.socialMedia}._id`, instagramUsername: `$${acc.socialMedia}.instagramUsername` } },
+                        ]);
+                        accounts = (aggr ?? []).map((a: any) => ({ _id: a._id, instagramUsername: a.instagramUsername, socialMedia: acc.socialMedia }));
+                    } catch (e) {
+                        accounts = [];
+                        this.logger.warn(`Failed to aggregate accounts for influencer ${acc.influencerId} on ${acc.socialMedia}: ${e?.message ?? e}`);
+                    }
+                    influencersMap.set(key, accounts);
+                }
+
+                const account = accounts.find(it => it.instagramUsername === acc.socialMediaUsername) ?? null;
+
+                // Точный mapping старого selectedCampaignContentItem → новый postDescriptionId
+                let selectedContent: null | { campaignContentItemId: Types.ObjectId; postDescriptionId: Types.ObjectId | null } = null;
+                if ((acc as any).selectedCampaignContentItem) {
+                    const oldContentIdStr = (acc as any).selectedCampaignContentItem.toString();
+                    const videoLink = contentIdToVideoLink.get(oldContentIdStr);
+                    const newContentItem = updatedContent.find(c => c.videoLink === videoLink);
+
+                    if (newContentItem) {
+                        // Берём именно тот postDescription, который был в старом CampaignContentItem
+                        const oldPostDescIds = oldContentIdToPostDescriptions.get(oldContentIdStr) ?? [];
+                        const postDescriptionId = oldPostDescIds[0] ?? newContentItem.postDescriptions[0]?._id ?? null;
+
+                        selectedContent = {
+                            campaignContentItemId: newContentItem._id,
+                            postDescriptionId,
+                        };
+                    }
+                }
+
+                updatedInfluencers.push({
+                    _id: acc._id,
+                    influencerId: acc.influencerId,
+                    accountId: account?._id ?? null,
+                    socialMedia: acc.socialMedia,
+                    socialMediaUsername: acc.socialMediaUsername,
+                    confirmation: acc.confirmation,
+                    price: acc.price,
+                    publicPrice: acc.publicPrice,
+                    selectedContent,
+                    dateRequest: acc.dateRequest,
+                    closePromo: acc.closePromo,
+                    postLink: acc.postLink,
+                    screenshot: acc.screenshot,
+                    impressions: acc.impressions,
+                    like: acc.like,
+                    rating: acc.rating,
+                    adminChecked: acc.adminChecked,
+                    followersNumber: acc.followersNumber,
+                    createdAt: acc.createdAt,
+                    updatedAt: acc.updatedAt,
+                });
+            }
+
+            const resOfUpdate = await this.promosModel.updateOne(
+                { _id: campaign._id },
+                { $set: { campaignContent: updatedContent, selectInfluencers: updatedInfluencers } },
+            );
+
+            this.logger.log(`${resOfUpdate.modifiedCount ?? 0} updated for campaign "${campaign.campaignName}"`);
         }
-
-        updatedContent.push({
-          _id: contentItem._id,
-          videoLink: contentItem.videoLink,
-          postDescriptions,
-          storyTag: contentItem.storyTag,
-          swipeUpLink: contentItem.swipeUpLink,
-          specialWishes: contentItem.specialWishes,
-          socialMedia: (contentItem as any).socialMedia ?? campaign.socialMedia,
-        });
-
-        contentIdToPostDesc.set(contentItem._id.toString(), postDescriptions[0]._id);
-      }
-
-      for (const acc of (campaign.selectInfluencers ?? [])) {
-        // ключ для кэша: инфлюенсер + платформа
-        const key = `${acc.influencerId?.toString?.() ?? acc.influencerId}|${acc.socialMedia}`;
-
-        let accounts = influencersMap.get(key);
-
-        if (!accounts) {
-          // Получить аккаунты этой платформы у инфлюенсера (если инфлюенсер существует и верифицирован)
-          // Если нет — accounts останется пустым массивом
-          const socialMedia = acc.socialMedia;
-          try {
-            const aggr = await this.influencerModel.aggregate([
-              { $match: { _id: new Types.ObjectId(acc.influencerId), statusVerify: 'accept' } },
-              { $unwind: `$${socialMedia}` },
-              { $match: { [`${socialMedia}.isVerified`]: true } },
-              { $sort: { [`${socialMedia}.createdAt`]: -1 } },
-              {
-                $project: {
-                  _id: `$${socialMedia}._id`,
-                  instagramUsername: `$${socialMedia}.instagramUsername`,
-                },
-              },
-            ]);
-
-            accounts = (aggr ?? []).map((a: any) => ({
-              _id: a._id,
-              instagramUsername: a.instagramUsername,
-              socialMedia,
-            }));
-          } catch (e) {
-            accounts = [];
-            this.logger.warn(`Failed to aggregate accounts for influencer ${acc.influencerId} on ${acc.socialMedia}: ${e?.message ?? e}`);
-          }
-
-          influencersMap.set(key, accounts);
-        }
-
-        // Найти подходящую запись по username (в старой схеме accountId нет, ищется по username)
-        const account = accounts.find((it) => it.instagramUsername === acc.socialMediaUsername) ?? null;
-
-        // взять старое поле selectedCampaignContentItem (если есть) и мапить на новый selectedContent
-        const oldSelectedCampaignContentItem = (acc as any).selectedCampaignContentItem;
-        let selectedContent: null | { campaignContentItemId: Types.ObjectId; postDescriptionId: Types.ObjectId | null } = null;
-
-        if (oldSelectedCampaignContentItem) {
-          const campaignContentItemId = new Types.ObjectId(oldSelectedCampaignContentItem);
-          const postDescriptionId = contentIdToPostDesc.get(oldSelectedCampaignContentItem.toString()) ?? null;
-          selectedContent = {
-            campaignContentItemId,
-            postDescriptionId,
-          };
-        }
-
-        updatedInfluencers.push({
-          _id: acc._id,
-          influencerId: acc.influencerId,
-          accountId: account?._id ?? null,
-          socialMedia: acc.socialMedia,
-          socialMediaUsername: acc.socialMediaUsername,
-          confirmation: acc.confirmation,
-          price: acc.price,
-          publicPrice: acc.publicPrice,
-          selectedContent,
-          dateRequest: acc.dateRequest,
-          closePromo: acc.closePromo,
-          postLink: acc.postLink,
-          screenshot: acc.screenshot,
-          impressions: acc.impressions,
-          like: acc.like,
-          rating: acc.rating,
-          adminChecked: acc.adminChecked,
-          followersNumber: acc.followersNumber,
-          createdAt: acc.createdAt,
-          updatedAt: acc.updatedAt,
-        });
-      }
-
-      const resOfUpdate = await this.promosModel.updateOne(
-          { _id: campaign._id },
-          {
-            $set: {
-              campaignContent: updatedContent,
-              selectInfluencers: updatedInfluencers,
-            },
-          },
-      );
-
-      this.logger.log(`${resOfUpdate.modifiedCount ?? 0} updated for campaign "${campaign.campaignName}"`);
     }
 
-    return { code: 200, message: 'Campaigns updated successfully' };
-  }
 
+    async adminUpdateProposalCampaignsUpToDate() {
+        const campaigns = await this.proposalCampaignModel.find().lean();
+        if (!campaigns?.length) return { code: 500, message: 'Proposal campaigns not found' };
+
+        const influencersMap = new Map<string, { _id: Types.ObjectId; instagramUsername: string; socialMedia: string }[]>();
+
+        for (const campaign of campaigns) {
+            const videoLinkMap = new Map<string, { _id: Types.ObjectId; description: string }[]>();
+            const contentIdToVideoLink = new Map<string, string>();
+            const oldContentIdToPostDescriptions = new Map<string, Types.ObjectId[]>();
+
+            // 1. Собираем все postDescriptions по videoLink
+            for (const contentItem of (campaign.campaignContent ?? [])) {
+                const videoLink = contentItem.videoLink;
+                contentIdToVideoLink.set(contentItem._id.toString(), videoLink);
+
+                if (!videoLinkMap.has(videoLink)) {
+                    videoLinkMap.set(videoLink, []);
+                }
+
+                const postDescriptions: { _id: Types.ObjectId; description: string }[] = [];
+                if (Array.isArray(contentItem.postDescriptions) && contentItem.postDescriptions.length) {
+                    for (const pd of contentItem.postDescriptions) {
+                        const newId = pd._id ? new Types.ObjectId(pd._id) : new Types.ObjectId();
+                        postDescriptions.push({ _id: newId, description: pd.description ?? '' });
+                    }
+                } else {
+                    const newId = new Types.ObjectId();
+                    postDescriptions.push({ _id: newId, description: (contentItem as any).postDescription ?? '' });
+                }
+
+                oldContentIdToPostDescriptions.set(contentItem._id.toString(), postDescriptions.map(pd => pd._id));
+                videoLinkMap.get(videoLink)!.push(...postDescriptions);
+            }
+
+            // 2. Создаём новые CampaignContentItem
+            const videoLinkToContentId = new Map<string, Types.ObjectId>();
+            const updatedContent: any[] = [];
+            for (const [videoLink, postDescriptions] of videoLinkMap.entries()) {
+                const contentItemId = new Types.ObjectId();
+                videoLinkToContentId.set(videoLink, contentItemId);
+
+                updatedContent.push({
+                    _id: contentItemId,
+                    videoLink,
+                    postDescriptions,
+                    storyTag: campaign.campaignContent.find(c => c.videoLink === videoLink)?.storyTag,
+                    swipeUpLink: campaign.campaignContent.find(c => c.videoLink === videoLink)?.swipeUpLink,
+                    specialWishes: campaign.campaignContent.find(c => c.videoLink === videoLink)?.specialWishes,
+                    socialMedia: campaign.socialMedia,
+                    socialMediaGroup: 'main',
+                });
+            }
+
+            // 3. Обновляем инфлюенсеров с корректным selectedContent
+            const updatedInfluencers: any[] = [];
+            for (const acc of (campaign.selectInfluencers ?? [])) {
+                const key = `${acc.influencerId?.toString?.() ?? acc.influencerId}|${acc.socialMedia}`;
+                let accounts = influencersMap.get(key);
+
+                if (!accounts) {
+                    try {
+                        const aggr = await this.influencerModel.aggregate([
+                            { $match: { _id: new Types.ObjectId(acc.influencerId.toString()), statusVerify: 'accept' } },
+                            { $unwind: `$${acc.socialMedia}` },
+                            { $match: { [`${acc.socialMedia}.isVerified`]: true } },
+                            { $sort: { [`${acc.socialMedia}.createdAt`]: -1 } },
+                            { $project: { _id: `$${acc.socialMedia}._id`, instagramUsername: `$${acc.socialMedia}.instagramUsername` } },
+                        ]);
+                        accounts = (aggr ?? []).map((a: any) => ({ _id: a._id, instagramUsername: a.instagramUsername, socialMedia: acc.socialMedia }));
+                    } catch (e) {
+                        accounts = [];
+                        this.logger.warn(`Failed to aggregate accounts for influencer ${acc.influencerId} on ${acc.socialMedia}: ${e?.message ?? e}`);
+                    }
+                    influencersMap.set(key, accounts);
+                }
+
+                const account = accounts.find(it => it.instagramUsername === acc.socialMediaUsername) ?? null;
+
+                let selectedContent: null | { campaignContentItemId: Types.ObjectId; postDescriptionId: Types.ObjectId | null } = null;
+                if ((acc as any).selectedCampaignContentItem) {
+                    const oldContentIdStr = (acc as any).selectedCampaignContentItem.toString();
+                    const videoLink = contentIdToVideoLink.get(oldContentIdStr);
+                    const newContentItem = updatedContent.find(c => c.videoLink === videoLink);
+
+                    if (newContentItem) {
+                        const oldPostDescIds = oldContentIdToPostDescriptions.get(oldContentIdStr) ?? [];
+                        const postDescriptionId = oldPostDescIds[0] ?? newContentItem.postDescriptions[0]?._id ?? null;
+
+                        selectedContent = {
+                            campaignContentItemId: newContentItem._id,
+                            postDescriptionId,
+                        };
+                    }
+                }
+
+                updatedInfluencers.push({
+                    _id: acc._id,
+                    influencerId: acc.influencerId,
+                    accountId: account?._id ?? null,
+                    socialMedia: acc.socialMedia,
+                    socialMediaUsername: acc.socialMediaUsername,
+                    confirmation: acc.confirmation,
+                    price: acc.price,
+                    publicPrice: acc.publicPrice,
+                    selectedContent,
+                    dateRequest: acc.dateRequest,
+                    closePromo: acc.closePromo,
+                    postLink: acc.postLink,
+                    screenshot: acc.screenshot,
+                    impressions: acc.impressions,
+                    like: acc.like,
+                    followersNumber: acc.followersNumber,
+                    genres: acc.genres ?? [],
+                    countries: acc.countries ?? [],
+                });
+            }
+
+            const resOfUpdate = await this.proposalCampaignModel.updateOne(
+                { _id: campaign._id },
+                { $set: { campaignContent: updatedContent, selectInfluencers: updatedInfluencers } },
+            );
+
+            this.logger.log(`${resOfUpdate.modifiedCount ?? 0} updated for proposal campaign "${campaign.campaignName}"`);
+        }
+    }
 
 }

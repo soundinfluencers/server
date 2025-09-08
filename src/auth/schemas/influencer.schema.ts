@@ -1,64 +1,78 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-interface typesInstagram {
-  musicStyle: string;
-  musicSubStyles: string[] | null;
-  musicStyleOther: string[] | null;
-  instagramUsername: string;
-  instagramLink: string;
-  followersNumber: string;
-  logo: string;
-  profileCategory: 'community' | 'creator';
-  price: string;
-  publicPrice: string;
-  currency: string | null;
-  initialPrice: number;
-  countries: { country: string; percentage: number }[] | null;
-  categories: string[] | null;
-  engagementRate: number | null;
-  averageViews: number | null;
-  creatorCategories: string[];
-  isHidden: boolean;
-  isDeleted: boolean;
-  isVerified: boolean;
-}
+@Schema()
+export class SocialAccount {
+  @Prop({ type: Types.ObjectId })
+  _id: Types.ObjectId;
 
-const typesInstagramApi = {
-  musicStyle: String,
-  musicSubStyles: [String] || null,
-  musicStyleOther: [String] || null,
-  instagramUsername: String,
-  instagramLink: String,
-  followersNumber: String,
-  logo: String,
-  profileCategory: {
+  @Prop() musicStyle: string;
+
+  @Prop({ type: [String], default: [] })
+  musicSubStyles: string[];
+
+  @Prop({ type: [String], default: [] })
+  musicStyleOther: string[];
+
+  @Prop() instagramUsername: string;
+
+  @Prop() instagramLink: string;
+
+  @Prop() followersNumber: string;
+
+  @Prop() logo: string;
+
+  @Prop({
     type: String,
     enum: ['community', 'creator'],
     default: 'community',
-  },
-  price: String,
-  publicPrice: String,
-  currency: String || null,
-  initialPrice: Number,
-  countries:
-    [
+  })
+  profileCategory: 'community' | 'creator';
+
+  @Prop() price: string;
+
+  @Prop() publicPrice: string;
+
+  @Prop({ type: String, default: null })
+  currency: string | null;
+
+  @Prop({ type: Number, default: 0 })
+  initialPrice: number;
+
+  @Prop({
+    type: [
       {
         country: String,
         percentage: Number,
       },
-    ] || null,
-  categories: [String] || null,
-  engagementRate: Number || null,
-  averageViews: Number || null,
-  creatorCategories: {
-    type: [String],
-    required: false,
-  },
-  isHidden: Boolean,
-  isDeleted: Boolean,
-  isVerified: Boolean,
-};
+    ],
+    default: [],
+  })
+  countries: { country: string; percentage: number }[];
+
+  @Prop({ type: [String], default: [] })
+  categories: string[];
+
+  @Prop({ type: Number, default: null })
+  engagementRate: number | null;
+
+  @Prop({ type: Number, default: null })
+  averageViews: number | null;
+
+  @Prop({ type: [String], default: [] })
+  creatorCategories: string[];
+
+  @Prop({ default: false })
+  isHidden: boolean;
+
+  @Prop({ default: false })
+  isDeleted: boolean;
+
+  @Prop({ default: false })
+  isVerified: boolean;
+}
+
+export const SocialAccountSchema = SchemaFactory.createForClass(SocialAccount);
 
 @Schema({
   timestamps: true,
@@ -72,30 +86,6 @@ export class Influencer extends Document {
 
   @Prop()
   firstName: string;
-
-  @Prop({ type: [typesInstagramApi] })
-  instagram: typesInstagram[];
-
-  @Prop({ type: [typesInstagramApi] })
-  tiktok: typesInstagram[];
-
-  @Prop({ type: [typesInstagramApi] })
-  spotify: typesInstagram[];
-
-  @Prop({ type: [typesInstagramApi] })
-  soundcloud: typesInstagram[];
-
-  @Prop({ type: [typesInstagramApi] })
-  facebook: typesInstagram[];
-
-  @Prop({ type: [typesInstagramApi] })
-  youtube: typesInstagram[];
-
-  @Prop({ type: [typesInstagramApi] })
-  press: typesInstagram[];
-
-  @Prop()
-  followersNumber: string;
 
   @Prop()
   email: string;
@@ -114,6 +104,27 @@ export class Influencer extends Document {
 
   @Prop({ default: '' })
   currencyNote: string;
+
+  @Prop({ type: [SocialAccountSchema], default: [] })
+  instagram: SocialAccount[];
+
+  @Prop({ type: [SocialAccountSchema], default: [] })
+  tiktok: SocialAccount[];
+
+  @Prop({ type: [SocialAccountSchema], default: [] })
+  spotify: SocialAccount[];
+
+  @Prop({ type: [SocialAccountSchema], default: [] })
+  soundcloud: SocialAccount[];
+
+  @Prop({ type: [SocialAccountSchema], default: [] })
+  facebook: SocialAccount[];
+
+  @Prop({ type: [SocialAccountSchema], default: [] })
+  youtube: SocialAccount[];
+
+  @Prop({ type: [SocialAccountSchema], default: [] })
+  press: SocialAccount[];
 }
 
 export const InfluencerSchema = SchemaFactory.createForClass(Influencer);

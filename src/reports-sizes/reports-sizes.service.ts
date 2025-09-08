@@ -1,132 +1,110 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { ReportSizes } from './schemas/reports-sizes.schema';
-import { UpdateReportSizeDto } from './dto/update-report-size.dto';
-import { Promos } from '../promos/schemas/promo.schema';
-import { Client } from '../auth/schemas/client.schema';
-import { GetReportSizeDto } from './dto/get-report-size.dto';
-import { find } from 'rxjs';
+import {Injectable, Logger} from '@nestjs/common';
+import {InjectModel} from '@nestjs/mongoose';
+import {Model, Types} from 'mongoose';
+import {ReportSizes} from './schemas/reports-sizes.schema';
+import {UpdateReportSizeDto} from './dto/update-report-size.dto';
+import {Promos} from '../promos/schemas/promo.schema';
+import {Client} from '../auth/schemas/client.schema';
+import {GetReportSizeDto} from './dto/get-report-size.dto';
+import {find} from 'rxjs';
 
 @Injectable()
 export class ReportsSizesService {
-  private readonly logger = new Logger();
+    private readonly logger = new Logger();
 
-  constructor(
-    @InjectModel(ReportSizes.name) private reportsSizesModel: Model<ReportSizes>,
-    @InjectModel(Client.name) private readonly clientModel: Model<Client>,
-    @InjectModel(Promos.name) private readonly promosModel: Model<Promos>,
-  ) {}
-
-  async updateReportSize(data: UpdateReportSizeDto) {
-    if (!data.campaignId || !data.columnSizes) {
-      return { code: 400, message: 'Bad Request' };
+    constructor(
+        @InjectModel(ReportSizes.name) private reportsSizesModel: Model<ReportSizes>,
+        @InjectModel(Client.name) private readonly clientModel: Model<Client>,
+        @InjectModel(Promos.name) private readonly promosModel: Model<Promos>,
+    ) {
     }
 
-    const { campaignId, userId = '66f540faaf4e960d2f9bebfc', columnSizes } = data;
+    async updateReportSize(data: UpdateReportSizeDto) {
+        if (!data.campaignId || !data.columnSizes) {
+            return {code: 400, message: 'Bad Request'};
+        }
 
-    try {
-      const campaignExists = await this.promosModel.exists({ _id: campaignId });
-      if (!campaignExists) {
-        return { code: 404, message: 'Campaign Not Found' };
-      }
+        const {campaignId, userId = '66f540faaf4e960d2f9bebfc', columnSizes} = data;
 
-      let reportSizes = await this.reportsSizesModel.findOne({ campaignId });
+        const allDefault = Object.values(columnSizes).every(value => Number(value) === 150);
+        if (allDefault) {
+            return {code: 200, message: 'Default sizes not saved', data: null};
+        }
 
-      if (!reportSizes) {
-        reportSizes = await this.reportsSizesModel.create({
-          campaignId,
-          userSizes: [],
-        });
-      }
+        try {
+            const campaignExists = await this.promosModel.exists({_id: campaignId});
+            if (!campaignExists) {
+                return {code: 404, message: 'Campaign Not Found'};
+            }
 
-      const userSizeIndex = reportSizes.userSizes.findIndex((u) => u.userId.toString() === userId);
+            let reportSizes = await this.reportsSizesModel.findOne({campaignId});
 
-      if (userSizeIndex === -1) {
-        reportSizes.userSizes.push({
-          _id: new Types.ObjectId(),
-          userId: new Types.ObjectId(userId),
-          columnSizes: new Map(
-            Object.entries(columnSizes).map(([key, value]) => [key, Number(value)]),
-          ),
-        });
-      } else {
-        reportSizes.userSizes[userSizeIndex].columnSizes = new Map(
-          Object.entries(columnSizes).map(([key, value]) => [key, Number(value)]),
-        );
-      }
+            if (!reportSizes) {
+                reportSizes = await this.reportsSizesModel.create({
+                    campaignId,
+                    userSizes: [],
+                });
+            }
 
-      await reportSizes.save();
+            const userSizeIndex = reportSizes.userSizes.findIndex((u) =>
+                u.userId.toString() === userId,
+            );
 
-      return {
-        code: 200,
-        message: 'Report sizes updated successfully',
-        data: reportSizes,
-      };
-    } catch (err) {
-      this.logger.error(
-        `Error while updating report sizes for \nCampaign id: ${campaignId} \nUser id: ${userId} \n${err.message}`,
-        err instanceof Error ? err.stack : new Error().stack,
-      );
-      return { code: 500, message: 'Internal Server Error' };
+            if (userSizeIndex === -1) {
+                reportSizes.userSizes.push({
+                    _id: new Types.ObjectId(),
+                    userId: new Types.ObjectId(userId),
+                    columnSizes: new Map(
+                        Object.entries(columnSizes).map(([key, value]) => [key, Number(value)]),
+                    ),
+                });
+            } else {
+                reportSizes.userSizes[userSizeIndex].columnSizes = new Map(
+                    Object.entries(columnSizes).map(([key, value]) => [key, Number(value)]),
+                );
+            }
+
+            await reportSizes.save();
+
+            return {
+                code: 200,
+                message: 'Report sizes updated successfully',
+                data: reportSizes,
+            };
+        } catch (err) {
+            this.logger.error(
+                `Error while updating report sizes for \nCampaign id: ${campaignId} \nUser id: ${userId} \n${err.message}`,
+                err instanceof Error ? err.stack : new Error().stack,
+            );
+            return {code: 500, message: 'Internal Server Error'};
+        }
     }
-  }
 
-  async getReportSizeForUser(data: GetReportSizeDto) {
-    if (!data.campaignId) {
-      return { code: 400, message: 'Bad Request' };
+    async getReportSizeForUser({campaignId, userId}: GetReportSizeDto) {
+        try {
+            const reportSizes = await this.reportsSizesModel.findOne({campaignId});
+            if (!reportSizes) return null;
+
+            const userSizes = reportSizes.userSizes.find(u =>
+                u.userId.toString() === userId,
+            );
+
+            if (userSizes) {
+                return {code: 200, sizes: userSizes.columnSizes};
+            }
+
+            const adminSizes = reportSizes.userSizes.find(u =>
+                u.userId.toString() === '66f540faaf4e960d2f9bebfc'
+            )?.columnSizes;
+
+
+            return {code: 200, sizes: adminSizes} || {code: 200, sizes: null};
+        } catch (err) {
+            this.logger.error(
+                `Error while getting report sizes for Campaign: ${campaignId}, User: ${userId} \n${err.message}`,
+                err instanceof Error ? err.stack : new Error().stack
+            );
+            throw err;
+        }
     }
-
-    const { campaignId, userId = '66f540faaf4e960d2f9bebfc' } = data;
-
-    try {
-      const reportSizesObj = await this.reportsSizesModel.findOne({ campaignId });
-      if (!reportSizesObj) {
-        return { code: 404, message: 'Not Found' };
-      }
-
-      let userSize = reportSizesObj.userSizes.find((u) => u.userId.toString() === userId);
-
-      if (!userSize) {
-        const adminSizeEntry = reportSizesObj.userSizes.find(
-          (u) => u.userId.toString() === '66f540faaf4e960d2f9bebfc',
-        );
-
-        const adminSizesObj = adminSizeEntry
-          ? adminSizeEntry.columnSizes instanceof Map
-            ? Object.fromEntries(adminSizeEntry.columnSizes)
-            : adminSizeEntry.columnSizes
-          : {};
-
-        const newUserSize = {
-          _id: new Types.ObjectId(),
-          userId: new Types.ObjectId(userId),
-          columnSizes: new Map(
-            Object.entries(adminSizesObj).map(([key, value]) => [key, Number(value)]),
-          ),
-        };
-
-        reportSizesObj.userSizes.push(newUserSize);
-        await reportSizesObj.save();
-
-        userSize = newUserSize;
-      }
-
-      const sizesToReturn =
-        userSize.columnSizes instanceof Map
-          ? Object.fromEntries(userSize.columnSizes)
-          : userSize.columnSizes;
-
-      return {
-        code: 200,
-        sizesToReturn: [sizesToReturn],
-      };
-    } catch (e) {
-      this.logger.error(
-        `Error while getting report size for \nCampaign id: ${campaignId} \nUser id: ${userId} \n${e.message}`,
-        e instanceof Error ? e.stack : new Error().stack,
-      );
-      return { code: 500, message: 'Internal Server Error' };
-    }
-  }
 }

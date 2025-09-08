@@ -19,6 +19,7 @@ import {
   createNewPromoRequestHTMLMessage,
 } from '../utils/new-promo-message';
 import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
+import {getSocialMediaGroup} from "../utils/socialMedia";
 
 mongoose.Promise = global.Promise;
 
@@ -838,10 +839,9 @@ ${emailVideoContent()}
   async influencerPastCampaignOne(
     influencerId: string,
     campaignId: string,
-    socialMediaUsername: string,
-    selectedCampaignContentItem: string,
+    selectInfluencersId: string
   ) {
-    if (!influencerId || !campaignId || !socialMediaUsername || !selectedCampaignContentItem) {
+    if (!influencerId || !campaignId || !selectInfluencersId) {
       return {
         status: 400,
         message: 'Not enough arguments',

@@ -260,4 +260,9 @@ export class AdminController {
   adminUpdateCampaignsUpToDate() {
     return this.adminService.adminUpdateCampaignsUpToDate();
   }
+
+  @Patch('campaigns/proposal/update-to-date')
+  adminUpdateProposalCampaignsUpToDate() {
+    return this.adminService.adminUpdateProposalCampaignsUpToDate();
+  }
 }

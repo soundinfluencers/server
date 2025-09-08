@@ -17,7 +17,7 @@ export class SelectInfluencers {
   @Prop({ type: Types.ObjectId, required: true })
   _id: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, required: true })
+  @Prop({ type: Types.ObjectId, required: true, ref: "Influencer" })
   influencerId: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, required: true })
