@@ -286,8 +286,8 @@ ${emailVideoContent()}
 </p>`;
 
             await sendMail(
-                'nazarkozynets030606@zohomail.eu',
-                // 'admin@soundinfluencers.com',
+                // 'nazarkozynets030606@zohomail.eu',
+                'admin@soundinfluencers.com',
                 'SoundInfluencers',
                 emailContent,
                 'html',
@@ -1180,8 +1180,8 @@ ${emailVideoContent()}
                 )?.description ?? '';
 
                 await sendMail(
-                    'nazarkozynets030606@zohomail.eu',
-                    // 'admin@soundinfluencers.com',
+                    // 'nazarkozynets030606@zohomail.eu',
+                    'admin@soundinfluencers.com',
                     'SoundInfluencers',
                     `<p>${checkUserInfluencer.email} accepted the offer for ${checkUserClient.email}'s campaign</p><br/>
     <p><b>Details:</b></p>

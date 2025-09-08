@@ -1266,6 +1266,7 @@ export class AdminService {
                     (Array.isArray(campaign?.videos)
                         ? campaign.videos.find(v => v.videoLink === addedAccount?.selectedVideo)?._id?.toString()
                         : null) ?? null;
+                const selectedPostDescriptionId = addedAccount?.selectedContent?.postDescriptionId?.toString() ?? undefined;
 
                 let selectedCampaignContentItem = null;
                 if (selectedCampaignContentItemId) {
@@ -1275,18 +1276,17 @@ export class AdminService {
                         null;
 
                     if (contentItem) {
-                        const postDescription =
-                            contentItem.postDescriptions?.find(
-                                pd => pd._id.toString() === addedAccount.selectedContent?.postDescriptionId?.toString()
-                            )?.description ?? contentItem?.postDescription ?? '';
-
                         selectedCampaignContentItem = {
                             _id: contentItem._id,
                             videoLink: contentItem.videoLink,
-                            postDescription,
+                            postDescriptions: contentItem.postDescriptions || [{
+                                description: contentItem.postDescription,
+                            }],
                             storyTag: contentItem.storyTag || null,
                             storyLink: contentItem.swipeUpLink || null,
                             specialWishes: contentItem.specialWishes,
+                            socialMedia: contentItem.socialMedia || 'instagram',
+                            socialMediaGroup: contentItem.socialMediaGroup || 'main',
                         };
                     }
                 }
@@ -1295,6 +1295,8 @@ export class AdminService {
                 addedAccount.selectedCampaignContentItem = selectedCampaignContentItem;
                 addedAccount.socialMedia = accSocialMedia;
                 addedAccount.socialMediaUsername = normalizedUsername;
+
+                if (selectedPostDescriptionId) addedAccount.selectedPostDescriptionId = selectedPostDescriptionId;
 
                 if (!campaign.isCopy && !isProposal) {
                     const isOriginalAccount =
@@ -1424,8 +1426,7 @@ export class AdminService {
             campaign.isPriceHidden = isPriceHidden ?? campaign.isPriceHidden;
             campaign.isCpmAndResultHidden = isCpmAndResultHidden ?? campaign.isCpmAndResultHidden;
             campaign.hiddenColumns = hiddenColumns || [];
-            campaign.campaignContent =
-                campaignContent ?? campaign?.campaignContent ?? campaign?.videos ?? [];
+            campaign.campaignContent = campaignContent;
 
             if (!isProposalCampaign) {
                 campaign.campaignPrice = campaignPrice || campaign.campaignPrice;
@@ -1448,15 +1449,14 @@ export class AdminService {
 
                 const thisAccountFromData = addedInfluencers.find((item) => item._id.toString() === id);
                 if (thisAccountFromData) {
-                    account.selectedCampaignContentItem = thisAccountFromData.selectedContent.campaignContentItemId;
+                    account.selectedContent = thisAccountFromData.selectedContent;
                     account.dateRequest = thisAccountFromData?.dateRequest ?? (account.dateRequest || 'ASAP');
                     account.postLink = thisAccountFromData?.postLink ?? (account.postLink || '');
                     account.screenshot = thisAccountFromData?.screenshot ?? (account.screenshot || '');
                     account.like = thisAccountFromData?.like ?? (account.like || '');
                     account.impressions = thisAccountFromData?.impressions ?? (account.impressions || '');
                     account.rating = thisAccountFromData?.rating ?? (account.rating || undefined);
-                    account.adminChecked =
-                        thisAccountFromData?.adminChecked ?? (account.adminChecked || undefined);
+                    account.adminChecked = thisAccountFromData?.adminChecked ?? (account.adminChecked || undefined);
                 }
 
                 return true;
@@ -1486,6 +1486,7 @@ export class AdminService {
                                 campaign.selectInfluencers.push({
                                     _id: new Types.ObjectId(),
                                     influencerId: newInfluencer.influencerId,
+                                    accountId: null,
                                     socialMediaUsername: newInfluencer.socialMediaUsername,
                                     selectedContent: newInfluencer.selectedContent,
                                     socialMedia: newInfluencer.socialMedia,
@@ -1547,6 +1548,7 @@ export class AdminService {
                             campaign.selectInfluencers.push({
                                 _id: new Types.ObjectId(),
                                 influencerId: result[0].influencerId,
+                                accountId: null,
                                 socialMediaUsername: newInfluencer.socialMediaUsername,
                                 selectedContent: newInfluencer.selectedContent,
                                 socialMedia: newInfluencer.socialMedia,

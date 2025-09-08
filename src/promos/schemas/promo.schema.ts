@@ -20,8 +20,8 @@ export class SelectInfluencers {
   @Prop({ type: Types.ObjectId, required: true, ref: "Influencer" })
   influencerId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, required: true })
-  accountId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId || null, required: false, default: null })
+  accountId: Types.ObjectId | null;
 
   @Prop({ default: 'instagram' })
   socialMedia: string;

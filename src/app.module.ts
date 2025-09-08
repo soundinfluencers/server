@@ -25,8 +25,8 @@ import { ReportsSizesModule } from './reports-sizes/reports-sizes.module';
 @Module({
   imports: [
     MongooseModule.forRoot(
-      // `mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/music`,
-      'mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/dev_db',
+      `mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/music`,
+      // 'mongodb+srv://test:b1fA5EG9SNuA0M35@cluster0.svrxsep.mongodb.net/dev_db',
     ),
     AuthModule,
     ForgotModule,

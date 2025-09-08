@@ -193,7 +193,7 @@ export class ProposalSystemService {
         const client = clientDoc
             ? {
               clientId: clientDoc._id,
-              firstName: clientDoc.firstName,
+              firstName: clientDoc.firstName ?? "Unknown",
               email: clientDoc.email,
             }
             : null;
