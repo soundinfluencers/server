@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Client } from 'src/auth/schemas/client.schema';
-import mongoose from 'mongoose';
+import mongoose, {Types} from 'mongoose';
 import { Influencer } from '../auth/schemas/influencer.schema';
 import { ProposalCampaign } from './schemas/proposal-campaign.schema';
 import { SaveProposalCampaignDto } from './dto/save-proposal-campaign.dto';
@@ -118,7 +118,13 @@ export class ProposalSystemService {
             ? new mongoose.Types.ObjectId(data.clientId)
             : new mongoose.Types.ObjectId('66f540faaf4e960d2f9bebfc'),
           campaignName: data.campaignName.trim(),
-          selectInfluencers: data.selectInfluencers,
+          selectInfluencers: data.selectInfluencers.map(account => ({
+            ...account,
+            selectedContent: {
+              campaignContentItemId: new Types.ObjectId(account.selectedContent.campaignContentItemId),
+              postDescriptionId: new Types.ObjectId(account.selectedContent.postDescriptionId)
+            }
+          })),
           campaignContent: data.campaignContent,
           price: data.price,
           publicPrice: data.publicPrice,
@@ -141,7 +147,13 @@ export class ProposalSystemService {
               ? new mongoose.Types.ObjectId(data.clientId)
               : new mongoose.Types.ObjectId('66f540faaf4e960d2f9bebfc'),
             campaignName: data.campaignName.trim(),
-            selectInfluencers: data.selectInfluencers,
+            selectInfluencers: data.selectInfluencers.map(account => ({
+              ...account,
+              selectedContent: {
+                campaignContentItemId: new Types.ObjectId(account.selectedContent.campaignContentItemId),
+                postDescriptionId: new Types.ObjectId(account.selectedContent.postDescriptionId)
+              }
+            })),
             campaignContent: data.campaignContent,
             price: data.price,
             publicPrice: data.publicPrice,
