@@ -9,8 +9,11 @@ export class SelectedCampaignContentItemDto {
 }
 
 export class SelectInfluencerDto {
-  @ApiProperty()
+  @ApiProperty({ required: false })
   socialMediaAccountId: string;
+
+  @ApiProperty({ required: false })
+  influencerId: string;
 
   @ApiProperty()
   socialMedia: string;
