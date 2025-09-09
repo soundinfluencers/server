@@ -54,6 +54,16 @@ class Account {
   price: number;
 
   @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  currency: string;
+
+  @ApiProperty()
+  @IsNumber()
+  @Min(0)
+  initialPrice: number;
+
+  @ApiProperty()
   @IsNumber()
   @Min(0)
   followersNumber: number;

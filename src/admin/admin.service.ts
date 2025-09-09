@@ -2364,6 +2364,8 @@ export class AdminService {
                     username: string;
                     link: string;
                     price: number;
+                    initialPrice: number;
+                    currency: string;
                     followersNumber: number;
                     engagementRate: number | string | null;
                     averageViews: number | null;
@@ -2402,8 +2404,8 @@ export class AdminService {
                         logo: "https://dl.dropboxusercontent.com/scl/fi/c5ibdvebsopuz6ydi5l3t/2025-07-29T15-50-59.661Zdefault-avatar-profile-icon-social-600nw-1677509740.webp?rlkey=55mdiffm86fhrks7263e8sfrr&dl=0",
                         price: item.price.toString(),
                         publicPrice: (item.price * 2).toString(),
-                        currency: "EUR",
-                        initialPrice: item.price,
+                        currency: item.currency,
+                        initialPrice: item.initialPrice,
                         countries: item.countries,
                         categories: [],
                         engagementRate: item.engagementRate !== null ? Number(item.engagementRate) : null,
@@ -2429,23 +2431,27 @@ export class AdminService {
                             updatedCount += newUniqueAccounts.length;
                         }
                     } else {
-                        await this.influencerModel.create({
-                            _id: new Types.ObjectId(),
-                            email: email,
-                            phone: accountsFromData[0]?.phone || "",
-                            password: bcrypt.hashSync(accountsFromData[0].password),
-                            firstName: accountsFromData[0].firstName,
-                            role: "influencer",
-                            balance: "0",
-                            statusVerify: "accept",
-                            instagram: [],
-                            tiktok: accountsToSave,
-                            spotify: [],
-                            soundcloud: [],
-                            facebook: [],
-                            youtube: [],
-                            press: []
-                        })
+                        try {
+                            await this.influencerModel.create({
+                                _id: new Types.ObjectId(),
+                                email: email,
+                                phone: accountsFromData[0]?.phone || "",
+                                password: bcrypt.hashSync(accountsFromData[0].password),
+                                firstName: accountsFromData[0].firstName,
+                                role: "influencer",
+                                balance: "0",
+                                statusVerify: "accept",
+                                instagram: [],
+                                tiktok: accountsToSave,
+                                spotify: [],
+                                soundcloud: [],
+                                facebook: [],
+                                youtube: [],
+                                press: []
+                            })
+                        } catch (e) {
+                            this.logger.warn(`Error creating influencer with email: ${email}`, e instanceof Error ? e.stack : new Error().stack);
+                        }
                         createdCount += accountsToSave.length;
                     }
                 } catch (err) {
