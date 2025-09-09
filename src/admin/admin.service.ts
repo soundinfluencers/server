@@ -1422,12 +1422,14 @@ export class AdminService {
                 };
             }
 
+            // Обновление основных данных кампании
             campaign.campaignName = campaignName.trim() ?? campaign.campaignName;
             campaign.isPriceHidden = isPriceHidden ?? campaign.isPriceHidden;
             campaign.isCpmAndResultHidden = isCpmAndResultHidden ?? campaign.isCpmAndResultHidden;
             campaign.hiddenColumns = hiddenColumns || [];
             campaign.campaignContent = campaignContent;
 
+            // Обновление цены
             if (!isProposalCampaign) {
                 campaign.campaignPrice = campaignPrice || campaign.campaignPrice;
             } else {
@@ -1466,6 +1468,8 @@ export class AdminService {
                 await Promise.all(
                     addedInfluencers.map(async (newInfluencer) => {
                         const id = newInfluencer._id.toString();
+
+                        // Проверка на существование аккаунта в обьекте кампании из базы данных (если нет - добавить)
                         if (!selectInfluencerIds.has(id)) {
                             const response = await axios.post(
                                 `${process.env.SERVER}/influencer-actions-history/upsert/campaign`,
@@ -1735,6 +1739,8 @@ export class AdminService {
                 socialMedia: socialMedia,
                 confirmation: 'wait',
                 selectedContent: null,
+                selectedCampaignContentItemId: null,
+                selectedPostDescriptionId: null,
                 selectedCampaignContentItem: {
                     _id: '',
                     videoLink: '',
