@@ -1311,14 +1311,14 @@ export class AdminService {
 
                         influencersMap.set(key, {
                             message: null,
-                            firstName: account?.firstName ?? 'Unknown',
+                            firstName: influencer?.firstName ?? '',
                             accounts: [
                                 {
                                     pageName: addedAccount.socialMediaUsername,
                                     reward: `${account?.initialPrice ?? addedAccount.price?.replace(/\D/g, '')}${account?.currency ?? 'EUR'}`,
                                     socialMedia: addedAccount.socialMedia,
                                     contentLink: addedAccount.selectedCampaignContentItem?.videoLink ?? '',
-                                    description: addedAccount.selectedCampaignContentItem?.postDescription,
+                                    description: addedAccount.selectedCampaignContentItem?.postDescriptions?.find(i => i._id.toString() === selectedPostDescriptionId)?.description ?? null,
                                     storyTag: addedAccount.selectedCampaignContentItem?.storyTag,
                                     storyLink: addedAccount.selectedCampaignContentItem?.storyLink,
                                     specialRequests: addedAccount.selectedCampaignContentItem?.specialWishes,
@@ -1331,7 +1331,7 @@ export class AdminService {
                             reward: `${addedAccount.initialPrice ?? addedAccount.price?.replace(/\D/g, '')}${addedAccount.currency ?? 'EUR'}`,
                             socialMedia: addedAccount.socialMedia,
                             contentLink: addedAccount.selectedCampaignContentItem?.videoLink ?? '',
-                            description: addedAccount.selectedCampaignContentItem?.postDescription,
+                            description: addedAccount.selectedCampaignContentItem?.postDescriptions?.find(i => i._id.toString() === selectedPostDescriptionId)?.description ?? null,
                             storyTag: addedAccount.selectedCampaignContentItem?.storyTag,
                             storyLink: addedAccount.selectedCampaignContentItem?.storyLink,
                             specialRequests: addedAccount.selectedCampaignContentItem?.specialWishes,
