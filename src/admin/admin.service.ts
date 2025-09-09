@@ -1912,9 +1912,9 @@ export class AdminService {
 
                 const accountsAndDetails = accounts.map((account) => {
                     const contentItem = campaign.campaignContent.find(
-                        (item) => item._id === account.selectedContent.campaignContentItemId,
+                        (item) => item._id.toString() === account.selectedContent.campaignContentItemId.toString(),
                     );
-                    const postDescription = contentItem.postDescriptions.find(pd => pd._id === account.selectedContent.postDescriptionId)?.description ?? "";
+                    const postDescription = contentItem.postDescriptions.find(pd => pd._id.toString() === account.selectedContent.postDescriptionId.toString())?.description ?? "";
 
                     if (!contentItem) {
                         this.logger.error(
@@ -1974,7 +1974,7 @@ export class AdminService {
             return {
                 code: 200,
                 successList,
-                errorList: errorsList,
+                errorsList,
             };
         } catch (err) {
             this.logger.error(
