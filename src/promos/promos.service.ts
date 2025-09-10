@@ -1946,8 +1946,8 @@ ${emailVideoContent()}
             }
 
             const mappedInfluencers = campaign.selectInfluencers.map((item) => {
-                const selectedCampaignContentItem = campaign?.campaignContent.find(c => c._id.toString() === item?.selectedContent?.campaignContentItemId?.toString()
-                    || c._id.toString() === (item as any)?.selectedCampaignContentItem?.toString()) ?? null
+                const selectedCampaignContentItem = campaign?.campaignContent?.find(c => c._id.toString() === item?.selectedContent?.campaignContentItemId?.toString()
+                    || c._id.toString() === (item as any)?.selectedCampaignContentItem?.toString()) ?? (campaign as any)?.videos?.find(c => c.videoLink === (item as any).selectedVideo) ?? null
                 const postDescription = selectedCampaignContentItem?.postDescriptions?.find(
                     pd => pd._id.toString() === item?.selectedContent?.postDescriptionId?.toString()
                 )?.description ?? (selectedCampaignContentItem as any)?.postDescription ?? null;
