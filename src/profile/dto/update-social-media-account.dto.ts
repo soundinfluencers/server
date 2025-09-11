@@ -10,6 +10,9 @@ export class UpdateSocialMediaAccountDto {
   @ApiProperty({ required: true })
   accountId: string;
 
+  @ApiProperty({ required: false })
+  oldUsername: string;
+
   @ApiProperty({ required: true })
   instagramUsername: string;
 

@@ -222,7 +222,7 @@ export class ProfileService {
       }
 
       const accountIndex = socialMediaAccounts.findIndex(
-        (account) => account._id.toString() === data.accountId,
+        (account) => account._id?.toString() === data.accountId || account.instagramUsername === data.oldUsername,
       );
 
       if (accountIndex === -1) {
