@@ -1902,106 +1902,138 @@ ${emailVideoContent()}
         };
     }
 
-    async getCampaignByPublicShareLink(campaignId: string, socialMedia: string) {
+    async getCampaignByPublicShareLink(campaignId: string) {
         try {
             if (!campaignId) {
-                return {
-                    status: 400,
-                    message: 'Not enough arguments',
-                };
+                return { status: 400, message: 'Not enough arguments' };
             }
 
             if (!mongoose.Types.ObjectId.isValid(campaignId)) {
-                return {
-                    status: 400,
-                    message: 'Invalid campaignId format',
-                };
+                return { status: 400, message: 'Invalid campaignId format' };
             }
 
-            let campaign = await this.promosModel
-                .findOne({
-                    _id: new mongoose.Types.ObjectId(campaignId),
-                    socialMedia: socialMedia,
-                })
-                .lean();
+            let campaign: any = await this.promosModel.findById(campaignId).lean();
+            if (!campaign) campaign = await this.promosCopiesModel.findById(campaignId).lean();
+            if (!campaign) return { status: 404, message: 'Promo not found' };
 
-            if (!campaign) {
-                try {
-                    campaign = await this.promosCopiesModel
-                        .findOne({
-                            _id: new mongoose.Types.ObjectId(campaignId),
-                            socialMedia: socialMedia,
-                        })
-                        .lean();
-                } catch (err) {
-                    console.error('Error fetching promo copy by public share link:', err);
-                }
-            }
+            const campaignToReturn: any = {
+                _id: campaign._id,
+                clientId: campaign.clientId,
+                campaignName: campaign.campaignName ?? 'OLD CAMPAIGN',
+                price: campaign.campaignPrice ?? campaign.price ?? campaign.amount ?? 0,
+                publicPrice: campaign.campaignPrice ?? campaign.publicPrice ?? campaign.amount ?? 0,
+                addedAccounts: [],
+                campaignContent: campaign.campaignContent ?? campaign.videos ?? [],
+                socialMedia: campaign.socialMedia ?? 'instagram',
+                totalFollowers: 0,
+                totalLikes: 0,
+                totalImpressions: 0,
+                createdAt: campaign.createdAt ?? 0,
+                isCopy: campaign.isCopy ?? false,
+                isCpmAndResultHidden: campaign.isCpmAndResultHidden ?? false,
+                isPriceHidden: campaign.isPriceHidden ?? false,
+                hiddenColumns: campaign.hiddenColumns ?? [],
+                shareLink: campaign.shareLink ?? null,
+            };
 
-            if (!campaign) {
-                return {
-                    code: 404,
-                    message: 'Promo not found',
-                };
-            }
+            for (const addedAccount of campaign.selectInfluencers ?? []) {
+                const normalizedUsername =
+                    addedAccount?.socialMediaUsername?.trim() ||
+                    addedAccount?.instagramUsername?.trim() ||
+                    '';
 
-            const mappedInfluencers = campaign.selectInfluencers.map((item) => {
-                const selectedCampaignContentItem = campaign?.campaignContent?.find(c => c._id.toString() === item?.selectedContent?.campaignContentItemId?.toString()
-                    || c._id.toString() === (item as any)?.selectedCampaignContentItem?.toString()) ?? (campaign as any)?.videos?.find(c => c.videoLink === (item as any).selectedVideo) ?? null
-                const postDescription = selectedCampaignContentItem?.postDescriptions?.find(
-                    pd => pd._id.toString() === item?.selectedContent?.postDescriptionId?.toString()
-                )?.description ?? (selectedCampaignContentItem as any)?.postDescription ?? null;
+                const socialMedia =
+                    addedAccount?.socialMedia ||
+                    (campaign.socialMedia !== 'multipromo' && campaign.socialMedia);
 
-                return {
-                    ...item,
-                    socialMediaUsername: item.socialMediaUsername || (item as any).instagramUsername,
-                    selectedCampaignContentItem:
-                        postDescription || (item as any).selectedVideo,
-                    selectedCampaignContentItemObj: campaign.campaignContent
-                        ? {...selectedCampaignContentItem, postDescription}
-                        : (campaign as any).videos
-                            ? (campaign as any).videos.find(
-                                (video) => video.videoLink === (item as any).selectedVideo,
+                const selectedCampaignContentItemId =
+                    addedAccount?.selectedContent?.campaignContentItemId?.toString() ??
+                    addedAccount?.selectedCampaignContentItem?.toString() ??
+                    (Array.isArray(campaign?.videos)
+                        ? campaign.videos.find((v) => v.videoLink === addedAccount?.selectedVideo)?._id?.toString()
+                        : null) ??
+                    null;
+
+                let selectedCampaignContentItem = null;
+                if (selectedCampaignContentItemId) {
+                    selectedCampaignContentItem =
+                        (Array.isArray(campaign.campaignContent)
+                            ? (() => {
+                                const contentItem = campaign.campaignContent.find(
+                                    (item) => item?._id.toString() === selectedCampaignContentItemId,
+                                );
+                                if (!contentItem) return null;
+
+                                const postDescription =
+                                    contentItem.postDescriptions?.find(
+                                        (pd) =>
+                                            pd._id.toString() ===
+                                            addedAccount.selectedContent?.postDescriptionId?.toString(),
+                                    )?.description ??
+                                    (contentItem as any)?.postDescription ??
+                                    '';
+
+                                return {
+                                    _id: contentItem._id,
+                                    videoLink: contentItem.videoLink,
+                                    postDescription: postDescription || null,
+                                    storyTag: contentItem.storyTag || null,
+                                    storyLink: contentItem.swipeUpLink || null,
+                                    specialWishes: contentItem.specialWishes,
+                                };
+                            })()
+                            : null) ??
+                        (Array.isArray(campaign.videos)
+                            ? campaign.videos.find(
+                                (item) => item?._id?.toString() === selectedCampaignContentItemId?.toString(),
                             )
-                            : null,
-                };
-            });
+                            : null) ??
+                        null;
+                }
 
-            const sortedInfluencers = mappedInfluencers.sort((a, b) => {
-                const aContentId = a.selectedCampaignContentItem;
-                const bContentId = b.selectedCampaignContentItem;
+                addedAccount.selectedCampaignContentItemId = selectedCampaignContentItemId;
+                addedAccount.selectedCampaignContentItem = selectedCampaignContentItem;
+                addedAccount.socialMedia = socialMedia;
+                addedAccount.socialMediaUsername = normalizedUsername;
 
-                const aIndex = campaign.campaignContent
-                    ? campaign.campaignContent.findIndex((content) => content._id.toString() === aContentId)
-                    : (campaign as any).videos
-                        ? (campaign as any).videos.findIndex((video) => video.videoLink === aContentId)
+                campaignToReturn.totalFollowers += addedAccount?.followersNumber ?? 0;
+                campaignToReturn.totalLikes += parseInt(addedAccount.like?.replace(/[\s,]/g, '') || '0');
+                campaignToReturn.totalImpressions += parseInt(
+                    addedAccount.impressions?.replace(/[\s,]/g, '') || '0',
+                );
+
+                campaignToReturn.addedAccounts.push(addedAccount);
+            }
+
+            // сортировка аккаунтов по порядку контента
+            campaignToReturn.addedAccounts.sort((a, b) => {
+                const aIndex = Array.isArray(campaign.campaignContent)
+                    ? campaign.campaignContent.findIndex(
+                        (c) => c?._id?.toString() === a.selectedCampaignContentItemId?.toString(),
+                    )
+                    : Array.isArray(campaign.videos)
+                        ? campaign.videos.findIndex(
+                            (v) => v?._id?.toString() === a.selectedCampaignContentItemId?.toString(),
+                        )
                         : -1;
 
-                const bIndex = campaign.campaignContent
-                    ? campaign.campaignContent.findIndex((content) => content._id.toString() === bContentId)
-                    : (campaign as any).videos
-                        ? (campaign as any).videos.findIndex((video) => video.videoLink === bContentId)
+                const bIndex = Array.isArray(campaign.campaignContent)
+                    ? campaign.campaignContent.findIndex(
+                        (c) => c?._id?.toString() === b.selectedCampaignContentItemId?.toString(),
+                    )
+                    : Array.isArray(campaign.videos)
+                        ? campaign.videos.findIndex(
+                            (v) => v?._id?.toString() === b.selectedCampaignContentItemId?.toString(),
+                        )
                         : -1;
 
                 return aIndex - bIndex;
             });
 
-            return {
-                code: 200,
-                campaign: {
-                    ...campaign,
-                    selectInfluencers: sortedInfluencers,
-                    amount: campaign.campaignPrice || (campaign as any).amount || 0,
-                    campaignContent: campaign.campaignContent || (campaign as any).videos,
-                },
-            };
+            return { status: 200, campaign: campaignToReturn };
         } catch (err) {
             console.error('Error fetching promo by public share link:', err);
-
-            return {
-                code: 500,
-                message: 'An error occurred while fetching the promo.',
-            };
+            return { status: 500, message: err.message || 'Internal server error' };
         }
     }
 

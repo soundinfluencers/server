@@ -312,9 +312,9 @@ export class PromosController {
         );
     }
 
-    @Get('share-link/:campaignId/:socialMedia')
-    getCampaignByPublicShareLink(@Param() args: { campaignId: string; socialMedia: string }) {
-        return this.promosService.getCampaignByPublicShareLink(args.campaignId, args.socialMedia);
+    @Get('share-link/:campaignId')
+    getCampaignByPublicShareLink(@Param() args: { campaignId: string }) {
+        return this.promosService.getCampaignByPublicShareLink(args.campaignId);
     }
 
     @Post('send-new-full-serviced-campaign-request')
