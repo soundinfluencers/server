@@ -800,18 +800,12 @@ export class AdminService {
 
     async adminGetAllCampaigns() {
         try {
-            const campaigns = await this.promosModel.find().sort({createdAt: -1}).lean().exec();
+            const [campaigns, campaignsCopies] = await Promise.all([
+                this.promosModel.find().sort({createdAt: -1}).lean().exec(),
+                this.promosCopiesModel.find().sort({createdAt: -1}).lean().exec(),
+            ]);
 
-            const campaignsCopies = await this.promosCopiesModel
-                .find()
-                .sort({createdAt: -1})
-                .lean()
-                .exec();
-
-            if (
-                (!campaigns || campaigns.length === 0) &&
-                (!campaignsCopies || campaignsCopies.length === 0)
-            ) {
+            if ((!campaigns?.length) && (!campaignsCopies?.length)) {
                 return {
                     status: 404,
                     message: 'No promos found',
@@ -823,46 +817,17 @@ export class AdminService {
                     let totalFollowers = 0;
 
                     if (Array.isArray(campaign.selectInfluencers) && !campaign.isCopy) {
-                        const influencersSocialMediaAccountsUsernames = campaign.selectInfluencers.map(
-                            (influencer) => influencer.socialMediaUsername,
-                        );
+                        campaign.selectInfluencers.forEach((item) => {
+                            const followersCount = item.followersNumber ?? 0;
+                            totalFollowers += followersCount || 0;
 
-                        const socialMediaField = campaign.socialMedia;
+                            const cleanedPrice = item.price?.replace(/\D/g, '') ?? "0";
+                            const cleanedPublicPrice = item.publicPrice?.replace(/\D/g, '') ?? "0";
 
-                        const influencers = await this.influencerModel
-                            .find({
-                                [`${socialMediaField}.instagramUsername`]: {
-                                    $in: influencersSocialMediaAccountsUsernames,
-                                },
-                            })
-                            .lean()
-                            .exec();
-
-                        campaign.selectInfluencers.forEach((campaignInfluencer) => {
-                            const influencer = influencers.find((inf) =>
-                                inf[socialMediaField].some(
-                                    (acc) => acc.instagramUsername === campaignInfluencer.socialMediaUsername,
-                                ),
-                            );
-
-                            if (influencer) {
-                                const socialMediaAccount = influencer[socialMediaField].find(
-                                    (acc) => acc.instagramUsername === campaignInfluencer.socialMediaUsername,
-                                );
-
-                                if (socialMediaAccount) {
-                                    const followersCount = socialMediaAccount.followersNumber.replace(/[\s,]/g, '');
-                                    totalFollowers += parseInt(followersCount, 10);
-
-                                    const cleanedPrice = socialMediaAccount.price.replace(/[^\d]/g, '');
-                                    const cleanedPublicPrice = socialMediaAccount.publicPrice.replace(/[^\d]/g, '');
-
-                                    Object.assign(campaignInfluencer, {
-                                        price: parseInt(cleanedPrice, 10),
-                                        publicPrice: parseInt(cleanedPublicPrice, 10),
-                                    });
-                                }
-                            }
+                            Object.assign(item, {
+                                price: parseInt(cleanedPrice, 10) || 0,
+                                publicPrice: parseInt(cleanedPublicPrice, 10) || 0,
+                            });
                         });
                     }
 
@@ -882,23 +847,20 @@ export class AdminService {
                     };
                 }),
             );
-            const resultCampaignsCopies = await Promise.all(
-                campaignsCopies.map(async (campaign) => {
-                    return {
-                        _id: campaign._id,
-                        campaignName: campaign.campaignName,
-                        userId: campaign.clientId || (campaign as any).userId,
-                        selectInfluencers: campaign.selectInfluencers,
-                        amount: campaign.campaignPrice || (campaign as any).amount,
-                        socialMedia: campaign.socialMedia ?? 'instagram',
-                        statusPromo: campaign.statusCampaign || (campaign as any).statusPromo,
-                        verifyPromo: campaign.verifyCampaign || (campaign as any).verifyPromo,
-                        shareLink: campaign.shareLink,
-                        isCopy: campaign.isCopy ?? true,
-                        createdAt: campaign.createdAt,
-                    };
-                }),
-            );
+
+            const resultCampaignsCopies = campaignsCopies.map((campaign) => ({
+                _id: campaign._id,
+                campaignName: campaign.campaignName,
+                userId: campaign.clientId || (campaign as any).userId,
+                selectInfluencers: campaign.selectInfluencers,
+                amount: campaign.campaignPrice || (campaign as any).amount,
+                socialMedia: campaign.socialMedia ?? 'instagram',
+                statusPromo: campaign.statusCampaign || (campaign as any).statusPromo,
+                verifyPromo: campaign.verifyCampaign || (campaign as any).verifyPromo,
+                shareLink: campaign.shareLink,
+                isCopy: campaign.isCopy ?? true,
+                createdAt: campaign.createdAt,
+            }));
 
             const dataToReturn = [...resultCampaigns, ...resultCampaignsCopies].sort(
                 (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -1202,16 +1164,16 @@ export class AdminService {
             let campaign: any;
 
             if (!isProposal) {
-                campaign = await this.promosModel.findOne({ _id: campaignId }).lean().exec();
+                campaign = await this.promosModel.findOne({_id: campaignId}).lean().exec();
                 if (!campaign) {
-                    campaign = await this.promosCopiesModel.findOne({ _id: campaignId }).lean().exec();
+                    campaign = await this.promosCopiesModel.findOne({_id: campaignId}).lean().exec();
                 }
             } else {
-                campaign = await this.proposalCampaignModel.findOne({ _id: campaignId }).lean().exec();
+                campaign = await this.proposalCampaignModel.findOne({_id: campaignId}).lean().exec();
             }
 
             if (!campaign) {
-                return { status: 404, message: 'Promo not found' };
+                return {status: 404, message: 'Promo not found'};
             }
 
             const campaignToReturn: any = {
@@ -1234,16 +1196,16 @@ export class AdminService {
             };
 
             const influencerIds = campaign.selectInfluencers.map(acc => acc.influencerId);
-            const influencers = await this.influencerModel.find({ _id: { $in: influencerIds } }).lean().exec();
+            const influencers = await this.influencerModel.find({_id: {$in: influencerIds}}).lean().exec();
             const influencerMap = new Map(influencers.map(inf => [inf._id.toString(), inf]));
 
             type ContentItemWithIndex = { item: CampaignContentItem; index: number };
             const campaignContentMap: Map<string, ContentItemWithIndex> = new Map(
-                (campaign.campaignContent || []).map((c, idx) => [c._id.toString(), { item: c, index: idx }])
+                (campaign.campaignContent || []).map((c, idx) => [c._id.toString(), {item: c, index: idx}])
             );
 
             const videosMap: Map<string, any> = new Map(
-                (campaign.videos || []).map((v, idx) => [v._id.toString(), { item: v, index: idx }])
+                (campaign.videos || []).map((v, idx) => [v._id.toString(), {item: v, index: idx}])
             );
 
             const influencersMap = new Map<
@@ -1367,10 +1329,10 @@ export class AdminService {
                 return aIndex - bIndex;
             });
 
-            return { status: 200, campaign: campaignToReturn };
+            return {status: 200, campaign: campaignToReturn};
         } catch (err) {
             console.error(err);
-            return { status: 500, message: err.message || 'Internal server error' };
+            return {status: 500, message: err.message || 'Internal server error'};
         }
     }
 
@@ -1514,6 +1476,8 @@ export class AdminService {
             } else {
                 for (const newInfluencer of addedInfluencers) {
                     const id = newInfluencer._id.toString();
+
+                    // Проверка на существование аккаунта в обьекте кампании из базы данных (если нет - добавить)
                     if (!selectInfluencerIds.has(id)) {
                         const aggregationPipeline = [
                             {$unwind: `$${newInfluencer.socialMedia}`},
@@ -1552,7 +1516,6 @@ export class AdminService {
                             campaign.selectInfluencers.push({
                                 _id: new Types.ObjectId(),
                                 influencerId: result[0].influencerId,
-                                accountId: null,
                                 socialMediaUsername: newInfluencer.socialMediaUsername,
                                 selectedContent: newInfluencer.selectedContent,
                                 socialMedia: newInfluencer.socialMedia,
@@ -1562,7 +1525,6 @@ export class AdminService {
                                 like: newInfluencer.like ?? '',
                                 impressions: newInfluencer.impressions ?? '',
                                 rating: newInfluencer.rating ?? undefined,
-                                adminChecked: newInfluencer.adminChecked ?? undefined,
                                 followersNumber: newInfluencer.followersNumber ?? 0,
                                 price: newInfluencer.price ?? '0',
                                 publicPrice: newInfluencer.publicPrice ?? '0',
@@ -2481,9 +2443,13 @@ export class AdminService {
 
     async adminUpdateCampaignsUpToDate() {
         const campaigns = await this.promosModel.find().lean();
-        if (!campaigns?.length) return { code: 500, message: 'Ongoing campaigns not found' };
+        if (!campaigns?.length) return {code: 500, message: 'Ongoing campaigns not found'};
 
-        const influencersMap = new Map<string, { _id: Types.ObjectId; instagramUsername: string; socialMedia: string }[]>();
+        const influencersMap = new Map<string, {
+            _id: Types.ObjectId;
+            instagramUsername: string;
+            socialMedia: string
+        }[]>();
 
         for (const campaign of campaigns) {
             const videoLinkMap = new Map<string, { _id: Types.ObjectId; description: string }[]>();
@@ -2552,13 +2518,22 @@ export class AdminService {
                 if (!accounts) {
                     try {
                         const aggr = await this.influencerModel.aggregate([
-                            { $match: { _id: new Types.ObjectId(acc.influencerId), statusVerify: 'accept' } },
-                            { $unwind: `$${acc.socialMedia}` },
-                            { $match: { [`${acc.socialMedia}.isVerified`]: true } },
-                            { $sort: { [`${acc.socialMedia}.createdAt`]: -1 } },
-                            { $project: { _id: `$${acc.socialMedia}._id`, instagramUsername: `$${acc.socialMedia}.instagramUsername` } },
+                            {$match: {_id: new Types.ObjectId(acc.influencerId), statusVerify: 'accept'}},
+                            {$unwind: `$${acc.socialMedia}`},
+                            {$match: {[`${acc.socialMedia}.isVerified`]: true}},
+                            {$sort: {[`${acc.socialMedia}.createdAt`]: -1}},
+                            {
+                                $project: {
+                                    _id: `$${acc.socialMedia}._id`,
+                                    instagramUsername: `$${acc.socialMedia}.instagramUsername`
+                                }
+                            },
                         ]);
-                        accounts = (aggr ?? []).map((a: any) => ({ _id: a._id, instagramUsername: a.instagramUsername, socialMedia: acc.socialMedia }));
+                        accounts = (aggr ?? []).map((a: any) => ({
+                            _id: a._id,
+                            instagramUsername: a.instagramUsername,
+                            socialMedia: acc.socialMedia
+                        }));
                     } catch (e) {
                         accounts = [];
                         this.logger.warn(`Failed to aggregate accounts for influencer ${acc.influencerId} on ${acc.socialMedia}: ${e?.message ?? e}`);
@@ -2569,7 +2544,10 @@ export class AdminService {
                 const account = accounts.find(it => it.instagramUsername === acc.socialMediaUsername) ?? null;
 
                 // Точный mapping старого selectedCampaignContentItem → новый postDescriptionId
-                let selectedContent: null | { campaignContentItemId: Types.ObjectId; postDescriptionId: Types.ObjectId | null } = null;
+                let selectedContent: null | {
+                    campaignContentItemId: Types.ObjectId;
+                    postDescriptionId: Types.ObjectId | null
+                } = null;
                 if ((acc as any).selectedCampaignContentItem) {
                     const oldContentIdStr = (acc as any).selectedCampaignContentItem.toString();
                     const videoLink = contentIdToVideoLink.get(oldContentIdStr);
@@ -2612,8 +2590,8 @@ export class AdminService {
             }
 
             const resOfUpdate = await this.promosModel.updateOne(
-                { _id: campaign._id },
-                { $set: { campaignContent: updatedContent, selectInfluencers: updatedInfluencers } },
+                {_id: campaign._id},
+                {$set: {campaignContent: updatedContent, selectInfluencers: updatedInfluencers}},
             );
 
             this.logger.log(`${resOfUpdate.modifiedCount ?? 0} updated for campaign "${campaign.campaignName}"`);
@@ -2623,9 +2601,13 @@ export class AdminService {
 
     async adminUpdateProposalCampaignsUpToDate() {
         const campaigns = await this.proposalCampaignModel.find().lean();
-        if (!campaigns?.length) return { code: 500, message: 'Proposal campaigns not found' };
+        if (!campaigns?.length) return {code: 500, message: 'Proposal campaigns not found'};
 
-        const influencersMap = new Map<string, { _id: Types.ObjectId; instagramUsername: string; socialMedia: string }[]>();
+        const influencersMap = new Map<string, {
+            _id: Types.ObjectId;
+            instagramUsername: string;
+            socialMedia: string
+        }[]>();
 
         for (const campaign of campaigns) {
             const videoLinkMap = new Map<string, { _id: Types.ObjectId; description: string }[]>();
@@ -2645,11 +2627,11 @@ export class AdminService {
                 if (Array.isArray(contentItem.postDescriptions) && contentItem.postDescriptions.length) {
                     for (const pd of contentItem.postDescriptions) {
                         const newId = pd._id ? new Types.ObjectId(pd._id) : new Types.ObjectId();
-                        postDescriptions.push({ _id: newId, description: pd.description ?? '' });
+                        postDescriptions.push({_id: newId, description: pd.description ?? ''});
                     }
                 } else {
                     const newId = new Types.ObjectId();
-                    postDescriptions.push({ _id: newId, description: (contentItem as any).postDescription ?? '' });
+                    postDescriptions.push({_id: newId, description: (contentItem as any).postDescription ?? ''});
                 }
 
                 oldContentIdToPostDescriptions.set(contentItem._id.toString(), postDescriptions.map(pd => pd._id));
@@ -2684,13 +2666,22 @@ export class AdminService {
                 if (!accounts) {
                     try {
                         const aggr = await this.influencerModel.aggregate([
-                            { $match: { _id: new Types.ObjectId(acc.influencerId.toString()), statusVerify: 'accept' } },
-                            { $unwind: `$${acc.socialMedia}` },
-                            { $match: { [`${acc.socialMedia}.isVerified`]: true } },
-                            { $sort: { [`${acc.socialMedia}.createdAt`]: -1 } },
-                            { $project: { _id: `$${acc.socialMedia}._id`, instagramUsername: `$${acc.socialMedia}.instagramUsername` } },
+                            {$match: {_id: new Types.ObjectId(acc.influencerId.toString()), statusVerify: 'accept'}},
+                            {$unwind: `$${acc.socialMedia}`},
+                            {$match: {[`${acc.socialMedia}.isVerified`]: true}},
+                            {$sort: {[`${acc.socialMedia}.createdAt`]: -1}},
+                            {
+                                $project: {
+                                    _id: `$${acc.socialMedia}._id`,
+                                    instagramUsername: `$${acc.socialMedia}.instagramUsername`
+                                }
+                            },
                         ]);
-                        accounts = (aggr ?? []).map((a: any) => ({ _id: a._id, instagramUsername: a.instagramUsername, socialMedia: acc.socialMedia }));
+                        accounts = (aggr ?? []).map((a: any) => ({
+                            _id: a._id,
+                            instagramUsername: a.instagramUsername,
+                            socialMedia: acc.socialMedia
+                        }));
                     } catch (e) {
                         accounts = [];
                         this.logger.warn(`Failed to aggregate accounts for influencer ${acc.influencerId} on ${acc.socialMedia}: ${e?.message ?? e}`);
@@ -2700,7 +2691,10 @@ export class AdminService {
 
                 const account = accounts.find(it => it.instagramUsername === acc.socialMediaUsername) ?? null;
 
-                let selectedContent: null | { campaignContentItemId: Types.ObjectId; postDescriptionId: Types.ObjectId | null } = null;
+                let selectedContent: null | {
+                    campaignContentItemId: Types.ObjectId;
+                    postDescriptionId: Types.ObjectId | null
+                } = null;
                 if ((acc as any).selectedCampaignContentItem) {
                     const oldContentIdStr = (acc as any).selectedCampaignContentItem.toString();
                     const videoLink = contentIdToVideoLink.get(oldContentIdStr);
@@ -2740,8 +2734,8 @@ export class AdminService {
             }
 
             const resOfUpdate = await this.proposalCampaignModel.updateOne(
-                { _id: campaign._id },
-                { $set: { campaignContent: updatedContent, selectInfluencers: updatedInfluencers } },
+                {_id: campaign._id},
+                {$set: {campaignContent: updatedContent, selectInfluencers: updatedInfluencers}},
             );
 
             this.logger.log(`${resOfUpdate.modifiedCount ?? 0} updated for proposal campaign "${campaign.campaignName}"`);
