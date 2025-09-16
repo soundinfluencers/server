@@ -7,6 +7,7 @@ import {Promos} from '../promos/schemas/promo.schema';
 import {Client} from '../auth/schemas/client.schema';
 import {GetReportSizeDto} from './dto/get-report-size.dto';
 import {find} from 'rxjs';
+import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 
 @Injectable()
 export class ReportsSizesService {
@@ -16,6 +17,7 @@ export class ReportsSizesService {
         @InjectModel(ReportSizes.name) private reportsSizesModel: Model<ReportSizes>,
         @InjectModel(Client.name) private readonly clientModel: Model<Client>,
         @InjectModel(Promos.name) private readonly promosModel: Model<Promos>,
+        @InjectModel(ProposalCampaign.name) private readonly proposalCampaignModel: Model<ProposalCampaign>,
     ) {
     }
 
@@ -32,9 +34,12 @@ export class ReportsSizesService {
         }
 
         try {
-            const campaignExists = await this.promosModel.exists({_id: campaignId});
+            const campaignExists =
+                !!(await this.promosModel.exists({ _id: campaignId })) ||
+                !!(await this.proposalCampaignModel.exists({ _id: campaignId }));
+
             if (!campaignExists) {
-                return {code: 404, message: 'Campaign Not Found'};
+                return { code: 404, message: 'Campaign Not Found' };
             }
 
             let reportSizes = await this.reportsSizesModel.findOne({campaignId});

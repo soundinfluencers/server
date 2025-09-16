@@ -59,4 +59,9 @@ export class ProposalSystemController {
       campaignName,
     );
   }
+
+  @Post('approve/:campaignId')
+  approveProposalCampaign(@Param('campaignId') campaignId: string) {
+    return this.proposalSystemService.approveProposalCampaign(campaignId);
+  }
 }
