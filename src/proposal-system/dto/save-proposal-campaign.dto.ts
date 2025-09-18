@@ -58,4 +58,7 @@ export class SaveProposalCampaignDto {
 
   @ApiProperty({ required: true })
   socialMedia: string;
+
+  @ApiProperty({ required: false, default: [] })
+  hiddenColumns: string[];
 }

@@ -139,6 +139,7 @@ export class ProposalSystemService {
                     publicPrice: data.publicPrice,
                     totalFollowers: data.totalFollowers,
                     socialMedia: data.socialMedia,
+                    hiddenColumns: data.hiddenColumns,
                 });
 
                 return {
@@ -168,6 +169,7 @@ export class ProposalSystemService {
                         publicPrice: data.publicPrice,
                         totalFollowers: data.totalFollowers,
                         socialMedia: data.socialMedia,
+                        hiddenColumns: data.hiddenColumns,
                     },
                 );
 

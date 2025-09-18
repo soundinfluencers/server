@@ -30,6 +30,7 @@ export class ProposalSystemController {
 
   @Get('get-proposal-campaign/:id')
   getProposalCampaignById(@Param('id') id: string) {
+    if (!id) return;
     return this.proposalSystemService.getProposalCampaignById(id);
   }
 
