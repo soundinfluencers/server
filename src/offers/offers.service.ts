@@ -395,77 +395,72 @@ export class OffersService {
 
       // Обработка каждого offerDto
       const resultsOfCreatingOffers = await Promise.allSettled(
-        data.map(async (offerDto: OfferDto, index: number) => {
-          // Формирование connectedAccounts с influencerId
-          const connectedAccounts = offerDto.connectedAccounts
-            .map((username) => {
-              const influencerData = usernameToInfluencerId.get(username);
-              if (!influencerData) {
-                failed.push({
-                  title: offerDto.title,
-                  index: index,
-                  error: `Can't find influencer with username "${username}"`,
-                });
-                this.logger.error(
-                  `Offer ${offerDto.title}: Can't find influencer with username "${username}"`,
-                  new Error().stack,
-                );
-                return null;
-              }
-              return {
-                _id: new Types.ObjectId(),
-                accountId: influencerData.accountId,
-                influencerId: influencerData.influencerId,
-              };
-            })
-            .filter(Boolean);
+          data.map(async (offerDto: OfferDto, index: number) => {
+            const connectedAccounts = offerDto.connectedAccounts
+                .map((username) => {
+                  const influencerData = usernameToInfluencerId.get(username);
+                  if (!influencerData) {
+                    failed.push({
+                      title: offerDto.title,
+                      index,
+                      error: `Can't find influencer with username "${username}"`,
+                    });
+                    this.logger.warn(
+                        `Offer ${offerDto.title}: Can't find influencer with username "${username}"`,
+                    );
+                    return null;
+                  }
+                  
+                  if (!influencerData.accountId || !influencerData.influencerId) {
+                    this.logger.warn(
+                        `Offer ${offerDto.title}: incomplete influencer data for "${username}"`,
+                    );
+                    failed.push({
+                      title: offerDto.title,
+                      index,
+                      error: `Incomplete influencer data for username "${username}"`,
+                    });
+                    return null;
+                  }
+                  return {
+                    _id: new Types.ObjectId(),
+                    accountId: influencerData.accountId,
+                    influencerId: influencerData.influencerId,
+                  };
+                })
+                .filter((acc): acc is { _id: Types.ObjectId; accountId: Types.ObjectId; influencerId: Types.ObjectId } => !!acc);
 
-          if (!connectedAccounts.length) {
-            this.logger.error(
-              `No valid connected accounts found for offer: ${offerDto.title}`,
-              new Error().stack,
-            );
-            failed.push({
-              title: offerDto.title,
-              index: index,
-              error: `No valid connected accounts found`,
-            });
-            throw new Error();
-          }
+            if (!connectedAccounts.length) {
+              failed.push({
+                title: offerDto.title,
+                index,
+                error: `No valid connected accounts found`,
+              });
+              this.logger.warn(
+                  `Offer ${offerDto.title}: skipped — no valid connected accounts`,
+              );
+              return;
+            }
 
-          let offer: Offer | null = null;
-          try {
-            offer = {
+            const offer: Offer = {
               title: this.replaceFollowersInTitle(offerDto.title),
               socialMedia: offerDto.socialMedia,
-              connectedAccounts: connectedAccounts,
+              connectedAccounts,
               price: offerDto.price,
               genre: offerDto.genre,
               combinedFollowers:
-                offerDto.socialMedia !== 'press'
-                  ? this.getFollowersNumberPart(offerDto.title)
-                  : null,
-              networksAmount: connectedAccounts.length || null,
+                  offerDto.socialMedia !== 'press'
+                      ? this.getFollowersNumberPart(offerDto.title)
+                      : null,
+              networksAmount: connectedAccounts.length,
               storyAndPostDetails: offerDto.storyAndPostDetails,
               isPublished: false,
               isDeleted: false,
               _id: new Types.ObjectId(),
             };
-          } catch (err) {
-            this.logger.error(
-              `Error initializing Offer: ${err}`,
-              err instanceof Error ? err.stack : new Error().stack,
-            );
-            failed.push({
-              title: offerDto.title,
-              index: index,
-              error: `Error initializing Offer`,
-            });
-            throw new Error();
-          }
 
-          return await this.createOffer(offer);
-        }),
+            return await this.createOffer(offer);
+          }),
       );
 
       resultsOfCreatingOffers.forEach((result, index) => {
@@ -732,23 +727,27 @@ export class OffersService {
   }
 
   getFollowersNumberPart = (title: string): string => {
-    const match = title.match(/\b(\d+(\.\d+)?)M\b/);
+    const match = title.match(/\b(\d+(\.\d+)?)([KM])\b/i);
     if (!match) {
-      throw new Error(`Error getting followers from title: ${title}. Maybe u forgot about 'M'?`);
+      throw new Error(`Error getting followers from title: ${title}. Expected K or M`);
     }
 
     const num = parseFloat(match[1]);
+    const unit = match[3].toUpperCase();
 
-    if (Number.isInteger(num)) {
-      return `${num}M`;
-    } else {
-      const inThousands = Math.round(num * 1000);
-      return `${inThousands}K`;
+    if (unit === "K") {
+      return `${Math.round(num)}K`;
     }
+
+    if (unit === "M") {
+      return Number.isInteger(num) ? `${num}M` : `${num}M`;
+    }
+
+    throw new Error(`Unsupported unit: ${unit}`);
   };
 
   replaceFollowersInTitle = (title: string): string => {
     const updatedNumber = this.getFollowersNumberPart(title);
-    return title.replace(/\b\d+(\.\d+)?M\b/, updatedNumber);
+    return title.replace(/\b\d+(\.\d+)?[KM]\b/i, updatedNumber);
   };
 }
