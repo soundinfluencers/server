@@ -1,5 +1,6 @@
 export interface AccountObjectForCreateNewPromoRequestMessage {
   pageName: string;
+  dateRequest?: string;
   reward: string;
   socialMedia: string;
   contentLink: string;
@@ -85,6 +86,7 @@ function formatAccountText(acc: AccountObjectForCreateNewPromoRequestMessage): s
   switch (acc.socialMedia.toLowerCase()) {
     case 'youtube':
       lines.push(`*Channel:* ${acc.pageName}`);
+      if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`*Date Request:* ${acc.dateRequest}`);
       lines.push(`*Content:* ${acc.contentLink}`);
       if (acc.description) lines.push(`*Description:* ${acc.description}`);
       if (acc.storyTag) lines.push(`*Story Tag:* ${acc.storyTag}`);
@@ -94,17 +96,21 @@ function formatAccountText(acc: AccountObjectForCreateNewPromoRequestMessage): s
     case 'spotify':
       lines.push(`*Playlist:* ${acc.pageName}`);
       lines.push(`*Track:* ${acc.contentLink}`);
+      if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`*Date Request:* ${acc.dateRequest}`);
       break;
     case 'soundcloud':
       lines.push(`*Channel:* ${acc.pageName}`);
       lines.push(`*Track:* ${acc.contentLink}`);
+      if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`*Date Request:* ${acc.dateRequest}`);
       break;
     case 'press':
       lines.push(`*Website:* ${acc.pageName}`);
+      if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`*Date Request:* ${acc.dateRequest}`);
       lines.push(`*Press Release:* ${acc.contentLink}`);
       break;
     default:
       lines.push(`*Page:* ${acc.pageName}`);
+      if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`*Date Request:* ${acc.dateRequest}`);
       lines.push(`*Content:* ${acc.contentLink}`);
       if (acc.description) lines.push(`*Description:* ${acc.description}`);
       if (acc.storyTag) lines.push(`*Story Tag:* ${acc.storyTag}`);
@@ -125,6 +131,7 @@ function formatAccountHTML(acc: AccountObjectForCreateNewPromoRequestMessage): s
   switch (acc.socialMedia.toLowerCase()) {
     case 'youtube':
       lines.push(`<strong>Channel:</strong> ${acc.pageName}`);
+      if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`<strong>Description:</strong> ${acc.dateRequest}`);
       lines.push(`<strong>Content:</strong> ${acc.contentLink}`);
       if (acc.description) lines.push(`<strong>Description:</strong> ${acc.description}`);
       if (acc.storyTag) lines.push(`<strong>Story Tag:</strong> ${acc.storyTag}`);
@@ -134,18 +141,22 @@ function formatAccountHTML(acc: AccountObjectForCreateNewPromoRequestMessage): s
       break;
     case 'spotify':
       lines.push(`<strong>Playlist:</strong> ${acc.pageName}`);
+      if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`<strong>Description:</strong> ${acc.dateRequest}`);
       lines.push(`<strong>Track:</strong> ${acc.contentLink}`);
       break;
     case 'soundcloud':
       lines.push(`<strong>Channel:</strong> ${acc.pageName}`);
+      if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`<strong>Description:</strong> ${acc.dateRequest}`);
       lines.push(`<strong>Track:</strong> ${acc.contentLink}`);
       break;
     case 'press':
       lines.push(`<strong>Website:</strong> ${acc.pageName}`);
+      if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`<strong>Description:</strong> ${acc.dateRequest}`);
       lines.push(`<strong>Press Release:</strong> ${acc.contentLink}`);
       break;
     default:
       lines.push(`<strong>Page:</strong> ${acc.pageName}`);
+      if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`<strong>Description:</strong> ${acc.dateRequest}`);
       lines.push(`<strong>Content:</strong> ${acc.contentLink}`);
       if (acc.description) lines.push(`<strong>Description:</strong> ${acc.description}`);
       if (acc.storyTag) lines.push(`<strong>Story Tag:</strong> ${acc.storyTag}`);

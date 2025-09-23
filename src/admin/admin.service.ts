@@ -1277,6 +1277,7 @@ export class AdminService {
                             accounts: [
                                 {
                                     pageName: addedAccount.socialMediaUsername,
+                                    dateRequest: addedAccount.dateRequest,
                                     reward: `${account?.initialPrice ?? addedAccount.price?.replace(/\D/g, '')}${account?.currency ?? 'EUR'}`,
                                     socialMedia: addedAccount.socialMedia,
                                     contentLink: addedAccount.selectedCampaignContentItem?.videoLink ?? '',
@@ -1290,6 +1291,7 @@ export class AdminService {
                     } else {
                         influencersMap.get(key)?.accounts.push({
                             pageName: addedAccount.socialMediaUsername,
+                            dateRequest: addedAccount.dateRequest,
                             reward: `${addedAccount.initialPrice ?? addedAccount.price?.replace(/\D/g, '')}${addedAccount.currency ?? 'EUR'}`,
                             socialMedia: addedAccount.socialMedia,
                             contentLink: addedAccount.selectedCampaignContentItem?.videoLink ?? '',
