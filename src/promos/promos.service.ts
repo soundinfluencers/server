@@ -2104,6 +2104,7 @@ ${emailVideoContent()}
             const dataToSend = {
                 totalFollowers: 0,
                 selectedAccounts: [],
+                errorProcessAccounts: []
             };
 
             for (const item of selectedAccounts) {
@@ -2122,9 +2123,14 @@ ${emailVideoContent()}
                     .exec();
 
                 if (!result) {
-                    throw new Error(
-                        `Account with ID ${item.influencerId} not found (${item.socialMedia} : ${item.instagramUsername})`,
-                    );
+                    this.logger.warn(
+                        `Account with ID ${item.influencerId} not found (${item.socialMedia} : ${item.instagramUsername})`
+                    )
+                    dataToSend.errorProcessAccounts.push({
+                        username: item.instagramUsername,
+                        socialMedia: item.socialMedia
+                    })
+                    continue;
                 }
 
                 const account = {
