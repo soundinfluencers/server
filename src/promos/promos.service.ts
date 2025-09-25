@@ -471,7 +471,7 @@ ${emailVideoContent()}
                     const accountDetails: AccountObjectForCreateNewPromoRequestMessage[] =
                         influencerAccounts.map((acc) => {
                             const content = checkCampaign.campaignContent.find(
-                                (c) => c._id === acc.selectedContent?.campaignContentItemId,
+                                (c) => c._id.toString() === acc.selectedContent?.campaignContentItemId.toString(),
                             );
 
                             return {
@@ -481,7 +481,7 @@ ${emailVideoContent()}
                                 contentLink: content?.videoLink || '',
                                 description:
                                     content?.postDescriptions.find(
-                                        (pd) => pd._id === acc.selectedContent?.postDescriptionId,
+                                        (pd) => pd._id.toString() === acc.selectedContent?.postDescriptionId.toString(),
                                     )?.description || '',
                                 storyTag: content?.storyTag,
                                 storyLink: content?.swipeUpLink,
@@ -498,7 +498,7 @@ ${emailVideoContent()}
 
                     await sendMail(
                         influencer.email,
-                        // 'nazarkozynets030606@gmail.com',
+                        // 'nazarkozynets030606@zohomail.eu',
                         'New Promo Request',
                         emailBody,
                         'html'
