@@ -7,12 +7,16 @@ import {
 import { InfluencerActionsHistoryService } from './influencer-actions-history.service';
 import { InfluencerActionsHistoryController } from './influencer-actions-history.controller';
 import { Influencer, InfluencerSchema } from '../auth/schemas/influencer.schema';
+import {Promos, PromosSchema} from "../promos/schemas/promo.schema";
+import {PromosCopies, PromosCopiesSchema} from "../admin/schemas/promos-copies.schema";
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: InfluencerActionsHistory.name, schema: InfluencerActionsHistorySchema },
       { name: Influencer.name, schema: InfluencerSchema },
+      { name: Promos.name, schema: PromosSchema },
+      { name: PromosCopies.name, schema: PromosCopiesSchema },
     ]),
   ],
   controllers: [InfluencerActionsHistoryController],

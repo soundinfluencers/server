@@ -21,6 +21,9 @@ export class Action {
 
   @Prop({ type: Date, required: true })
   date: Date;
+
+  @Prop({ type: Boolean, required: false, default: true })
+  isStillInCampaign: boolean;
 }
 
 export const ActionSchema = SchemaFactory.createForClass(Action);

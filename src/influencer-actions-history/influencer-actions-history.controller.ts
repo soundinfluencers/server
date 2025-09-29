@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import {Body, Controller, Get, Param, Patch, Post, UsePipes, ValidationPipe} from '@nestjs/common';
 import { InfluencerActionsHistoryService } from './influencer-actions-history.service';
 import { UpsertCampaignHistoryDto } from './dto/upsert-campaign-history.dto';
 import { UpsertInvoiceHistoryDto } from './dto/upsert-invoice-history.dto';
+import {CheckIfInCampaignDto} from "./dto/check-if-in-campaign.dto";
 
 @Controller('influencer-actions-history')
 export class InfluencerActionsHistoryController {
@@ -30,5 +31,11 @@ export class InfluencerActionsHistoryController {
   @Get('get/last-updates')
   getLastUpdates() {
     return this.influencerActionsHistoryService.getLastUpdates();
+  }
+
+  @Patch('patch/check-if-still-in-campaign')
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
+  checkIfStillInCampaign(@Body() data: CheckIfInCampaignDto) {
+    return this.influencerActionsHistoryService.checkIfStillInCampaign(data);
   }
 }
