@@ -37,28 +37,38 @@ export class ScrapersService {
                     directUrls: [accountPostDetails.postLink],
                     resultsLimit: 1,
                 });
+
                 const datasetRes = await this.apifyClient.dataset(run.defaultDatasetId).listItems();
                 const items = datasetRes.items as any[];
+
                 if (items.length) {
                     result = items[0];
+
+                    const newImpressions: number = Math.max(result.videoPlayCount ?? 0, result.videoViewCount ?? 0);
+                    const newLikes: number = result.likesCount;
+
                     if (socketId) {
-                        const newImpressions: number = Math.max(result.videoPlayCount ?? 0, result.videoViewCount ?? 0);
-                        const newLikes: number = result.likesCount;
                         this.appGateway.refreshPostDetailsStatusUpdate(socketId, {
                             accountId: accountPostDetails.accountId,
                             account: accountPostDetails.socialMediaUsername,
                             success: true,
-                            newImpressions: newImpressions !== 0 ? newImpressions.toString() : accountPostDetails.impressions,
-                            newLikes: newLikes !== -1 ? newLikes.toString() : accountPostDetails.like,
+                            newImpressions: newImpressions > 0 ? newImpressions.toString() : accountPostDetails.impressions,
+                            newLikes: newLikes > 0 ? newLikes.toString() : accountPostDetails.like,
                             errorImpressions: newImpressions === 0 ? "Hidden Impressions" : undefined,
-                            errorLikes: newLikes === -1 ? "Hidden likes" : undefined,
+                            errorLikes: newLikes <= 0 ? "Hidden likes" : undefined,
                         });
+                    }
+
+                    result = {
+                        newImpressions: newImpressions > 0 ? newImpressions.toString() : accountPostDetails.impressions,
+                        newLikes: newLikes > 0 ? newLikes.toString() : accountPostDetails.like,
                     }
                     break;
                 }
                 attempt++;
             } catch (e) {
                 attempt++;
+
                 if (attempt > maxRetries && socketId) {
                     this.appGateway.refreshPostDetailsStatusUpdate(socketId, {
                         accountId: accountPostDetails.accountId,
@@ -75,16 +85,18 @@ export class ScrapersService {
     }
 
     async updatePostDetailsInCampaign(data: ReqUpdatePostDetailsDto) {
+        const startTime: number = Date.now();
+
         const campaign = await this.campaignsModel.findById(data.campaignId);
         if (!campaign) return {code: 404, message: 'Campaign not found'};
 
-        const accountPostDetails = campaign.selectInfluencers.find((i) => i._id.toString() === data.accountId,);
+        const accountPostDetails = campaign.selectInfluencers.find((i) => i._id.toString() === data.accountId && i.socialMedia === 'instagram');
         if (!accountPostDetails?.postLink) {
             return {code: 400, message: 'Post link not found for account'};
         }
 
         try {
-            const scrapedMap = await this.scrapePostDetails({
+            const scraped = await this.scrapePostDetails({
                     accountId: accountPostDetails._id.toString(),
                     socialMediaUsername: accountPostDetails.socialMediaUsername,
                     postLink: accountPostDetails.postLink,
@@ -95,16 +107,19 @@ export class ScrapersService {
                 2
             );
 
-            const scraped = scrapedMap[accountPostDetails.postLink];
             if (!scraped) {
                 return {code: 422, message: "[SCRAPER] No data returned"};
             }
 
-            accountPostDetails.impressions = scraped.impressions.toString();
-            accountPostDetails.like = (scraped.likes > -1 ? scraped.likes : Number(accountPostDetails.like || 0)).toString();
+            accountPostDetails.impressions = scraped.newImpressions ?? accountPostDetails.impressions;
+            accountPostDetails.like = scraped.newLikes ?? accountPostDetails.like;
 
             campaign.markModified("selectInfluencers");
             await campaign.save();
+
+            const endTime = Date.now();
+            const durationSec = ((endTime - startTime) / 1000).toFixed(2);
+            this.logger.log(`[SCRAPER] updatePostDetailsInCampaign executed in ${durationSec}s`);
 
             return {
                 code: 200,
@@ -124,15 +139,15 @@ export class ScrapersService {
     }
 
     async updateAllPostsDetailsInCampaign(data: ReqUpdateAllPostsDetailsDto) {
-        const startTime = Date.now();
+        const startTime: number = Date.now();
 
         const campaign = await this.campaignsModel.findById(data.campaignId);
         if (!campaign) return {code: 404, message: `Campaign not found`};
         if (!campaign.selectInfluencers?.length) return {code: 204, message: `Empty campaign`};
 
-        const accountsWithPosts = campaign.selectInfluencers.filter(acc => !!acc.postLink);
+        const accountsWithPosts = campaign.selectInfluencers.filter(acc => acc.socialMedia === 'instagram' && !!acc.postLink);
 
-        const BATCH_SIZE = 10;
+        const BATCH_SIZE = 5;
         for (let i = 0; i < accountsWithPosts.length; i += BATCH_SIZE) {
             const batch = accountsWithPosts.slice(i, i + BATCH_SIZE);
 
@@ -154,8 +169,12 @@ export class ScrapersService {
                     return;
                 }
 
-                acc.impressions = scraped.newImpressions;
-                acc.like = scraped.newLikes;
+                if (scraped.newImpressions) {
+                    acc.impressions = scraped.newImpressions;
+                }
+                if (scraped.newLikes) {
+                    acc.like = scraped.newLikes;
+                }
             });
 
             await new Promise(r => setTimeout(r, 500));
@@ -170,7 +189,7 @@ export class ScrapersService {
 
         return {
             code: 200,
-            message: `Processed ${campaign.selectInfluencers.length} accounts`,
+            message: `Processed ${accountsWithPosts.length} accounts`,
         };
     }
 }
