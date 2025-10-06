@@ -508,12 +508,14 @@ export class AuthService {
                 };
             }
 
+            const email = loginData.email.toLowerCase();
+
             const checkUser =
                 (await this.influencerModel.findOne({
-                    email: loginData.email,
+                    $expr: {$eq: [{$toLower: "$email"}, email]},
                 })) ||
                 (await this.clientModel.findOne({
-                    email: loginData.email,
+                    $expr: {$eq: [{$toLower: "$email"}, email]},
                 }));
 
             if (!checkUser) {

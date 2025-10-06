@@ -87,7 +87,7 @@ export class Influencer extends Document {
   @Prop()
   firstName: string;
 
-  @Prop()
+  @Prop({lowercase: true})
   email: string;
 
   @Prop()

@@ -1,54 +1,54 @@
-import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
+import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
 
 @Schema({
-  timestamps: true,
+    timestamps: true,
 })
 export class Client {
-  @Prop({ default: 'client' })
-  role: string;
-  @Prop()
-  firstName: string;
-  @Prop()
-  balance: number;
+    @Prop({default: 'client'})
+    role: string;
+    @Prop()
+    firstName: string;
+    @Prop()
+    balance: number;
 
-  @Prop()
-  company: string;
+    @Prop()
+    company: string;
 
-  @Prop()
-  companyType: string;
+    @Prop()
+    companyType: string;
 
-  @Prop()
-  instagramUsername: string;
+    @Prop()
+    instagramUsername: string;
 
-  @Prop()
-  email: string;
+    @Prop({lowercase: true})
+    email: string;
 
-  @Prop()
-  phone: string;
+    @Prop()
+    phone: string;
 
-  @Prop()
-  referalCode: string;
+    @Prop()
+    referalCode: string;
 
-  @Prop()
-  password: string;
+    @Prop()
+    password: string;
 
-  @Prop({ default: 'wait' })
-  statusVerify: string;
+    @Prop({default: 'wait'})
+    statusVerify: string;
 
-  @Prop()
-  referenceNumber: string;
+    @Prop()
+    referenceNumber: string;
 
-  @Prop({ default: '' })
-  logo: string;
+    @Prop({default: ''})
+    logo: string;
 
-  @Prop({ default: false })
-  isAdmin: boolean;
+    @Prop({default: false})
+    isAdmin: boolean;
 
-  @Prop({ default: false })
-  isProposalClient: boolean;
+    @Prop({default: false})
+    isProposalClient: boolean;
 
-  @Prop({ default: '' })
-  internalNote: string;
+    @Prop({default: ''})
+    internalNote: string;
 }
 
 export const ClientSchema = SchemaFactory.createForClass(Client);
