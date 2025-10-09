@@ -19,10 +19,6 @@ export class AppGateway {
   sendWhatsappMessageStatusUpdate(socketId: string, status: any) {
     this.server.to(socketId).emit('whatsappMessageStatusUpdate', status);
   }
-
-  refreshPostDetailsStatusUpdate(socketId: string, data: any) {
-      this.server.to(socketId).emit('refreshPostDetailsStatusUpdate', data);
-  }
 }
 
 @Module({

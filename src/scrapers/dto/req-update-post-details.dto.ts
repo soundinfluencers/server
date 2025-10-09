@@ -24,4 +24,12 @@ export class ReqUpdatePostDetailsDto {
         message: 'Socket id cannot be empty',
     })
     socketId: string;
+
+    @IsString({
+        message: 'Invalid user id',
+    })
+    @IsNotEmpty({
+        message: 'User id cannot be empty',
+    })
+    refreshInitiatorId: string;
 }

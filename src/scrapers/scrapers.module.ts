@@ -6,6 +6,7 @@ import {Influencer, InfluencerSchema} from '../auth/schemas/influencer.schema';
 import {MongooseModule} from '@nestjs/mongoose';
 import {Promos, PromosSchema} from '../promos/schemas/promo.schema';
 import {WebsocketModule} from "../websocket/app.gateway";
+import {ScrapersGateway} from "./scrapers.gateway";
 
 @Module({
     imports: [
@@ -14,11 +15,10 @@ import {WebsocketModule} from "../websocket/app.gateway";
             {name: Influencer.name, schema: InfluencerSchema},
             {name: Promos.name, schema: PromosSchema},
         ]),
-        WebsocketModule,
     ],
-    exports: [ScrapersService],
+    exports: [ScrapersService, ScrapersGateway],
     controllers: [ScrapersController],
-    providers: [ScrapersService],
+    providers: [ScrapersService, ScrapersGateway],
 })
 export class ScrapersModule {
 }

@@ -1,14 +1,11 @@
 import {InjectModel} from '@nestjs/mongoose';
-import {Offer} from '../offers/schemas/offer.schema';
 import {Injectable, Logger} from '@nestjs/common';
-import {Model} from 'mongoose';
-import {Influencer} from '../auth/schemas/influencer.schema';
+import {Model, Types} from 'mongoose';
 import {Promos} from '../promos/schemas/promo.schema';
-import axios from 'axios';
 import {ReqUpdatePostDetailsDto} from './dto/req-update-post-details.dto';
-import {AppGateway} from "../websocket/app.gateway";
 import {ApifyClient} from "apify-client";
 import {ReqUpdateAllPostsDetailsDto} from "./dto/req-update-all-posts-details-dto";
+import {ScrapersGateway} from "./scrapers.gateway";
 
 @Injectable()
 export class ScrapersService {
@@ -17,179 +14,250 @@ export class ScrapersService {
 
     constructor(
         @InjectModel(Promos.name) private readonly campaignsModel: Model<Promos>,
-        private readonly appGateway: AppGateway,
+        private readonly scrapersGateway: ScrapersGateway,
     ) {
-        this.apifyClient = new ApifyClient({token: process.env.APIFY_TOKEN})
+        this.apifyClient = new ApifyClient({token: process.env.APIFY_TOKEN});
     }
 
-    private async scrapePostDetails(accountPostDetails: {
-        socialMediaUsername: string;
-        accountId: string;
-        postLink: string;
-        impressions: string;
-        like: string;
-    }, socketId?: string, maxRetries = 2) {
+    private async scrapePostDetailsBatch(
+        accountsBatch: {
+            socialMediaUsername: string;
+            accountId: string;
+            postLink: string;
+            impressions: string;
+            like: string;
+        }[],
+        userId: string,
+        maxRetries = 2,
+    ) {
         let attempt = 0;
-        let result: any = null;
+        const results: Record<string, any> = {};
+
         while (attempt <= maxRetries) {
             try {
+                const urls = accountsBatch.map(a => a.postLink);
                 const run = await this.apifyClient.actor("apify/instagram-scraper").call({
-                    directUrls: [accountPostDetails.postLink],
-                    resultsLimit: 1,
+                    directUrls: urls,
+                    resultsLimit: urls.length,
                 });
 
                 const datasetRes = await this.apifyClient.dataset(run.defaultDatasetId).listItems();
                 const items = datasetRes.items as any[];
 
-                if (items.length) {
-                    result = items[0];
+                for (const acc of accountsBatch) {
+                    const match = items.find(i => i.inputUrl === acc.postLink);
+                    if (match) {
+                        const newImpressions = Math.max(match.videoPlayCount ?? 0, match.videoViewCount ?? 0);
+                        const newLikes = match.likesCount ?? 0;
 
-                    const newImpressions: number = Math.max(result.videoPlayCount ?? 0, result.videoViewCount ?? 0);
-                    const newLikes: number = result.likesCount;
-
-                    if (socketId) {
-                        this.appGateway.refreshPostDetailsStatusUpdate(socketId, {
-                            accountId: accountPostDetails.accountId,
-                            account: accountPostDetails.socialMediaUsername,
+                        results[acc.accountId] = {
                             success: true,
-                            newImpressions: newImpressions > 0 ? newImpressions.toString() : accountPostDetails.impressions,
-                            newLikes: newLikes > 0 ? newLikes.toString() : accountPostDetails.like,
-                            errorImpressions: newImpressions === 0 ? "Hidden Impressions" : undefined,
-                            errorLikes: newLikes <= 0 ? "Hidden likes" : undefined,
-                        });
+                            newImpressions: newImpressions > 0 ? newImpressions.toString() : acc.impressions,
+                            newLikes: newLikes > 0 ? newLikes.toString() : acc.like,
+                        };
+                        if (userId) {
+                            this.scrapersGateway.refreshPostDetailsStatusUpdate(userId, {
+                                accountId: acc.accountId,
+                                account: acc.socialMediaUsername,
+                                success: true,
+                                newImpressions: results[acc.accountId].newImpressions,
+                                newLikes: results[acc.accountId].newLikes,
+                            });
+                        }
+                    } else {
+                        results[acc.accountId] = { success: false };
                     }
-
-                    result = {
-                        newImpressions: newImpressions > 0 ? newImpressions.toString() : accountPostDetails.impressions,
-                        newLikes: newLikes > 0 ? newLikes.toString() : accountPostDetails.like,
-                    }
-                    break;
                 }
-                attempt++;
+                break;
             } catch (e) {
                 attempt++;
-
-                if (attempt > maxRetries && socketId) {
-                    this.appGateway.refreshPostDetailsStatusUpdate(socketId, {
-                        accountId: accountPostDetails.accountId,
-                        account: accountPostDetails.socialMediaUsername,
-                        success: false,
-                        newImpressions: accountPostDetails.impressions,
-                        newLikes: accountPostDetails.like,
+                this.logger.error(`[SCRAPER] Batch attempt ${attempt} failed: ${e.message}`);
+                if (attempt > maxRetries) {
+                    accountsBatch.forEach(acc => {
+                        results[acc.accountId] = { success: false };
+                        if (userId) {
+                            this.scrapersGateway.refreshPostDetailsStatusUpdate(userId, {
+                                accountId: acc.accountId,
+                                account: acc.socialMediaUsername,
+                                success: false,
+                                newImpressions: acc.impressions,
+                                newLikes: acc.like,
+                            });
+                        }
                     });
-                    this.logger.error(`[SCRAPER] Failed to scrape ${accountPostDetails.postLink} after ${maxRetries} retries: ${e.message}`);
                 }
             }
         }
-        return result;
+
+        return results;
     }
 
     async updatePostDetailsInCampaign(data: ReqUpdatePostDetailsDto) {
-        const startTime: number = Date.now();
-
+        const startTime = Date.now();
         const campaign = await this.campaignsModel.findById(data.campaignId);
-        if (!campaign) return {code: 404, message: 'Campaign not found'};
+        if (!campaign) return { code: 404, message: 'Campaign not found' };
 
-        const accountPostDetails = campaign.selectInfluencers.find((i) => i._id.toString() === data.accountId && i.socialMedia === 'instagram');
+        const accountPostDetails = campaign.selectInfluencers.find(
+            i => i._id.toString() === data.accountId && i.socialMedia === 'instagram'
+        );
         if (!accountPostDetails?.postLink) {
-            return {code: 400, message: 'Post link not found for account'};
+            return { code: 400, message: 'Post link not found for account' };
         }
 
+        this.scrapersGateway.startAccountUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
+
         try {
-            const scraped = await this.scrapePostDetails({
-                    accountId: accountPostDetails._id.toString(),
-                    socialMediaUsername: accountPostDetails.socialMediaUsername,
-                    postLink: accountPostDetails.postLink,
-                    impressions: accountPostDetails.impressions,
-                    like: accountPostDetails.like,
-                },
-                data.socketId,
-                2
+            const resultMap = await this.scrapePostDetailsBatch(
+                [
+                    {
+                        accountId: accountPostDetails._id.toString(),
+                        socialMediaUsername: accountPostDetails.socialMediaUsername,
+                        postLink: accountPostDetails.postLink,
+                        impressions: accountPostDetails.impressions,
+                        like: accountPostDetails.like,
+                    },
+                ],
+                data.refreshInitiatorId
             );
 
-            if (!scraped) {
-                return {code: 422, message: "[SCRAPER] No data returned"};
-            }
+            const scraped = resultMap[accountPostDetails._id.toString()];
+            if (!scraped?.success) return { code: 422, message: "[SCRAPER] No data returned" };
 
-            accountPostDetails.impressions = scraped.newImpressions ?? accountPostDetails.impressions;
-            accountPostDetails.like = scraped.newLikes ?? accountPostDetails.like;
+            await this.campaignsModel.updateOne(
+                {
+                    _id: new Types.ObjectId(data.campaignId),
+                    'selectInfluencers._id': new Types.ObjectId(data.accountId),
+                },
+                {
+                    $set: {
+                        'selectInfluencers.$.impressions': scraped.newImpressions ?? accountPostDetails.impressions,
+                        'selectInfluencers.$.like': scraped.newLikes ?? accountPostDetails.like,
+                    },
+                },
+            );
 
-            campaign.markModified("selectInfluencers");
-            await campaign.save();
+            this.scrapersGateway.finishAccountUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
 
-            const endTime = Date.now();
-            const durationSec = ((endTime - startTime) / 1000).toFixed(2);
+            const durationSec = ((Date.now() - startTime) / 1000).toFixed(2);
             this.logger.log(`[SCRAPER] updatePostDetailsInCampaign executed in ${durationSec}s`);
 
             return {
                 code: 200,
                 message: `${accountPostDetails.socialMediaUsername} post details updated!`,
-                newImpressions: accountPostDetails.impressions,
-                newLikes: accountPostDetails.like
+                newImpressions: scraped.newImpressions ?? accountPostDetails.impressions,
+                newLikes: scraped.newLikes ?? accountPostDetails.like,
             };
         } catch (e) {
-            this.logger.error(`[SCRAPER] Error updating post details for ${accountPostDetails.socialMediaUsername} : ${e.message}`,
+            this.logger.error(
+                `[SCRAPER] Error updating post details for ${accountPostDetails.socialMediaUsername}: ${e.message}`,
                 e.stack
             );
             return {
                 code: 502,
-                message: `[SCRAPER]Failed to fetch data for account ${accountPostDetails.socialMediaUsername}`
+                message: `[SCRAPER] Failed to fetch data for account ${accountPostDetails.socialMediaUsername}`,
             };
         }
     }
 
     async updateAllPostsDetailsInCampaign(data: ReqUpdateAllPostsDetailsDto) {
-        const startTime: number = Date.now();
+        try {
+            const startTime = Date.now();
+            const campaign = await this.campaignsModel.findById(data.campaignId);
+            if (!campaign) return { code: 404, message: `Campaign not found` };
 
-        const campaign = await this.campaignsModel.findById(data.campaignId);
-        if (!campaign) return {code: 404, message: `Campaign not found`};
-        if (!campaign.selectInfluencers?.length) return {code: 204, message: `Empty campaign`};
+            const accounts = campaign.selectInfluencers.filter(
+                acc => acc.socialMedia === 'instagram' && !!acc.postLink
+            );
 
-        const accountsWithPosts = campaign.selectInfluencers.filter(acc => acc.socialMedia === 'instagram' && !!acc.postLink);
+            const BATCH_SIZE = 10;
+            const MAX_PARALLEL = 3;
+            const queue = [...accounts];
+            const failed: typeof accounts = [];
+            const active: Promise<void>[] = [];
 
-        const BATCH_SIZE = 5;
-        for (let i = 0; i < accountsWithPosts.length; i += BATCH_SIZE) {
-            const batch = accountsWithPosts.slice(i, i + BATCH_SIZE);
+            this.scrapersGateway.startAccountUpdate(
+                data.refreshInitiatorId,
+                data.campaignId,
+                accounts.map(a => a._id.toString())
+            );
 
-            const batchResults = await Promise.all(
-                batch.map(acc => this.scrapePostDetails({
-                        accountId: acc._id.toString(),
-                        socialMediaUsername: acc.socialMediaUsername,
-                        postLink: acc.postLink,
-                        impressions: acc.impressions,
-                        like: acc.like,
-                    },
-                    data.socketId,
-                    2
-                )));
+            const processBatch = async (batch: any) => {
+                const formattedBatch = batch.map((acc: any) => ({
+                    accountId: acc._id.toString(),
+                    socialMediaUsername: acc.socialMediaUsername,
+                    postLink: acc.postLink,
+                    impressions: acc.impressions,
+                    like: acc.like,
+                }));
 
-            batchResults.forEach((scraped, idx) => {
-                const acc = batch[idx];
-                if (!scraped) {
-                    return;
+                const resultMap = await this.scrapePostDetailsBatch(formattedBatch, data.refreshInitiatorId);
+
+                for (const acc of batch) {
+                    const result = resultMap[acc._id.toString()];
+                    if (result?.success) {
+                        acc.impressions = result.newImpressions ?? acc.impressions;
+                        acc.like = result.newLikes ?? acc.like;
+                    } else {
+                        failed.push(acc);
+                    }
+                    this.scrapersGateway.finishAccountUpdate(data.refreshInitiatorId, data.campaignId, [acc._id.toString()]);
                 }
+            };
 
-                if (scraped.newImpressions) {
-                    acc.impressions = scraped.newImpressions;
+            while (queue.length > 0 || active.length > 0) {
+                while (queue.length > 0 && active.length < MAX_PARALLEL) {
+                    const batch = queue.splice(0, BATCH_SIZE);
+                    const p = processBatch(batch).finally(() => active.splice(active.indexOf(p), 1));
+                    active.push(p);
                 }
-                if (scraped.newLikes) {
-                    acc.like = scraped.newLikes;
+                await Promise.race(active);
+            }
+
+            if (failed.length) {
+                this.logger.warn(`[SCRAPER] Retrying ${failed.length} failed accounts...`);
+
+                const formattedFailed = failed.map(acc => ({
+                    accountId: acc._id.toString(),
+                    socialMediaUsername: acc.socialMediaUsername,
+                    postLink: acc.postLink,
+                    impressions: acc.impressions,
+                    like: acc.like,
+                }));
+
+                const retryResult = await this.scrapePostDetailsBatch(formattedFailed, data.refreshInitiatorId);
+
+                for (const acc of failed) {
+                    const result = retryResult[acc._id.toString()];
+                    if (result?.success) {
+                        acc.impressions = result.newImpressions ?? acc.impressions;
+                        acc.like = result.newLikes ?? acc.like;
+                        this.scrapersGateway.finishAccountUpdate(data.refreshInitiatorId, data.campaignId, [acc._id.toString()]);
+                    }
                 }
+            }
+
+            campaign.markModified("selectInfluencers");
+            await campaign.save();
+
+            this.scrapersGateway.notificationFinishedRefreshingPostDetails(data.refreshInitiatorId, {
+                campaignName: campaign.campaignName,
+                statusCode: 201,
             });
 
-            await new Promise(r => setTimeout(r, 500));
+            const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+            this.logger.log(`[SCRAPER] updateAllPostsDetailsInCampaign completed in ${duration}s`);
+
+            return {
+                code: 200,
+                message: `Processed ${accounts.length} accounts in batches of ${BATCH_SIZE}, retried ${failed.length}`,
+            };
+        } catch (e) {
+            this.logger.error(`[SCRAPER] Unexpected error: ${e.message}`, e.stack);
+            this.scrapersGateway.notificationFinishedRefreshingPostDetails(data.socketId, {
+                campaignName: data.campaignName,
+                statusCode: 500,
+            });
+            return { code: 500, message: "Unexpected error" };
         }
-
-        campaign.markModified("selectInfluencers");
-        await campaign.save();
-
-        const endTime = Date.now();
-        const durationSec = ((endTime - startTime) / 1000).toFixed(2);
-        this.logger.log(`[SCRAPER] updateAllPostsDetailsInCampaign executed in ${durationSec}s`);
-
-        return {
-            code: 200,
-            message: `Processed ${accountsWithPosts.length} accounts`,
-        };
     }
 }
