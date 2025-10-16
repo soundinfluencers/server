@@ -2744,4 +2744,60 @@ export class AdminService {
         }
     }
 
+    async checkIdInEachAccount(batchSize = 100): Promise<void> {
+        let skip = 0;
+        let processed = 0;
+
+        const socialMediaFields = [
+            'instagram',
+            'tiktok',
+            'spotify',
+            'soundcloud',
+            'facebook',
+            'youtube',
+            'press',
+        ];
+
+        while (true) {
+            const influencers = await this.influencerModel
+                .find({}, socialMediaFields.join(' '))
+                .skip(skip)
+                .limit(batchSize)
+                .lean();
+
+            if (influencers.length === 0) break;
+
+            for (const influencer of influencers) {
+                let modified = false;
+
+                for (const field of socialMediaFields) {
+                    const accounts = influencer[field] || [];
+                    for (const acc of accounts) {
+                        if (!acc._id) {
+                            acc._id = new Types.ObjectId();
+                            modified = true;
+                        }
+                    }
+                }
+
+                if (modified) {
+                    await this.influencerModel.updateOne(
+                        { _id: influencer._id },
+                        {
+                            $set: Object.fromEntries(
+                                socialMediaFields.map((f) => [f, influencer[f]]),
+                            ),
+                        },
+                    );
+                }
+
+                processed++;
+            }
+
+            this.logger.log(`Processed ${processed} influencers so far...`);
+            skip += batchSize;
+        }
+
+        this.logger.log('✅ Finished checking all influencer accounts.');
+    }
 }
