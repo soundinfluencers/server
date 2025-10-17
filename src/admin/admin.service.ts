@@ -2772,10 +2772,29 @@ export class AdminService {
 
                 for (const field of socialMediaFields) {
                     const accounts = influencer[field] || [];
+
                     for (const acc of accounts) {
+                        // если _id отсутствует
                         if (!acc._id) {
                             acc._id = new Types.ObjectId();
                             modified = true;
+                        }
+                        // если _id строка — конвертируем в ObjectId
+                        else if (typeof acc._id === 'string') {
+                            try {
+                                // Проверяем, можно ли безопасно конвертировать
+                                if (Types.ObjectId.isValid(acc._id)) {
+                                    acc._id = new Types.ObjectId(acc._id);
+                                    modified = true;
+                                } else {
+                                    // если строка невалидна — создаём новый id
+                                    acc._id = new Types.ObjectId();
+                                    modified = true;
+                                }
+                            } catch {
+                                acc._id = new Types.ObjectId();
+                                modified = true;
+                            }
                         }
                     }
                 }
