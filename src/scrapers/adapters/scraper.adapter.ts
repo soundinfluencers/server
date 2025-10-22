@@ -1,9 +1,12 @@
-export interface ScraperAdapter<TNormalized = any> {
-    runPostDetailsScraper(urls: string[]): Promise<TNormalized[]>;
-    runAccountDetailsScraper(urls: string[]): Promise<TNormalized[]>;
+export interface ScraperAdapter<
+    TPostNormalized = any,
+    TAccountNormalized = any
+> {
+    runPostDetailsScraper(urls: string[]): Promise<TPostNormalized[]>;
+    runAccountDetailsScraper(urls: string[]): Promise<TAccountNormalized[]>;
 
-    normalizePostDetailsItem(item: any): TNormalized;
-    normalizeAccountDetailsItem(item: any): TNormalized;
+    normalizePostDetailsItem(item: any): TPostNormalized;
+    normalizeAccountDetailsItem(item: any): TAccountNormalized;
 }
 
 type NormalizedPostDetailsItem<T extends ScraperAdapter<any>> =
@@ -20,10 +23,10 @@ export function findScrapedPostDetailsMatch<T extends ScraperAdapter<any>>(
     return items.find(i => i.url === acc.postLink);
 }
 
-/** Хэлпер который помогает найти результат скрэйпинга поста и дать ему правильный тип */
+/** Хэлпер который помогает найти результат скрэйпинга аккаунта и дать ему правильный тип */
 export function findScrapedAccountDetailsMatch<T extends ScraperAdapter<any>>(
     items: NormalizedAccountDetailsItem<T>[],
     acc: { accountLink: string }
-): NormalizedPostDetailsItem<T> | undefined {
+): NormalizedAccountDetailsItem<T> | undefined {
     return items.find(i => i.url === acc.accountLink);
 }

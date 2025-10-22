@@ -9,6 +9,7 @@ import {InstagramAdapter} from "./adapters/instagram.adapter";
 import {TikTokAdapter} from "./adapters/tiktok.adapter";
 import {findScrapedAccountDetailsMatch, findScrapedPostDetailsMatch} from "./adapters/scraper.adapter";
 import {ReqUpdateAllAccountsDto} from "./dto/req-update-all-accounts.dto";
+import {Influencer, SocialAccount} from "../auth/schemas/influencer.schema";
 
 @Injectable()
 export class ScrapersService {
@@ -20,6 +21,7 @@ export class ScrapersService {
 
     constructor(
         @InjectModel(Promos.name) private readonly campaignsModel: Model<Promos>,
+        @InjectModel(Influencer.name) private readonly influencersModel: Model<Influencer>,
         private readonly scrapersGateway: ScrapersGateway,
     ) {
     }
@@ -45,10 +47,10 @@ export class ScrapersService {
 
                 const adapter = this.adapterMap[socialMedia];
                 if (!adapter) {
-                    throw new Error(`[SCRAPER] Unsupported social media: ${socialMedia}`);
+                    throw new Error(`[SCRAPER] Unsupported social media: ${socialMedia} was used while scraping posts`);
                 }
 
-                const items = await adapter.runScraper(urls);
+                const items = await adapter.runPostDetailsScraper(urls);
 
                 for (const acc of accountsBatch) {
                     const match = findScrapedPostDetailsMatch(items, acc);
@@ -77,7 +79,7 @@ export class ScrapersService {
                 break;
             } catch (e) {
                 attempt++;
-                this.logger.error(`[SCRAPER] Batch attempt ${attempt} failed: ${e.message}`);
+                this.logger.error(`[SCRAPER] Posts batch attempt ${attempt} failed: ${e.message}`);
                 if (attempt > maxRetries) {
                     accountsBatch.forEach(acc => {
                         results[acc.accountId] = {success: false};
@@ -101,6 +103,7 @@ export class ScrapersService {
     private async scrapeAccountDetailsBatch(
         accountsBatch: {
             accountId: string;
+            socialMediaUsername: string;
             accountLink: string;
             oldLogo: string;
             oldFollowers: string;
@@ -118,29 +121,29 @@ export class ScrapersService {
 
                 const adapter = this.adapterMap[socialMedia];
                 if (!adapter) {
-                    throw new Error(`[SCRAPER] Unsupported social media: ${socialMedia}`);
+                    throw new Error(`[SCRAPER] Unsupported social media: ${socialMedia} was used while scraping accounts`);
                 }
 
-                const items = await adapter.runScraper(urls);
+                const items = await adapter.runAccountDetailsScraper(urls);
 
                 for (const acc of accountsBatch) {
                     const match = findScrapedAccountDetailsMatch(items, acc);
                     if (match) {
-                        const newImpressions = match.views ?? 0;
-                        const newLikes = match.likes ?? 0;
+                        const newFollowers: number | undefined = match.followers ?? 0;
+                        const newLogo: string | undefined = match.logo ?? undefined;
 
                         results[acc.accountId] = {
                             success: true,
-                            newImpressions: newImpressions > 0 ? newImpressions.toString() : acc.impressions,
-                            newLikes: newLikes > 0 ? newLikes.toString() : acc.like,
+                            newFollowers: newFollowers > 0 ? newFollowers.toString() : acc.oldFollowers,
+                            newLogo: newLogo ? newLogo : acc.oldLogo,
                         };
                         if (userId) {
-                            this.scrapersGateway.refreshPostDetailsStatusUpdate(userId, {
+                            this.scrapersGateway.refreshAccountStatusUpdate(userId, {
                                 accountId: acc.accountId,
                                 account: acc.socialMediaUsername,
                                 success: true,
-                                newImpressions: results[acc.accountId].newImpressions,
-                                newLikes: results[acc.accountId].newLikes,
+                                newFollowers: results[acc.accountId].newFollowers,
+                                newLogo: results[acc.accountId].newLogo,
                             });
                         }
                     } else {
@@ -150,7 +153,7 @@ export class ScrapersService {
                 break;
             } catch (e) {
                 attempt++;
-                this.logger.error(`[SCRAPER] Batch attempt ${attempt} failed: ${e.message}`);
+                this.logger.error(`[SCRAPER] Accounts batch attempt ${attempt} failed: ${e.message}`);
                 if (attempt > maxRetries) {
                     accountsBatch.forEach(acc => {
                         results[acc.accountId] = {success: false};
@@ -159,8 +162,8 @@ export class ScrapersService {
                                 accountId: acc.accountId,
                                 account: acc.socialMediaUsername,
                                 success: false,
-                                newImpressions: acc.impressions,
-                                newLikes: acc.like,
+                                newFollowers: acc.oldFollowers,
+                                newLogo: acc.oldLogo,
                             });
                         }
                     });
@@ -183,7 +186,7 @@ export class ScrapersService {
             return {code: 400, message: `Can't find required account or social media isn't supported`};
         }
 
-        this.scrapersGateway.startAccountUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
+        this.scrapersGateway.startAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
 
         try {
             const resultMap = await this.scrapePostDetailsBatch(
@@ -202,7 +205,7 @@ export class ScrapersService {
 
             const scraped = resultMap[accountPostDetails._id.toString()];
             if (!scraped?.success) {
-                this.scrapersGateway.finishAccountUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
+                this.scrapersGateway.finishAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
                 return {code: 422, message: "[SCRAPER] No data returned"};
             }
 
@@ -219,7 +222,7 @@ export class ScrapersService {
                 },
             );
 
-            this.scrapersGateway.finishAccountUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
+            this.scrapersGateway.finishAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
 
             const durationSec = ((Date.now() - startTime) / 1000).toFixed(2);
             this.logger.log(`[SCRAPER] updatePostDetailsInCampaign executed in ${durationSec}s`);
@@ -257,7 +260,7 @@ export class ScrapersService {
             const failed: typeof accounts = [];
             const active: Promise<void>[] = [];
 
-            this.scrapersGateway.startAccountUpdate(
+            this.scrapersGateway.startAccountPostDetailsUpdate(
                 data.refreshInitiatorId,
                 data.campaignId,
                 accounts.map(a => a._id.toString())
@@ -289,7 +292,7 @@ export class ScrapersService {
                     } else {
                         failed.push(acc);
                     }
-                    this.scrapersGateway.finishAccountUpdate(data.refreshInitiatorId, data.campaignId, [acc._id.toString()]);
+                    this.scrapersGateway.finishAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [acc._id.toString()]);
                 }
             };
 
@@ -335,7 +338,7 @@ export class ScrapersService {
                         if (result?.success) {
                             acc.impressions = result.newImpressions ?? acc.impressions;
                             acc.like = result.newLikes ?? acc.like;
-                            this.scrapersGateway.finishAccountUpdate(data.refreshInitiatorId, data.campaignId, [acc._id.toString()]);
+                            this.scrapersGateway.finishAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [acc._id.toString()]);
                         }
                     }
                 }
@@ -366,19 +369,132 @@ export class ScrapersService {
         }
     }
 
-    async updateAllAccounts(data: ReqUpdateAllAccountsDto) {
+    async updateAllAccountsDetails(data: ReqUpdateAllAccountsDto) {
         try {
+            const startTime = Date.now();
+            const { socialMedia, socketId } = data;
 
+            if (socialMedia !== 'tiktok')
+                return { code: 400, message: 'Only TikTok accounts available.' };
+
+            /** Получение всех инфлюенсеров с нужной соцсетью */
+            const influencers = await this.influencersModel.find({
+                [socialMedia]: { $exists: true, $ne: [] },
+            }).lean().exec();
+            if (!influencers || influencers.length === 0)
+                return { code: 404, message: `Accounts from ${socialMedia} were not found` };
+
+            /** Создание плоский массив всех аккаунтов и сохранение ссылки на инфлюенсера */
+            const accounts = influencers.flatMap(inf =>
+                inf[socialMedia].map(acc => ({ ...acc, _idInfluencer: inf._id.toString() }))
+            );
+
+            this.scrapersGateway.startAccountAccountsUpdate(
+                socketId,
+                socialMedia,
+                accounts.map(a => (a as any)._id.toString())
+            );
+
+            const BATCH_SIZE = 10;
+            const MAX_PARALLEL = 3;
+            const failed: typeof accounts = [];
+            const active: Promise<void>[] = [];
+
+            /** Функция обработки одного батча */
+            const processBatch = async (batch: typeof accounts) => {
+                const formattedBatch = batch.map(acc => ({
+                    accountId: acc._id.toString(),
+                    socialMediaUsername: acc.instagramUsername,
+                    accountLink: acc.instagramLink,
+                    oldFollowers: acc.followersNumber ?? "0",
+                    oldLogo: acc.logo ?? "",
+                }));
+
+                const resultMap = await this.scrapeAccountDetailsBatch(
+                    formattedBatch,
+                    socialMedia,
+                    socketId
+                );
+
+                for (const acc of batch) {
+                    const result = resultMap[acc._id.toString()];
+                    if (!result?.success) failed.push(acc);
+
+                    console.log(result, 'res')
+
+                    /** Локальное обновление аккаунта */
+                    acc.followersNumber = result?.newFollowers ?? acc.followersNumber;
+                    acc.logo = result?.newLogo ?? acc.logo;
+
+                    this.scrapersGateway.finishAccountAccountsUpdate(
+                        socketId,
+                        socialMedia,
+                        [acc._id.toString()]
+                    );
+                }
+            };
+
+            /** Основная очередь батчей */
+            const queue = [...accounts];
+            while (queue.length > 0 || active.length > 0) {
+                while (queue.length > 0 && active.length < MAX_PARALLEL) {
+                    const batch = queue.splice(0, BATCH_SIZE);
+                    const p = processBatch(batch).finally(() => active.splice(active.indexOf(p), 1));
+                    active.push(p);
+                }
+                await Promise.race(active);
+            }
+
+            /** Повторная попытка для неудачных */
+            if (failed.length > 0) {
+                this.logger.warn(`[SCRAPER] Retrying ${failed.length} failed accounts...`);
+                const retryQueue = [...failed];
+                failed.length = 0;
+
+                while (retryQueue.length > 0 || active.length > 0) {
+                    while (retryQueue.length > 0 && active.length < MAX_PARALLEL) {
+                        const batch = retryQueue.splice(0, BATCH_SIZE);
+                        const p = processBatch(batch).finally(() => active.splice(active.indexOf(p), 1));
+                        active.push(p);
+                    }
+                    await Promise.race(active);
+                }
+            }
+
+            /** Группировка аккаунтов по инфлюенсерам */
+            const updatesMap: Record<string, SocialAccount[]> = {};
+            accounts.forEach(acc => {
+                if (!updatesMap[acc._idInfluencer]) updatesMap[acc._idInfluencer] = [];
+                updatesMap[acc._idInfluencer].push(acc);
+            });
+
+            /** Обновление инфлюенсеров по одному */
+            for (const [infId, updatedAccounts] of Object.entries(updatesMap)) {
+                await this.influencersModel.updateOne(
+                    { _id: new Types.ObjectId(infId) },
+                    { $set: { [socialMedia]: updatedAccounts } }
+                );
+            }
+
+            this.scrapersGateway.notificationFinishedRefreshingAccounts(socketId, {
+                socialMedia,
+                statusCode: 201,
+            });
+
+            const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+            this.logger.log(`[SCRAPER] updateAllAccountsDetails completed in ${duration}s`);
+
+            return {
+                code: 200,
+                message: `Processed ${accounts.length} ${socialMedia} accounts in batches of ${BATCH_SIZE}`,
+            };
         } catch (e) {
-            this.logger.error(
-                `[SCRAPER] Unexpected error: ${e.message}`,
-                e instanceof Error ? e.stack : new Error().stack,
-            )
+            this.logger.error(`[SCRAPER] updateAllAccountsDetails failed: ${e.message}`, e.stack);
             this.scrapersGateway.notificationFinishedRefreshingAccounts(data.socketId, {
                 socialMedia: data.socialMedia,
                 statusCode: 500,
             });
-            return {code: 500, message: "Internal Server Error"};
+            return { code: 500, message: "Internal Server Error" };
         }
     }
 }
