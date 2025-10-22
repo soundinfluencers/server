@@ -9,18 +9,18 @@ export class TikTokAdapter implements ScraperAdapter<TikTokPostDetailsItem> {
         this.client = new ApifyClient({ token: process.env.APIFY_TOKEN });
     }
 
-    // этот скрэйпер так же позволяет получать лого, превью видео и много другого
-    async runScraper(urls: string[]): Promise<TikTokPostDetailsItem[]> {
+    /** этот скрэйпер так же позволяет получать лого, превью видео и много другого */
+    async runPostDetailsScraper(urls: string[]): Promise<TikTokPostDetailsItem[]> {
         const run = await this.client.actor("clockworks/tiktok-scraper").call({
             postURLs: urls,
             resultsLimit: urls.length,
         });
 
         const datasetRes = await this.client.dataset(run.defaultDatasetId).listItems();
-        return datasetRes.items.map(i => this.normalizeItem(i));
+        return datasetRes.items.map(i => this.normalizePostDetailsItem(i));
     }
 
-    normalizeItem(item: any): TikTokPostDetailsItem {
+    normalizePostDetailsItem(item: any): TikTokPostDetailsItem {
         return {
             url: item.submittedVideoUrl,
             likes: item.diggCount ?? 0,

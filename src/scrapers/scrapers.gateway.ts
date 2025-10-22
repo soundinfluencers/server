@@ -64,6 +64,11 @@ export class ScrapersGateway {
         this.server.emit('notificationFinishedRefreshingPostDetails', data);
     }
 
+    /** Уведомление о завершении обновления всех аккаунтов выбранной соц сети */
+    notificationFinishedRefreshingAccounts(userId: string, data: { socialMedia: string; statusCode: number }) {
+        this.server.emit('notificationFinishedRefreshingPostDetails', data);
+    }
+
     getActiveUpdates() {
         return this.activeUpdates;
     }
