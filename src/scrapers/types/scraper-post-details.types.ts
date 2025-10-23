@@ -5,6 +5,7 @@ export type BasePostDetailsItem = {
 };
 
 export type BaseAccountDetailsItem = {
+    accountUrl: string;
     username: string;
     logoUrl: string;
     followers: number;

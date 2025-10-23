@@ -10,6 +10,7 @@ import {TikTokAdapter} from "./adapters/tiktok.adapter";
 import {findScrapedAccountDetailsMatch, findScrapedPostDetailsMatch} from "./adapters/scraper.adapter";
 import {ReqUpdateAllAccountsDto} from "./dto/req-update-all-accounts.dto";
 import {Influencer, SocialAccount} from "../auth/schemas/influencer.schema";
+import {cleanAccountUrl} from "../utils/socialMedia";
 
 @Injectable()
 export class ScrapersService {
@@ -128,9 +129,10 @@ export class ScrapersService {
 
                 for (const acc of accountsBatch) {
                     const match = findScrapedAccountDetailsMatch(items, acc);
+
                     if (match) {
                         const newFollowers: number | undefined = match.followers ?? 0;
-                        const newLogo: string | undefined = match.logo ?? undefined;
+                        const newLogo: string | undefined = match.logoUrl ?? undefined;
 
                         results[acc.accountId] = {
                             success: true,
@@ -405,7 +407,7 @@ export class ScrapersService {
                 const formattedBatch = batch.map(acc => ({
                     accountId: acc._id.toString(),
                     socialMediaUsername: acc.instagramUsername,
-                    accountLink: acc.instagramLink,
+                    accountLink: cleanAccountUrl(acc.instagramLink, 'tiktok'),
                     oldFollowers: acc.followersNumber ?? "0",
                     oldLogo: acc.logo ?? "",
                 }));
@@ -419,8 +421,6 @@ export class ScrapersService {
                 for (const acc of batch) {
                     const result = resultMap[acc._id.toString()];
                     if (!result?.success) failed.push(acc);
-
-                    console.log(result, 'res')
 
                     /** Локальное обновление аккаунта */
                     acc.followersNumber = result?.newFollowers ?? acc.followersNumber;

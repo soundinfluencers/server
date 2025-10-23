@@ -28,5 +28,5 @@ export function findScrapedAccountDetailsMatch<T extends ScraperAdapter<any>>(
     items: NormalizedAccountDetailsItem<T>[],
     acc: { accountLink: string }
 ): NormalizedAccountDetailsItem<T> | undefined {
-    return items.find(i => i.url === acc.accountLink);
+    return items.find(i => i.accountUrl === acc.accountLink);
 }

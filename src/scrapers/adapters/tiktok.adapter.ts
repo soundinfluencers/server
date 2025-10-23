@@ -1,10 +1,10 @@
 import { ApifyClient } from "apify-client";
 import {ScraperAdapter} from "./scraper.adapter";
 import {
-    InstagramAccountDetailsItem,
     TikTokAccountDetailsItem,
     TikTokPostDetailsItem
 } from "../types/scraper-post-details.types";
+import {cleanAccountUrl} from "../../utils/socialMedia";
 
 export class TikTokAdapter implements ScraperAdapter<TikTokPostDetailsItem> {
     private client: ApifyClient;
@@ -50,6 +50,7 @@ export class TikTokAdapter implements ScraperAdapter<TikTokPostDetailsItem> {
     /** Метод для нормализации возвращаемых данных аккаунта */
     normalizeAccountDetailsItem(item: any): TikTokAccountDetailsItem {
         return {
+            accountUrl: cleanAccountUrl(item?.share_info?.share_url, 'tiktok'),
             username: item.unique_id,
             logoUrl: item?.avatar_larger?.url_list[0] ?? "",
             followers: item.follower_count ?? 0,

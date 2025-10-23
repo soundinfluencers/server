@@ -45,6 +45,7 @@ export class InstagramAdapter implements ScraperAdapter<InstagramPostDetailsItem
     /** Метод для нормализации возвращаемых данных аккаунта */
     normalizeAccountDetailsItem(item: any): InstagramAccountDetailsItem {
         return {
+            accountUrl: '',
             username: '',
             logoUrl: '',
             followers: 0,
