@@ -33,8 +33,6 @@ import {
 } from '../utils/new-promo-message';
 import {AddSocialMediasDto} from '../profile/dto/add-social-medias.dto';
 import {AdminImportXlsxInfluencersDto, CountryObj} from "./dto/admin-import-xlsx-influencers";
-import {ScrapersService} from "../scrapers/scrapers.service";
-import any = jasmine.any;
 
 @Injectable()
 export class AdminService {

@@ -387,9 +387,24 @@ export class ScrapersService {
                 return { code: 404, message: `Accounts from ${socialMedia} were not found` };
 
             /** Создание плоский массив всех аккаунтов и сохранение ссылки на инфлюенсера */
-            const accounts = influencers.flatMap(inf =>
-                inf[socialMedia].map(acc => ({ ...acc, _idInfluencer: inf._id.toString() }))
-            );
+            const accounts = influencers.flatMap(inf => {
+                const accounts = inf[socialMedia] || [];
+
+                return accounts
+                    .filter(acc => {
+                        if (!acc?._id) {
+                            this.logger.warn(
+                                `[SCRAPER] У аккаунта инфлюенсера ${inf._id?.toString() ?? 'UNKNOWN'} отсутствует _id (${socialMedia})`
+                            );
+                            return false;
+                        }
+                        return true;
+                    })
+                    .map(acc => ({
+                        ...acc,
+                        _idInfluencer: inf._id?.toString() ?? null,
+                    }));
+            });
 
             this.scrapersGateway.startAccountAccountsUpdate(
                 socketId,
