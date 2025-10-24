@@ -20,6 +20,9 @@ export class ScrapersService {
         tiktok: new TikTokAdapter(),
     };
 
+    private currentRuns: number = 3;
+    private areAccountsRefreshing = false;
+
     constructor(
         @InjectModel(Promos.name) private readonly campaignsModel: Model<Promos>,
         @InjectModel(Influencer.name) private readonly influencersModel: Model<Influencer>,
@@ -39,65 +42,72 @@ export class ScrapersService {
         userId: string,
         maxRetries: number | undefined = 2,
     ) {
+        this.currentRuns++;
+
         let attempt = 0;
         const results: Record<string, any> = {};
 
-        while (attempt <= maxRetries) {
-            try {
-                const urls = accountsBatch.map(a => a.postLink);
+        try {
+            while (attempt <= maxRetries) {
+                try {
+                    const urls = accountsBatch.map(a => a.postLink);
 
-                const adapter = this.adapterMap[socialMedia];
-                if (!adapter) {
-                    throw new Error(`[SCRAPER] Unsupported social media: ${socialMedia} was used while scraping posts`);
-                }
+                    const adapter = this.adapterMap[socialMedia];
+                    if (!adapter) {
+                        throw new Error(`[SCRAPER] Unsupported social media: ${socialMedia} was used while scraping posts`);
+                    }
 
-                const items = await adapter.runPostDetailsScraper(urls);
+                    const items = await adapter.runPostDetailsScraper(urls);
 
-                for (const acc of accountsBatch) {
-                    const match = findScrapedPostDetailsMatch(items, acc);
-                    if (match) {
-                        const newImpressions = match.views ?? 0;
-                        const newLikes = match.likes ?? 0;
+                    for (const acc of accountsBatch) {
+                        const match = findScrapedPostDetailsMatch(items, acc);
+                        if (match) {
+                            const newImpressions = match.views ?? 0;
+                            const newLikes = match.likes ?? 0;
 
-                        results[acc.accountId] = {
-                            success: true,
-                            newImpressions: newImpressions > 0 ? newImpressions.toString() : acc.impressions,
-                            newLikes: newLikes > 0 ? newLikes.toString() : acc.like,
-                        };
-                        if (userId) {
-                            this.scrapersGateway.refreshPostDetailsStatusUpdate(userId, {
-                                accountId: acc.accountId,
-                                account: acc.socialMediaUsername,
+                            results[acc.accountId] = {
                                 success: true,
-                                newImpressions: results[acc.accountId].newImpressions,
-                                newLikes: results[acc.accountId].newLikes,
-                            });
+                                newImpressions: newImpressions > 0 ? newImpressions.toString() : acc.impressions,
+                                newLikes: newLikes > 0 ? newLikes.toString() : acc.like,
+                            };
+                            if (userId) {
+                                this.scrapersGateway.refreshPostDetailsStatusUpdate(userId, {
+                                    accountId: acc.accountId,
+                                    account: acc.socialMediaUsername,
+                                    success: true,
+                                    newImpressions: results[acc.accountId].newImpressions,
+                                    newLikes: results[acc.accountId].newLikes,
+                                });
+                            }
+                        } else {
+                            results[acc.accountId] = {success: false};
                         }
-                    } else {
-                        results[acc.accountId] = {success: false};
+                    }
+                    break;
+                } catch (e) {
+                    attempt++;
+                    this.logger.error(`[SCRAPER] Posts batch attempt ${attempt} failed: ${e.message}`);
+                    if (attempt > maxRetries) {
+                        accountsBatch.forEach(acc => {
+                            results[acc.accountId] = {success: false};
+                            if (userId) {
+                                this.scrapersGateway.refreshPostDetailsStatusUpdate(userId, {
+                                    accountId: acc.accountId,
+                                    account: acc.socialMediaUsername,
+                                    success: false,
+                                    newImpressions: acc.impressions,
+                                    newLikes: acc.like,
+                                });
+                            }
+                        });
                     }
                 }
-                break;
-            } catch (e) {
-                attempt++;
-                this.logger.error(`[SCRAPER] Posts batch attempt ${attempt} failed: ${e.message}`);
-                if (attempt > maxRetries) {
-                    accountsBatch.forEach(acc => {
-                        results[acc.accountId] = {success: false};
-                        if (userId) {
-                            this.scrapersGateway.refreshPostDetailsStatusUpdate(userId, {
-                                accountId: acc.accountId,
-                                account: acc.socialMediaUsername,
-                                success: false,
-                                newImpressions: acc.impressions,
-                                newLikes: acc.like,
-                            });
-                        }
-                    });
-                }
             }
+        } catch (error) {
+            this.logger.error(`[SCRAPER] Posts batch attempt ${attempt}/${maxRetries} failed: ${error.message}`, error instanceof Error ? error.stack : new Error().stack);
+        } finally {
+            this.currentRuns--;
         }
-
         return results;
     }
 
@@ -113,70 +123,84 @@ export class ScrapersService {
         userId: string,
         maxRetries: number | undefined = 2,
     ) {
+        this.currentRuns++;
+
         let attempt = 0;
         const results: Record<string, any> = {};
 
-        while (attempt <= maxRetries) {
-            try {
-                const urls = accountsBatch.map(a => a.accountLink);
+        try {
+            while (attempt <= maxRetries) {
+                try {
+                    const urls = accountsBatch.map(a => a.accountLink);
 
-                const adapter = this.adapterMap[socialMedia];
-                if (!adapter) {
-                    throw new Error(`[SCRAPER] Unsupported social media: ${socialMedia} was used while scraping accounts`);
-                }
+                    const adapter = this.adapterMap[socialMedia];
+                    if (!adapter) {
+                        throw new Error(`[SCRAPER] Unsupported social media: ${socialMedia} was used while scraping accounts`);
+                    }
 
-                const items = await adapter.runAccountDetailsScraper(urls);
+                    const items = await adapter.runAccountDetailsScraper(urls);
 
-                for (const acc of accountsBatch) {
-                    const match = findScrapedAccountDetailsMatch(items, acc);
+                    for (const acc of accountsBatch) {
+                        const match = findScrapedAccountDetailsMatch(items, acc);
 
-                    if (match) {
-                        const newFollowers: number | undefined = match.followers ?? 0;
-                        const newLogo: string | undefined = match.logoUrl ?? undefined;
+                        if (match) {
+                            const newFollowers: number | undefined = match.followers ?? 0;
+                            const newLogo: string | undefined = match.logoUrl ?? undefined;
 
-                        results[acc.accountId] = {
-                            success: true,
-                            newFollowers: newFollowers > 0 ? newFollowers.toString() : acc.oldFollowers,
-                            newLogo: newLogo ? newLogo : acc.oldLogo,
-                        };
-                        if (userId) {
-                            this.scrapersGateway.refreshAccountStatusUpdate(userId, {
-                                accountId: acc.accountId,
-                                account: acc.socialMediaUsername,
+                            results[acc.accountId] = {
                                 success: true,
-                                newFollowers: results[acc.accountId].newFollowers,
-                                newLogo: results[acc.accountId].newLogo,
-                            });
+                                newFollowers: newFollowers > 0 ? newFollowers.toString() : acc.oldFollowers,
+                                newLogo: newLogo ? newLogo : acc.oldLogo,
+                            };
+                            if (userId) {
+                                this.scrapersGateway.refreshAccountStatusUpdate(userId, {
+                                    accountId: acc.accountId,
+                                    account: acc.socialMediaUsername,
+                                    success: true,
+                                    newFollowers: results[acc.accountId].newFollowers,
+                                    newLogo: results[acc.accountId].newLogo,
+                                });
+                            }
+                        } else {
+                            results[acc.accountId] = {success: false};
                         }
-                    } else {
-                        results[acc.accountId] = {success: false};
+                    }
+                    break;
+                } catch (e) {
+                    attempt++;
+                    this.logger.error(`[SCRAPER] Accounts batch attempt ${attempt} failed: ${e.message}`);
+                    if (attempt > maxRetries) {
+                        accountsBatch.forEach(acc => {
+                            results[acc.accountId] = {success: false};
+                            if (userId) {
+                                this.scrapersGateway.refreshPostDetailsStatusUpdate(userId, {
+                                    accountId: acc.accountId,
+                                    account: acc.socialMediaUsername,
+                                    success: false,
+                                    newFollowers: acc.oldFollowers,
+                                    newLogo: acc.oldLogo,
+                                });
+                            }
+                        });
                     }
                 }
-                break;
-            } catch (e) {
-                attempt++;
-                this.logger.error(`[SCRAPER] Accounts batch attempt ${attempt} failed: ${e.message}`);
-                if (attempt > maxRetries) {
-                    accountsBatch.forEach(acc => {
-                        results[acc.accountId] = {success: false};
-                        if (userId) {
-                            this.scrapersGateway.refreshPostDetailsStatusUpdate(userId, {
-                                accountId: acc.accountId,
-                                account: acc.socialMediaUsername,
-                                success: false,
-                                newFollowers: acc.oldFollowers,
-                                newLogo: acc.oldLogo,
-                            });
-                        }
-                    });
-                }
             }
+        } catch (error) {
+            this.logger.error(`[SCRAPER] Accounts batch attempt ${attempt}/${maxRetries} failed: ${error.message}`, error instanceof Error ? error.stack : new Error().stack);
+        } finally {
+            this.currentRuns--;
         }
-
         return results;
     }
 
     async updatePostDetailsInCampaign(data: ReqUpdatePostDetailsDto) {
+        if (this.currentRuns >= 30) {
+            return {
+                code: 503,
+                message: 'Service unavailable'
+            }
+        }
+
         const startTime = Date.now();
         const campaign = await this.campaignsModel.findById(data.campaignId);
         if (!campaign) return {code: 404, message: 'Campaign not found'};
@@ -248,6 +272,13 @@ export class ScrapersService {
     }
 
     async updateAllPostsDetailsInCampaign(data: ReqUpdateAllPostsDetailsDto) {
+        if (this.currentRuns >= 20 || this.areAccountsRefreshing === true) {
+            return {
+                code: 503,
+                message: 'Service unavailable'
+            }
+        }
+
         try {
             const startTime = Date.now();
             const campaign = await this.campaignsModel.findById(data.campaignId);
@@ -372,19 +403,28 @@ export class ScrapersService {
     }
 
     async updateAllAccountsDetails(data: ReqUpdateAllAccountsDto) {
+        if (this.currentRuns > 10) {
+            return {
+                code: 503,
+                message: 'Service unavailable'
+            }
+        }
+
+        this.areAccountsRefreshing = true;
+
         try {
             const startTime = Date.now();
-            const { socialMedia, socketId } = data;
+            const {socialMedia, socketId} = data;
 
             if (socialMedia !== 'tiktok')
-                return { code: 400, message: 'Only TikTok accounts available.' };
+                return {code: 400, message: 'Only TikTok accounts available.'};
 
             /** Получение всех инфлюенсеров с нужной соцсетью */
             const influencers = await this.influencersModel.find({
-                [socialMedia]: { $exists: true, $ne: [] },
+                [socialMedia]: {$exists: true, $ne: []},
             }).lean().exec();
             if (!influencers || influencers.length === 0)
-                return { code: 404, message: `Accounts from ${socialMedia} were not found` };
+                return {code: 404, message: `Accounts from ${socialMedia} were not found`};
 
             /** Создание плоский массив всех аккаунтов и сохранение ссылки на инфлюенсера */
             const accounts = influencers.flatMap(inf => {
@@ -413,7 +453,7 @@ export class ScrapersService {
             );
 
             const BATCH_SIZE = 10;
-            const MAX_PARALLEL = 3;
+            const MAX_PARALLEL = 15;
             const failed: typeof accounts = [];
             const active: Promise<void>[] = [];
 
@@ -486,8 +526,8 @@ export class ScrapersService {
             /** Обновление инфлюенсеров по одному */
             for (const [infId, updatedAccounts] of Object.entries(updatesMap)) {
                 await this.influencersModel.updateOne(
-                    { _id: new Types.ObjectId(infId) },
-                    { $set: { [socialMedia]: updatedAccounts } }
+                    {_id: new Types.ObjectId(infId)},
+                    {$set: {[socialMedia]: updatedAccounts}}
                 );
             }
 
@@ -509,7 +549,9 @@ export class ScrapersService {
                 socialMedia: data.socialMedia,
                 statusCode: 500,
             });
-            return { code: 500, message: "Internal Server Error" };
+            return {code: 500, message: "Internal Server Error"};
+        } finally {
+            this.areAccountsRefreshing = false;
         }
     }
 }

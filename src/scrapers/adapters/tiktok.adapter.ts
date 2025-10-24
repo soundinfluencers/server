@@ -18,7 +18,7 @@ export class TikTokAdapter implements ScraperAdapter<TikTokPostDetailsItem> {
         const run = await this.client.actor("clockworks/tiktok-scraper").call({
             postURLs: urls,
             resultsLimit: urls.length,
-            memory: 512,
+            memory: 1024,
         });
 
         const datasetRes = await this.client.dataset(run.defaultDatasetId).listItems();
@@ -30,7 +30,7 @@ export class TikTokAdapter implements ScraperAdapter<TikTokPostDetailsItem> {
         const run = await this.client.actor("novi/tiktok-user-info-api").call({
             urls: urls,
             resultsLimit: urls.length,
-            memory: 512,
+            memory: 1024,
         });
 
         const datasetRes = await this.client.dataset(run.defaultDatasetId).listItems();
