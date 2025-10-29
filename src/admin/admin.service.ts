@@ -1123,6 +1123,63 @@ export class AdminService {
         };
     }
 
+    async adminReopenCampaign(campaignId: string) {
+        if (!campaignId) {
+            return {
+                code: 400,
+                message: 'Not enough arguments',
+            };
+        }
+
+        const campaign = await this.promosCopiesModel.findOne({ _id: campaignId }).lean().exec();
+
+        if (!campaign) {
+            return {
+                code: 404,
+                message: 'Campaign not found',
+            };
+        }
+
+        const session = await this.promosModel.db.startSession();
+        session.startTransaction();
+
+        try {
+            const campaignToCreate: Promos = {
+                ...campaign,
+                statusCampaign: 'work',
+                isCopy: false,
+            };
+
+            const [createdCampaign] = await this.promosModel.create([campaignToCreate], { session });
+
+            const newShareLink = `${process.env.SERVER_CLIENT}/promo-share/${createdCampaign._id}/${createdCampaign.socialMedia}`;
+
+            await this.promosModel.findByIdAndUpdate(
+                createdCampaign._id,
+                { shareLink: newShareLink },
+                { session },
+            );
+
+            await this.promosCopiesModel.deleteOne({ _id: campaignId }, { session });
+
+            await session.commitTransaction();
+            session.endSession();
+
+            return { code: 201, campaignId: createdCampaign._id };
+        } catch (err) {
+            await session.abortTransaction();
+            session.endSession();
+
+            this.logger.error(
+                `Error reopening campaign ${campaign.campaignName} (${campaignId}): ${err}`,
+                err instanceof Error ? err.stack : new Error().stack,
+            );
+
+            return { code: 500, message: 'Internal server error' };
+        }
+    }
+
+
     async adminSendCampaignPublicLinkToClient(userId: string, publicLink: string) {
         try {
             const user = await this.clientModel.findOne({_id: userId}).lean().exec();
@@ -2799,7 +2856,7 @@ export class AdminService {
 
                 if (modified) {
                     await this.influencerModel.updateOne(
-                        { _id: influencer._id },
+                        {_id: influencer._id},
                         {
                             $set: Object.fromEntries(
                                 socialMediaFields.map((f) => [f, influencer[f]]),

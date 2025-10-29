@@ -228,6 +228,15 @@ export class AdminController {
         return this.adminService.adminClosePromo(decryptedCampaignId);
     }
 
+    @Post('campaign/reopen-campaign/:campaignId')
+    adminReopenPromo(@Param('campaignId') campaignId: string) {
+        const decryptedCampaignId = decodeAndDecrypt(
+            campaignId,
+            process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+        );
+        return this.adminService.adminReopenCampaign(decryptedCampaignId);
+    }
+
     @Put('influencer/hide-instagram/:influencerId/:instagramUsername')
     adminHideInstagramAccount(
         @Param('influencerId') influencerId: string,
