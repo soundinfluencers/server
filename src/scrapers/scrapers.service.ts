@@ -20,7 +20,7 @@ export class ScrapersService {
         tiktok: new TikTokAdapter(),
     };
 
-    private currentRuns: number = 3;
+    private currentRuns: number = 0;
     private areAccountsRefreshing = false;
 
     constructor(
@@ -416,8 +416,8 @@ export class ScrapersService {
             const startTime = Date.now();
             const {socialMedia, socketId} = data;
 
-            if (socialMedia !== 'tiktok')
-                return {code: 400, message: 'Only TikTok accounts available.'};
+            if (!['instagram', 'tiktok'].includes(socialMedia))
+                return {code: 400, message: 'Only Instagram and TikTok accounts available.'};
 
             /** Получение всех инфлюенсеров с нужной соцсетью */
             const influencers = await this.influencersModel.find({
@@ -453,7 +453,8 @@ export class ScrapersService {
             );
 
             const BATCH_SIZE = 10;
-            const MAX_PARALLEL = 15;
+            // const MAX_PARALLEL = 15;
+            const MAX_PARALLEL = 7;
             const failed: typeof accounts = [];
             const active: Promise<void>[] = [];
 
@@ -540,7 +541,7 @@ export class ScrapersService {
             this.logger.log(`[SCRAPER] updateAllAccountsDetails completed in ${duration}s`);
 
             return {
-                code: 200,
+                code: 201,
                 message: `Processed ${accounts.length} ${socialMedia} accounts in batches of ${BATCH_SIZE}`,
             };
         } catch (e) {

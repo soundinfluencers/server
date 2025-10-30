@@ -2169,6 +2169,8 @@ ${emailVideoContent()}
     }
 
     async saveXLSXCampaign(typeOfStorage: string, data: SaveXlsxPromoDto) {
+        console.log(data, 'data')
+
         try {
             if (!data) {
                 return {
