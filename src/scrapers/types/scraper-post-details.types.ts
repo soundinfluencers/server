@@ -25,5 +25,6 @@ export type TikTokPostDetailsItem = BasePostDetailsItem & {
 };
 
 export type TikTokAccountDetailsItem = BaseAccountDetailsItem & {
-
+    engagementRate?: number;
+    averageViews?: number;
 }

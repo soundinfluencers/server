@@ -181,12 +181,13 @@ export class InstagramAdapter implements ScraperAdapter<InstagramPostDetailsItem
                 : undefined;
         } catch (err: any) {
             this.logger.error(
-                `Error calculating engagement rate for account ${item.username}: ${err.message}`
+                `Error calculating engagement rate for instagram account ${item.username}: ${err.message}`
             );
             return undefined;
         }
     }
 
+    /** Метод расчёта average views */
     calculateAverageViews(item: {
         accountUrl: string;
         username: string;
@@ -203,7 +204,7 @@ export class InstagramAdapter implements ScraperAdapter<InstagramPostDetailsItem
             return Math.round(totalViews / item.latestIgtvVideos.length);
         } catch (err: any) {
             this.logger.error(
-                `Error calculating average views for account ${item.username}: ${err.message}`
+                `Error calculating average views for instagram account ${item.username}: ${err.message}`
             );
             return undefined;
         }
