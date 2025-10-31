@@ -16,7 +16,8 @@ export type InstagramPostDetailsItem = BasePostDetailsItem & {
 };
 
 export type InstagramAccountDetailsItem = BaseAccountDetailsItem & {
-
+    engagementRate?: number;
+    averageViews?: number;
 }
 
 export type TikTokPostDetailsItem = BasePostDetailsItem & {

@@ -3,8 +3,10 @@ import {ApifyClient} from "apify-client";
 import {InstagramAccountDetailsItem, InstagramPostDetailsItem} from "../types/scraper-post-details.types";
 import {DropboxService} from 'src/services/Dropbox.service';
 import axios from "axios";
+import {Logger} from "@nestjs/common";
 
 export class InstagramAdapter implements ScraperAdapter<InstagramPostDetailsItem> {
+    private readonly logger = new Logger();
     private client: ApifyClient;
     private dropboxService: DropboxService;
 
@@ -53,6 +55,21 @@ export class InstagramAdapter implements ScraperAdapter<InstagramPostDetailsItem
     async normalizeAccountDetailsItem(item: any): Promise<InstagramAccountDetailsItem> {
         let logoUrl: string = '';
 
+        const engagementRate = this.calculateEngagementRate({
+            accountUrl: item.inputUrl,
+            username: item.username,
+            followersNumber: item.followersCount ?? undefined,
+            latestPosts: item.latestPosts,
+            latestIgtvVideos: item.latestIgtvVideos
+        })
+
+        const averageViews = this.calculateAverageViews({
+            accountUrl: item.inputUrl,
+            username: item.username,
+            latestIgtvVideos: item.latestIgtvVideos
+        })
+
+
         /** Вспомогательная функция для скачивания изображения с retry */
         const fetchImage = async (url: string, retries = 3): Promise<Buffer | null> => {
             for (let i = 0; i < retries; i++) {
@@ -67,7 +84,7 @@ export class InstagramAdapter implements ScraperAdapter<InstagramPostDetailsItem
                     return Buffer.from(res.data);
                 } catch (err: any) {
                     console.warn(`Попытка ${i + 1} скачать фото ${item.username} не удалась: ${err.message}`);
-                    const delay = Math.pow(2, i) * 1000; // 1s, 2s, 4s
+                    const delay = Math.pow(2, i) * 1000;
                     await new Promise(r => setTimeout(r, delay));
                 }
             }
@@ -126,6 +143,69 @@ export class InstagramAdapter implements ScraperAdapter<InstagramPostDetailsItem
             username: item.username,
             logoUrl: logoUrl ?? '',
             followers: item.followersCount ?? 0,
+            engagementRate: engagementRate,
+            averageViews: averageViews,
         };
+    }
+
+    /** Метод расчёта engagement rate */
+    calculateEngagementRate(
+        item: {
+            accountUrl: string;
+            username: string;
+            followersNumber: number | undefined;
+            latestPosts: any[];
+            latestIgtvVideos: any[];
+        }
+    ): number | undefined {
+        try {
+            const maxPosts = 5;
+            const maxTotal = 10;
+
+            const posts = item.latestPosts.slice().reverse().slice(0, maxPosts);
+
+            const remainingSlots = maxTotal - posts.length;
+
+            const igtv = item.latestIgtvVideos.slice().reverse().slice(0, Math.min(maxPosts, remainingSlots));
+
+            const dataForCalculating = [...posts, ...igtv];
+
+            const totalEngagement = dataForCalculating.reduce((sum, post) => {
+                const likes = post.likesCount ?? 0;
+                const comments = post.commentsCount ?? 0;
+                return sum + likes + comments;
+            }, 0);
+
+            return item.followersNumber
+                ? parseFloat(((totalEngagement / item.followersNumber) * 100).toFixed(2))
+                : undefined;
+        } catch (err: any) {
+            this.logger.error(
+                `Error calculating engagement rate for account ${item.username}: ${err.message}`
+            );
+            return undefined;
+        }
+    }
+
+    calculateAverageViews(item: {
+        accountUrl: string;
+        username: string;
+        latestIgtvVideos: any[];
+    }): number | undefined {
+        if (!item.latestIgtvVideos?.length) return undefined;
+
+        try {
+            const totalViews = item.latestIgtvVideos.reduce((sum, post) => {
+                const views = post.videoViewCount ?? 0;
+                return sum + views;
+            }, 0);
+
+            return Math.round(totalViews / item.latestIgtvVideos.length);
+        } catch (err: any) {
+            this.logger.error(
+                `Error calculating average views for account ${item.username}: ${err.message}`
+            );
+            return undefined;
+        }
     }
 }

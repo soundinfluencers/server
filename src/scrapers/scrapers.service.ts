@@ -118,6 +118,8 @@ export class ScrapersService {
             accountLink: string;
             oldLogo: string;
             oldFollowers: string;
+            oldEngagementRate: number;
+            oldAverageViews: number;
         }[],
         socialMedia: string,
         userId: string,
@@ -144,13 +146,17 @@ export class ScrapersService {
                         const match = findScrapedAccountDetailsMatch(items, acc);
 
                         if (match) {
-                            const newFollowers: number | undefined = match.followers ?? 0;
+                            const newFollowers: number | undefined = match.followers ?? undefined;
                             const newLogo: string | undefined = match.logoUrl ?? undefined;
+                            const newEngagementRate: number | undefined = match.engagementRate ?? undefined;
+                            const newAverageViews: number | undefined = match.averageViews ?? undefined;
 
                             results[acc.accountId] = {
                                 success: true,
                                 newFollowers: newFollowers > 0 ? newFollowers.toString() : acc.oldFollowers,
                                 newLogo: newLogo ? newLogo : acc.oldLogo,
+                                newEngagementRate: newEngagementRate ?? acc.oldEngagementRate,
+                                newAverageViews: newAverageViews ?? acc.oldAverageViews,
                             };
                             if (userId) {
                                 this.scrapersGateway.refreshAccountStatusUpdate(userId, {
@@ -159,6 +165,8 @@ export class ScrapersService {
                                     success: true,
                                     newFollowers: results[acc.accountId].newFollowers,
                                     newLogo: results[acc.accountId].newLogo,
+                                    newEngagementRate: results[acc.accountId].newEngagementRate,
+                                    newAverageViews: results[acc.accountId].newAverageViews,
                                 });
                             }
                         } else {
@@ -179,6 +187,8 @@ export class ScrapersService {
                                     success: false,
                                     newFollowers: acc.oldFollowers,
                                     newLogo: acc.oldLogo,
+                                    newEngagementRate: acc.oldEngagementRate,
+                                    newAverageViews: acc.oldAverageViews,
                                 });
                             }
                         });
@@ -410,6 +420,7 @@ export class ScrapersService {
             }
         }
 
+        this.logger.log(`[SCRAPER] updateAllAccountsDetails started for ${data.socialMedia} accounts`);
         this.areAccountsRefreshing = true;
 
         try {
@@ -453,8 +464,8 @@ export class ScrapersService {
             );
 
             const BATCH_SIZE = 10;
-            // const MAX_PARALLEL = 15;
-            const MAX_PARALLEL = 7;
+            const MAX_PARALLEL = 15;
+            // const MAX_PARALLEL = 7;
             const failed: typeof accounts = [];
             const active: Promise<void>[] = [];
 
@@ -466,6 +477,8 @@ export class ScrapersService {
                     accountLink: cleanAccountUrl(acc.instagramLink, 'tiktok'),
                     oldFollowers: acc.followersNumber ?? "0",
                     oldLogo: acc.logo ?? "",
+                    oldEngagementRate: acc.engagementRate ?? 0,
+                    oldAverageViews: acc.averageViews ?? 0,
                 }));
 
                 const resultMap = await this.scrapeAccountDetailsBatch(
@@ -481,6 +494,8 @@ export class ScrapersService {
                     /** Локальное обновление аккаунта */
                     acc.followersNumber = result?.newFollowers ?? acc.followersNumber;
                     acc.logo = result?.newLogo ?? acc.logo;
+                    acc.engagementRate = result?.newEngagementRate ?? acc.engagementRate;
+                    acc.averageViews = result?.newAverageViews ?? 0;
 
                     this.scrapersGateway.finishAccountAccountsUpdate(
                         socketId,
