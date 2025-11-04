@@ -1,7 +1,17 @@
+import {Types} from "mongoose";
+
 export type BasePostDetailsItem = {
     url: string;
     likes: number;
     views: number;
+    commentsCount: number;
+    latestComments?: {
+        _id: Types.ObjectId;
+        ownerUsername: string;
+        text: string;
+        ownerLogo?: string;
+        creationDate?: string;
+    }[];
 };
 
 export type BaseAccountDetailsItem = {
@@ -21,7 +31,8 @@ export type InstagramAccountDetailsItem = BaseAccountDetailsItem & {
 }
 
 export type TikTokPostDetailsItem = BasePostDetailsItem & {
-    shares?: string;
+    shares?: number;
+    saves?: number;
 };
 
 export type TikTokAccountDetailsItem = BaseAccountDetailsItem & {

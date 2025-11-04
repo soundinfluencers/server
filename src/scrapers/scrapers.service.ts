@@ -62,6 +62,8 @@ export class ScrapersService {
                     for (const acc of accountsBatch) {
                         const match = findScrapedPostDetailsMatch(items, acc);
                         if (match) {
+                            console.log(match, 'match')
+
                             const newImpressions = match.views ?? 0;
                             const newLikes = match.likes ?? 0;
 

@@ -4,6 +4,7 @@ import {InstagramAccountDetailsItem, InstagramPostDetailsItem} from "../types/sc
 import {DropboxService} from 'src/services/Dropbox.service';
 import axios from "axios";
 import {Logger} from "@nestjs/common";
+import {Types} from "mongoose";
 
 export class InstagramAdapter implements ScraperAdapter<InstagramPostDetailsItem> {
     private readonly logger = new Logger();
@@ -48,6 +49,13 @@ export class InstagramAdapter implements ScraperAdapter<InstagramPostDetailsItem
             url: item.inputUrl,
             likes: item.likesCount ?? 0,
             views: item.videoPlayCount ?? item.videoViewCount ?? 0,
+            commentsCount: item.commentsCount ?? 0,
+            latestComments: item.latestComments?.map(i => ({
+                _id: new Types.ObjectId(),
+                ownerUsername: i.ownerUsername,
+                text: i.text,
+                creationDate: i.timestamp ? new Date(i.timestamp) : undefined,
+            }))
         };
     }
 

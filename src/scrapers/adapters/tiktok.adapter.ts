@@ -92,7 +92,9 @@ export class TikTokAdapter implements ScraperAdapter<TikTokPostDetailsItem> {
             url: item.submittedVideoUrl,
             likes: item.diggCount ?? 0,
             views: item.playCount ?? 0,
+            commentsCount: item.commentCount ?? 0,
             shares: item.shareCount ?? 0,
+            saves: item.collectCount ?? 0,
         };
     }
 
