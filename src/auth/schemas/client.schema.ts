@@ -49,6 +49,9 @@ export class Client {
 
     @Prop({default: ''})
     internalNote: string;
+
+    @Prop({ default: '' })
+    refreshToken: string;
 }
 
 export const ClientSchema = SchemaFactory.createForClass(Client);

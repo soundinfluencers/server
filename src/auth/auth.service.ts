@@ -1,4 +1,4 @@
-import {Injectable} from '@nestjs/common';
+import {Inject, Injectable} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
 import {CreateClientDto} from './dto/create-client.dto';
 import {CreateInfluencerDto} from './dto/create-influencer.dto';
@@ -11,6 +11,7 @@ import {VerifyDto} from './dto/verify.dto';
 import sendMail from '../services/sendMail';
 import {VerifyInfluencer} from './schemas/verifyInfluencer.schema';
 import {VerifyClient} from './schemas/verifyClient.schema';
+import {Response} from "express";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -38,7 +39,7 @@ function generateRandomDigits(length) {
 
 @Injectable()
 export class AuthService {
-    private readonly secretKey = '9fgfdrdr@fdfd';
+    // private readonly secretKey = '9fgfdrdr@fdfd';
 
     constructor(
         @InjectModel(Client.name)
@@ -49,6 +50,8 @@ export class AuthService {
         private verifyInfluencerModel: mongoose.Model<VerifyInfluencer>,
         @InjectModel(VerifyClient.name)
         private verifyClientModel: mongoose.Model<VerifyClient>,
+        @Inject('JWT_SECRET') private readonly secretKey: string,
+        @Inject('JWT_REFRESH_SECRET') private readonly refreshSecretKey: string,
     ) {
     }
 
@@ -499,55 +502,67 @@ export class AuthService {
         }
     }
 
-    async loginUser(loginData: LoginDto) {
+    async saveRefreshToken(userId: string, token: string) {
+        await this.clientModel.updateOne({ _id: userId }, { refreshToken: token });
+    }
+
+    async loginUser(loginData: LoginDto, res: Response) {
         try {
             if (!loginData.email || !loginData.password) {
-                return {
-                    code: 400,
-                    message: 'Not enough arguments',
-                };
+                return res.status(400).json({ message: 'Not enough arguments' });
             }
 
             const email = loginData.email.toLowerCase();
 
-            const checkUser =
-                (await this.influencerModel.findOne({
-                    $expr: {$eq: [{$toLower: "$email"}, email]},
-                })) ||
-                (await this.clientModel.findOne({
-                    $expr: {$eq: [{$toLower: "$email"}, email]},
-                }));
+            const user =
+                (await this.influencerModel.findOne({ email })) ||
+                (await this.clientModel.findOne({ email }));
 
-            if (!checkUser) {
-                return {
-                    code: 404,
-                    message: 'Not Found',
-                };
+            if (!user) {
+                return res.status(404).json({ message: 'User not found' });
             }
 
-            if (bcrypt.compareSync(loginData.password, checkUser.password)) {
-                if (checkUser.statusVerify === 'wait') {
-                    return {
-                        code: 403,
-                        message: 'not verify account',
-                    };
-                }
-                return {
-                    code: 200,
-                    token: jwt.sign({id: checkUser.id, role: checkUser.role}, this.secretKey),
-                    role: checkUser.role,
-                };
-            } else {
-                return {
-                    code: 400,
-                    message: 'Password is not correct',
-                };
+            const isPasswordCorrect = bcrypt.compareSync(loginData.password, user.password);
+            if (!isPasswordCorrect) {
+                return res.status(400).json({ message: 'Password is not correct' });
             }
+
+            if (user.statusVerify === 'wait') {
+                return res.status(403).json({ message: 'Account not verified' });
+            }
+
+            const accessToken = jwt.sign(
+                { id: user.id, role: user.role },
+                this.secretKey,
+                { expiresIn: '15m' }
+            );
+
+            const refreshToken = jwt.sign(
+                { id: user.id },
+                this.refreshSecretKey,
+                { expiresIn: '7d' }
+            );
+
+            // save refresh token
+            await this.saveRefreshToken(user.id, refreshToken);
+
+            // Send refreshToken as HTTP-only cookie
+            res.cookie("refreshToken", refreshToken, {
+                httpOnly: true,
+                secure: true,
+                sameSite: "strict",
+                path: "/auth/refresh",
+                maxAge: 7 * 24 * 60 * 60 * 1000
+            });
+
+            return res.status(200).json({
+                accessToken,
+                role: user.role
+            });
+
         } catch (error) {
-            return {
-                code: 500,
-                message: 'Server Error',
-            };
+            console.error(error);
+            return res.status(500).json({ message: 'Server Error' });
         }
     }
 

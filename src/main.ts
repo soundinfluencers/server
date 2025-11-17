@@ -14,6 +14,7 @@ async function bootstrap() {
             'http://localhost:3000',
             'http://localhost:5173',
             'http://localhost:3001',
+            'http://192.168.0.105:5173',
             'http://192.168.0.105:3000',
             'http://192.168.0.105:3001',
             // 'https://api.soundinfluencers.com',
@@ -21,6 +22,7 @@ async function bootstrap() {
             'https://go.soundinfluencers.com',
         ],
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+        credentials: true,
         allowedHeaders: 'Content-Type, Authorization',
     });
 

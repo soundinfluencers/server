@@ -17,6 +17,16 @@ import { VerifyClient, VerifyClientSchema } from './schemas/verifyClient.schema'
     ]),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [
+      AuthService,
+      {
+          provide: 'JWT_SECRET',
+          useValue: process.env.JWT_SECRET,
+      },
+      {
+          provide: 'JWT_REFRESH_SECRET',
+          useValue: process.env.JWT_REFRESH_SECRET,
+      }
+  ],
 })
 export class AuthModule {}
