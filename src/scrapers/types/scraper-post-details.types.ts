@@ -39,3 +39,14 @@ export type TikTokAccountDetailsItem = BaseAccountDetailsItem & {
     engagementRate?: number;
     averageViews?: number;
 }
+
+
+export type FacebookPostDetailsItem = BasePostDetailsItem & {
+    shares?: number;
+    saves?: number;
+};
+
+export type FacebookAccountDetailsItem = BaseAccountDetailsItem & {
+    engagementRate?: number;
+    averageViews?: number;
+}

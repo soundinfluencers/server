@@ -11,6 +11,7 @@ import {findScrapedAccountDetailsMatch, findScrapedPostDetailsMatch} from "./ada
 import {ReqUpdateAllAccountsDto} from "./dto/req-update-all-accounts.dto";
 import {Influencer, SocialAccount} from "../auth/schemas/influencer.schema";
 import {cleanAccountUrl} from "../utils/socialMedia";
+import {FacebookAdapter} from "./adapters/facebook.adapter";
 
 @Injectable()
 export class ScrapersService {
@@ -18,6 +19,7 @@ export class ScrapersService {
     private readonly adapterMap = {
         instagram: new InstagramAdapter(),
         tiktok: new TikTokAdapter(),
+        facebook: new FacebookAdapter(),
     };
 
     private currentRuns: number = 0;
@@ -218,7 +220,7 @@ export class ScrapersService {
         if (!campaign) return {code: 404, message: 'Campaign not found'};
 
         const accountPostDetails = campaign.selectInfluencers.find(
-            i => i._id.toString() === data.accountId && ['instagram', 'tiktok'].includes(i.socialMedia),
+            i => i._id.toString() === data.accountId && ['instagram', 'tiktok', 'facebook'].includes(i.socialMedia),
         );
         if (!accountPostDetails?.postLink) {
             return {code: 400, message: `Can't find required account or social media isn't supported`};
@@ -297,7 +299,7 @@ export class ScrapersService {
             if (!campaign) return {code: 404, message: `Campaign not found`};
 
             const accounts = campaign.selectInfluencers.filter(
-                acc => ['instagram', 'tiktok'].includes(acc.socialMedia) && !!acc.postLink
+                acc => ['instagram', 'tiktok', 'facebook'].includes(acc.socialMedia) && !!acc.postLink
             );
 
             const BATCH_SIZE = 10;
@@ -429,8 +431,8 @@ export class ScrapersService {
             const startTime = Date.now();
             const {socialMedia, socketId} = data;
 
-            if (!['instagram', 'tiktok'].includes(socialMedia))
-                return {code: 400, message: 'Only Instagram and TikTok accounts available.'};
+            if (!['instagram', 'tiktok', 'facebook'].includes(socialMedia))
+                return {code: 400, message: 'Only Instagram, TikTok and Facebook accounts available.'};
 
             /** Получение всех инфлюенсеров с нужной соцсетью */
             const influencers = await this.influencersModel.find({

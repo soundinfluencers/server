@@ -163,7 +163,7 @@ export class PaymentService {
   }
 
   async createOrderStripe(data: CreateOrderStripe) {
-    // Updated input type
+    // Updated text-input type
     if (!data.amount || typeof data.amount !== `number` || !data.nameProduct || !data.userId) {
       return {
         code: 400,

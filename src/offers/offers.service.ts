@@ -118,7 +118,7 @@ export class OffersService {
         ])
         .exec();
 
-      // Map для быстрого доступа к socialMediaUsername и logo
+      // Map для быстрого доступа к socialMediaUsername и logos
       const accountMap = new Map<string, { socialMediaUsername: string; logo: string }>();
       influencers.forEach((influencer) => {
         if (influencer.accountId) {
@@ -243,7 +243,7 @@ export class OffersService {
         ])
         .exec();
 
-      // Map для быстрого доступа к socialMediaUsername и logo
+      // Map для быстрого доступа к socialMediaUsername и logos
       const accountMap = new Map<string, { socialMediaUsername: string; logo: string }>();
       influencers.forEach((influencer) => {
         if (influencer.accountId) {

@@ -22,6 +22,8 @@ import {AdminUpdateFullCampaignDto} from './dto/admin-update-full-campaign';
 import axios from 'axios';
 
 const fs = require('fs');
+// import * as fs from 'fs';
+import * as path from 'path';
 const PDFDocument = require('pdfkit');
 const bcrypt = require('bcryptjs');
 import * as process from 'node:process';
