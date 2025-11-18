@@ -566,6 +566,47 @@ export class AuthService {
         }
     }
 
+    async refreshToken(token: string): Promise<{ accessToken: string }> {
+        if (!token) throw new Error('No refresh token');
+
+        let payload: any;
+        try {
+            payload = jwt.verify(token, this.refreshSecretKey) as { id: string };
+        } catch {
+            throw new Error('Invalid token');
+        }
+
+        const user =
+            (await this.influencerModel.findById(payload.id)) ||
+            (await this.clientModel.findById(payload.id));
+
+        if (!user || !(user as any).refreshToken || (user as any).refreshToken !== token) {
+            throw new Error('Invalid refresh token');
+        }
+
+        const accessToken = jwt.sign(
+            { id: user.id, role: user.role },
+            this.secretKey,
+            { expiresIn: '15m' },
+        );
+
+        return { accessToken };
+    }
+
+    async logout(refreshToken: string) {
+        if (!refreshToken) return;
+
+        await this.clientModel.updateOne(
+            { refreshToken },
+            { $unset: { refreshToken: null } }
+        );
+
+        await this.influencerModel.updateOne(
+            { refreshToken },
+            { $unset: { refreshToken: null } }
+        );
+    }
+
     async verify(data: VerifyDto) {
         try {
             if (!data.token) {

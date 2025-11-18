@@ -2434,7 +2434,8 @@ export class AdminService {
                         creatorCategories: item.creatorCategories || [],
                         isHidden: false,
                         isDeleted: false,
-                        isVerified: true
+                        isVerified: true,
+                        refreshToken: null
                     }));
 
                     if (influencerInDatabase) {

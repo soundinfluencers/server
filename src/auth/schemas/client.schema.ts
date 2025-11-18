@@ -50,8 +50,8 @@ export class Client {
     @Prop({default: ''})
     internalNote: string;
 
-    @Prop({ default: '' })
-    refreshToken: string;
+    @Prop({default: null})
+    refreshToken: string | null;
 }
 
 export const ClientSchema = SchemaFactory.createForClass(Client);

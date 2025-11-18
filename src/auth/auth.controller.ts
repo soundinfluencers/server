@@ -1,11 +1,11 @@
-import {Controller, Get, Post, Body, Param, Query, Res} from '@nestjs/common';
+import {Controller, Get, Post, Body, Param, Query, Res, Req} from '@nestjs/common';
 import {AuthService} from './auth.service';
 import {CreateClientDto} from './dto/create-client.dto';
 import {CreateInfluencerDto} from './dto/create-influencer.dto';
 import {LoginDto} from './dto/login.dto';
 import {VerifyDto} from './dto/verify.dto';
 import {ApiQuery} from '@nestjs/swagger';
-import {Response} from 'express';
+import { Request, Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -39,6 +39,44 @@ export class AuthController {
     @Post('login')
     loginUser(@Body() data: LoginDto, @Res() res: Response) {
         return this.authService.loginUser(data, res);
+    }
+
+    @Post('refresh')
+    async refreshToken(@Req() req: Request, @Res() res: Response) {
+        try {
+            const token = req.cookies['refreshToken'];
+            if (!token) return res.status(401).json({ message: 'No refresh token' });
+
+            const { accessToken } = await this.authService.refreshToken(token);
+
+            return res.status(200).json({ accessToken });
+        } catch (err: any) {
+            console.error(err);
+            return res.status(401).json({ message: err.message || 'Unauthorized' });
+        }
+    }
+
+    @Post('logout')
+    async logout(@Req() req: Request, @Res() res: Response) {
+        try {
+            const token = req.cookies['refreshToken'];
+
+            if (token) {
+                await this.authService.logout(token);
+            }
+
+            res.clearCookie('refreshToken', {
+                path: '/auth/refresh',
+                httpOnly: true,
+                secure: true,
+                sameSite: 'strict',
+            });
+
+            return res.status(200).json({ message: 'Logged out' });
+        } catch (err) {
+            console.error(err);
+            return res.status(500).json({ message: 'Server Error' });
+        }
     }
 
     @Post('verify')
