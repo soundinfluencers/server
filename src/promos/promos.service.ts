@@ -612,6 +612,8 @@ ${emailVideoContent()}
                 })
                 .lean();
 
+            console.log(campaigns, 'campaigns', id, 'clientId')
+
             const campaignToReturn = await Promise.all(
                 campaigns.map(async (item) => {
                     const clientId = item.clientId || (item as any).userId;
