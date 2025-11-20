@@ -41,6 +41,10 @@ export class PromosService {
     ) {
     }
 
+    async clientGetCampaignsList(clientId: string) {
+
+    }
+
     async createPromo(data: CreatePromosDto) {
         if (!data) {
             return {

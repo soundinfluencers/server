@@ -10,7 +10,7 @@ import {
     Query,
     UseInterceptors,
     UploadedFile,
-    Res,
+    Res, UseGuards, Req,
 } from '@nestjs/common';
 import {PromosService} from './promos.service';
 import {CreatePromosDto} from './dto/create-promo.dto';
@@ -24,10 +24,19 @@ import {SendNewFullServicedCampaignRequest} from './dto/send-new-full-serviced-c
 import {SaveXlsxPromoDto} from './dto/save-xlsx-promo.dto';
 import {Response} from 'express';
 import {OneCampaignQueryDto} from "./dto/influencer-get-past-campaign";
+import {JwtAuthGuard} from "../auth/jwt-auth.guard";
+import {AuthenticatedRequest} from "../types/auth.types";
 
 @Controller('promos')
 export class PromosController {
     constructor(private readonly promosService: PromosService) {
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('client/get/list')
+    clientGetCampaignsList(@Req() request: AuthenticatedRequest) {
+        const userId = request.user.id;
+        return this.promosService.clientGetCampaignsList(userId);
     }
 
     @Post('client-create-campaign')
