@@ -20,6 +20,10 @@ import {
 } from '../utils/new-promo-message';
 import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 import {getSocialMediaGroup} from "../utils/socialMedia";
+import {ClientGetCampaignsListDto} from "./dto/client-get-campaigns-list.dto";
+import {formatClientCampaignStatus, formatDate} from "../utils/formatters";
+import {SocialMediaType} from "../types/social-media.types";
+import {ClientGetCampaignForList} from "../types/client/campaign.types";
 
 mongoose.Promise = global.Promise;
 
@@ -41,8 +45,56 @@ export class PromosService {
     ) {
     }
 
-    async clientGetCampaignsList(clientId: string) {
+    async clientGetCampaignsList(clientId: string): Promise<ClientGetCampaignsListDto> {
+        try {
+            if (!clientId) {
+                return {
+                    statusCode: 400,
+                    message: 'Not enough arguments',
+                };
+            }
 
+            const checkClient = await this.clientModel.findById(clientId);
+
+            if (!checkClient) {
+                return {
+                    statusCode: 404,
+                    message: 'User not found',
+                };
+            }
+
+            const campaigns = await this.promosModel
+                .find({
+                    clientId: clientId,
+                    statusCampaign: {$in: ['work', 'wait', 'estimate', 'po waiting']},
+                })
+                .lean();
+
+            const campaignsToReturn = await Promise.all(
+                campaigns.map(async (item): Promise<ClientGetCampaignForList> => {
+                    return {
+                        _id: item._id.toString(),
+                        campaignName: item.campaignName,
+                        socialMedia: item.socialMedia as SocialMediaType | 'multipromo',
+                        creationDate: formatDate(item.createdAt),
+                        price: item.campaignPrice,
+                        status: formatClientCampaignStatus(item.statusCampaign),
+                    };
+                }),
+            );
+
+            return {
+                statusCode: 200,
+                campaigns: campaignsToReturn,
+                message: 'Success'
+            };
+        } catch (err) {
+            console.log(err);
+            return {
+                statusCode: 500,
+                message: err,
+            };
+        }
     }
 
     async createPromo(data: CreatePromosDto) {
@@ -581,59 +633,6 @@ ${emailVideoContent()}
             return {
                 code: 200,
                 promos: campaignsToReturn,
-            };
-        } catch (err) {
-            console.log(err);
-            return {
-                code: 500,
-                message: err,
-            };
-        }
-    }
-
-    async clientGetOngoingCampaigns(id: string) {
-        try {
-            if (!id) {
-                return {
-                    code: 400,
-                    message: 'Not enough arguments',
-                };
-            }
-
-            const checkClient = await this.clientModel.findById(id);
-
-            if (!checkClient) {
-                return {
-                    code: 404,
-                    message: 'User not found',
-                };
-            }
-
-            const campaigns = await this.promosModel
-                .find({
-                    clientId: id,
-                    statusCampaign: {$in: ['work', 'wait', 'estimate', 'po waiting']},
-                })
-                .lean();
-
-            console.log(campaigns, 'campaigns', id, 'clientId')
-
-            const campaignToReturn = await Promise.all(
-                campaigns.map(async (item) => {
-                    const clientId = item.clientId || (item as any).userId;
-                    const clientName = await this.clientModel.findById(clientId);
-                    if (!clientName) return {...item, client: 'No Date'};
-                    return {
-                        ...item,
-                        client: clientName.firstName,
-                        brand: clientName.company,
-                    };
-                }),
-            );
-
-            return {
-                code: 200,
-                campaigns: campaignToReturn,
             };
         } catch (err) {
             console.log(err);

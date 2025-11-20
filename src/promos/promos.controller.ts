@@ -26,6 +26,7 @@ import {Response} from 'express';
 import {OneCampaignQueryDto} from "./dto/influencer-get-past-campaign";
 import {JwtAuthGuard} from "../auth/jwt-auth.guard";
 import {AuthenticatedRequest} from "../types/auth.types";
+import {ClientGetCampaignsListDto} from "./dto/client-get-campaigns-list.dto";
 
 @Controller('promos')
 export class PromosController {
@@ -34,7 +35,7 @@ export class PromosController {
 
     @UseGuards(JwtAuthGuard)
     @Get('client/get/list')
-    clientGetCampaignsList(@Req() request: AuthenticatedRequest) {
+    clientGetCampaignsList(@Req() request: AuthenticatedRequest): Promise<ClientGetCampaignsListDto> {
         const userId = request.user.id;
         return this.promosService.clientGetCampaignsList(userId);
     }
@@ -138,16 +139,6 @@ export class PromosController {
     @Get('client-completed-campaigns/history')
     clientCompletedCampaignsHistory(@Query() args: { id: string }) {
         return this.promosService.clientCompletedCampaignsHistory(args.id);
-    }
-
-    @ApiQuery({name: 'clientId', required: true})
-    @Get('ongoing-campaigns-client')
-    clientGetOngoingCampaigns(@Query() args: { clientId: string }) {
-        const decryptedClientId = decodeAndDecrypt(
-            args.clientId,
-            process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
-        );
-        return this.promosService.clientGetOngoingCampaigns(decryptedClientId);
     }
 
     @ApiQuery({name: 'influencerId', required: true})

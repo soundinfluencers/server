@@ -14,5 +14,5 @@ export enum SocialMediaEnum {
   youtube = 'youtube',
   spotify = 'spotify',
   soundcloud = 'soundcloud',
-  press = 'press',
+  press = 'press'
 }
