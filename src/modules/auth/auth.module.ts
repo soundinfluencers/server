@@ -6,7 +6,7 @@ import { Client, ClientSchema } from './schemas/client.schema';
 import { Influencer, InfluencerSchema } from './schemas/influencer.schema';
 import { VerifyInfluencer, VerifyInfluencerSchema } from './schemas/verifyInfluencer.schema';
 import { VerifyClient, VerifyClientSchema } from './schemas/verifyClient.schema';
-import {JwtStrategy} from "./strategies/jwt.strategy";
+import {JwtStrategy} from "../../common/strategies/jwt.strategy";
 
 @Module({
   imports: [

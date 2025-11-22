@@ -1,15 +1,15 @@
-import {NestFactory} from '@nestjs/core';
-import {SwaggerModule, DocumentBuilder} from '@nestjs/swagger';
+import { NestFactory } from '@nestjs/core';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as bodyParser from 'body-parser';
 import * as cookieParser from 'cookie-parser';
-import {AppModule} from "./modules/app/app.module";
+import { AppModule } from "./modules/app/app.module";
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 
     app.use(cookieParser());
-    app.use(bodyParser.json({limit: '50mb'}));
-    app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
+    app.use(bodyParser.json({ limit: '50mb' }));
+    app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
     app.enableCors({
         origin: [
@@ -19,7 +19,6 @@ async function bootstrap() {
             'http://192.168.0.105:5173',
             'http://192.168.0.105:3000',
             'http://192.168.0.105:3001',
-            // 'https://api.soundinfluencers.com',
             'https://nazar.soundinfluencers.com',
             'https://go.soundinfluencers.com',
         ],
@@ -34,15 +33,38 @@ async function bootstrap() {
     });
 
     const config = new DocumentBuilder()
-        .setTitle('SoundInfluencers')
-        .setDescription('API description')
+        .setTitle('Sound Influencers API')
+        .setDescription('REST API documentation')
         .setVersion('2.0')
-        .addTag('music')
+
+        .addBearerAuth(
+            {
+                type: 'http',
+                scheme: 'bearer',
+                bearerFormat: 'JWT',
+                description: 'Enter your JWT access token',
+            },
+            'access-token',
+        )
+
+        .addCookieAuth(
+            'refreshToken',
+            {
+                type: 'apiKey',
+                in: 'cookie',
+            }
+        )
+
         .build();
 
     const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api', app, document);
-    // SwaggerModule.setup('api-nazar', app, document);
+
+    SwaggerModule.setup('api', app, document, {
+        swaggerOptions: {
+            persistAuthorization: true,
+        }
+    });
+
     await app.listen(3001);
 }
 

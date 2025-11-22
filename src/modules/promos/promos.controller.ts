@@ -26,14 +26,14 @@ import {OneCampaignQueryDto} from "./dto/influencer-get-past-campaign";
 import {ClientGetCampaignsListDto} from "./dto/client-get-campaigns-list.dto";
 import {AuthenticatedRequest} from "../../common/types/auth.types";
 import {decodeAndDecrypt} from "../../common/utils/crypt";
-import {JwtGuard} from "../../common/guards/jwt-guard";
+import {Auth} from "../../common/decorators/auth.decorator";
 
+@Auth()
 @Controller('promos')
 export class PromosController {
     constructor(private readonly promosService: PromosService) {
     }
 
-    @UseGuards(JwtGuard)
     @Get('client/get/list')
     clientGetCampaignsList(@Req() request: AuthenticatedRequest): Promise<ClientGetCampaignsListDto> {
         const userId = request.user.id;
