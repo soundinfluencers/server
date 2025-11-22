@@ -2,7 +2,7 @@ import {CanActivate, ExecutionContext, Injectable} from "@nestjs/common";
 import * as jwt from "jsonwebtoken";
 
 @Injectable()
-export class JwtAuthGuard implements CanActivate {
+export class JwtGuard implements CanActivate {
     canActivate(context: ExecutionContext): boolean {
         const req = context.switchToHttp().getRequest();
         const auth = req.headers.authorization;

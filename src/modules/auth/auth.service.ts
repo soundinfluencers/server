@@ -1,4 +1,4 @@
-import {Inject, Injectable} from '@nestjs/common';
+import {ForbiddenException, Inject, Injectable, UnauthorizedException} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
 import {CreateClientDto} from './dto/create-client.dto';
 import {CreateInfluencerDto} from './dto/create-influencer.dto';
@@ -12,6 +12,7 @@ import {VerifyInfluencer} from './schemas/verifyInfluencer.schema';
 import {VerifyClient} from './schemas/verifyClient.schema';
 import {Response} from "express";
 import sendMail from "../../integrations/nodemailer/nodemailer";
+import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -39,8 +40,6 @@ function generateRandomDigits(length) {
 
 @Injectable()
 export class AuthService {
-    // private readonly secretKey = '9fgfdrdr@fdfd';
-
     constructor(
         @InjectModel(Client.name)
         private clientModel: mongoose.Model<Client>,
@@ -50,10 +49,14 @@ export class AuthService {
         private verifyInfluencerModel: mongoose.Model<VerifyInfluencer>,
         @InjectModel(VerifyClient.name)
         private verifyClientModel: mongoose.Model<VerifyClient>,
-        @Inject('JWT_SECRET') private readonly secretKey: string,
-        @Inject('JWT_REFRESH_SECRET') private readonly refreshSecretKey: string,
     ) {
     }
+
+    // TODO: заглушка для метода verify (нужно убрать)
+    private readonly secretKey = 'd';
+
+    private readonly accessKey = process.env.JWT_SECRET;
+    private readonly refreshKey = process.env.JWT_REFRESH_SECRET;
 
     async createClient(data: CreateClientDto) {
         try {
@@ -334,6 +337,107 @@ export class AuthService {
         }
     }
 
+    // вход в аккаунт
+    async login(dto, res: Response) {
+        const email = dto.email.toLowerCase();
+
+        const user =
+            (await this.influencerModel.findOne({ email })) ||
+            (await this.clientModel.findOne({ email }));
+
+        if (!user) throw new UnauthorizedException('User not found');
+
+        const isPassword = await bcrypt.compare(dto.password, user.password);
+
+        if (!isPassword) throw new UnauthorizedException('Wrong password');
+
+        if (user.statusVerify === 'wait')
+            throw new ForbiddenException('Account not verified');
+
+        const accessToken = this.generateAccessToken(user);
+        const refreshToken = this.generateRefreshToken(user);
+
+        await this.saveRefreshToken(user._id, refreshToken);
+
+        setRefreshTokenCookie(res, refreshToken);
+
+        return {
+            accessToken,
+            role: user.role,
+        };
+    }
+
+    // рефреш и замена токена
+    async refresh(refreshToken: string, res: Response) {
+        if (!refreshToken)
+            throw new UnauthorizedException('No refresh token provided');
+
+        let payload;
+        try {
+            payload = jwt.verify(refreshToken, this.refreshKey);
+        } catch {
+            throw new UnauthorizedException('Invalid refresh token');
+        }
+
+        const user =
+            (await this.clientModel.findById(payload.id)) ||
+            (await this.influencerModel.findById(payload.id));
+
+        if (!user || user.refreshToken !== refreshToken)
+            throw new UnauthorizedException('Invalid refresh token');
+
+        const newRefreshToken = this.generateRefreshToken(user);
+        await this.saveRefreshToken(user.id, newRefreshToken);
+
+        setRefreshTokenCookie(res, newRefreshToken);
+
+        return {
+            accessToken: this.generateAccessToken(user),
+        };
+    }
+
+    // Выход из аккаунта
+    async logout(refreshToken: string, res: Response) {
+        if (refreshToken) {
+            await this.clientModel.updateOne(
+                { refreshToken },
+                { $unset: { refreshToken: '' } },
+            );
+
+            await this.influencerModel.updateOne(
+                { refreshToken },
+                { $unset: { refreshToken: '' } },
+            );
+        }
+
+        res.clearCookie('refreshToken', { path: '/auth/refresh' });
+
+        return { message: 'Logged out' };
+    }
+
+    // Генерация access токена
+    private generateAccessToken(user) {
+        return jwt.sign(
+            { id: user.id, role: user.role },
+            this.accessKey,
+            { expiresIn: '15m' },
+        );
+    }
+
+    // Генерация refresh токена
+    private generateRefreshToken(user) {
+        return jwt.sign(
+            { id: user.id },
+            this.refreshKey,
+            { expiresIn: '7d' },
+        );
+    }
+
+    private async saveRefreshToken(userId, token) {
+        await this.clientModel.updateOne({ _id: userId }, { refreshToken: token });
+        await this.influencerModel.updateOne({ _id: userId }, { refreshToken: token });
+    }
+
     async verifyAdminInfluencer(verifyId: string, responseVerify: string) {
         if (!verifyId || !responseVerify) {
             return {
@@ -500,111 +604,6 @@ export class AuthService {
                 message: 'response verify is not correct',
             };
         }
-    }
-
-    async saveRefreshToken(userId: string, token: string) {
-        await this.clientModel.updateOne({ _id: userId }, { refreshToken: token });
-    }
-
-    async loginUser(loginData: LoginDto, res: Response) {
-        try {
-            if (!loginData.email || !loginData.password) {
-                return res.status(400).json({ message: 'Not enough arguments' });
-            }
-
-            const email = loginData.email.toLowerCase();
-
-            const user =
-                (await this.influencerModel.findOne({ email })) ||
-                (await this.clientModel.findOne({ email }));
-
-            if (!user) {
-                return res.status(404).json({ message: 'User not found' });
-            }
-
-            const isPasswordCorrect = bcrypt.compareSync(loginData.password, user.password);
-            if (!isPasswordCorrect) {
-                return res.status(400).json({ message: 'Password is not correct' });
-            }
-
-            if (user.statusVerify === 'wait') {
-                return res.status(403).json({ message: 'Account not verified' });
-            }
-
-            const accessToken = jwt.sign(
-                { id: user.id, role: user.role },
-                this.secretKey,
-                { expiresIn: '15m' }
-            );
-
-            const refreshToken = jwt.sign(
-                { id: user.id },
-                this.refreshSecretKey,
-                { expiresIn: '7d' }
-            );
-
-            // save refresh token
-            await this.saveRefreshToken(user.id, refreshToken);
-
-            // Send refreshToken as HTTP-only cookie
-            res.cookie("refreshToken", refreshToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-                path: "/auth/refresh",
-                maxAge: 7 * 24 * 60 * 60 * 1000
-            });
-
-            return res.status(200).json({
-                accessToken,
-                role: user.role
-            });
-
-        } catch (error) {
-            console.error(error);
-            return res.status(500).json({ message: 'Server Error' });
-        }
-    }
-
-    async refreshToken(token: string): Promise<{ accessToken: string }> {
-        if (!token) throw new Error('No refresh token');
-
-        let payload: any;
-        try {
-            payload = jwt.verify(token, this.refreshSecretKey) as { id: string };
-        } catch {
-            throw new Error('Invalid token');
-        }
-
-        const user =
-            (await this.influencerModel.findById(payload.id)) ||
-            (await this.clientModel.findById(payload.id));
-
-        if (!user || !(user as any).refreshToken || (user as any).refreshToken !== token) {
-            throw new Error('Invalid refresh token');
-        }
-
-        const accessToken = jwt.sign(
-            { id: user.id, role: user.role },
-            this.secretKey,
-            { expiresIn: '15m' },
-        );
-
-        return { accessToken };
-    }
-
-    async logout(refreshToken: string) {
-        if (!refreshToken) return;
-
-        await this.clientModel.updateOne(
-            { refreshToken },
-            { $unset: { refreshToken: null } }
-        );
-
-        await this.influencerModel.updateOne(
-            { refreshToken },
-            { $unset: { refreshToken: null } }
-        );
     }
 
     async verify(data: VerifyDto) {

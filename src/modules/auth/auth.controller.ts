@@ -1,25 +1,60 @@
-import {Controller, Get, Post, Body, Param, Query, Res, Req} from '@nestjs/common';
+import {Controller, Get, Post, Body, Param, Query, Res, Req, UseGuards} from '@nestjs/common';
 import {AuthService} from './auth.service';
 import {CreateClientDto} from './dto/create-client.dto';
 import {CreateInfluencerDto} from './dto/create-influencer.dto';
 import {LoginDto} from './dto/login.dto';
 import {VerifyDto} from './dto/verify.dto';
 import {ApiQuery} from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import {JwtGuard} from "./guards/jwt.guard";
+import {Public} from "../../common/decorators/public.decorator";
 
+@UseGuards(JwtGuard)
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) {
     }
 
+
+    @Public()
     @Post('create/client')
     createClient(@Body() data: CreateClientDto) {
         return this.authService.createClient(data);
     }
 
+    @Public()
     @Post('create/influencer')
     createInfluencer(@Body() data: CreateInfluencerDto) {
         return this.authService.createInfluencer(data);
+    }
+
+    @Public()
+    @Post('login')
+    async login(
+        @Body() dto: LoginDto,
+        @Res({ passthrough: true }) res: Response,
+    ) {
+        return this.authService.login(dto, res);
+    }
+
+
+    @Public()
+    @Post('refresh')
+    async refresh(@Req() req, @Res({ passthrough: true }) res: Response) {
+        return this.authService.refresh(req.cookies.refreshToken, res);
+    }
+
+    @Post('logout')
+    async logout(
+        @Req() req,
+        @Res({ passthrough: true }) res: Response,
+    ) {
+        return this.authService.logout(req.cookies.refreshToken, res);
+    }
+
+    @Get('me')
+    getUser(@Req() req) {
+        return req.user;
     }
 
     @ApiQuery({name: 'verifyId'})
@@ -34,49 +69,6 @@ export class AuthController {
     @Get('verify-client')
     verifyAdminClient(@Query() args: { verifyId: string; responseVerify: string }) {
         return this.authService.verifyAdminClient(args.verifyId, args.responseVerify);
-    }
-
-    @Post('login')
-    loginUser(@Body() data: LoginDto, @Res() res: Response) {
-        return this.authService.loginUser(data, res);
-    }
-
-    @Post('refresh')
-    async refreshToken(@Req() req: Request, @Res() res: Response) {
-        try {
-            const token = req.cookies['refreshToken'];
-            if (!token) return res.status(401).json({ message: 'No refresh token' });
-
-            const { accessToken } = await this.authService.refreshToken(token);
-
-            return res.status(200).json({ accessToken });
-        } catch (err: any) {
-            console.error(err);
-            return res.status(401).json({ message: err.message || 'Unauthorized' });
-        }
-    }
-
-    @Post('logout')
-    async logout(@Req() req: Request, @Res() res: Response) {
-        try {
-            const token = req.cookies['refreshToken'];
-
-            if (token) {
-                await this.authService.logout(token);
-            }
-
-            res.clearCookie('refreshToken', {
-                path: '/auth/refresh',
-                httpOnly: true,
-                secure: true,
-                sameSite: 'strict',
-            });
-
-            return res.status(200).json({ message: 'Logged out' });
-        } catch (err) {
-            console.error(err);
-            return res.status(500).json({ message: 'Server Error' });
-        }
     }
 
     @Post('verify')
