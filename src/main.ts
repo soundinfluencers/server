@@ -3,6 +3,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as bodyParser from 'body-parser';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from "./modules/app/app.module";
+import {SwaggerAuthMiddleware} from "./common/middleware/swagger-auth.middleware";
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
@@ -31,6 +32,12 @@ async function bootstrap() {
         res.removeHeader('X-Frame-Options');
         next();
     });
+
+    console.log("ENV:", process.env.NODE_ENV);
+
+    if (process.env.NODE_ENV === 'production') {
+        app.use('/api', new SwaggerAuthMiddleware().use);
+    }
 
     const config = new DocumentBuilder()
         .setTitle('Sound Influencers API')
