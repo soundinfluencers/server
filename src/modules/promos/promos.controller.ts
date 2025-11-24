@@ -3,19 +3,17 @@ import {
     Get,
     Post,
     Body,
-    Patch,
     Put,
     Param,
-    Delete,
     Query,
     UseInterceptors,
     UploadedFile,
-    Res, UseGuards, Req,
+    Res, Req,
 } from '@nestjs/common';
 import {PromosService} from './promos.service';
 import {CreatePromosDto} from './dto/create-promo.dto';
 import {CreatePromosEstimateDto} from './dto/create-promo-estimate.dto';
-import {ApiBody, ApiQuery} from '@nestjs/swagger';
+import {ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags} from '@nestjs/swagger';
 import {FileInterceptor} from '@nestjs/platform-express';
 import File from 'multer';
 import {GetSelectedSocialAccountsDto} from './dto/get-selected-social-accounts.dto';
@@ -27,39 +25,31 @@ import {ClientGetCampaignsListDto} from "./dto/client-get-campaigns-list.dto";
 import {AuthenticatedRequest} from "../../common/types/auth.types";
 import {decodeAndDecrypt} from "../../common/utils/crypt";
 import {Auth} from "../../common/decorators/auth.decorator";
+import {Public} from "../../common/decorators/public.decorator";
 
-@Auth()
+@ApiTags('promos')
 @Controller('promos')
 export class PromosController {
     constructor(private readonly promosService: PromosService) {
     }
 
+    @Auth()
+    @ApiOperation({ summary: 'Get client campaigns list' })
     @Get('client/get/list')
     clientGetCampaignsList(@Req() request: AuthenticatedRequest): Promise<ClientGetCampaignsListDto> {
         const userId = request.user.id;
         return this.promosService.clientGetCampaignsList(userId);
     }
 
+    @Auth()
+    @ApiOperation({ summary: 'Create new campaign' })
     @Post('client-create-campaign')
     createPromos(@Body() data: CreatePromosDto) {
         return this.promosService.createPromo(data);
     }
 
-    @Post('estimate/:isPO')
-    createPromosForEstimate(@Body() data: CreatePromosEstimateDto, @Param('isPO') isPO: boolean) {
-        return this.promosService.createPromosForEstimate();
-    }
-
-    @ApiQuery({name: 'promoId', required: true})
-    @ApiQuery({name: 'isPoNeed', required: true})
-    @Put('update-estimate')
-    async updateEstimatePromo(
-        @Query('promoId') promoId: string,
-        @Query('isPoNeed') isPoNeed: string,
-    ) {
-        return this.promosService.updateEstimatePromo(promoId, isPoNeed);
-    }
-
+    @Public()
+    @ApiOperation({ summary: 'Verify campaign' })
     @Get('verify-promo')
     async verifyCampaign(@Query() args: { promoId: string; status: string }, @Res() res: Response) {
         const result = await this.promosService.verifyCampaign(args.promoId, args.status);
@@ -124,6 +114,7 @@ export class PromosController {
   `);
     }
 
+    // TODO: REMOVE TO FILES SERVICE
     @Post('uploadScreenshot')
     @UseInterceptors(FileInterceptor('file'))
     uploadFile(@UploadedFile() file: File) {
@@ -135,18 +126,24 @@ export class PromosController {
         return await this.promosService.checkUploadStatus(fileName);
     }
 
+    @Auth()
+    @ApiOperation({ summary: 'Gets client completed campaigns' })
     @ApiQuery({name: 'id', required: true})
     @Get('client-completed-campaigns/history')
     clientCompletedCampaignsHistory(@Query() args: { id: string }) {
         return this.promosService.clientCompletedCampaignsHistory(args.id);
     }
 
+    @Auth()
+    @ApiOperation({ summary: 'Get influencer completed promos' })
     @ApiQuery({name: 'influencerId', required: true})
     @Get('influencer-completed-campaigns/history')
     influencerCompletedCampaignsHistory(@Query() args: { influencerId: string }) {
         return this.promosService.influencerCompletedCampaignsHistory(args.influencerId);
     }
 
+    @Auth()
+    @ApiOperation({ summary: 'Get influencer completed promo' })
     @Post('influencer-completed-campaigns/one-campaign')
     @ApiBody({type: OneCampaignQueryDto})
     influencerPastCampaignOne(@Body() args: OneCampaignQueryDto) {
@@ -170,6 +167,8 @@ export class PromosController {
         );
     }
 
+    @Auth()
+    @ApiOperation({ summary: 'Get client campaign' })
     @ApiQuery({name: 'campaignId', required: true})
     @ApiQuery({name: 'clientId', required: true})
     @Get('client-campaign/one')
@@ -188,6 +187,8 @@ export class PromosController {
         );
     }
 
+    @Auth()
+    @ApiOperation({ summary: 'Get influencer new promos requests' })
     @ApiQuery({name: 'influencerId', required: true})
     @Get('influencer-get-new-campaigns')
     influencerGetNewCampaigns(@Query() args: { influencerId: string }) {
@@ -199,6 +200,8 @@ export class PromosController {
         return this.promosService.influencerGetNewCampaigns(decryptedInfluencerId);
     }
 
+    @Auth()
+    @ApiOperation({ summary: 'Get influencer new promos requests' })
     @ApiQuery({name: 'influencerId', required: true})
     @ApiQuery({name: 'socialMediaUsername', required: true})
     @ApiQuery({name: 'campaignId', required: true})
