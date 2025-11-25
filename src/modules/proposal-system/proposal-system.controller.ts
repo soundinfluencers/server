@@ -3,7 +3,9 @@ import { ProposalSystemService } from './proposal-system.service';
 import { SaveProposalCampaignDto } from './dto/save-proposal-campaign.dto';
 import * as process from 'node:process';
 import {decodeAndDecrypt} from "../../common/utils/crypt";
+import {ApiTags} from "@nestjs/swagger";
 
+@ApiTags('proposal-system')
 @Controller('proposal-system')
 export class ProposalSystemController {
   constructor(private readonly proposalSystemService: ProposalSystemService) {}

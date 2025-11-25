@@ -1,7 +1,8 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { ForgotService } from './forgot.service';
-import { ApiQuery } from '@nestjs/swagger';
+import {ApiQuery, ApiTags} from '@nestjs/swagger';
 
+@ApiTags('forgot')
 @Controller('forgot')
 export class ForgotController {
   constructor(private readonly forgotService: ForgotService) {}

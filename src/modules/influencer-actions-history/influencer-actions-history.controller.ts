@@ -3,7 +3,9 @@ import {InfluencerActionsHistoryService} from "./influencer-actions-history.serv
 import {UpsertCampaignHistoryDto} from "./dto/upsert-campaign-history.dto";
 import {UpsertInvoiceHistoryDto} from "./dto/upsert-invoice-history.dto";
 import {CheckIfInCampaignDto} from "./dto/check-if-in-campaign.dto";
+import {ApiTags} from "@nestjs/swagger";
 
+@ApiTags('influencer-actions-history')
 @Controller('influencer-actions-history')
 export class InfluencerActionsHistoryController {
   constructor(private readonly influencerActionsHistoryService: InfluencerActionsHistoryService) {}

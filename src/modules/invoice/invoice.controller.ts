@@ -1,10 +1,11 @@
 import { Controller, Get, Post, Body, Patch, Put, Param, Delete, Query, Res } from '@nestjs/common';
 import { InvoiceService } from './invoice.service';
 import { UpdateInvoiceDetailsDto } from './dto/update-invoice-details';
-import { ApiQuery } from '@nestjs/swagger';
+import {ApiQuery, ApiTags} from '@nestjs/swagger';
 import { CreateInvoiceDtoDto } from './dto/create-invoice.dto';
 import { Response } from 'express';
 
+@ApiTags('invoice')
 @Controller('invoice')
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}

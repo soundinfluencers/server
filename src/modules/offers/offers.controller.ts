@@ -15,7 +15,9 @@ import { ChangeOfferDeletedStatusDto } from './dto/change-offer-deleted-status.d
 import { Types } from 'mongoose';
 import {SocialMediaEnum, SocialMediaType} from "../../common/types/social-media.types";
 import {allowedGenresMap} from "../../common/types/genres.types";
+import {ApiTags} from "@nestjs/swagger";
 
+@ApiTags('offers')
 @Controller('offers')
 export class OffersController {
   constructor(private readonly offersService: OffersService) {}

@@ -3,7 +3,9 @@ import {ScrapersService} from './scrapers.service';
 import {ReqUpdatePostDetailsDto} from './dto/req-update-post-details.dto';
 import {ReqUpdateAllPostsDetailsDto} from "./dto/req-update-all-posts-details-dto";
 import {ReqUpdateAllAccountsDto} from "./dto/req-update-all-accounts.dto";
+import {ApiTags} from "@nestjs/swagger";
 
+@ApiTags('scrapers')
 @Controller('scrapers')
 export class ScrapersController {
     constructor(private readonly scrapersService: ScrapersService) {

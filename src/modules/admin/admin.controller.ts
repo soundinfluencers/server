@@ -25,7 +25,9 @@ import {AdminSendMailToInfluencerDto} from './dto/admin-send-mail-to-influencer.
 import {AddSocialMediasDto} from '../profile/dto/add-social-medias.dto';
 import {AdminImportXlsxInfluencersDto} from './dto/admin-import-xlsx-influencers';
 import {decodeAndDecrypt} from "../../common/utils/crypt";
+import {ApiTags} from "@nestjs/swagger";
 
+@ApiTags('admin')
 @Controller('admin')
 export class AdminController {
     constructor(private readonly adminService: AdminService) {

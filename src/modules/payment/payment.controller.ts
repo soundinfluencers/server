@@ -2,8 +2,9 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Res } from '@
 import { PaymentService } from './payment.service';
 import { CreateOrderStripe, CreateOrderTransfer } from './dto/create-payment.dto';
 import { Response } from 'express';
-import { ApiQuery } from '@nestjs/swagger';
+import {ApiQuery, ApiTags} from '@nestjs/swagger';
 
+@ApiTags('payment')
 @Controller('payment')
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}

@@ -6,8 +6,9 @@ import { UpdatePersonalInfluencerDto } from './dto/update-personal-influencer.dt
 import { UpdateSocialMediaAccountDto } from './dto/update-social-media-account.dto';
 import { AddSocialMediasDto } from './dto/add-social-medias.dto';
 import { SendMailPriceChangeDto } from './dto/send-mail-price-change.dto';
-import { ApiQuery } from '@nestjs/swagger';
+import {ApiQuery, ApiTags} from '@nestjs/swagger';
 
+@ApiTags('profile')
 @Controller('profile')
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}

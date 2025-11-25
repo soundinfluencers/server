@@ -3,9 +3,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { createWriteStream, readFile, readFileSync } from 'fs';
-import { ApiBody, ApiConsumes, ApiQuery } from '@nestjs/swagger';
+import {ApiBody, ApiConsumes, ApiQuery, ApiTags} from '@nestjs/swagger';
 import sizeOf from 'image-size';
 
+@ApiTags('file')
 @Controller('file')
 export class FileController {
   @ApiConsumes('multipart/form-data')
