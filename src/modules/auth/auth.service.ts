@@ -1,18 +1,15 @@
-import {ForbiddenException, Inject, Injectable, UnauthorizedException} from '@nestjs/common';
+import {ForbiddenException, Injectable, UnauthorizedException} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
 import {CreateClientDto} from './dto/create-client.dto';
 import {CreateInfluencerDto} from './dto/create-influencer.dto';
-import {Client} from './schemas/client.schema';
 import mongoose from 'mongoose';
 import {Types} from 'mongoose';
-import {Influencer} from './schemas/influencer.schema';
-import {LoginDto} from './dto/login.dto';
 import {VerifyDto} from './dto/verify.dto';
-import {VerifyInfluencer} from './schemas/verifyInfluencer.schema';
-import {VerifyClient} from './schemas/verifyClient.schema';
 import {Response} from "express";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
+import {ClientRepository} from "../../database/repositories/users/client.repository";
+import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -41,14 +38,8 @@ function generateRandomDigits(length) {
 @Injectable()
 export class AuthService {
     constructor(
-        @InjectModel(Client.name)
-        private clientModel: mongoose.Model<Client>,
-        @InjectModel(Influencer.name)
-        private influencerModel: mongoose.Model<Influencer>,
-        @InjectModel(VerifyInfluencer.name)
-        private verifyInfluencerModel: mongoose.Model<VerifyInfluencer>,
-        @InjectModel(VerifyClient.name)
-        private verifyClientModel: mongoose.Model<VerifyClient>,
+        private readonly clientRepo: ClientRepository,
+        private readonly influencerRepo: InfluencerRepository,
     ) {
     }
 
@@ -68,12 +59,12 @@ export class AuthService {
             }
 
             const [existingEmailUser, existingInstagramUser, existingPhoneUser] = await Promise.all([
-                this.influencerModel.findOne({email: data.email}) ||
-                this.clientModel.findOne({email: data.email}),
-                this.clientModel.findOne({instagramUsername: data.instagramUsername}),
+                this.influencerRepo.findInfluencerByEmail(data.email) ||
+                this.clientRepo.findClientByEmail(data.email),
+                this.clientRepo.findClientByInstagramUsername(data.instagramUsername),
                 data.phone
-                    ? this.influencerModel.findOne({phone: data.phone}) ||
-                    this.clientModel.findOne({phone: data.phone})
+                    ? this.influencerRepo.findOne({phone: data.phone}) ||
+                    this.clientRepo.findOne({phone: data.phone})
                     : null,
             ]);
 
@@ -101,7 +92,7 @@ export class AuthService {
                 };
             }
 
-            const newUser = await this.clientModel.create({
+            const newUser = await this.clientRepo.create({
                 ...data,
                 email: data.email.toLowerCase(),
                 referenceNumber: generateRandomDigits(6),
@@ -342,8 +333,8 @@ export class AuthService {
         const email = dto.email.toLowerCase();
 
         const user =
-            (await this.influencerModel.findOne({ email })) ||
-            (await this.clientModel.findOne({ email }));
+            (await this.influencerRepo.findInfluencerByEmail(email)) ||
+            (await this.clientRepo.findClientByEmail(email));
 
         if (!user) throw new UnauthorizedException('User not found');
 
@@ -357,7 +348,7 @@ export class AuthService {
         const accessToken = this.generateAccessToken(user);
         const refreshToken = this.generateRefreshToken(user);
 
-        await this.saveRefreshToken(user._id, refreshToken);
+        await this.saveRefreshToken((user as any)._id, refreshToken);
 
         setRefreshTokenCookie(res, refreshToken);
 
@@ -400,42 +391,42 @@ export class AuthService {
     async logout(refreshToken: string, res: Response) {
         if (refreshToken) {
             await this.clientModel.updateOne(
-                { refreshToken },
-                { $unset: { refreshToken: '' } },
+                {refreshToken},
+                {$unset: {refreshToken: ''}},
             );
 
             await this.influencerModel.updateOne(
-                { refreshToken },
-                { $unset: { refreshToken: '' } },
+                {refreshToken},
+                {$unset: {refreshToken: ''}},
             );
         }
 
-        res.clearCookie('refreshToken', { path: '/auth/refresh' });
+        res.clearCookie('refreshToken', {path: '/auth/refresh'});
 
-        return { message: 'Logged out' };
+        return {message: 'Logged out'};
     }
 
     // Генерация access токена
     private generateAccessToken(user) {
         return jwt.sign(
-            { id: user.id, role: user.role },
+            {id: user.id, role: user.role},
             this.accessKey,
-            { expiresIn: '15m' },
+            {expiresIn: '15m'},
         );
     }
 
     // Генерация refresh токена
     private generateRefreshToken(user) {
         return jwt.sign(
-            { id: user.id },
+            {id: user.id},
             this.refreshKey,
-            { expiresIn: '7d' },
+            {expiresIn: '7d'},
         );
     }
 
     private async saveRefreshToken(userId, token) {
-        await this.clientModel.updateOne({ _id: userId }, { refreshToken: token });
-        await this.influencerModel.updateOne({ _id: userId }, { refreshToken: token });
+        await this.clientModel.updateOne({_id: userId}, {refreshToken: token});
+        await this.influencerModel.updateOne({_id: userId}, {refreshToken: token});
     }
 
     async verifyAdminInfluencer(verifyId: string, responseVerify: string) {
