@@ -11,8 +11,8 @@ const fs = require('fs');
 const PDFDocument = require('pdfkit');
 import { Response } from 'express';
 import axios from 'axios';
-import {Influencer} from "../auth/schemas/influencer.schema";
 import sendMail from "../../integrations/nodemailer/nodemailer";
+import {Influencer} from "../../database/schemas/users/influencer.schema";
 
 @Injectable()
 export class InvoiceService {

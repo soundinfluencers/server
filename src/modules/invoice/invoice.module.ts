@@ -5,7 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { InvoiceDetails, InvoiceDetailsSchema } from './schemas/invoice-details.schema';
 import { Invoices, InvoicesSchema } from './schemas/invoices.schema';
 import { SaveInvoiceData, SaveInvoiceDataSchema } from './schemas/invoice-save.schema';
-import {Influencer, InfluencerSchema} from "../auth/schemas/influencer.schema";
+import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
 
 @Module({
   imports: [

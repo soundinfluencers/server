@@ -4,9 +4,7 @@ import {Model, Types} from 'mongoose';
 import {ReportSizes} from './schemas/reports-sizes.schema';
 import {UpdateReportSizeDto} from './dto/update-report-size.dto';
 import {Promos} from '../promos/schemas/promo.schema';
-import {Client} from '../auth/schemas/client.schema';
 import {GetReportSizeDto} from './dto/get-report-size.dto';
-import {find} from 'rxjs';
 import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 
 @Injectable()
@@ -15,7 +13,6 @@ export class ReportsSizesService {
 
     constructor(
         @InjectModel(ReportSizes.name) private reportsSizesModel: Model<ReportSizes>,
-        @InjectModel(Client.name) private readonly clientModel: Model<Client>,
         @InjectModel(Promos.name) private readonly promosModel: Model<Promos>,
         @InjectModel(ProposalCampaign.name) private readonly proposalCampaignModel: Model<ProposalCampaign>,
     ) {

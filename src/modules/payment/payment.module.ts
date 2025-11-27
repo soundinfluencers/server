@@ -3,8 +3,8 @@ import { PaymentService } from './payment.service';
 import { PaymentController } from './payment.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Payment, PaymentSchema } from './schemas/payment.entity';
-import {Client, ClientSchema} from "../auth/schemas/client.schema";
 import {InvoiceDetails, InvoiceDetailsSchema} from "../invoice/schemas/invoice-details.schema";
+import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
 
 @Module({
   imports: [

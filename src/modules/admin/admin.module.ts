@@ -2,8 +2,6 @@ import { Module } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Promos, PromosSchema } from '../promos/schemas/promo.schema';
-import { Client, ClientSchema } from '../auth/schemas/client.schema';
-import { Influencer, InfluencerSchema } from '../auth/schemas/influencer.schema';
 import { AdminController } from './admin.controller';
 import { Invoices } from '../invoice/schemas/invoices.schema';
 import { Payment } from '../payment/schemas/payment.entity';
@@ -14,6 +12,8 @@ import {
 } from '../proposal-system/schemas/proposal-campaign.schema';
 import { PromosModule } from '../promos/promos.module';
 import { WebsocketModule } from '../websocket/app.gateway';
+import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
+import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
 
 @Module({
   imports: [

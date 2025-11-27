@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 import { OffersService } from './offers.service';
 import { OffersController } from './offers.controller';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Influencer, InfluencerSchema } from '../auth/schemas/influencer.schema';
 import { Offer, OfferSchema } from './schemas/offer.schema';
+import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
 
 @Module({
   imports: [

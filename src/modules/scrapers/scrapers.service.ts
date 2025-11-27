@@ -9,9 +9,9 @@ import {InstagramAdapter} from "./adapters/instagram.adapter";
 import {TikTokAdapter} from "./adapters/tiktok.adapter";
 import {findScrapedAccountDetailsMatch, findScrapedPostDetailsMatch} from "./adapters/scraper.adapter";
 import {ReqUpdateAllAccountsDto} from "./dto/req-update-all-accounts.dto";
-import {Influencer, SocialAccount} from "../auth/schemas/influencer.schema";
 import {FacebookAdapter} from "./adapters/facebook.adapter";
 import {cleanAccountUrl} from "../../common/utils/socialMedia";
+import {Influencer, SocialAccount} from "../../database/schemas/users/influencer.schema";
 
 @Injectable()
 export class ScrapersService {

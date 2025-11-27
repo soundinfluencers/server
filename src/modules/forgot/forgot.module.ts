@@ -3,8 +3,8 @@ import { ForgotService } from './forgot.service';
 import { ForgotController } from './forgot.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Forgot, ForgotSchema } from './schemas/forgot.schema';
-import {Client, ClientSchema} from "../auth/schemas/client.schema";
-import {Influencer, InfluencerSchema} from "../auth/schemas/influencer.schema";
+import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
+import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
 
 @Module({
   imports: [

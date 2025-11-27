@@ -2,12 +2,12 @@ import {Injectable, Logger} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
 import mongoose, {Model} from 'mongoose';
 import {InfluencerActionsHistory} from "./schemas/influencer-actions-history.schema";
-import {Influencer} from "../auth/schemas/influencer.schema";
 import {Promos} from "../promos/schemas/promo.schema";
 import {PromosCopies} from "../admin/schemas/promos-copies.schema";
 import {UpsertCampaignHistoryDto} from "./dto/upsert-campaign-history.dto";
 import {UpsertInvoiceHistoryDto} from "./dto/upsert-invoice-history.dto";
 import {CheckIfInCampaignDto} from "./dto/check-if-in-campaign.dto";
+import {Influencer} from "../../database/schemas/users/influencer.schema";
 
 @Injectable()
 export class InfluencerActionsHistoryService {

@@ -12,8 +12,6 @@ import {SaveXlsxPromoDto} from './dto/save-xlsx-promo.dto';
 
 import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 import {ClientGetCampaignsListDto} from "./dto/client-get-campaigns-list.dto";
-import {Client} from "../auth/schemas/client.schema";
-import {Influencer} from "../auth/schemas/influencer.schema";
 import {ClientGetCampaignForList} from "../../common/types/client/campaign.types";
 import {SocialMediaType} from "../../common/types/social-media.types";
 import {formatClientCampaignStatus, formatDate} from "../../common/utils/formatters";
@@ -25,6 +23,8 @@ import {
 import {DropboxService} from "../../integrations/dropbox/dropbox";
 import {decodeAndDecrypt} from "../../common/utils/crypt";
 import {getSocialMediaGroup} from "../../common/utils/socialMedia";
+import {Client} from "../../database/schemas/users/client.schema";
+import {Influencer} from "../../database/schemas/users/influencer.schema";
 
 mongoose.Promise = global.Promise;
 

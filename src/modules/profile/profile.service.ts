@@ -9,9 +9,9 @@ import { AddSocialMediasDto } from './dto/add-social-medias.dto';
 import { SendMailPriceChangeDto } from './dto/send-mail-price-change.dto';
 import * as process from 'node:process';
 import { AppGateway } from '../websocket/app.gateway';
-import {Client} from "../auth/schemas/client.schema";
-import {Influencer} from "../auth/schemas/influencer.schema";
 import sendMail from "../../integrations/nodemailer/nodemailer";
+import {Client} from "../../database/schemas/users/client.schema";
+import {Influencer} from "../../database/schemas/users/influencer.schema";
 
 const bcrypt = require('bcryptjs');
 

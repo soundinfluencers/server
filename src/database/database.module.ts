@@ -6,6 +6,8 @@ import {InfluencerRepository} from "./repositories/users/influencer.repository";
 import {ClientRepository} from "./repositories/users/client.repository";
 import {VerifyInfluencer, VerifyInfluencerSchema} from "./schemas/verify-users/verifyInfluencer.schema";
 import {VerifyClient, VerifyClientSchema} from "./schemas/verify-users/verifyClient.schema";
+import {VerifyClientRepository} from "./repositories/verify-users/verify-client.repository";
+import {VerifyInfluencerRepository} from "./repositories/verify-users/verify-influencer.repository";
 
 @Global()
 @Module({
@@ -19,11 +21,15 @@ import {VerifyClient, VerifyClientSchema} from "./schemas/verify-users/verifyCli
     ],
     providers: [
         ClientRepository,
-        InfluencerRepository
+        InfluencerRepository,
+        VerifyClientRepository,
+        VerifyInfluencerRepository,
     ],
     exports: [
         ClientRepository,
         InfluencerRepository,
+        VerifyClientRepository,
+        VerifyInfluencerRepository
     ],
 })
 export class DatabaseModule {}

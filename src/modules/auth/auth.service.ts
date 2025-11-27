@@ -10,6 +10,8 @@ import sendMail from "../../integrations/nodemailer/nodemailer";
 import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
+import {VerifyClientRepository} from "../../database/repositories/verify-users/verify-client.repository";
+import {VerifyInfluencerRepository} from "../../database/repositories/verify-users/verify-influencer.repository";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -40,6 +42,8 @@ export class AuthService {
     constructor(
         private readonly clientRepo: ClientRepository,
         private readonly influencerRepo: InfluencerRepository,
+        private readonly verifyClientRepo: VerifyClientRepository,
+        private readonly verifyInfluencerRepo: VerifyInfluencerRepository
     ) {
     }
 
@@ -104,14 +108,13 @@ export class AuthService {
 
             const generateVerifyId = generateRandomString();
 
-            await this.verifyClientModel.create({
-                clientId: newUser._id,
+            await this.verifyClientRepo.create({
+                clientId: (newUser as any)._id.toString(),
                 verifyId: generateVerifyId,
             });
 
             await sendMail(
-                // 'nazarkozynets030606@zohomail.eu',
-                'admin@soundinfluencers.com',
+                process.env.EMAIL_USER,
                 'SoundInfluencers',
                 `<p>Request from a new client ${data.company}</p><b>Details:</b><br/><br/><p>First Name: ${data.firstName}</p>
         <p>Company: ${data.company}</p>
@@ -156,8 +159,8 @@ export class AuthService {
             }
 
             const checkUser =
-                (await this.influencerModel.findOne({email: data.email})) ||
-                (await this.clientModel.findOne({email: data.email}));
+                (await this.influencerRepo.findInfluencerByEmail(data.email)) ||
+                (await this.clientRepo.findClientByEmail(data.email));
 
             if (checkUser) {
                 console.error(`Existing email was used while creating new influencer`);
@@ -183,7 +186,7 @@ export class AuthService {
                     isDeleted: {$ne: true},
                 };
 
-                const existingUser = await this.influencerModel.findOne(networkFilter);
+                const existingUser = await this.influencerRepo.findOne(networkFilter);
 
                 if (existingUser) {
                     console.error(
@@ -228,7 +231,7 @@ export class AuthService {
                 });
             }
 
-            const newUser = await this.influencerModel.create({
+            const newUser = await this.influencerRepo.create({
                 ...data,
                 ...processedData,
                 email: data.email.toLowerCase(),
@@ -237,8 +240,8 @@ export class AuthService {
             });
 
             const generateVerifyId = generateRandomString();
-            await this.verifyInfluencerModel.create({
-                influencerId: newUser._id,
+            await this.verifyInfluencerRepo.create({
+                influencerId: newUser._id.toString(),
                 verifyId: generateVerifyId,
             });
 
@@ -276,8 +279,7 @@ export class AuthService {
             };
 
             await sendMail(
-                // "nazarkozynets030606@zohomail.eu",
-                'admin@soundinfluencers.com',
+                process.env.EMAIL_USER,
                 'SoundInfluencers',
                 `<p>Request from a new partner ${data.firstName}</p>
             <b>Details:</b><br/><p>First Name: ${data.firstName}</p>
@@ -358,7 +360,7 @@ export class AuthService {
         };
     }
 
-    // рефреш и замена токена
+    // refresh и замена токена
     async refresh(refreshToken: string, res: Response) {
         if (!refreshToken)
             throw new UnauthorizedException('No refresh token provided');
@@ -371,8 +373,8 @@ export class AuthService {
         }
 
         const user =
-            (await this.clientModel.findById(payload.id)) ||
-            (await this.influencerModel.findById(payload.id));
+            (await this.clientRepo.findById(payload.id)) ||
+            (await this.influencerRepo.findById(payload.id));
 
         if (!user || user.refreshToken !== refreshToken)
             throw new UnauthorizedException('Invalid refresh token');
@@ -390,12 +392,12 @@ export class AuthService {
     // Выход из аккаунта
     async logout(refreshToken: string, res: Response) {
         if (refreshToken) {
-            await this.clientModel.updateOne(
+            await this.clientRepo.updateOne(
                 {refreshToken},
                 {$unset: {refreshToken: ''}},
             );
 
-            await this.influencerModel.updateOne(
+            await this.influencerRepo.updateOne(
                 {refreshToken},
                 {$unset: {refreshToken: ''}},
             );
@@ -425,8 +427,8 @@ export class AuthService {
     }
 
     private async saveRefreshToken(userId, token) {
-        await this.clientModel.updateOne({_id: userId}, {refreshToken: token});
-        await this.influencerModel.updateOne({_id: userId}, {refreshToken: token});
+        await this.clientRepo.updateOne({_id: userId}, {refreshToken: token});
+        await this.influencerRepo.updateOne({_id: userId}, {refreshToken: token});
     }
 
     async verifyAdminInfluencer(verifyId: string, responseVerify: string) {
@@ -437,7 +439,7 @@ export class AuthService {
             };
         }
 
-        const checkVerifyAdmin = await this.verifyInfluencerModel.findOne({
+        const checkVerifyAdmin = await this.verifyInfluencerRepo.findOne({
             verifyId: verifyId,
         });
 
@@ -448,7 +450,7 @@ export class AuthService {
             };
         }
 
-        const checkInfluencer = await this.influencerModel.findOne({
+        const checkInfluencer = await this.influencerRepo.findOne({
             _id: checkVerifyAdmin.influencerId,
         });
 
@@ -460,12 +462,12 @@ export class AuthService {
         }
 
         if (responseVerify === 'accept') {
-            await this.influencerModel.findOneAndUpdate(
+            await this.influencerRepo.findOneAndUpdate(
                 {_id: checkInfluencer._id},
                 {statusVerify: responseVerify},
             );
 
-            await this.verifyInfluencerModel.findOneAndDelete({verifyId: verifyId});
+            await this.verifyInfluencerRepo.findOneAndDelete({verifyId: verifyId});
 
             sendMail(
                 checkInfluencer.email,
@@ -485,12 +487,12 @@ export class AuthService {
                 message: 'influencer verify',
             };
         } else if (responseVerify === 'cancel') {
-            await this.influencerModel.findOneAndUpdate(
+            await this.influencerRepo.findOneAndUpdate(
                 {_id: checkInfluencer._id},
                 {statusVerify: responseVerify},
             );
 
-            await this.verifyInfluencerModel.findOneAndDelete({verifyId: verifyId});
+            await this.verifyInfluencerRepo.findOneAndDelete({verifyId: verifyId});
             sendMail(
                 checkInfluencer.email,
                 'SoundInfluencers',
@@ -521,7 +523,7 @@ export class AuthService {
             };
         }
 
-        const checkVerifyAdmin = await this.verifyClientModel.findOne({
+        const checkVerifyAdmin = await this.verifyClientRepo.findOne({
             verifyId: verifyId,
         });
 
@@ -532,7 +534,7 @@ export class AuthService {
             };
         }
 
-        const checkClient = await this.clientModel.findOne({
+        const checkClient = await this.clientRepo.findOne({
             _id: checkVerifyAdmin.clientId,
         });
 
@@ -544,12 +546,12 @@ export class AuthService {
         }
 
         if (responseVerify === 'accept') {
-            await this.clientModel.findOneAndUpdate(
+            await this.clientRepo.findOneAndUpdate(
                 {_id: checkClient._id},
                 {statusVerify: responseVerify},
             );
 
-            await this.verifyClientModel.findOneAndDelete({verifyId: verifyId});
+            await this.verifyClientRepo.findOneAndDelete({verifyId: verifyId});
 
             sendMail(
                 checkClient.email,
@@ -569,12 +571,12 @@ export class AuthService {
                 message: 'client verify',
             };
         } else if (responseVerify === 'cancel') {
-            await this.clientModel.findOneAndUpdate(
+            await this.clientRepo.findOneAndUpdate(
                 {_id: checkClient._id},
                 {statusVerify: responseVerify},
             );
 
-            await this.verifyClientModel.findOneAndDelete({verifyId: verifyId});
+            await this.verifyClientRepo.findOneAndDelete({verifyId: verifyId});
             sendMail(
                 checkClient.email,
                 'SoundInfluencers',
@@ -606,8 +608,8 @@ export class AuthService {
                 };
             }
             const login = jwt.verify(data.token, this.secretKey);
-            const userClient = await this.clientModel.findOne({_id: login.id});
-            const userInfluencer = await this.influencerModel.findOne({
+            const userClient = await this.clientRepo.findOne({_id: login.id});
+            const userInfluencer = await this.influencerRepo.findOne({
                 _id: login.id,
             });
 
@@ -639,11 +641,13 @@ export class AuthService {
 
     async getInfluencersWithSocialMedia(socialMedia: string) {
         try {
-            const getInfluencersAll = await this.influencerModel
-                .find({statusVerify: 'accept'})
-                .select(['-password', '-balance', '-phone', '-email'])
-                .lean()
-                .exec();
+            const getInfluencersAll = await this.influencerRepo.findMany(
+                {statusVerify: 'accept'},
+                {
+                    lean: true,
+                    select: ['-password', '-balance', '-phone', '-email'],
+                }
+            );
 
             const influencersList = getInfluencersAll.map((item) => {
                 const socialMediaAccounts = item[socialMedia];
@@ -680,11 +684,11 @@ export class AuthService {
 
     async getInfluencersWithoutSocialMedia() {
         try {
-            const influencers = await this.influencerModel
-                .find({statusVerify: 'accept'})
-                .select(['-password', '-balance', '-phone', '-email'])
-                .lean()
-                .exec();
+            const influencers = await this.influencerRepo
+                .findMany({statusVerify: 'accept'}, {
+                    lean: true,
+                    select: ['-password', '-balance', '-phone', '-email'],
+                });
 
             const allAccounts = influencers.map((influencer) => {
                 const socialMediaKeys = [
@@ -730,11 +734,11 @@ export class AuthService {
 
     async getClients() {
         try {
-            const getClientsAll = await this.clientModel
-                .find({statusVerify: 'accept'})
-                .select(['-password'])
-                .lean()
-                .exec();
+            const getClientsAll = await this.clientRepo
+                .findMany({statusVerify: 'accept'}, {
+                    lean: true,
+                    select: ['-password']
+                });
 
             return {
                 code: 200,
@@ -751,11 +755,7 @@ export class AuthService {
 
     async getInfluencerById(id: string) {
         try {
-            const getInfluencer = await this.influencerModel
-                .findOne({_id: new mongoose.Types.ObjectId(id)})
-                .select(['-password', '-balance', '-phone', '-email'])
-                .lean()
-                .exec();
+            const getInfluencer = await this.influencerRepo.findOne({_id: new mongoose.Types.ObjectId(id)})
 
             return {
                 code: 200,
@@ -782,7 +782,7 @@ export class AuthService {
             };
         }
 
-        const influencer = await this.influencerModel.findOne({
+        const influencer = await this.influencerRepo.findOne({
             _id: new mongoose.Types.ObjectId(influencerId),
         });
         if (!influencer) {
@@ -820,11 +820,7 @@ export class AuthService {
         try {
             const objectId = new Types.ObjectId(id);
 
-            const getClient = await this.clientModel
-                .findOne({_id: objectId})
-                .select(['-password'])
-                .lean()
-                .exec();
+            const getClient = await this.clientRepo.findOne({_id: objectId});
 
             return {
                 code: 200,

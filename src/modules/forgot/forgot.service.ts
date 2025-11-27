@@ -2,9 +2,9 @@ import { Injectable, Query } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import mongoose from 'mongoose';
 import { Forgot } from './schemas/forgot.schema';
-import {Client} from "../auth/schemas/client.schema";
-import {Influencer} from "../auth/schemas/influencer.schema";
 import sendMail from "../../integrations/nodemailer/nodemailer";
+import {Client} from "../../database/schemas/users/client.schema";
+import {Influencer} from "../../database/schemas/users/influencer.schema";
 const bcrypt = require('bcryptjs');
 
 function generateFourDigitCode() {

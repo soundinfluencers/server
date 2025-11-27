@@ -5,8 +5,8 @@ import mongoose from 'mongoose';
 import { Payment } from './schemas/payment.entity';
 import { Response } from 'express';
 import {InvoiceDetails} from "../invoice/schemas/invoice-details.schema";
-import {Client} from "../auth/schemas/client.schema";
 import sendMail from "../../integrations/nodemailer/nodemailer";
+import {Client} from "../../database/schemas/users/client.schema";
 
 const fs = require('fs');
 const PDFDocument = require('pdfkit');

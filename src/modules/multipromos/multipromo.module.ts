@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Client, ClientSchema } from '../auth/schemas/client.schema';
-import { Influencer, InfluencerSchema } from '../auth/schemas/influencer.schema';
 import { MultiPromoController } from './multipromo.controller';
 import { MultiPromoService } from './multipromo.service';
+import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
+import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
 
 @Module({
   imports: [

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Client } from '../auth/schemas/client.schema';
 import mongoose from 'mongoose';
-import { Influencer } from '../auth/schemas/influencer.schema';
+import {Client} from "../../database/schemas/users/client.schema";
+import {Influencer} from "../../database/schemas/users/influencer.schema";
 
 @Injectable()
 export class MultiPromoService {

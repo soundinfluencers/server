@@ -1,13 +1,13 @@
 import {Injectable, Logger} from '@nestjs/common';
 import {InjectConnection, InjectModel} from '@nestjs/mongoose';
 import mongoose, {Connection, Types} from 'mongoose';
-import {Influencer} from '../auth/schemas/influencer.schema';
 import {ProposalCampaign} from './schemas/proposal-campaign.schema';
 import {SaveProposalCampaignDto} from './dto/save-proposal-campaign.dto';
 import {Promos} from "../promos/schemas/promo.schema";
 import {PromosService} from "../promos/promos.service";
-import {Client} from "../auth/schemas/client.schema";
 import sendMail from "../../integrations/nodemailer/nodemailer";
+import {Client} from "../../database/schemas/users/client.schema";
+import {Influencer} from "../../database/schemas/users/influencer.schema";
 
 @Injectable()
 export class ProposalSystemService {

@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Influencer } from '../auth/schemas/influencer.schema';
 import { OfferDto } from './dto/offer.dto';
 import { ChangeOfferDeletedStatusDto } from './dto/change-offer-deleted-status.dto';
 import { OfferConnectedAccount } from './entities/offer-connected-account.entity';
 import { Offer } from './schemas/offer.schema';
 import {SocialMediaEnum, SocialMediaType} from "../../common/types/social-media.types";
 import {allowedGenresMap} from "../../common/types/genres.types";
+import {Influencer} from "../../database/schemas/users/influencer.schema";
 
 @Injectable()
 export class OffersService {

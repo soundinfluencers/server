@@ -2,11 +2,11 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ProposalSystemController } from './proposal-system.controller';
 import { ProposalSystemService } from './proposal-system.service';
-import { Client, ClientSchema } from '../auth/schemas/client.schema';
-import { Influencer, InfluencerSchema } from '../auth/schemas/influencer.schema';
 import { ProposalCampaign, ProposalCampaignSchema } from './schemas/proposal-campaign.schema';
 import { Promos, PromosSchema } from "../promos/schemas/promo.schema";
 import {PromosModule} from "../promos/promos.module";
+import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
+import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
 
 @Module({
   imports: [

@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ReportSizes, ReportSizesSchema } from './schemas/reports-sizes.schema';
-import { Client, ClientSchema } from '../auth/schemas/client.schema';
 import { ReportsSizesController } from './reports-sizes.controller';
 import { ReportsSizesService } from './reports-sizes.service';
 import { Promos, PromosSchema } from '../promos/schemas/promo.schema';
 import { ProposalCampaign, ProposalCampaignSchema } from "../proposal-system/schemas/proposal-campaign.schema";
+import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
 
 @Module({
   imports: [

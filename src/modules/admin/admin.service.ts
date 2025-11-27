@@ -2,8 +2,6 @@ import {Injectable, Logger} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
 import {CampaignContentItem, Promos} from '../promos/schemas/promo.schema';
 import mongoose, {Types} from 'mongoose';
-import {Client} from '../auth/schemas/client.schema';
-import {Influencer} from '../auth/schemas/influencer.schema';
 import {AdminUpdatePersonalClientDto} from './dto/admin-update-client.dto';
 import {AdminUpdateInfluencerPersonalDto} from './dto/admin-update-influencer-personal.dto';
 import {AdminUpdateInfluencerInstagramDto} from './dto/admin-update-influencer-instagram.dto';
@@ -33,6 +31,8 @@ import {
     AccountObjectForCreateNewPromoRequestMessage, createNewPromoRequestHTMLMessage,
     createNewPromoRequestTextMessage
 } from "../../common/utils/new-promo-message";
+import {Client} from "../../database/schemas/users/client.schema";
+import {Influencer} from "../../database/schemas/users/influencer.schema";
 
 @Injectable()
 export class AdminService {
