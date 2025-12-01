@@ -1,7 +1,7 @@
 import { Request } from 'express';
 
 export interface UserPayload {
-    id: string;
+    _id: string;
     email?: string;
 }
 

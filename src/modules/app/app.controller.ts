@@ -7,7 +7,6 @@ export class AppController {
 
   @Get()
   getHello(@Res() res) {
-    return res.redirect('/api');
-    // return res.redirect('/api-nazar');
+    return res.redirect(process.env.NODE_ENV === 'production' ? '/api' : '/dev-api');
   }
 }

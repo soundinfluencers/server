@@ -357,6 +357,7 @@ export class AuthService {
         return {
             accessToken,
             role: user.role,
+            _id: (user as any)._id
         };
     }
 
@@ -409,9 +410,9 @@ export class AuthService {
     }
 
     // Генерация access токена
-    private generateAccessToken(user) {
+    private generateAccessToken(user: any) {
         return jwt.sign(
-            {id: user.id, role: user.role},
+            {_id: user._id, role: user.role},
             this.accessKey,
             {expiresIn: '15m'},
         );
@@ -420,7 +421,7 @@ export class AuthService {
     // Генерация refresh токена
     private generateRefreshToken(user) {
         return jwt.sign(
-            {id: user.id},
+            {_id: user._id},
             this.refreshKey,
             {expiresIn: '7d'},
         );

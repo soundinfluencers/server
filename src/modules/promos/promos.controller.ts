@@ -37,7 +37,7 @@ export class PromosController {
     @ApiOperation({ summary: 'Get client campaigns list' })
     @Get('client/get/list')
     clientGetCampaignsList(@Req() request: AuthenticatedRequest): Promise<ClientGetCampaignsListDto> {
-        const userId = request.user.id;
+        const userId = request.user._id;
         return this.promosService.clientGetCampaignsList(userId);
     }
 
