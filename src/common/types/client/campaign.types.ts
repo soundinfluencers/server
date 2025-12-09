@@ -5,6 +5,12 @@ export type CampaignStatusType =
     'Distributing' |
     'Completed' ;
 
+export enum CampaignStatusEnum {
+    Pending = 'Pending',
+    Distributing = 'Distributing',
+    Completed = 'Completed',
+}
+
 export interface ClientGetCampaignForList {
     _id: string;
     campaignName: string;

@@ -3,6 +3,8 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as bodyParser from 'body-parser';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from './modules/app/app.module';
+import {ResponseTransformInterceptor} from "./common/interceptors/response-transform.interceptor";
+import {HttpExceptionFilter} from "./common/filters/http-exception.filter";
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
@@ -10,6 +12,9 @@ async function bootstrap() {
     app.use(cookieParser());
     app.use(bodyParser.json({ limit: '50mb' }));
     app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
+    app.useGlobalInterceptors(new ResponseTransformInterceptor());
+    app.useGlobalFilters(new HttpExceptionFilter());
 
     app.enableCors({
         origin: [

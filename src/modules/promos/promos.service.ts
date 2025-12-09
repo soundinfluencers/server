@@ -101,7 +101,7 @@ export class PromosService {
     async createPromo(data: CreatePromosDto) {
         if (!data) {
             return {
-                status: 400,
+                statusCode: 400,
                 message: 'Not enough arguments',
             };
         }
@@ -210,7 +210,7 @@ export class PromosService {
                 });
             } catch (err) {
                 return {
-                    code: 500,
+                    statusCode: 500,
                     message: err.message,
                 };
             }
@@ -369,13 +369,13 @@ ${emailVideoContent()}
             );
 
             return {
-                code: 201,
+                statusCode: 201,
                 result,
             };
         } catch (err) {
             console.error('Error creating promo:', err, new Date().toLocaleString());
             return {
-                code: 500,
+                statusCode: 500,
                 message: err.message,
             };
         }
@@ -601,7 +601,7 @@ ${emailVideoContent()}
         try {
             if (!id) {
                 return {
-                    status: 400,
+                    statusCode: 400,
                     message: 'Not enough arguments',
                 };
             }
@@ -609,7 +609,7 @@ ${emailVideoContent()}
             const checkUser = await this.clientModel.findById(id);
             if (!checkUser) {
                 return {
-                    code: 404,
+                    statusCode: 404,
                     message: 'User not found',
                 };
             }
@@ -632,13 +632,13 @@ ${emailVideoContent()}
             );
 
             return {
-                code: 200,
+                statusCode: 200,
                 promos: campaignsToReturn,
             };
         } catch (err) {
             console.log(err);
             return {
-                code: 500,
+                statusCode: 500,
                 message: err,
             };
         }
@@ -1903,7 +1903,7 @@ ${emailVideoContent()}
         const dropboxService = new DropboxService();
         const screenshotUrl = await dropboxService.uploadFile(file.buffer, file.originalname);
         return {
-            code: 200,
+            statusCode: 200,
             data: screenshotUrl,
         };
     }

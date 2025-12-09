@@ -26,6 +26,7 @@ import {AuthenticatedRequest} from "../../common/types/auth.types";
 import {decodeAndDecrypt} from "../../common/utils/crypt";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Public} from "../../common/decorators/public.decorator";
+import {ApiResponseDto} from "../../common/decorators/api-response.decorator";
 
 @ApiTags('promos')
 @Controller('promos')
@@ -35,21 +36,24 @@ export class PromosController {
 
     @Auth()
     @ApiOperation({ summary: 'Get client campaigns list' })
+    @ApiResponseDto(ClientGetCampaignsListDto)
     @Get('client/get/list')
-    clientGetCampaignsList(@Req() request: AuthenticatedRequest): Promise<ClientGetCampaignsListDto> {
-        const userId = request.user._id;
-        return this.promosService.clientGetCampaignsList(userId);
+    clientGetCampaignsList(
+        @Req() request: AuthenticatedRequest,
+    ) {
+        return this.promosService.clientGetCampaignsList(request.user._id);
     }
 
     @Auth()
-    @ApiOperation({ summary: 'Create new campaign' })
+    @ApiOperation({ summary: 'Creates a new campaign from client side' })
+    @ApiResponseDto()
     @Post('client-create-campaign')
     createPromos(@Body() data: CreatePromosDto) {
         return this.promosService.createPromo(data);
     }
 
     @Public()
-    @ApiOperation({ summary: 'Verify campaign' })
+    @ApiOperation({ summary: 'Verify campaign (For email)' })
     @Get('verify-promo')
     async verifyCampaign(@Query() args: { promoId: string; status: string }, @Res() res: Response) {
         const result = await this.promosService.verifyCampaign(args.promoId, args.status);
@@ -116,18 +120,23 @@ export class PromosController {
 
     // TODO: REMOVE TO FILES SERVICE
     @Post('uploadScreenshot')
+    @ApiOperation({ summary: 'Uploads screenshot - will be removed to files controller' })
+    @ApiResponseDto()
     @UseInterceptors(FileInterceptor('file'))
     uploadFile(@UploadedFile() file: File) {
         return this.promosService.uploadDropBox(file);
     }
 
     @Get('check-upload-status')
+    @ApiOperation({ summary: 'Checks if screenshot uploaded - will be removed to files controller' })
+    @ApiResponseDto()
     async checkUploadStatus(@Query('fileName') fileName: string): Promise<boolean> {
         return await this.promosService.checkUploadStatus(fileName);
     }
 
     @Auth()
     @ApiOperation({ summary: 'Gets client completed campaigns' })
+    @ApiResponseDto()
     @ApiQuery({name: 'id', required: true})
     @Get('client-completed-campaigns/history')
     clientCompletedCampaignsHistory(@Query() args: { id: string }) {
