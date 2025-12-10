@@ -541,7 +541,7 @@ export class ProposalSystemService {
             }
 
             const resultOfCreating = await this.promoService.createPromo(formattedCampaign);
-            if (resultOfCreating.code !== 201) {
+            if (resultOfCreating.statusCode !== 201) {
                 throw new Error('Error while creating promo campaign');
             }
 

@@ -12,7 +12,6 @@ import {
 } from '@nestjs/common';
 import {PromosService} from './promos.service';
 import {CreatePromosDto} from './dto/create-promo.dto';
-import {CreatePromosEstimateDto} from './dto/create-promo-estimate.dto';
 import {ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags} from '@nestjs/swagger';
 import {FileInterceptor} from '@nestjs/platform-express';
 import File from 'multer';
@@ -20,7 +19,10 @@ import {GetSelectedSocialAccountsDto} from './dto/get-selected-social-accounts.d
 import {SendNewFullServicedCampaignRequest} from './dto/send-new-full-serviced-campaign-request';
 import {SaveXlsxPromoDto} from './dto/save-xlsx-promo.dto';
 import {Response} from 'express';
-import {OneCampaignQueryDto} from "./dto/influencer-get-past-campaign";
+import {
+    InfluencerGetPastPromoReqDto,
+    InfluencerGetPastPromoResDto,
+} from "./dto/influencer-get-past-promo.dto";
 import {ClientGetCampaignsListDto} from "./dto/client-get-campaigns-list.dto";
 import {AuthenticatedRequest} from "../../common/types/auth.types";
 import {decodeAndDecrypt} from "../../common/utils/crypt";
@@ -36,7 +38,7 @@ export class PromosController {
 
     @Auth()
     @ApiOperation({ summary: 'Get client campaigns list' })
-    @ApiResponseDto(ClientGetCampaignsListDto)
+    @ApiResponseDto(ClientGetCampaignsListDto, { isArray: true })
     @Get('client/get/list')
     clientGetCampaignsList(
         @Req() request: AuthenticatedRequest,
@@ -46,7 +48,7 @@ export class PromosController {
 
     @Auth()
     @ApiOperation({ summary: 'Creates a new campaign from client side' })
-    @ApiResponseDto()
+    @ApiResponseDto(undefined, { successStatusCode: 201 })
     @Post('client-create-campaign')
     createPromos(@Body() data: CreatePromosDto) {
         return this.promosService.createPromo(data);
@@ -135,7 +137,7 @@ export class PromosController {
     }
 
     @Auth()
-    @ApiOperation({ summary: 'Gets client completed campaigns' })
+    @ApiOperation({ summary: `Gets client's completed campaigns (Will be deleted)` })
     @ApiResponseDto()
     @ApiQuery({name: 'id', required: true})
     @Get('client-completed-campaigns/history')
@@ -153,27 +155,11 @@ export class PromosController {
 
     @Auth()
     @ApiOperation({ summary: 'Get influencer completed promo' })
-    @Post('influencer-completed-campaigns/one-campaign')
-    @ApiBody({type: OneCampaignQueryDto})
-    influencerPastCampaignOne(@Body() args: OneCampaignQueryDto) {
-        const decryptedCampaignId = decodeAndDecrypt(
-            args.campaignId,
-            process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
-        );
-        const decryptedInfluencerId = decodeAndDecrypt(
-            args.influencerId,
-            process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
-        );
-        const decryptedSelectInfluencersId = decodeAndDecrypt(
-            args.selectInfluencersId,
-            process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
-        );
-
-        return this.promosService.influencerPastCampaignOne(
-            decryptedCampaignId,
-            decryptedInfluencerId,
-            decryptedSelectInfluencersId
-        );
+    @ApiResponseDto(InfluencerGetPastPromoResDto)
+    @Post('influencer-completed-promos/one-promo')
+    @ApiBody({type: InfluencerGetPastPromoReqDto})
+    influencerPastCampaignOne(@Body() data: InfluencerGetPastPromoReqDto): Promise<InfluencerGetPastPromoResDto> {
+        return this.promosService.influencerPastPromoOne(data);
     }
 
     @Auth()

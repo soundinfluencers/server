@@ -25,6 +25,7 @@ import {decodeAndDecrypt} from "../../common/utils/crypt";
 import {getSocialMediaGroup} from "../../common/utils/socialMedia";
 import {Client} from "../../database/schemas/users/client.schema";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
+import {InfluencerGetPastPromoReqDto, InfluencerGetPastPromoResDto} from "./dto/influencer-get-past-promo.dto";
 
 mongoose.Promise = global.Promise;
 
@@ -860,14 +861,12 @@ ${emailVideoContent()}
         }
     }
 
-    async influencerPastCampaignOne(
-        influencerId: string,
-        campaignId: string,
-        selectInfluencersId: string
-    ) {
+    async influencerPastPromoOne(data: InfluencerGetPastPromoReqDto): Promise<InfluencerGetPastPromoResDto> {
+        const { influencerId, campaignId, selectInfluencersId } = data;
+
         if (!influencerId || !campaignId || !selectInfluencersId) {
             return {
-                status: 400,
+                statusCode: 400,
                 message: 'Not enough arguments',
             };
         }
@@ -876,7 +875,7 @@ ${emailVideoContent()}
             const influencer = await this.influencerModel.findById(influencerId);
             if (!influencer) {
                 return {
-                    code: 404,
+                    statusCode: 404,
                     message: 'Influencer not found',
                 };
             }
@@ -888,7 +887,7 @@ ${emailVideoContent()}
 
                 if (!campaign) {
                     return {
-                        code: 404,
+                        statusCode: 404,
                         message: 'Campaign not found',
                     };
                 }
@@ -898,7 +897,7 @@ ${emailVideoContent()}
 
             if (!client) {
                 return {
-                    code: 404,
+                    statusCode: 404,
                     message: 'Client not found',
                 };
             }
@@ -907,8 +906,8 @@ ${emailVideoContent()}
 
             if (!selectedAccount) {
                 return {
-                    code: 404,
-                    message: 'Not found',
+                    statusCode: 404,
+                    message: `Influencer's social account not found in this campaign`,
                 };
             }
 
@@ -946,32 +945,40 @@ ${emailVideoContent()}
 
             if (!contentItem) {
                 return {
-                    code: 404,
+                    statusCode: 404,
                     message: 'Campaign content not found',
                 };
             }
 
             return {
-                code: 200,
-                promo: {
+                statusCode: 200,
+                pastPromo: {
+                    promoId: campaignId,
                     campaignName: campaign.campaignName,
                     influencerId: influencerId,
                     socialMediaUsername:
                         selectedAccount.socialMediaUsername || (selectedAccount as any).instagramUsername,
                     dateRequest: selectedAccount.dateRequest,
                     client: client?.company || client?.firstName || 'No information',
-                    socialMedia: campaign.socialMedia,
+                    socialMedia: campaign.socialMedia as SocialMediaType,
                     videoLink: (contentItem as any).videoLink,
                     postDescription: (contentItem as any).postDescription,
                     storyTag: (contentItem as any).storyTag,
-                    swipeUpLink: (contentItem as any).swipeUpLink,
+                    storyLink: (contentItem as any).swipeUpLink,
                     specialWishes: (contentItem as any).specialWishes,
                 },
+                message: "Success"
             };
         } catch (err) {
+            this.logger.error(
+                `[influencerPastPromoOne - ${new Date().toISOString()}] ${err?.message ?? err}`,
+                err instanceof Error
+                    ? err.stack
+                    : JSON.stringify(err, null, 2)
+            );
             return {
-                code: 500,
-                message: err,
+                statusCode: 500,
+                message: "Something went wrong",
             };
         }
     }

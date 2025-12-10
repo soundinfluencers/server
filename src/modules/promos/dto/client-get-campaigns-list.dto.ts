@@ -6,7 +6,7 @@ import {
 } from "../../../common/types/client/campaign.types";
 import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
 
-export class ClientGetCampaignForListDto {
+export class ClientGetCampaignForListDto implements ClientGetCampaignForList {
     @ApiProperty()
     _id: string;
 
