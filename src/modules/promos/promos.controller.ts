@@ -8,7 +8,7 @@ import {
     Query,
     UseInterceptors,
     UploadedFile,
-    Res, Req,
+    Res, Req, BadRequestException,
 } from '@nestjs/common';
 import {PromosService} from './promos.service';
 import {CreatePromosDto} from './dto/create-promo.dto';
@@ -19,16 +19,14 @@ import {GetSelectedSocialAccountsDto} from './dto/get-selected-social-accounts.d
 import {SendNewFullServicedCampaignRequest} from './dto/send-new-full-serviced-campaign-request';
 import {SaveXlsxPromoDto} from './dto/save-xlsx-promo.dto';
 import {Response} from 'express';
-import {
-    InfluencerGetPastPromoReqDto,
-    InfluencerGetPastPromoResDto,
-} from "./dto/influencer-get-past-promo.dto";
+import {InfluencerGetPastPromoReqDto, InfluencerPastPromoDto} from "./dto/influencer-get-past-promo.dto";
 import {ClientGetCampaignsListDto} from "./dto/client-get-campaigns-list.dto";
 import {AuthenticatedRequest} from "../../common/types/auth.types";
 import {decodeAndDecrypt} from "../../common/utils/crypt";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Public} from "../../common/decorators/public.decorator";
-import {ApiResponseDto} from "../../common/decorators/api-response.decorator";
+import {ApiResponseDto} from "../../common/decorators/api-response/api-response.decorator";
+import {ClientCampaignForTable} from "../../common/types/client/campaign.types";
 
 @ApiTags('promos')
 @Controller('promos')
@@ -42,7 +40,7 @@ export class PromosController {
     @Get('client/get/list')
     clientGetCampaignsList(
         @Req() request: AuthenticatedRequest,
-    ) {
+    ): Promise<ClientGetCampaignsListDto> {
         return this.promosService.clientGetCampaignsList(request.user._id);
     }
 
@@ -136,6 +134,7 @@ export class PromosController {
         return await this.promosService.checkUploadStatus(fileName);
     }
 
+    // TODO: DELETE (INSTEAD OF THIS - CREATE LOGIC IN client/get/list)
     @Auth()
     @ApiOperation({ summary: `Gets client's completed campaigns (Will be deleted)` })
     @ApiResponseDto()
@@ -155,31 +154,22 @@ export class PromosController {
 
     @Auth()
     @ApiOperation({ summary: 'Get influencer completed promo' })
-    @ApiResponseDto(InfluencerGetPastPromoResDto)
+    @ApiResponseDto(InfluencerPastPromoDto)
     @Post('influencer-completed-promos/one-promo')
     @ApiBody({type: InfluencerGetPastPromoReqDto})
-    influencerPastCampaignOne(@Body() data: InfluencerGetPastPromoReqDto): Promise<InfluencerGetPastPromoResDto> {
+    influencerPastCampaignOne(@Body() data: InfluencerGetPastPromoReqDto): Promise<InfluencerPastPromoDto> {
         return this.promosService.influencerPastPromoOne(data);
     }
 
     @Auth()
-    @ApiOperation({ summary: 'Get client campaign' })
+    @ApiOperation({ summary: 'Get client campaign (completed or ongoing)' })
     @ApiQuery({name: 'campaignId', required: true})
     @ApiQuery({name: 'clientId', required: true})
     @Get('client-campaign/one')
-    clientGetOngoingOrPastCampaign(@Query() args: { campaignId: string; clientId: string }) {
-        const decryptedCampaignId = decodeAndDecrypt(
-            args.campaignId,
-            process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
-        );
-        const decryptedClientId = decodeAndDecrypt(
-            args.clientId,
-            process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
-        );
-        return this.promosService.clientGetOngoingOrPastCampaign(
-            decryptedCampaignId,
-            decryptedClientId,
-        );
+    clientGetOngoingOrPastCampaign(@Query() args: { campaignId: string; clientId: string }): Promise<ClientCampaignForTable> {
+        if (!args.campaignId || !args.clientId) throw new BadRequestException('Not enough arguments');
+
+        return this.promosService.clientGetOngoingOrPastCampaign(args.campaignId, args.clientId);
     }
 
     @Auth()

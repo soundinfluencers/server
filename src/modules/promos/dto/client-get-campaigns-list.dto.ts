@@ -27,12 +27,6 @@ export class ClientGetCampaignForListDto implements ClientGetCampaignForList {
 }
 
 export class ClientGetCampaignsListDto {
-    @ApiProperty()
-    statusCode: number;
-
     @ApiProperty({ type: () => [ClientGetCampaignForListDto] })
     campaigns?: ClientGetCampaignForList[];
-
-    @ApiProperty()
-    message?: string;
 }

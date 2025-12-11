@@ -4,7 +4,7 @@ import * as bodyParser from 'body-parser';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from './modules/app/app.module';
 import {ResponseTransformInterceptor} from "./common/interceptors/response-transform.interceptor";
-import {HttpExceptionFilter} from "./common/filters/http-exception.filter";
+import {AllExceptionsFilter} from "./common/filters/exceptions.filter";
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
@@ -14,7 +14,7 @@ async function bootstrap() {
     app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
     app.useGlobalInterceptors(new ResponseTransformInterceptor());
-    app.useGlobalFilters(new HttpExceptionFilter());
+    app.useGlobalFilters(new AllExceptionsFilter());
 
     app.enableCors({
         origin: [
@@ -163,8 +163,8 @@ async function bootstrap() {
                                                     body: JSON.stringify({ email, password }),
                                                 }).then(r => r.json());
 
-                                                if (res.accessToken) {
-                                                    const token = res.accessToken.replace(/^Bearer\s+/i, '');
+                                                if (res.data.accessToken) {
+                                                    const token = res.data.accessToken.replace(/^Bearer\s+/i, '');
                                                     localStorage.setItem('swagger_access_token', token);
 
                                                     system.authActions.authorize({

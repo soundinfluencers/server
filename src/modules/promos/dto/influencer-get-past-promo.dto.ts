@@ -16,7 +16,7 @@ export class InfluencerGetPastPromoReqDto {
 
 export class InfluencerPastPromoDto implements InfluencerPastPromo {
     @ApiProperty()
-    promoId: string;
+    promoId: string | Types.ObjectId;
 
     @ApiProperty()
     campaignName: string;
@@ -50,15 +50,4 @@ export class InfluencerPastPromoDto implements InfluencerPastPromo {
 
     @ApiProperty()
     specialWishes?: string;
-}
-
-export class InfluencerGetPastPromoResDto {
-    @ApiProperty()
-    statusCode: number;
-
-    @ApiProperty({ required: false })
-    pastPromo?: InfluencerPastPromoDto;
-
-    @ApiProperty()
-    message: string | null = null;
 }
