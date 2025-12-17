@@ -62,7 +62,7 @@ export class CampaignContentItemDto {
   socialMediaGroup: string;
 }
 
-export class CreatePromosDto {
+export class CreateCampaignDto {
   @ApiProperty({ required: true })
   clientId: string;
 

@@ -3,10 +3,10 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ProposalSystemController } from './proposal-system.controller';
 import { ProposalSystemService } from './proposal-system.service';
 import { ProposalCampaign, ProposalCampaignSchema } from './schemas/proposal-campaign.schema';
-import { Promos, PromosSchema } from "../promos/schemas/promo.schema";
-import {PromosModule} from "../promos/promos.module";
+import {Campaign, CampaignSchema} from "../campaigns/schemas/campaign.schema";
 import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
 import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
+import {CampaignsModule} from "../campaigns/campaigns.module";
 
 @Module({
   imports: [
@@ -14,9 +14,9 @@ import {Influencer, InfluencerSchema} from "../../database/schemas/users/influen
       { name: Client.name, schema: ClientSchema },
       { name: Influencer.name, schema: InfluencerSchema },
       { name: ProposalCampaign.name, schema: ProposalCampaignSchema },
-      { name: Promos.name, schema: PromosSchema },
+      { name: Campaign.name, schema: CampaignSchema },
     ]),
-      PromosModule
+      CampaignsModule
   ],
   controllers: [ProposalSystemController],
   providers: [ProposalSystemService],

@@ -21,6 +21,7 @@ import {ScrapersModule} from "../scrapers/scrapers.module";
 import {ReportsSizesModule} from "../reports-sizes/reports-sizes.module";
 import {HealthController} from "../health/health.controller";
 import {DatabaseModule} from "../../database/database.module";
+import {CampaignsModule} from "../campaigns/campaigns.module";
 
 @Module({
     imports: [
@@ -32,6 +33,7 @@ import {DatabaseModule} from "../../database/database.module";
         ForgotModule,
         ProfileModule,
         InvoiceModule,
+        CampaignsModule,
         PromosModule,
         FileModule,
         PaymentModule,

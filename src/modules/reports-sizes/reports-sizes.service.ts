@@ -3,7 +3,7 @@ import {InjectModel} from '@nestjs/mongoose';
 import {Model, Types} from 'mongoose';
 import {ReportSizes} from './schemas/reports-sizes.schema';
 import {UpdateReportSizeDto} from './dto/update-report-size.dto';
-import {Promos} from '../promos/schemas/promo.schema';
+import {Campaign} from '../campaigns/schemas/campaign.schema';
 import {GetReportSizeDto} from './dto/get-report-size.dto';
 import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 
@@ -13,7 +13,7 @@ export class ReportsSizesService {
 
     constructor(
         @InjectModel(ReportSizes.name) private reportsSizesModel: Model<ReportSizes>,
-        @InjectModel(Promos.name) private readonly promosModel: Model<Promos>,
+        @InjectModel(Campaign.name) private readonly campaignModel: Model<Campaign>,
         @InjectModel(ProposalCampaign.name) private readonly proposalCampaignModel: Model<ProposalCampaign>,
     ) {
     }
@@ -32,7 +32,7 @@ export class ReportsSizesService {
 
         try {
             const campaignExists =
-                !!(await this.promosModel.exists({ _id: campaignId })) ||
+                !!(await this.campaignModel.exists({ _id: campaignId })) ||
                 !!(await this.proposalCampaignModel.exists({ _id: campaignId }));
 
             if (!campaignExists) {
@@ -100,7 +100,7 @@ export class ReportsSizesService {
             )?.columnSizes;
 
 
-            return {code: 200, sizes: adminSizes} || {code: 200, sizes: null};
+            return {code: 200, sizes: adminSizes};
         } catch (err) {
             this.logger.error(
                 `Error while getting report sizes for Campaign: ${campaignId}, User: ${userId} \n${err.message}`,

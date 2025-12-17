@@ -1,28 +1,24 @@
-import { Module } from '@nestjs/common';
-import { PromosService } from './promos.service';
-import { PromosController } from './promos.controller';
-import { MongooseModule } from '@nestjs/mongoose';
-import { Promos, PromosSchema } from './schemas/promo.schema';
-import { PromosCopies, PromosCopiesSchema } from '../admin/schemas/promos-copies.schema';
-import {
-  ProposalCampaign,
-  ProposalCampaignSchema,
-} from '../proposal-system/schemas/proposal-campaign.schema';
+import {Module} from '@nestjs/common';
+import {PromosService} from './promos.service';
+import {PromosController} from './promos.controller';
+import {MongooseModule} from '@nestjs/mongoose';
+import {Campaign, CampaignSchema} from '../campaigns/schemas/campaign.schema';
+import {CompletedCampaign, CompletedCampaignSchema} from '../campaigns/schemas/completed-campaign.schema';
 import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
 import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([
-      { name: Promos.name, schema: PromosSchema },
-      { name: Client.name, schema: ClientSchema },
-      { name: Influencer.name, schema: InfluencerSchema },
-      { name: PromosCopies.name, schema: PromosCopiesSchema },
-      { name: ProposalCampaign.name, schema: ProposalCampaignSchema },
-    ]),
-  ],
-  controllers: [PromosController],
-  providers: [PromosService],
-  exports: [PromosService],
+    imports: [
+        MongooseModule.forFeature([
+            {name: Campaign.name, schema: CampaignSchema},
+            {name: Client.name, schema: ClientSchema},
+            {name: Influencer.name, schema: InfluencerSchema},
+            {name: CompletedCampaign.name, schema: CompletedCampaignSchema},
+        ]),
+    ],
+    controllers: [PromosController],
+    providers: [PromosService],
+    exports: [PromosService],
 })
-export class PromosModule {}
+export class PromosModule {
+}

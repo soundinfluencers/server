@@ -1,6 +1,6 @@
 import {Injectable, Logger} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
-import {CampaignContentItem, Promos} from '../promos/schemas/promo.schema';
+import {Campaign, CampaignContentItem} from '../campaigns/schemas/campaign.schema';
 import mongoose, {Types} from 'mongoose';
 import {AdminUpdatePersonalClientDto} from './dto/admin-update-client.dto';
 import {AdminUpdateInfluencerPersonalDto} from './dto/admin-update-influencer-personal.dto';
@@ -11,8 +11,6 @@ import {Payment} from '../payment/schemas/payment.entity';
 import {AdminUpdateClientPayment} from './dto/admin-update-client-payment.update';
 import {AdminUpdateCampaignDto} from './dto/admin-update-promo.dto';
 import {AdminSendWhatsappMessageDto} from './dto/admin-send-whatsapp-message.dto';
-import {PromosService} from '../promos/promos.service';
-import {PromosCopies} from './schemas/promos-copies.schema';
 import {AdminUpdateInfluencerFullAccountDto} from './dto/admin-update-influencer-full-account.dto';
 import {ProposalCampaign} from '../proposal-system/schemas/proposal-campaign.schema';
 import {AdminUpdateFullCampaignDto} from './dto/admin-update-full-campaign';
@@ -33,14 +31,16 @@ import {
 } from "../../common/utils/new-promo-message";
 import {Client} from "../../database/schemas/users/client.schema";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
+import {CompletedCampaign} from "../campaigns/schemas/completed-campaign.schema";
+import {returnMusicStyles} from "../../common/utils/genres";
 
 @Injectable()
 export class AdminService {
     private readonly logger = new Logger();
 
     constructor(
-        @InjectModel(Promos.name)
-        private promosModel: mongoose.Model<Promos>,
+        @InjectModel(Campaign.name)
+        private campaignsModel: mongoose.Model<Campaign>,
         @InjectModel(Client.name)
         private clientModel: mongoose.Model<Client>,
         @InjectModel(Influencer.name)
@@ -49,11 +49,10 @@ export class AdminService {
         private invoicesModel: mongoose.Model<Invoices>,
         @InjectModel(Payment.name)
         private paymentModel: mongoose.Model<Payment>,
-        @InjectModel(PromosCopies.name)
-        private promosCopiesModel: mongoose.Model<PromosCopies>,
+        @InjectModel(CompletedCampaign.name)
+        private completedCampaignModel: mongoose.Model<CompletedCampaign>,
         @InjectModel(ProposalCampaign.name)
         private proposalCampaignModel: mongoose.Model<ProposalCampaign>,
-        private readonly promosService: PromosService,
         private readonly appGateway: AppGateway,
     ) {
     }
@@ -112,10 +111,10 @@ export class AdminService {
 
             const clientsData = await Promise.all(
                 clients.map(async (client) => {
-                    const clientOngoingCampaigns = await this.promosModel
+                    const clientOngoingCampaigns = await this.campaignsModel
                         .find({clientId: client.id})
                         .sort({createdAt: -1});
-                    const clientCompletedCampaigns = await this.promosCopiesModel
+                    const clientCompletedCampaigns = await this.completedCampaignModel
                         .find({clientId: client.id})
                         .sort({createdAt: -1});
 
@@ -284,7 +283,7 @@ export class AdminService {
                 .lean()
                 .exec();
 
-            const promoData = await this.promosModel
+            const promoData = await this.campaignsModel
                 .aggregate([
                     {$unwind: '$selectInfluencers'},
                     {
@@ -799,8 +798,8 @@ export class AdminService {
     async adminGetAllCampaigns() {
         try {
             const [campaigns, campaignsCopies] = await Promise.all([
-                this.promosModel.find().sort({createdAt: -1}).lean().exec(),
-                this.promosCopiesModel.find().sort({createdAt: -1}).lean().exec(),
+                this.campaignsModel.find().sort({createdAt: -1}).lean().exec(),
+                this.completedCampaignModel.find().sort({createdAt: -1}).lean().exec(),
             ]);
 
             if ((!campaigns?.length) && (!campaignsCopies?.length)) {
@@ -880,8 +879,8 @@ export class AdminService {
     async adminDeletePromo(promoId: string) {
         try {
             let promo =
-                (await this.promosModel.findOne({_id: promoId})) ||
-                (await this.promosCopiesModel.findOne({_id: promoId}));
+                (await this.campaignsModel.findOne({_id: promoId})) ||
+                (await this.completedCampaignModel.findOne({_id: promoId}));
 
             if (!promo) {
                 return {
@@ -890,8 +889,8 @@ export class AdminService {
                 };
             }
 
-            (await this.promosModel.deleteOne({_id: promoId})) ||
-            (await this.promosCopiesModel.deleteOne({_id: promoId}));
+            (await this.campaignsModel.deleteOne({_id: promoId})) ||
+            (await this.completedCampaignModel.deleteOne({_id: promoId}));
 
             return {
                 status: 200,
@@ -909,8 +908,8 @@ export class AdminService {
     async adminCloseCampaignForInfluencer(campaignId: string, selectInfluencersAccountId: string) {
         try {
             let campaign =
-                (await this.promosModel.findOne({_id: campaignId})) ||
-                (await this.promosCopiesModel.findOne({_id: campaignId}));
+                (await this.campaignsModel.findOne({_id: campaignId})) ||
+                (await this.completedCampaignModel.findOne({_id: campaignId}));
 
             if (!campaign) {
                 return {code: 404, message: 'Promo not found'};
@@ -1023,7 +1022,7 @@ export class AdminService {
             };
         }
 
-        const campaign = await this.promosModel.findOne({_id: campaignId}).lean().exec();
+        const campaign = await this.campaignsModel.findOne({_id: campaignId}).lean().exec();
 
         if (!campaign) {
             return {
@@ -1104,7 +1103,7 @@ export class AdminService {
             }
         }
 
-        await this.promosCopiesModel.create({
+        await this.completedCampaignModel.create({
             ...campaign,
             _id: campaign._id,
             campaignContent: campaign.campaignContent || (campaign as any).videos,
@@ -1115,7 +1114,7 @@ export class AdminService {
             isCopy: true,
         });
 
-        await this.promosModel.deleteOne({_id: campaignId});
+        await this.campaignsModel.deleteOne({_id: campaignId});
 
         return {
             status: 201,
@@ -1131,7 +1130,7 @@ export class AdminService {
             };
         }
 
-        const campaign = await this.promosCopiesModel.findOne({ _id: campaignId }).lean().exec();
+        const campaign = await this.completedCampaignModel.findOne({ _id: campaignId }).lean().exec();
 
         if (!campaign) {
             return {
@@ -1140,27 +1139,27 @@ export class AdminService {
             };
         }
 
-        const session = await this.promosModel.db.startSession();
+        const session = await this.campaignsModel.db.startSession();
         session.startTransaction();
 
         try {
-            const campaignToCreate: Promos = {
+            const campaignToCreate: Campaign = {
                 ...campaign,
                 statusCampaign: 'work',
                 isCopy: false,
             };
 
-            const [createdCampaign] = await this.promosModel.create([campaignToCreate], { session });
+            const [createdCampaign] = await this.campaignsModel.create([campaignToCreate], { session });
 
             const newShareLink = `${process.env.SERVER_CLIENT}/promo-share/${createdCampaign._id}/${createdCampaign.socialMedia}`;
 
-            await this.promosModel.findByIdAndUpdate(
+            await this.campaignsModel.findByIdAndUpdate(
                 createdCampaign._id,
                 { shareLink: newShareLink },
                 { session },
             );
 
-            await this.promosCopiesModel.deleteOne({ _id: campaignId }, { session });
+            await this.completedCampaignModel.deleteOne({ _id: campaignId }, { session });
 
             await session.commitTransaction();
             session.endSession();
@@ -1219,9 +1218,9 @@ export class AdminService {
             let campaign: any;
 
             if (!isProposal) {
-                campaign = await this.promosModel.findOne({_id: campaignId}).lean().exec();
+                campaign = await this.campaignsModel.findOne({_id: campaignId}).lean().exec();
                 if (!campaign) {
-                    campaign = await this.promosCopiesModel.findOne({_id: campaignId}).lean().exec();
+                    campaign = await this.completedCampaignModel.findOne({_id: campaignId}).lean().exec();
                 }
             } else {
                 campaign = await this.proposalCampaignModel.findOne({_id: campaignId}).lean().exec();
@@ -1428,8 +1427,8 @@ export class AdminService {
 
             if (!isProposalCampaign) {
                 campaign =
-                    (await this.promosModel.findById(campaignId)) ||
-                    (await this.promosCopiesModel.findById(campaignId));
+                    (await this.campaignsModel.findById(campaignId)) ||
+                    (await this.completedCampaignModel.findById(campaignId));
             } else {
                 campaign = await this.proposalCampaignModel.findById(campaignId);
             }
@@ -1563,7 +1562,7 @@ export class AdminService {
                         const result = await this.influencerModel.aggregate(aggregationPipeline).exec();
 
                         if (result.length > 0) {
-                            const formattedGenres = this.promosService.returnMusicStyles(
+                            const formattedGenres = returnMusicStyles(
                                 result[0].musicStyle,
                                 result[0].musicStyleOther,
                                 result[0].musicSubStyles,
@@ -1622,8 +1621,8 @@ export class AdminService {
             }
 
             let checkCampaign =
-                (await this.promosModel.findOne({_id: data._id})) ||
-                (await this.promosCopiesModel.findOne({_id: data._id}));
+                (await this.campaignsModel.findOne({_id: data._id})) ||
+                (await this.completedCampaignModel.findOne({_id: data._id}));
 
             if (!checkCampaign) {
                 return {
@@ -1633,13 +1632,13 @@ export class AdminService {
             }
 
             const updatedCampaign =
-                (await this.promosModel.findOneAndUpdate(
+                (await this.campaignsModel.findOneAndUpdate(
                     {_id: data._id},
                     {
                         ...data,
                     },
                 )) ||
-                (await this.promosCopiesModel.findOneAndUpdate(
+                (await this.completedCampaignModel.findOneAndUpdate(
                     {_id: data._id},
                     {
                         ...data,
@@ -1662,8 +1661,8 @@ export class AdminService {
     async adminGivePartialRefundToClient(userId: string, partialRefund: number, campaignId: string) {
         try {
             let campaign =
-                (await this.promosModel.findOne({_id: campaignId})) ||
-                (await this.promosCopiesModel.findOne({_id: campaignId}));
+                (await this.campaignsModel.findOne({_id: campaignId})) ||
+                (await this.completedCampaignModel.findOne({_id: campaignId}));
 
             if (!campaign) {
                 return {
@@ -1716,8 +1715,8 @@ export class AdminService {
 
         try {
             let campaign =
-                (await this.promosModel.findOne({_id: campaignId})) ||
-                (await this.promosCopiesModel.findOne({_id: campaignId})) ||
+                (await this.campaignsModel.findOne({_id: campaignId})) ||
+                (await this.completedCampaignModel.findOne({_id: campaignId})) ||
                 (await this.proposalCampaignModel.findOne({_id: campaignId}));
 
             if (!campaign) {
@@ -1867,7 +1866,7 @@ export class AdminService {
                 return {code: 400, message: 'Invalid Campaign Id'};
             }
 
-            const campaign = await this.promosModel.findById(campaignId);
+            const campaign = await this.campaignsModel.findById(campaignId);
             if (!campaign) {
                 return {code: 404, message: 'Campaign not found'};
             }
@@ -2010,7 +2009,7 @@ export class AdminService {
 
     async adminConvertCampaignToMultipromo(campaignId: string) {
         try {
-            const updated = await this.promosModel.findByIdAndUpdate(
+            const updated = await this.campaignsModel.findByIdAndUpdate(
                 campaignId,
                 {
                     $set: {
@@ -2043,7 +2042,7 @@ export class AdminService {
         try {
             const {campaignId, selectInfluencersAccountId} = data;
 
-            const campaign = await this.promosModel.findById(campaignId).lean();
+            const campaign = await this.campaignsModel.findById(campaignId).lean();
 
             if (!campaign) {
                 return {
@@ -2500,7 +2499,7 @@ export class AdminService {
     }
 
     async adminUpdateCampaignsUpToDate() {
-        const campaigns = await this.promosModel.find().lean();
+        const campaigns = await this.campaignsModel.find().lean();
         if (!campaigns?.length) return {code: 500, message: 'Ongoing campaigns not found'};
 
         const influencersMap = new Map<string, {
@@ -2647,7 +2646,7 @@ export class AdminService {
                 });
             }
 
-            const resOfUpdate = await this.promosModel.updateOne(
+            const resOfUpdate = await this.campaignsModel.updateOne(
                 {_id: campaign._id},
                 {$set: {campaignContent: updatedContent, selectInfluencers: updatedInfluencers}},
             );

@@ -1,8 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class SendNewFullServicedCampaignRequest {
-  @ApiProperty({ required: true })
-  encryptedClientId: string;
+  clientId?: string | undefined;
 
   @ApiProperty({ required: true })
   campaignGoal: string;

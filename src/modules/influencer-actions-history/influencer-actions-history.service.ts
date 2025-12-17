@@ -2,12 +2,12 @@ import {Injectable, Logger} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
 import mongoose, {Model} from 'mongoose';
 import {InfluencerActionsHistory} from "./schemas/influencer-actions-history.schema";
-import {Promos} from "../promos/schemas/promo.schema";
-import {PromosCopies} from "../admin/schemas/promos-copies.schema";
+import {Campaign} from "../campaigns/schemas/campaign.schema";
 import {UpsertCampaignHistoryDto} from "./dto/upsert-campaign-history.dto";
 import {UpsertInvoiceHistoryDto} from "./dto/upsert-invoice-history.dto";
 import {CheckIfInCampaignDto} from "./dto/check-if-in-campaign.dto";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
+import {CompletedCampaign} from "../campaigns/schemas/completed-campaign.schema";
 
 @Injectable()
 export class InfluencerActionsHistoryService {
@@ -18,10 +18,10 @@ export class InfluencerActionsHistoryService {
         private influencerActionsHistoryModel: Model<InfluencerActionsHistory>,
         @InjectModel(Influencer.name)
         private influencerModel: mongoose.Model<Influencer>,
-        @InjectModel(Promos.name)
-        private promoModel: mongoose.Model<Promos>,
-        @InjectModel(PromosCopies.name)
-        private promoCopiesModel: mongoose.Model<PromosCopies>
+        @InjectModel(Campaign.name)
+        private campaignModel: mongoose.Model<Campaign>,
+        @InjectModel(CompletedCampaign.name)
+        private completedCampaignModel: mongoose.Model<CompletedCampaign>
     ) {
     }
 
@@ -486,7 +486,7 @@ export class InfluencerActionsHistoryService {
 
     async checkIfStillInCampaign(data: CheckIfInCampaignDto) {
         try {
-            let promo = await this.promoModel.findOne(
+            let promo = await this.campaignModel.findOne(
                 {
                     _id: new mongoose.Types.ObjectId(data.campaignId),
                     selectInfluencers: {
@@ -500,7 +500,7 @@ export class InfluencerActionsHistoryService {
             ).lean();
 
             if (!promo) {
-                promo = await this.promoCopiesModel.findOne(
+                promo = await this.completedCampaignModel.findOne(
                     {
                         _id: new mongoose.Types.ObjectId(data.campaignId),
                         selectInfluencers: {

@@ -3,11 +3,11 @@ import {InjectConnection, InjectModel} from '@nestjs/mongoose';
 import mongoose, {Connection, Types} from 'mongoose';
 import {ProposalCampaign} from './schemas/proposal-campaign.schema';
 import {SaveProposalCampaignDto} from './dto/save-proposal-campaign.dto';
-import {Promos} from "../promos/schemas/promo.schema";
-import {PromosService} from "../promos/promos.service";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {Client} from "../../database/schemas/users/client.schema";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
+import {CampaignsService} from "../campaigns/campaigns.service";
+import {Campaign} from "../campaigns/schemas/campaign.schema";
 
 @Injectable()
 export class ProposalSystemService {
@@ -20,9 +20,8 @@ export class ProposalSystemService {
         private influencerModel: mongoose.Model<Influencer>,
         @InjectModel(ProposalCampaign.name)
         private proposalCampaignModel: mongoose.Model<ProposalCampaign>,
-        @InjectModel(Promos.name)
-        private promoModel: mongoose.Model<Promos>,
-        private readonly promoService: PromosService,
+        @InjectModel(Campaign.name)
+        private readonly campaignsService: CampaignsService,
         @InjectConnection() private readonly connection: Connection,
     ) {
     }
@@ -540,10 +539,7 @@ export class ProposalSystemService {
                 throw new Error('Error while deleting proposal campaign');
             }
 
-            const resultOfCreating = await this.promoService.createPromo(formattedCampaign);
-            if (resultOfCreating.statusCode !== 201) {
-                throw new Error('Error while creating promo campaign');
-            }
+            const resultOfCreating = await this.campaignsService.createCampaign(formattedCampaign);
 
             await session.commitTransaction();
 

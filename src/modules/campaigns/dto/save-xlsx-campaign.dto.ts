@@ -10,7 +10,7 @@ interface Page {
   specialWishes: string | null;
 }
 
-export class SaveXlsxPromoDto {
+export class SaveXlsxCampaignDto {
   @ApiProperty({ required: false })
   campaignName: string | null;
 

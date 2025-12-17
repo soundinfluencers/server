@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import {InfluencerActionsHistory, InfluencerActionsHistorySchema} from "./schemas/influencer-actions-history.schema";
-import {Promos, PromosSchema} from "../promos/schemas/promo.schema";
-import {PromosCopies, PromosCopiesSchema} from "../admin/schemas/promos-copies.schema";
+import {Campaign, CampaignSchema} from "../campaigns/schemas/campaign.schema";
+import {CompletedCampaignSchema, CompletedCampaign} from "../campaigns/schemas/completed-campaign.schema";
 import {InfluencerActionsHistoryController} from "./influencer-actions-history.controller";
 import {InfluencerActionsHistoryService} from "./influencer-actions-history.service";
 import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
@@ -12,8 +12,8 @@ import {Influencer, InfluencerSchema} from "../../database/schemas/users/influen
     MongooseModule.forFeature([
       { name: InfluencerActionsHistory.name, schema: InfluencerActionsHistorySchema },
       { name: Influencer.name, schema: InfluencerSchema },
-      { name: Promos.name, schema: PromosSchema },
-      { name: PromosCopies.name, schema: PromosCopiesSchema },
+      { name: Campaign.name, schema: CampaignSchema },
+      { name: CompletedCampaign.name, schema: CompletedCampaignSchema },
     ]),
   ],
   controllers: [InfluencerActionsHistoryController],

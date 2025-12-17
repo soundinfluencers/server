@@ -1,7 +1,7 @@
 import {InjectModel} from '@nestjs/mongoose';
 import {Injectable, Logger} from '@nestjs/common';
 import {Model, Types} from 'mongoose';
-import {Promos} from '../promos/schemas/promo.schema';
+import {Campaign} from '../campaigns/schemas/campaign.schema';
 import {ReqUpdatePostDetailsDto} from './dto/req-update-post-details.dto';
 import {ReqUpdateAllPostsDetailsDto} from "./dto/req-update-all-posts-details-dto";
 import {ScrapersGateway} from "./scrapers.gateway";
@@ -26,7 +26,7 @@ export class ScrapersService {
     private areAccountsRefreshing = false;
 
     constructor(
-        @InjectModel(Promos.name) private readonly campaignsModel: Model<Promos>,
+        @InjectModel(Campaign.name) private readonly campaignModel: Model<Campaign>,
         @InjectModel(Influencer.name) private readonly influencersModel: Model<Influencer>,
         private readonly scrapersGateway: ScrapersGateway,
     ) {
@@ -216,7 +216,7 @@ export class ScrapersService {
         }
 
         const startTime = Date.now();
-        const campaign = await this.campaignsModel.findById(data.campaignId);
+        const campaign = await this.campaignModel.findById(data.campaignId);
         if (!campaign) return {code: 404, message: 'Campaign not found'};
 
         const accountPostDetails = campaign.selectInfluencers.find(
@@ -249,7 +249,7 @@ export class ScrapersService {
                 return {code: 422, message: "[SCRAPER] No data returned"};
             }
 
-            await this.campaignsModel.updateOne(
+            await this.campaignModel.updateOne(
                 {
                     _id: new Types.ObjectId(data.campaignId),
                     'selectInfluencers._id': new Types.ObjectId(data.accountId),
@@ -295,7 +295,7 @@ export class ScrapersService {
 
         try {
             const startTime = Date.now();
-            const campaign = await this.campaignsModel.findById(data.campaignId);
+            const campaign = await this.campaignModel.findById(data.campaignId);
             if (!campaign) return {code: 404, message: `Campaign not found`};
 
             const accounts = campaign.selectInfluencers.filter(
