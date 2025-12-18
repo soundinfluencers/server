@@ -131,6 +131,9 @@ export class Influencer extends Document {
 
     @Prop({type: [SocialAccountSchema], default: []})
     press: SocialAccount[];
+
+    @Prop({default: null})
+    refreshToken: string | null;
 }
 
 export const InfluencerSchema = SchemaFactory.createForClass(Influencer);

@@ -1,11 +1,16 @@
 import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
+import {Types} from "mongoose";
 
 @Schema({
     timestamps: true,
 })
 export class Client {
+    @Prop()
+    _id: Types.ObjectId;
+
     @Prop({default: 'client'})
     role: string;
+
     @Prop()
     firstName: string;
     @Prop()

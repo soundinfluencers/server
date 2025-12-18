@@ -4,7 +4,7 @@ import {Client} from "../../schemas/users/client.schema";
 import {InjectModel} from "@nestjs/mongoose";
 import {Model} from "mongoose";
 import {RepoOptions} from "../../types/repo.types";
-import {applyLean} from "../../utils/apply-query-options.util";
+import {applyQueryOptions} from "../../utils/apply-query-options.util";
 
 @Injectable()
 export class ClientRepository extends BaseRepository<Client> {
@@ -17,21 +17,21 @@ export class ClientRepository extends BaseRepository<Client> {
 
     async findClientByFirstName(firstName: string, options?: RepoOptions): Promise<Client> {
         const query = this.clientModel.findOne({ firstName });
-        return applyLean(query, options);
+        return applyQueryOptions(query, options);
     }
 
     async findClientByEmail(email: string, options?: RepoOptions): Promise<Client> {
         const query = this.clientModel.findOne({ email });
-        return applyLean(query, options);
+        return applyQueryOptions(query, options);
     }
 
     async findClientByInstagramUsername(username: string, options?: RepoOptions): Promise<Client> {
         const query = this.clientModel.findOne({ instagramUsername: username });
-        return applyLean(query, options);
+        return applyQueryOptions(query, options);
     }
 
     async findClientByPhone(phone: string, options?: RepoOptions): Promise<Client> {
         const query = this.clientModel.findOne({ phone })
-        return applyLean(query, options);
+        return applyQueryOptions(query, options);
     }
 }

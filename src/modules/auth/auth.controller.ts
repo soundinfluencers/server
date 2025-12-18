@@ -11,12 +11,15 @@ import {
 import { AuthService } from './auth.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { CreateInfluencerDto } from './dto/create-influencer.dto';
-import { LoginDto } from './dto/login.dto';
+import {LoginDto, LoginResponseDto} from './dto/login.dto';
 import { VerifyDto } from './dto/verify.dto';
 import {ApiOperation, ApiResponse, ApiCookieAuth, ApiQuery, ApiTags} from '@nestjs/swagger';
 import { Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import {Auth} from "../../common/decorators/auth.decorator";
+import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
+import {Client} from "../../database/schemas/users/client.schema";
+import {Influencer} from "../../database/schemas/users/influencer.schema";
 
 @ApiTags('auth')
 @Controller('auth')
@@ -25,23 +28,24 @@ export class AuthController {
 
     @Public()
     @ApiOperation({ summary: 'Create new client account' })
-    @ApiResponse({ status: 201, description: 'Client created' })
+    @ApiResponseDto(Client || undefined, { successStatusCode: 201 })
     @Post('create/client')
-    createClient(@Body() data: CreateClientDto) {
+    createClient(@Body() data: CreateClientDto): Promise<Client | undefined> {
         return this.authService.createClient(data);
     }
 
+    // TODO: update
     @Public()
     @ApiOperation({ summary: 'Create new influencer account' })
-    @ApiResponse({ status: 201, description: 'Influencer created' })
+    @ApiResponseDto(Influencer || undefined, { successStatusCode: 201 })
     @Post('create/influencer')
-    createInfluencer(@Body() data: CreateInfluencerDto) {
+    createInfluencer(@Body() data: CreateInfluencerDto): Promise<Influencer | undefined> {
         return this.authService.createInfluencer(data);
     }
 
     @Public()
     @ApiOperation({ summary: 'Login user' })
-    @ApiResponse({ status: 200, description: 'Logged in successfully' })
+    @ApiResponseDto(LoginResponseDto)
     @Post('login')
     async login(
         @Body() dto: LoginDto,
@@ -50,6 +54,7 @@ export class AuthController {
         return this.authService.login(dto, res);
     }
 
+    // TODO: update
     @Public()
     @ApiCookieAuth()
     @ApiOperation({ summary: 'Refresh access token using refreshToken cookie' })
@@ -62,6 +67,7 @@ export class AuthController {
         return this.authService.refresh(req.cookies.refreshToken, res);
     }
 
+    // TODO: update
     @Auth()
     @ApiOperation({ summary: 'Logout user' })
     @ApiResponse({ status: 200, description: 'Logged out' })
@@ -73,6 +79,7 @@ export class AuthController {
         return this.authService.logout(req.cookies.refreshToken, res);
     }
 
+    // TODO: update
     @Auth()
     @ApiOperation({ summary: 'Get current authenticated user' })
     @ApiResponse({ status: 200 })
@@ -81,6 +88,7 @@ export class AuthController {
         return req.user;
     }
 
+    // TODO: update
     @Auth()
     @ApiOperation({ summary: 'Verify influencer by admin' })
     @ApiQuery({ name: 'verifyId' })
@@ -90,6 +98,7 @@ export class AuthController {
         return this.authService.verifyAdminInfluencer(args.verifyId, args.responseVerify);
     }
 
+    // TODO: update
     @Auth()
     @ApiOperation({ summary: 'Verify client by admin' })
     @ApiQuery({ name: 'verifyId' })
@@ -99,6 +108,7 @@ export class AuthController {
         return this.authService.verifyAdminClient(args.verifyId, args.responseVerify);
     }
 
+    // TODO: update
     @Auth()
     @ApiOperation({ summary: 'User email verification' })
     @Post('verify')
@@ -106,6 +116,7 @@ export class AuthController {
         return this.authService.verify(data);
     }
 
+    // TODO: update
     @Auth()
     @ApiOperation({ summary: 'Get influencers by social media platform' })
     @Get('influencers/:socialMedia')
@@ -113,6 +124,7 @@ export class AuthController {
         return this.authService.getInfluencersWithSocialMedia(socialMedia);
     }
 
+    // TODO: update
     @Auth()
     @ApiOperation({ summary: 'Get all influencers without filtering' })
     @Get('influencers-all')
@@ -120,6 +132,7 @@ export class AuthController {
         return this.authService.getInfluencersWithoutSocialMedia();
     }
 
+    // TODO: update
     @Auth()
     @ApiOperation({ summary: 'Get client list' })
     @Get('clients')
@@ -127,6 +140,7 @@ export class AuthController {
         return this.authService.getClients();
     }
 
+    // TODO: update
     @Auth()
     @ApiOperation({ summary: 'Get influencer by id' })
     @Get('influencer/:id')
@@ -134,6 +148,7 @@ export class AuthController {
         return this.authService.getInfluencerById(id);
     }
 
+    // TODO: update
     @Auth()
     @ApiOperation({ summary: 'Get specific social network account of influencer' })
     @Get('influencer/one-network/:id/:socialMedia/:networkUsername')
@@ -145,6 +160,7 @@ export class AuthController {
         return this.authService.getOneSocialNetworkAccount(id, socialMedia, networkUsername);
     }
 
+    // TODO: update
     @Auth()
     @ApiOperation({ summary: 'Get client by id' })
     @Get('client/:id')
