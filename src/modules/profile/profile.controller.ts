@@ -6,7 +6,12 @@ import { UpdatePersonalInfluencerDto } from './dto/update-personal-influencer.dt
 import { UpdateSocialMediaAccountDto } from './dto/update-social-media-account.dto';
 import { AddSocialMediasDto } from './dto/add-social-medias.dto';
 import { SendMailPriceChangeDto } from './dto/send-mail-price-change.dto';
-import {ApiQuery, ApiTags} from '@nestjs/swagger';
+import {ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
+import {Auth} from "../../common/decorators/auth.decorator";
+import {Roles} from "../../common/decorators/roles.decorator";
+import {Role} from "../../common/types/auth.types";
+import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
+import {MigrateAccountDto} from "./dto/migrate-account.dto";
 
 @ApiTags('profile')
 @Controller('profile')
@@ -87,4 +92,13 @@ export class ProfileController {
       query.newPrice,
     );
   }
+
+    @Auth()
+    @Roles(Role.admin)
+    @ApiOperation({ summary: "(ADMIN) Migrate social account (second account id) to influencer's object of first account" })
+    @ApiResponseDto(undefined, { successStatusCode: 201 })
+    @Patch('migrate/socialAccountToMigrateId')
+    adminMigrateSocialAccount(@Body() data: MigrateAccountDto) {
+        return this.profileService.migrateSocialAccount(data);
+    }
 }

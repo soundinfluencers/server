@@ -1,18 +1,18 @@
 import {FilterQuery, Model, Types, UpdateQuery} from "mongoose";
 import {RepoOptions} from "../types/repo.types";
-import {applyLean} from "../utils/apply-lean.util";
+import {applyQueryOptions} from "../utils/apply-query-options.util";
 
 export class BaseRepository<T> {
     constructor(protected readonly model: Model<T>) {}
 
-    async findById(id: string | Types.ObjectId, options?: RepoOptions) {
+    findById(id: string | Types.ObjectId, options?: RepoOptions) {
         const query = this.model.findById(id);
-        return applyLean(query, options);
+        return applyQueryOptions(query, options);
     }
 
     async findOne(filter: any, options?: RepoOptions) {
         const query = this.model.findOne(filter);
-        return applyLean(query, options);
+        return applyQueryOptions(query, options);
     }
 
     async findMany(
@@ -20,7 +20,7 @@ export class BaseRepository<T> {
         options?: RepoOptions & { select?: string[] }
     ) {
         let query = this.model.find(filter);
-        query = applyLean(query, options);
+        query = applyQueryOptions(query, options);
 
         if (options?.select) {
             query = query.select(options.select.join(' '));
@@ -36,7 +36,7 @@ export class BaseRepository<T> {
 
     async updateById(id: string | Types.ObjectId, data: Partial<T>, options?: RepoOptions) {
         const query = this.model.findByIdAndUpdate(id, data, { new: true });
-        return applyLean(query, options);
+        return applyQueryOptions(query, options);
     }
 
     async updateOne(filter: FilterQuery<T>, update: UpdateQuery<T>) {
@@ -54,7 +54,7 @@ export class BaseRepository<T> {
             ...options,
         });
 
-        return applyLean(query, options);
+        return applyQueryOptions(query, options);
     }
 
     async deleteById(id: string | Types.ObjectId) {
@@ -63,6 +63,6 @@ export class BaseRepository<T> {
 
     async findOneAndDelete(filter: FilterQuery<T>, options?: RepoOptions) {
         const query = this.model.findOneAndDelete(filter);
-        return applyLean(query, options);
+        return applyQueryOptions(query, options);
     }
 }

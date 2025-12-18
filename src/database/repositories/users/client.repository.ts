@@ -4,7 +4,7 @@ import {Client} from "../../schemas/users/client.schema";
 import {InjectModel} from "@nestjs/mongoose";
 import {Model} from "mongoose";
 import {RepoOptions} from "../../types/repo.types";
-import {applyLean} from "../../utils/apply-lean.util";
+import {applyLean} from "../../utils/apply-query-options.util";
 
 @Injectable()
 export class ClientRepository extends BaseRepository<Client> {
