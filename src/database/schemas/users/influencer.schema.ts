@@ -81,6 +81,9 @@ export const SocialAccountSchema = SchemaFactory.createForClass(SocialAccount);
     timestamps: true,
 })
 export class Influencer extends Document {
+    @Prop()
+    _id: Types.ObjectId;
+
     @Prop({default: 'influencer'})
     role: string;
 

@@ -97,8 +97,8 @@ export class ProfileController {
     @Roles(Role.admin)
     @ApiOperation({ summary: "(ADMIN) Migrate social account (second account id) to influencer's object of first account" })
     @ApiResponseDto(undefined, { successStatusCode: 201 })
-    @Patch('migrate/socialAccountToMigrateId')
+    @Patch('migrate')
     adminMigrateSocialAccount(@Body() data: MigrateAccountDto) {
-        return this.profileService.migrateSocialAccount(data);
+        return this.profileService.migrateSocialAccountOrchestrator(data);
     }
 }

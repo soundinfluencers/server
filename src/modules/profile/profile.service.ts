@@ -797,60 +797,64 @@ export class ProfileService {
         data: MigrateAccountDto,
         session: ClientSession,
     ): Promise<SocialAccountMigrationContext> {
-
-        const {
-            influencerId,
-            socialAccountToMigrateId,
-            socialMediaOfAccount,
-        } = data;
+        const { influencerId, socialAccountToMigrateId, socialMediaOfAccount } = data;
 
         if (!influencerId || !socialAccountToMigrateId || !socialMediaOfAccount) {
             throw new BadRequestException('Not enough arguments');
         }
 
-        const targetInfluencer = await this.influencerModel
-            .findById(influencerId)
-            .session(session);
+        const socialAccountObjectId = new Types.ObjectId(socialAccountToMigrateId);
 
+        // Find source influencer
+        const targetInfluencer = await this.influencerRepo.findById(influencerId, { session });
         if (!targetInfluencer) {
             throw new NotFoundException(`Influencer with id ${influencerId} not found`);
         }
 
-        const socialAccountObjectId = new Types.ObjectId(socialAccountToMigrateId);
-
-        const sourceInfluencer = await this.influencerModel
-            .findOne({
-                [`${socialMediaOfAccount}._id`]: socialAccountObjectId,
-            })
-            .session(session);
-
+        // Find influencer with target social account
+        const sourceInfluencer: Influencer = await this.influencerRepo.findBySocialAccount(
+            socialMediaOfAccount,
+            socialAccountObjectId,
+            { session },
+        );
         if (!sourceInfluencer) {
             throw new NotFoundException('Social account not found');
         }
 
         if (sourceInfluencer._id.toString() === targetInfluencer._id.toString()) {
-            throw new BadRequestException(
-                'Cannot migrate social account to the same influencer',
-            );
+            throw new BadRequestException('Cannot migrate social account to the same influencer');
         }
 
+        // Get target social account
         const socialAccount = sourceInfluencer[socialMediaOfAccount].find(acc =>
             acc._id.equals(socialAccountObjectId),
         );
-
         if (!socialAccount) {
             throw new NotFoundException('Social account not found');
         }
 
-        sourceInfluencer[socialMediaOfAccount] =
-            sourceInfluencer[socialMediaOfAccount].filter(
-                acc => !acc._id.equals(socialAccountObjectId),
-            );
+        // Delete social account from old owner
+        await this.influencerRepo.pullSocialAccount(
+            sourceInfluencer._id,
+            socialMediaOfAccount,
+            socialAccountObjectId,
+            { session },
+        );
 
-        await sourceInfluencer.save({ session });
+        const alreadyExists = targetInfluencer[socialMediaOfAccount].some(acc =>
+            acc._id.equals(socialAccountObjectId),
+        );
+        if (alreadyExists) {
+            throw new ConflictException('Social account already exists on target influencer');
+        }
 
-        targetInfluencer[socialMediaOfAccount].push(socialAccount);
-        await targetInfluencer.save({ session });
+        // Adding social account to new owner
+        await this.influencerRepo.pushSocialAccount(
+            targetInfluencer._id,
+            socialMediaOfAccount,
+            socialAccount,
+            { session },
+        );
 
         return {
             socialAccountId: socialAccountObjectId,
@@ -860,5 +864,4 @@ export class ProfileService {
             targetInfluencerId: targetInfluencer._id,
         };
     }
-
 }
