@@ -12,6 +12,7 @@ import {ClientRepository} from "../../database/repositories/users/client.reposit
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {VerifyClientRepository} from "../../database/repositories/verify-users/verify-client.repository";
 import {VerifyInfluencerRepository} from "../../database/repositories/verify-users/verify-influencer.repository";
+import {Role} from "../../common/types/auth.types";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -356,7 +357,7 @@ export class AuthService {
 
         return {
             accessToken,
-            role: user.role,
+            role: user.role as Role,
             _id: (user as any)._id
         };
     }

@@ -1,36 +1,37 @@
 import {
+    Body,
     Controller,
     Get,
+    Patch,
     Post,
-    Body,
     Put,
     Query,
-    UseInterceptors,
-    UploadedFile,
     Req,
-    UnauthorizedException, Patch,
+    UnauthorizedException,
+    UploadedFile,
+    UseInterceptors,
 } from '@nestjs/common';
 import {PromosService} from './promos.service';
-import {ApiBody, ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
+import {ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {FileInterceptor} from '@nestjs/platform-express';
 import File from 'multer';
 import {
-    InfluencerGetOngoingOrPastPromosResDto,
     InfluencerGetOngoingOrPastPromoResDto,
+    InfluencerGetOngoingOrPastPromosResDto,
     InfluencerGetPastPromoQueryDto,
     InfluencerGetPromoRequestsDto,
     InfluencerUpdatePromoReqQueryDto,
     InfluencerUpdatePromoResponseUpdateDto,
 } from "./dto/influencer-get-promos.dto";
-import {AuthenticatedRequest} from "../../common/types/auth.types";
+import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
 import {Auth} from "../../common/decorators/auth.decorator";
-import {ApiResponseDto} from "../../common/decorators/api-response/api-response.decorator";
-import {CampaignStatusEnumForDevelopment} from "../../common/types/client/campaign.types";
+import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {
     InfluencerPromo,
     InfluencerPromoClosedStatusEnum,
     InfluencerPromoClosedStatusType
 } from "../../common/types/influencer/promo.types";
+import {Roles} from "../../common/decorators/roles.decorator";
 
 // TODO: add 403 forbidden for clients
 @ApiTags('promos')
@@ -57,6 +58,7 @@ export class PromosController {
     }
 
     @Auth()
+    @Roles(Role.influencer)
     @ApiOperation({summary: 'Get influencer new promos requests'})
     @ApiResponseDto(InfluencerGetPromoRequestsDto)
     @Get('requests')

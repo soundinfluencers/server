@@ -14,7 +14,7 @@ import {
     BadRequestResponseDto, ConflictResponseDto,
     ForbiddenResponseDto, InternalServerErrorResponseDto, NotFoundResponseDto,
     UnauthorizedResponseDto
-} from "../../dto/responses/error-response.dto";
+} from "../../../dto/responses/error-response.dto";
 
 export function ApiResponseDto<T>(
     model?: Type<T>,

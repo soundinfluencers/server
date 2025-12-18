@@ -14,7 +14,7 @@ import {
 import {CampaignsService} from "./campaigns.service";
 import {AuthenticatedRequest} from "../../common/types/auth.types";
 import {ClientCampaignForTableDto, ClientGetCampaignsDto} from "./dto/get-campaigns.dto";
-import {ApiResponseDto} from "../../common/decorators/api-response/api-response.decorator";
+import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Public} from "../../common/decorators/public.decorator";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
