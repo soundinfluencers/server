@@ -1,13 +1,16 @@
 import {Injectable, Logger} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
-import mongoose, {Model} from 'mongoose';
-import {InfluencerActionsHistory} from "./schemas/influencer-actions-history.schema";
-import {Campaign} from "../campaigns/schemas/campaign.schema";
+import mongoose, {ClientSession, Model} from 'mongoose';
+import {InfluencerActionsHistory} from "../../database/schemas/histories/influencer-actions-history.schema";
+import {Campaign} from "../../database/schemas/campaign/campaign.schema";
 import {UpsertCampaignHistoryDto} from "./dto/upsert-campaign-history.dto";
 import {UpsertInvoiceHistoryDto} from "./dto/upsert-invoice-history.dto";
 import {CheckIfInCampaignDto} from "./dto/check-if-in-campaign.dto";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
-import {CompletedCampaign} from "../campaigns/schemas/completed-campaign.schema";
+import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
+import {InfluencerHistoryRepository} from "../../database/repositories/histories/influencer-history.repository";
+import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
+import {CampaignActionWithCampaignMeta} from "../../database/types/histories/influencer-history.types";
 
 @Injectable()
 export class InfluencerActionsHistoryService {
@@ -21,7 +24,8 @@ export class InfluencerActionsHistoryService {
         @InjectModel(Campaign.name)
         private campaignModel: mongoose.Model<Campaign>,
         @InjectModel(CompletedCampaign.name)
-        private completedCampaignModel: mongoose.Model<CompletedCampaign>
+        private completedCampaignModel: mongoose.Model<CompletedCampaign>,
+        private readonly influencerHistoryRepo: InfluencerHistoryRepository,
     ) {
     }
 
@@ -496,7 +500,7 @@ export class InfluencerActionsHistoryService {
                         },
                     },
                 },
-                { _id: 1 }
+                {_id: 1}
             ).lean();
 
             if (!promo) {
@@ -510,7 +514,7 @@ export class InfluencerActionsHistoryService {
                             },
                         },
                     },
-                    { _id: 1 }
+                    {_id: 1}
                 ).lean();
             }
 
@@ -518,7 +522,7 @@ export class InfluencerActionsHistoryService {
 
             // Обновление истории
             const filter = data.actionId
-                ? { "campaigns.actions._id": new mongoose.Types.ObjectId(data.actionId) }
+                ? {"campaigns.actions._id": new mongoose.Types.ObjectId(data.actionId)}
                 : {
                     influencerId: new mongoose.Types.ObjectId(data.influencerId),
                     "campaigns.campaignId": data.campaignId,
@@ -526,12 +530,12 @@ export class InfluencerActionsHistoryService {
 
             const arrayFilters = data.actionId
                 ? [
-                    { "campaign.actions._id": new mongoose.Types.ObjectId(data.actionId) },
-                    { "action._id": new mongoose.Types.ObjectId(data.actionId) },
+                    {"campaign.actions._id": new mongoose.Types.ObjectId(data.actionId)},
+                    {"action._id": new mongoose.Types.ObjectId(data.actionId)},
                 ]
                 : [
-                    { "campaign.campaignId": data.campaignId },
-                    { "action.networkUsername": data.networkUsername },
+                    {"campaign.campaignId": data.campaignId},
+                    {"action.networkUsername": data.networkUsername},
                 ];
 
             await this.influencerActionsHistoryModel.updateOne(
@@ -542,11 +546,11 @@ export class InfluencerActionsHistoryService {
                         updatedAt: new Date(),
                     },
                 },
-                { arrayFilters }
+                {arrayFilters}
             );
 
             // Получение обновлённого action
-            const historyDoc = await this.influencerActionsHistoryModel.findOne(filter, { "campaigns.$": 1 }).lean();
+            const historyDoc = await this.influencerActionsHistoryModel.findOne(filter, {"campaigns.$": 1}).lean();
             const campaign = historyDoc.campaigns[0];
             const updatedAction = data.actionId
                 ? campaign.actions.find(a => (a as any)._id.toString() === data.actionId)
@@ -584,5 +588,100 @@ export class InfluencerActionsHistoryService {
         }
     }
 
+    // Moves social account's actions history to new owner's history
+    async moveSocialAccountHistory(
+        context: SocialAccountMigrationContext,
+        session: ClientSession,
+    ): Promise<void> {
+        const {
+            targetInfluencerId,
+            sourceInfluencerId,
+            socialMedia,
+            socialAccountUsername,
+        } = context;
 
+        // Get old owner's account's campaigns history
+        const actionsToMigrate: CampaignActionWithCampaignMeta[] =
+            await this.influencerHistoryRepo.findCampaignActionsForSocialAccount(
+                {
+                    influencerId: sourceInfluencerId.toString(),
+                    socialAccountUsername,
+                    socialMedia,
+                },
+                {session},
+            );
+
+        if (!actionsToMigrate.length) {
+            return;
+        }
+
+        // Get new & old owners histories
+        const [sourceHistory, targetHistory] = await Promise.all([
+            this.influencerHistoryRepo.findHistoryByInfluencerId(
+                sourceInfluencerId.toString(),
+                {session},
+            ),
+            this.influencerHistoryRepo.findHistoryByInfluencerId(
+                targetInfluencerId.toString(),
+                {session},
+            ),
+        ]);
+
+        if (!sourceHistory) return;
+
+        // Delete specific actions from old owner
+        sourceHistory.campaigns.forEach(campaign => {
+            campaign.actions = campaign.actions.filter(
+                action =>
+                    !(
+                        action.networkUsername === socialAccountUsername &&
+                        action.socialMedia === socialMedia
+                    ),
+            );
+        });
+
+        // Remove empty campaigns
+        sourceHistory.campaigns = sourceHistory.campaigns.filter(
+            c => c.actions.length > 0,
+        );
+
+        await sourceHistory.save({session});
+
+        // Add actions for new owner
+        if (!targetHistory) {
+            // If there's no history - creates new
+            await this.influencerHistoryRepo.create({
+                influencerId: targetInfluencerId,
+                influencerEmail: '',
+                campaigns: [],
+                invoices: [],
+            });
+        }
+
+        const freshTargetHistory =
+            targetHistory ??
+            (await this.influencerHistoryRepo.findHistoryByInfluencerId(
+                targetInfluencerId.toString(),
+                {session},
+            ));
+
+        for (const action of actionsToMigrate) {
+            let campaign = freshTargetHistory.campaigns.find(
+                c => c.campaignId === action.campaignId,
+            );
+
+            if (!campaign) {
+                campaign = {
+                    campaignId: action.campaignId,
+                    campaignName: action.campaignName,
+                    actions: [],
+                };
+                freshTargetHistory.campaigns.push(campaign);
+            }
+
+            campaign.actions.push(action);
+        }
+
+        await freshTargetHistory.save({session});
+    }
 }

@@ -7,7 +7,7 @@ import sendMail from "../../integrations/nodemailer/nodemailer";
 import {Client} from "../../database/schemas/users/client.schema";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
 import {CampaignsService} from "../campaigns/campaigns.service";
-import {Campaign} from "../campaigns/schemas/campaign.schema";
+import {Campaign} from "../../database/schemas/campaign/campaign.schema";
 
 @Injectable()
 export class ProposalSystemService {

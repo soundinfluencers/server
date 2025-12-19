@@ -28,18 +28,17 @@ export class AuthController {
 
     @Public()
     @ApiOperation({ summary: 'Create new client account' })
-    @ApiResponseDto(Client || undefined, { successStatusCode: 201 })
+    @ApiResponseDto(undefined, { successStatusCode: 201 })
     @Post('create/client')
-    createClient(@Body() data: CreateClientDto): Promise<Client | undefined> {
+    createClient(@Body() data: CreateClientDto): Promise<void> {
         return this.authService.createClient(data);
     }
 
-    // TODO: update
     @Public()
     @ApiOperation({ summary: 'Create new influencer account' })
-    @ApiResponseDto(Influencer || undefined, { successStatusCode: 201 })
+    @ApiResponseDto(undefined, { successStatusCode: 201 })
     @Post('create/influencer')
-    createInfluencer(@Body() data: CreateInfluencerDto): Promise<Influencer | undefined> {
+    createInfluencer(@Body() data: CreateInfluencerDto): Promise<void> {
         return this.authService.createInfluencer(data);
     }
 

@@ -1,9 +1,8 @@
 import mongoose, { Document } from 'mongoose';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Invoices } from '../../invoice/schemas/invoices.schema';
 
 @Schema()
-export class Action {
+export class CampaignAction {
   @Prop({ type: Number, required: true })
   actionNumber: number;
 
@@ -26,24 +25,24 @@ export class Action {
   isStillInCampaign: boolean;
 }
 
-export const ActionSchema = SchemaFactory.createForClass(Action);
+export const CampaignActionSchema = SchemaFactory.createForClass(CampaignAction);
 
 @Schema()
-export class Campaign {
+export class CampaignActionsHistory {
   @Prop({ type: String, required: true })
   campaignId: string;
 
   @Prop({ type: String, required: true })
   campaignName: string;
 
-  @Prop({ type: [ActionSchema], required: true })
-  actions: Action[];
+  @Prop({ type: [CampaignActionSchema], required: true })
+  actions: CampaignAction[];
 }
 
-export const CampaignSchema = SchemaFactory.createForClass(Campaign);
+export const CampaignActionsHistorySchema = SchemaFactory.createForClass(CampaignActionsHistory);
 
 @Schema()
-export class Invoice {
+export class InvoiceAction {
   @Prop({ type: String, required: true })
   invoiceId: string;
 
@@ -60,7 +59,7 @@ export class Invoice {
   date: Date;
 }
 
-export const InvoiceSchema = SchemaFactory.createForClass(Invoice);
+export const InvoiceActionSchema = SchemaFactory.createForClass(InvoiceAction);
 
 @Schema({ timestamps: true })
 export class InfluencerActionsHistory extends Document {
@@ -70,11 +69,11 @@ export class InfluencerActionsHistory extends Document {
   @Prop({ required: true })
   influencerEmail: string;
 
-  @Prop({ required: true, type: [CampaignSchema], _id: false })
-  campaigns: Campaign[];
+  @Prop({ required: true, type: [CampaignActionsHistorySchema], _id: false })
+  campaigns: CampaignActionsHistory[];
 
-  @Prop({ required: true, type: [InvoiceSchema], _id: false })
-  invoices: Invoice[];
+  @Prop({ required: true, type: [InvoiceActionSchema], _id: false })
+  invoices: InvoiceAction[];
 }
 
 export const InfluencerActionsHistorySchema =

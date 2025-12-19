@@ -6,9 +6,9 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
-import {Campaign, CampaignContentItem, SelectInfluencers} from '../campaigns/schemas/campaign.schema';
+import {Campaign, CampaignContentItem, SelectInfluencers} from '../../database/schemas/campaign/campaign.schema';
 import mongoose, {ClientSession} from 'mongoose';
-import {CompletedCampaign} from '../campaigns/schemas/completed-campaign.schema';
+import {CompletedCampaign} from '../../database/schemas/campaign/completed-campaign.schema';
 import axios from 'axios';
 import * as process from 'node:process';
 import {CampaignStatusType} from "../../common/types/client/campaign.types";
@@ -26,6 +26,7 @@ import {
     InfluencerPromo, InfluencerPromoClosedStatusType,
     InfluencerPromoRequest,
 } from "../../common/types/influencer/promo.types";
+import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 
 mongoose.Promise = global.Promise;
 
@@ -831,5 +832,21 @@ export class PromosService {
             statusCode: 200,
             data: screenshotUrl,
         };
+    }
+
+    // Replace influencerId in each ongoing promo
+    async replaceInfluencerIdInOngoingPromos(
+        context: SocialAccountMigrationContext,
+        session: ClientSession,
+    ): Promise<void> {
+
+    }
+
+    // TODO: Replace influencerId in each completed promo
+    async replaceInfluencerIdInCompletedPromos(
+        context: SocialAccountMigrationContext,
+        session: ClientSession,
+    ): Promise<void> {
+
     }
 }

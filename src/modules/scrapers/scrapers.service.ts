@@ -1,7 +1,7 @@
 import {InjectModel} from '@nestjs/mongoose';
 import {Injectable, Logger} from '@nestjs/common';
 import {Model, Types} from 'mongoose';
-import {Campaign} from '../campaigns/schemas/campaign.schema';
+import {Campaign} from '../../database/schemas/campaign/campaign.schema';
 import {ReqUpdatePostDetailsDto} from './dto/req-update-post-details.dto';
 import {ReqUpdateAllPostsDetailsDto} from "./dto/req-update-all-posts-details-dto";
 import {ScrapersGateway} from "./scrapers.gateway";

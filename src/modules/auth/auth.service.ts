@@ -5,7 +5,6 @@ import {
     Injectable,
     UnauthorizedException
 } from '@nestjs/common';
-import {InjectModel} from '@nestjs/mongoose';
 import {CreateClientDto} from './dto/create-client.dto';
 import {CreateInfluencerDto} from './dto/create-influencer.dto';
 import mongoose from 'mongoose';
@@ -21,6 +20,7 @@ import {VerifyInfluencerRepository} from "../../database/repositories/verify-use
 import {Role} from "../../common/types/auth.types";
 import {LoginResponseDto} from "./dto/login.dto";
 import {Client} from "../../database/schemas/users/client.schema";
+import {Influencer} from "../../database/schemas/users/influencer.schema";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -62,7 +62,8 @@ export class AuthService {
     private readonly accessKey = process.env.JWT_SECRET;
     private readonly refreshKey = process.env.JWT_REFRESH_SECRET;
 
-    async createClient(data: CreateClientDto): Promise<Client | undefined> {
+    // Signup client
+    async createClient(data: CreateClientDto): Promise<void> {
         if (!data) throw new BadRequestException('Not enough arguments');
 
         const [existingEmailUser, existingInstagramUser, existingPhoneUser] = await Promise.all([
@@ -124,21 +125,17 @@ export class AuthService {
       <p>The SoundInfluencers.com Team</p>`,
             'html',
         );
-
-        return newUser;
     }
 
-    async createInfluencer(data: CreateInfluencerDto): Promise<Influencer | undefined> {
-        if (!data) throw n
+    // Signup influencer
+    async createInfluencer(data: CreateInfluencerDto): Promise<void> {
+        if (!data) throw new BadRequestException('Not enough arguments');
 
         const checkUser =
             (await this.influencerRepo.findInfluencerByEmail(data.email)) ||
             (await this.clientRepo.findClientByEmail(data.email));
 
-        if (checkUser) {
-            console.error(`Existing email was used while creating new influencer`);
-            return {code: 409, message: 'User with this email already exists'};
-        }
+        if (checkUser) throw new ConflictException('User with this email already exists')
 
         const socialNetworks = [
             'instagram',
@@ -161,15 +158,7 @@ export class AuthService {
 
             const existingUser = await this.influencerRepo.findOne(networkFilter);
 
-            if (existingUser) {
-                console.error(
-                    `Existing username was used while creating new influencer: ${existingUser[network].instagramUsername}`,
-                );
-                return {
-                    code: 409,
-                    message: `This ${network} username (${existingUser[network].instagramUsername}) already exists`,
-                };
-            }
+            if (existingUser) throw new ConflictException(`Existing username was used while creating new influencer: ${existingUser[network].instagramUsername}`)
         }
 
         const processedData = {};
@@ -295,8 +284,6 @@ export class AuthService {
             <p>The SoundInfluencers Team</p>`,
             'html',
         );
-
-        return newUser;
     }
 
     // Login

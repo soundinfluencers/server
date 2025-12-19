@@ -1,6 +1,6 @@
 import {BadRequestException, ConflictException, Injectable, Logger, NotFoundException} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
-import {Campaign, CampaignContentItem} from '../campaigns/schemas/campaign.schema';
+import {Campaign, CampaignContentItem} from '../../database/schemas/campaign/campaign.schema';
 import mongoose, {Types} from 'mongoose';
 import {AdminUpdatePersonalClientDto} from './dto/admin-update-client.dto';
 import {AdminUpdateInfluencerPersonalDto} from './dto/admin-update-influencer-personal.dto';
@@ -31,9 +31,9 @@ import {
 } from "../../common/utils/new-promo-message";
 import {Client} from "../../database/schemas/users/client.schema";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
-import {CompletedCampaign} from "../campaigns/schemas/completed-campaign.schema";
+import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {returnMusicStyles} from "../../common/utils/genres";
-import {MigrateAccountDto} from "../profile/dto/migrate-account.dto";
+import {MigrateAccountDto} from "../migrations/dto/migrate-account.dto";
 
 @Injectable()
 export class AdminService {

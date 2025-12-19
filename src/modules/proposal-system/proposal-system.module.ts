@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ProposalSystemController } from './proposal-system.controller';
 import { ProposalSystemService } from './proposal-system.service';
 import { ProposalCampaign, ProposalCampaignSchema } from './schemas/proposal-campaign.schema';
-import {Campaign, CampaignSchema} from "../campaigns/schemas/campaign.schema";
+import {Campaign, CampaignSchema} from "../../database/schemas/campaign/campaign.schema";
 import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
 import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
 import {CampaignsModule} from "../campaigns/campaigns.module";

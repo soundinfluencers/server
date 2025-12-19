@@ -8,6 +8,11 @@ import {VerifyInfluencer, VerifyInfluencerSchema} from "./schemas/verify-users/v
 import {VerifyClient, VerifyClientSchema} from "./schemas/verify-users/verifyClient.schema";
 import {VerifyClientRepository} from "./repositories/verify-users/verify-client.repository";
 import {VerifyInfluencerRepository} from "./repositories/verify-users/verify-influencer.repository";
+import {
+    InfluencerActionsHistory,
+    InfluencerActionsHistorySchema
+} from "./schemas/histories/influencer-actions-history.schema";
+import {InfluencerHistoryRepository} from "./repositories/histories/influencer-history.repository";
 
 @Global()
 @Module({
@@ -17,6 +22,7 @@ import {VerifyInfluencerRepository} from "./repositories/verify-users/verify-inf
             { name: Client.name, schema: ClientSchema },
             { name: VerifyInfluencer.name, schema: VerifyInfluencerSchema },
             { name: VerifyClient.name, schema: VerifyClientSchema },
+            { name: InfluencerActionsHistory.name, schema: InfluencerActionsHistorySchema },
         ]),
     ],
     providers: [
@@ -24,12 +30,14 @@ import {VerifyInfluencerRepository} from "./repositories/verify-users/verify-inf
         InfluencerRepository,
         VerifyClientRepository,
         VerifyInfluencerRepository,
+        InfluencerHistoryRepository,
     ],
     exports: [
         ClientRepository,
         InfluencerRepository,
         VerifyClientRepository,
-        VerifyInfluencerRepository
+        VerifyInfluencerRepository,
+        InfluencerHistoryRepository,
     ],
 })
 export class DatabaseModule {}

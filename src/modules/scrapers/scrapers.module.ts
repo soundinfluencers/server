@@ -1,7 +1,7 @@
 import {Module} from '@nestjs/common';
 import {MongooseModule} from "@nestjs/mongoose";
 import {Offer, OfferSchema} from "../offers/schemas/offer.schema";
-import {Campaign, CampaignSchema} from "../campaigns/schemas/campaign.schema";
+import {Campaign, CampaignSchema} from "../../database/schemas/campaign/campaign.schema";
 import {ScrapersService} from "./scrapers.service";
 import {ScrapersGateway} from "./scrapers.gateway";
 import {ScrapersController} from "./scrapers.controller";

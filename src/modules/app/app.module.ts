@@ -22,6 +22,7 @@ import {ReportsSizesModule} from "../reports-sizes/reports-sizes.module";
 import {HealthController} from "../health/health.controller";
 import {DatabaseModule} from "../../database/database.module";
 import {CampaignsModule} from "../campaigns/campaigns.module";
+import {MigrationsModule} from "../migrations/migrations.module";
 
 @Module({
     imports: [
@@ -49,6 +50,7 @@ import {CampaignsModule} from "../campaigns/campaigns.module";
             serveRoot: '/uploads',
         }),
         ReportsSizesModule,
+        MigrationsModule,
         DatabaseModule,
     ],
     controllers: [AppController, HealthController],

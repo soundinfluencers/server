@@ -11,7 +11,7 @@ import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {Role} from "../../common/types/auth.types";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
-import {MigrateAccountDto} from "./dto/migrate-account.dto";
+import {MigrateAccountDto} from "../migrations/dto/migrate-account.dto";
 
 @ApiTags('profile')
 @Controller('profile')
@@ -92,13 +92,4 @@ export class ProfileController {
       query.newPrice,
     );
   }
-
-    @Auth()
-    @Roles(Role.admin)
-    @ApiOperation({ summary: "(ADMIN) Migrate social account (second account id) to influencer's object of first account" })
-    @ApiResponseDto(undefined, { successStatusCode: 201 })
-    @Patch('migrate')
-    adminMigrateSocialAccount(@Body() data: MigrateAccountDto) {
-        return this.profileService.migrateSocialAccountOrchestrator(data);
-    }
 }

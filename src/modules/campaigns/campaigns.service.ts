@@ -15,8 +15,8 @@ import {
 } from "../../common/types/client/campaign.types";
 import {SocialMediaType} from "../../common/types/social-media.types";
 import {formatClientCampaignStatus, formatDate} from "../../common/utils/formatters";
-import {Campaign} from "./schemas/campaign.schema";
-import {CompletedCampaign} from "./schemas/completed-campaign.schema";
+import {Campaign} from "../../database/schemas/campaign/campaign.schema";
+import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {CreateCampaignDto} from "./dto/create-campaign.dto";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
 import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";

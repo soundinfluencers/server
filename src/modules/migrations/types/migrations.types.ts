@@ -6,8 +6,14 @@ import {Types} from "mongoose";
 export interface SocialAccountMigrationContext {
     socialAccountId: Types.ObjectId;
     socialMedia: SocialMediaType;
+    socialAccountUsername: string;
     socialAccount: SocialAccount;
 
+    // Old owner id
     sourceInfluencerId: Types.ObjectId;
+
+    // New owner id
     targetInfluencerId: Types.ObjectId;
+    // New owner email
+    targetInfluencerEmail: string;
 }

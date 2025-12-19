@@ -12,8 +12,8 @@ import {AppGateway} from '../websocket/app.gateway';
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {Client} from "../../database/schemas/users/client.schema";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
-import {MigrateAccountDto} from "./dto/migrate-account.dto";
-import {SocialAccountMigrationContext} from "./types/profile.types";
+import {MigrateAccountDto} from "../migrations/dto/migrate-account.dto";
+import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 
 const bcrypt = require('bcryptjs');
@@ -766,38 +766,12 @@ export class ProfileService {
         }
     }
 
-    // Migrating social account to new owner (with history and updating campaigns)
-    async migrateSocialAccountOrchestrator(data: MigrateAccountDto) {
-        const session = await this.influencerModel.db.startSession();
-        session.startTransaction();
-
-        try {
-            // Moving social account to new owner
-            const context = await this.moveSocialAccount(data, session);
-
-            // Moving social account's history to new owner's influencer's history
-            // await this.migrateSocialAccountHistory(context, session);
-
-            // updating influencerId field in ongoing and completed campaigns with this social account in them
-            // await this.updateOngoingCampaigns(context, session);
-            // await this.updateCompletedCampaigns(context, session);
-
-            await session.commitTransaction();
-            return context;
-        } catch (error) {
-            await session.abortTransaction();
-            throw error;
-        } finally {
-            session.endSession();
-        }
-    }
-
     // Moves social account obj to new owner obj
-    private async moveSocialAccount(
+    async moveSocialAccount(
         data: MigrateAccountDto,
         session: ClientSession,
     ): Promise<SocialAccountMigrationContext> {
-        const { influencerId, socialAccountToMigrateId, socialMediaOfAccount } = data;
+        const {influencerId, socialAccountToMigrateId, socialMediaOfAccount} = data;
 
         if (!influencerId || !socialAccountToMigrateId || !socialMediaOfAccount) {
             throw new BadRequestException('Not enough arguments');
@@ -805,18 +779,14 @@ export class ProfileService {
 
         const socialAccountObjectId = new Types.ObjectId(socialAccountToMigrateId);
 
-        // Find source influencer
-        const targetInfluencer = await this.influencerRepo.findById(influencerId, { session });
+        // Find target influencer
+        const targetInfluencer = await this.influencerRepo.findOne({_id: new Types.ObjectId(influencerId)}, {session});
         if (!targetInfluencer) {
             throw new NotFoundException(`Influencer with id ${influencerId} not found`);
         }
 
         // Find influencer with target social account
-        const sourceInfluencer: Influencer = await this.influencerRepo.findBySocialAccount(
-            socialMediaOfAccount,
-            socialAccountObjectId,
-            { session },
-        );
+        const sourceInfluencer: Influencer = await this.influencerRepo.findBySocialAccount(socialMediaOfAccount, socialAccountObjectId);
         if (!sourceInfluencer) {
             throw new NotFoundException('Social account not found');
         }
@@ -838,7 +808,7 @@ export class ProfileService {
             sourceInfluencer._id,
             socialMediaOfAccount,
             socialAccountObjectId,
-            { session },
+            {session},
         );
 
         const alreadyExists = targetInfluencer[socialMediaOfAccount].some(acc =>
@@ -853,15 +823,17 @@ export class ProfileService {
             targetInfluencer._id,
             socialMediaOfAccount,
             socialAccount,
-            { session },
+            {session},
         );
 
         return {
             socialAccountId: socialAccountObjectId,
-            socialAccount,
             socialMedia: socialMediaOfAccount,
+            socialAccountUsername: socialAccount.instagramUsername,
+            socialAccount: socialAccount,
             sourceInfluencerId: sourceInfluencer._id,
             targetInfluencerId: targetInfluencer._id,
+            targetInfluencerEmail: targetInfluencer.email
         };
     }
 }

@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import {InfluencerActionsHistory, InfluencerActionsHistorySchema} from "./schemas/influencer-actions-history.schema";
-import {Campaign, CampaignSchema} from "../campaigns/schemas/campaign.schema";
-import {CompletedCampaignSchema, CompletedCampaign} from "../campaigns/schemas/completed-campaign.schema";
+import {InfluencerActionsHistory, InfluencerActionsHistorySchema} from "../../database/schemas/histories/influencer-actions-history.schema";
+import {Campaign, CampaignSchema} from "../../database/schemas/campaign/campaign.schema";
+import {CompletedCampaignSchema, CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {InfluencerActionsHistoryController} from "./influencer-actions-history.controller";
 import {InfluencerActionsHistoryService} from "./influencer-actions-history.service";
 import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";

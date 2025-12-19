@@ -5,7 +5,7 @@ import {
   CampaignContentItemSchema,
   SelectedContent,
   SelectedContentSchema
-} from "../../campaigns/schemas/campaign.schema";
+} from "../../../database/schemas/campaign/campaign.schema";
 
 @Schema()
 export class SelectInfluencers {

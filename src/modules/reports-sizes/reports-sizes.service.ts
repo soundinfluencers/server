@@ -3,7 +3,7 @@ import {InjectModel} from '@nestjs/mongoose';
 import {Model, Types} from 'mongoose';
 import {ReportSizes} from './schemas/reports-sizes.schema';
 import {UpdateReportSizeDto} from './dto/update-report-size.dto';
-import {Campaign} from '../campaigns/schemas/campaign.schema';
+import {Campaign} from '../../database/schemas/campaign/campaign.schema';
 import {GetReportSizeDto} from './dto/get-report-size.dto';
 import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 
