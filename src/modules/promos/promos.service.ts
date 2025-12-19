@@ -27,6 +27,7 @@ import {
     InfluencerPromoRequest,
 } from "../../common/types/influencer/promo.types";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
+import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
 
 mongoose.Promise = global.Promise;
 
@@ -43,8 +44,10 @@ export class PromosService {
         private influencerModel: mongoose.Model<Influencer>,
         @InjectModel(CompletedCampaign.name)
         private completedCampaignModel: mongoose.Model<CompletedCampaign>,
+        private campaignRepo: CampaignRepository,
     ) {
     }
+
     // TODO: add logic for getting completed promo or ongoing (through strategy)
 
     async checkUploadStatus(fileName: string): Promise<boolean> {
@@ -53,7 +56,9 @@ export class PromosService {
     }
 
     // Returns influencer past promo (find by id, selectInfluencersId)
-    async influencerPastPromoOne(data: InfluencerGetPastPromoQueryDto & { influencerId: string }): Promise<InfluencerPromo> {
+    async influencerPastPromoOne(data: InfluencerGetPastPromoQueryDto & {
+        influencerId: string
+    }): Promise<InfluencerPromo> {
         const {influencerId, campaignId, selectInfluencersId} = data;
 
         if (!influencerId || !campaignId || !selectInfluencersId) throw new BadRequestException('Not enough arguments');
@@ -456,7 +461,9 @@ export class PromosService {
 
                 // Getting all influencer's promos from each campaign
                 allSocialAccounts = campaigns.flatMap((item: any) => {
-                    return item.selectInfluencers.map((account: SelectInfluencers): InfluencerPromo & { clientId: string } | null => {
+                    return item.selectInfluencers.map((account: SelectInfluencers): InfluencerPromo & {
+                        clientId: string
+                    } | null => {
                         if (account.confirmation === 'accept' &&
                             account.closePromo === 'wait' &&
                             account.selectedContent) {
@@ -521,7 +528,9 @@ export class PromosService {
                 campaigns = [...ongoingCampaigns, ...closedCampaigns];
 
                 allSocialAccounts = campaigns.flatMap((campaign: any) => {
-                    return campaign.selectInfluencers.map((account: any): InfluencerPromo & { clientId: string } | null => {
+                    return campaign.selectInfluencers.map((account: any): InfluencerPromo & {
+                        clientId: string
+                    } | null => {
                         if (account.closePromo === 'close' && account.screenshot === '') {
 
                             // Getting promo content for this social account
@@ -674,7 +683,7 @@ export class PromosService {
             like?: number;
         },
     ): Promise<void> {
-        const { influencerId, campaignId, socialMediaUsername, selectInfluencersId } = query;
+        const {influencerId, campaignId, socialMediaUsername, selectInfluencersId} = query;
 
         if (!influencerId || !campaignId || !socialMediaUsername || !selectInfluencersId) {
             throw new BadRequestException('Not enough arguments');
@@ -687,8 +696,8 @@ export class PromosService {
                     $elemMatch: {
                         influencerId,
                         $or: [
-                            { socialMediaUsername },
-                            { instagramUsername: socialMediaUsername },
+                            {socialMediaUsername},
+                            {instagramUsername: socialMediaUsername},
                         ],
                     },
                 },
@@ -758,12 +767,12 @@ export class PromosService {
                 {
                     _id: campaignId,
                     'selectInfluencers._id': new mongoose.Types.ObjectId(selectInfluencersId),
-                    'selectInfluencers.closePromo': { $ne: 'close' },
+                    'selectInfluencers.closePromo': {$ne: 'close'},
                 },
                 {
                     $set: updatePayload,
                 },
-                { session },
+                {session},
             );
 
             // promo already closed by another request
@@ -783,9 +792,9 @@ export class PromosService {
             }
 
             await this.influencerModel.updateOne(
-                { _id: influencerId },
-                { $inc: { balance: reward } },
-                { session },
+                {_id: influencerId},
+                {$inc: {balance: reward}},
+                {session},
             );
 
             /** ---------- COMMIT ---------- */
@@ -839,7 +848,11 @@ export class PromosService {
         context: SocialAccountMigrationContext,
         session: ClientSession,
     ): Promise<void> {
+        const {targetInfluencerId, sourceInfluencerId} = context;
 
+        if (!targetInfluencerId || !sourceInfluencerId) throw new BadRequestException('Not enough arguments');
+
+        await this.campaignRepo.replaceInfluencerId(sourceInfluencerId.toString(), targetInfluencerId.toString(), {session});
     }
 
     // TODO: Replace influencerId in each completed promo

@@ -13,6 +13,10 @@ import {
     InfluencerActionsHistorySchema
 } from "./schemas/histories/influencer-actions-history.schema";
 import {InfluencerHistoryRepository} from "./repositories/histories/influencer-history.repository";
+import {Campaign, CampaignSchema} from "./schemas/campaign/campaign.schema";
+import {CompletedCampaign, CompletedCampaignSchema} from "./schemas/campaign/completed-campaign.schema";
+import {CampaignRepository} from "./repositories/campaigns/campaign.repository";
+import {CompletedCampaignRepository} from "./repositories/campaigns/completed-campaign.repository";
 
 @Global()
 @Module({
@@ -23,6 +27,8 @@ import {InfluencerHistoryRepository} from "./repositories/histories/influencer-h
             { name: VerifyInfluencer.name, schema: VerifyInfluencerSchema },
             { name: VerifyClient.name, schema: VerifyClientSchema },
             { name: InfluencerActionsHistory.name, schema: InfluencerActionsHistorySchema },
+            { name: Campaign.name, schema: CampaignSchema },
+            { name: CompletedCampaign.name, schema: CompletedCampaignSchema },
         ]),
     ],
     providers: [
@@ -31,6 +37,8 @@ import {InfluencerHistoryRepository} from "./repositories/histories/influencer-h
         VerifyClientRepository,
         VerifyInfluencerRepository,
         InfluencerHistoryRepository,
+        CampaignRepository,
+        CompletedCampaignRepository,
     ],
     exports: [
         ClientRepository,
@@ -38,6 +46,8 @@ import {InfluencerHistoryRepository} from "./repositories/histories/influencer-h
         VerifyClientRepository,
         VerifyInfluencerRepository,
         InfluencerHistoryRepository,
+        CampaignRepository,
+        CompletedCampaignRepository,
     ],
 })
 export class DatabaseModule {}
