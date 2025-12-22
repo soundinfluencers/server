@@ -57,7 +57,5 @@ export class CampaignRepository extends BaseRepository<Campaign> {
         );
     }
 
-
-
     // TODO: Find all ongoing promos for social account (by social account's id)
 }

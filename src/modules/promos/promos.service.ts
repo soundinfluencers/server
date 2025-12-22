@@ -854,12 +854,4 @@ export class PromosService {
 
         await this.campaignRepo.replaceInfluencerId(sourceInfluencerId.toString(), targetInfluencerId.toString(), {session});
     }
-
-    // TODO: Replace influencerId in each completed promo
-    async replaceInfluencerIdInCompletedPromos(
-        context: SocialAccountMigrationContext,
-        session: ClientSession,
-    ): Promise<void> {
-
-    }
 }
