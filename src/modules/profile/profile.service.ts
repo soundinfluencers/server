@@ -1,206 +1,150 @@
-import {BadRequestException, ConflictException, Injectable, NotFoundException} from '@nestjs/common';
-import {UpdatePersonalClientDto} from './dto/update-personal-client.dto';
+import {
+    BadRequestException,
+    ConflictException,
+    Injectable,
+    NotFoundException,
+    UnauthorizedException
+} from '@nestjs/common';
+import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from './dto/update-client.dto';
 import mongoose, {ClientSession, Types} from 'mongoose';
-import {InjectModel} from '@nestjs/mongoose';
-import {UpdatePasswordClientDto} from './dto/update-password.dto';
-import {UpdatePersonalInfluencerDto} from './dto/update-personal-influencer.dto';
-import {UpdateSocialMediaAccountDto} from './dto/update-social-media-account.dto';
-import {AddSocialMediasDto} from './dto/add-social-medias.dto';
+import {UpdateUserPasswordDto} from './dto/update-password.dto';
+import {
+    AddSocialMediasDto,
+    InfluencerUpdatedPersonalDetailsDto,
+    UpdateInfluencerPersonalDetailsDto,
+    UpdateSocialMediaAccountDto
+} from './dto/update-influencer.dto';
 import {SendMailPriceChangeDto} from './dto/send-mail-price-change.dto';
 import * as process from 'node:process';
 import {AppGateway} from '../websocket/app.gateway';
 import sendMail from "../../integrations/nodemailer/nodemailer";
-import {Client} from "../../database/schemas/users/client.schema";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
 import {MigrateAccountDto} from "../migrations/dto/migrate-account.dto";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
+import {ClientRepository} from "../../database/repositories/users/client.repository";
+import {Role} from "../../common/types/auth.types";
 
 const bcrypt = require('bcryptjs');
 
 @Injectable()
 export class ProfileService {
     constructor(
-        @InjectModel(Client.name)
-        private clientModel: mongoose.Model<Client>,
-        @InjectModel(Influencer.name)
-        private influencerModel: mongoose.Model<Influencer>,
         private readonly webSocketService: AppGateway,
+        private readonly clientRepo: ClientRepository,
         private readonly influencerRepo: InfluencerRepository,
     ) {
     }
 
-    async updatePersonalClient(data: UpdatePersonalClientDto) {
-        try {
-            if (!data) {
-                return {
-                    status: 400,
-                    message: 'Not enough arguments',
-                };
-            }
+    // Updates client's personal information (firstName, company, email, phone)
+    async updatePersonalClient(data: UpdateClientPersonalDetailsDto): Promise<ClientUpdatedPersonalDetailsDto> {
+        const { _id, firstName, company, email, phone } = data;
 
-            const checkUser = await this.clientModel.findOne({_id: data.id});
+        if (!_id || !firstName || !company || !email || !phone) {
+            throw new BadRequestException("Not enough arguments");
+        }
 
-            if (!checkUser) {
-                return {
-                    code: 404,
-                    message: 'User not found',
-                };
-            }
-            await this.clientModel.findOneAndUpdate(
-                {_id: data.id},
-                {
-                    firstName: data.firstName,
-                    company: data.company,
-                    email: data.email,
-                    phone: data.phone,
-                },
-            );
+        const updatedUser = await this.clientRepo.findOneAndUpdate(
+            {_id: _id},
+            {
+                firstName: firstName.trim(),
+                company: company.trim(),
+                email: email.trim().toLowerCase(),
+                phone: phone.trim(),
+            },
+        );
 
-            return {
-                code: 200,
-                message: 'personal data update',
-            };
-        } catch (err) {
-            console.log(err);
-            return {
-                code: 500,
-                message: err,
-            };
+        if (!updatedUser) {
+            throw new NotFoundException("Client not found");
+        }
+
+        return {
+            firstName: updatedUser.firstName,
+            company: updatedUser.company,
+            email: updatedUser.email,
+            phone: updatedUser.phone,
         }
     }
 
-    async updatePersonalInfluencer(data: UpdatePersonalInfluencerDto) {
-        try {
-            if (!data) {
-                return {
-                    status: 400,
-                    message: 'Not enough arguments',
-                };
-            }
+    // Updates influencer's personal information (firstName, email, phone)
+    async updatePersonalInfluencer(data: UpdateInfluencerPersonalDetailsDto): Promise<InfluencerUpdatedPersonalDetailsDto> {
+        const { _id, firstName, email, phone } = data;
 
-            const checkUser = await this.influencerModel.findOne({_id: data.id});
-
-            if (!checkUser) {
-                return {
-                    code: 404,
-                    message: 'User not found',
-                };
-            }
-            const updatedUser = await this.influencerModel.findOneAndUpdate(
-                {_id: data.id},
-                {
-                    firstName: data.firstName.trim(),
-                    email: data.email.trim(),
-                    phone: data.phone.trim(),
-                },
-                {new: true},
-            );
-            return {
-                code: 200,
-                message: 'personal data update',
-                data: {
-                    firstName: updatedUser.firstName,
-                    email: updatedUser.email,
-                    phone: updatedUser.phone,
-                },
-            };
-        } catch (err) {
-            console.log(err);
-            return {
-                code: 500,
-                message: err,
-            };
+        if (!_id || !firstName || !email || !phone) {
+            throw new BadRequestException("Not enough arguments");
         }
+
+        const updatedUser = await this.influencerRepo.findOneAndUpdate(
+            {_id: _id},
+            {
+                firstName: firstName.trim(),
+                email: email.trim().toLowerCase(),
+                phone: phone.trim(),
+            },
+        );
+
+        if (!updatedUser) {
+            throw new NotFoundException('Influencer not found');
+        }
+
+        return {
+            firstName: updatedUser.firstName,
+            email: updatedUser.email,
+            phone: updatedUser.phone,
+        };
     }
 
-    async updatePasswordClient(data: UpdatePasswordClientDto) {
-        try {
-            if (!data) {
-                return {
-                    status: 400,
-                    message: 'Not enough arguments',
-                };
+    async updateUserPassword(data: UpdateUserPasswordDto) {
+        const { currentPassword, newPassword, _id, role } = data;
+
+        if (!currentPassword || !newPassword || !_id) {
+            throw new BadRequestException("Not enough arguments");
+        }
+
+        if (!role) {
+            throw new UnauthorizedException("Not enough access");
+        }
+
+        if (role === Role.client) {
+            const client = await this.clientRepo.findOne({_id: _id});
+
+            if (!client) {
+                throw new NotFoundException("Client not found");
             }
 
-            if (data.role === undefined) {
-                return {
-                    status: 400,
-                    message: 'role is not correct',
-                };
-            }
-
-            if (data.role === 'client') {
-                const checkUser = await this.clientModel.findOne({_id: data.id});
-
-                if (!checkUser) {
-                    return {
-                        code: 404,
-                        message: 'User not found',
-                    };
-                }
-
-                if (bcrypt.compareSync(data.currentPassword, checkUser.password)) {
-                    await this.clientModel.findOneAndUpdate(
-                        {_id: data.id},
-                        {
-                            password: bcrypt.hashSync(data.newPassword),
-                        },
-                    );
-
-                    return {
-                        code: 200,
-                        message: 'personal data update',
-                    };
-                }
-
-                return {
-                    code: 400,
-                    message: 'Password is not correct',
-                };
-            } else if (data.role === 'influencer') {
-                const checkUser = await this.influencerModel.findOne({_id: data.id});
-
-                if (!checkUser) {
-                    return {
-                        code: 404,
-                        message: 'User not found',
-                    };
-                }
-
-                if (bcrypt.compareSync(data.currentPassword, checkUser.password)) {
-                    await this.influencerModel.findOneAndUpdate(
-                        {_id: data.id},
-                        {
-                            password: bcrypt.hashSync(data.newPassword),
-                        },
-                    );
-
-                    return {
-                        code: 200,
-                        message: 'personal data update',
-                    };
-                }
-
-                return {
-                    code: 400,
-                    message: 'Password is not correct',
-                };
+            if (bcrypt.compareSync(currentPassword, client.password)) {
+                await this.clientRepo.findOneAndUpdate(
+                    {_id: _id},
+                    {
+                        password: bcrypt.hashSync(newPassword),
+                    },
+                );
             } else {
-                return {
-                    code: 400,
-                    message: 'role is not correct',
-                };
+                throw new BadRequestException("Passwords don't match");
             }
-        } catch (err) {
-            console.log(err);
-            return {
-                code: 500,
-                message: err,
-            };
+        } else if (role === Role.influencer) {
+            const influencer = await this.influencerRepo.findOne({_id: _id});
+
+            if (!influencer) {
+                throw new NotFoundException("Influencer not found");
+            }
+
+            if (bcrypt.compareSync(data.currentPassword, influencer.password)) {
+                await this.influencerRepo.findOneAndUpdate(
+                    {_id: _id},
+                    {
+                        password: bcrypt.hashSync(newPassword),
+                    },
+                );
+            } else {
+                throw new BadRequestException("Passwords don't match");
+            }
+        } else {
+            throw new UnauthorizedException('Not enough access');
         }
     }
 
+    // TODO: UPDATE
     async updateSocialMediaAccount(data: UpdateSocialMediaAccountDto) {
         try {
             if (!data) {
@@ -277,6 +221,7 @@ export class ProfileService {
         }
     }
 
+    // TODO: UPDATE
     async sendMailAboutChangingPrice(data: SendMailPriceChangeDto) {
         if (!data) {
             return {
@@ -350,6 +295,7 @@ export class ProfileService {
         };
     }
 
+    // TODO: UPDATE
     async changeSocialMediaPrice(
         influencerId: string,
         socialMedia: string,
@@ -412,6 +358,7 @@ export class ProfileService {
         }
     }
 
+    // TODO: UPDATE
     async deleteSocialMediaAccount(data: any) {
         try {
             if (!data) {
@@ -483,6 +430,7 @@ export class ProfileService {
         }
     }
 
+    // TODO: UPDATE
     async addSocialMediaAccounts(data: AddSocialMediasDto) {
         let errors = [];
 
@@ -696,6 +644,7 @@ export class ProfileService {
         }
     }
 
+    // TODO: UPDATE
     async verifyNewSocialMediaAccounts(
         influencerId: string,
         accountIds: string[],
@@ -835,5 +784,207 @@ export class ProfileService {
             targetInfluencerId: targetInfluencer._id,
             targetInfluencerEmail: targetInfluencer.email
         };
+    }
+
+    // TODO: UPDATE
+    async getInfluencersWithSocialMedia(socialMedia: string) {
+        try {
+            const getInfluencersAll = await this.influencerRepo.findMany(
+                {statusVerify: 'accept'},
+                {
+                    lean: true,
+                    select: ['-password', '-balance', '-phone', '-email'],
+                }
+            );
+
+            const influencersList = getInfluencersAll.map((item) => {
+                const socialMediaAccounts = item[socialMedia];
+
+                if (Array.isArray(socialMediaAccounts)) {
+                    return socialMediaAccounts
+                        .filter(
+                            (account) =>
+                                account.isHidden !== true &&
+                                account.isDeleted !== true &&
+                                account.isVerified === true,
+                        )
+                        .map((account) => ({
+                            ...account,
+                            _id: item._id,
+                        }));
+                }
+
+                return [];
+            });
+
+            return {
+                code: 200,
+                influencers: influencersList.flat(),
+            };
+        } catch (err) {
+            console.log(err);
+            return {
+                code: 500,
+                message: err.message || 'An error occurred while fetching influencers.',
+            };
+        }
+    }
+
+    // TODO: UPDATE
+    async getInfluencersWithoutSocialMedia() {
+        try {
+            const influencers = await this.influencerRepo
+                .findMany({statusVerify: 'accept'}, {
+                    lean: true,
+                    select: ['-password', '-balance', '-phone', '-email'],
+                });
+
+            const allAccounts = influencers.map((influencer) => {
+                const socialMediaKeys = [
+                    'instagram',
+                    'tiktok',
+                    'spotify',
+                    'soundcloud',
+                    'facebook',
+                    'youtube',
+                    'press',
+                ];
+
+                const accounts = socialMediaKeys.flatMap((socialMedia) => {
+                    const socialMediaAccounts = influencer[socialMedia];
+                    if (Array.isArray(socialMediaAccounts)) {
+                        return socialMediaAccounts
+                            .filter((account) => account.isHidden !== true)
+                            .map((account) => ({
+                                ...account,
+                                socialMedia,
+                                _id: influencer._id,
+                                firstName: influencer.firstName,
+                            }));
+                    }
+                    return [];
+                });
+
+                return accounts;
+            });
+
+            return {
+                code: 200,
+                influencers: allAccounts.flat(),
+            };
+        } catch (err) {
+            console.error(err);
+            return {
+                code: 500,
+                message: err.message || 'An error occurred while fetching all influencer accounts.',
+            };
+        }
+    }
+
+    // TODO: UPDATE
+    async getClients() {
+        try {
+            const getClientsAll = await this.clientRepo
+                .findMany({statusVerify: 'accept'}, {
+                    lean: true,
+                    select: ['-password']
+                });
+
+            return {
+                code: 200,
+                clients: getClientsAll,
+            };
+        } catch (err) {
+            console.log(err);
+            return {
+                code: 500,
+                message: err,
+            };
+        }
+    }
+
+    // TODO: UPDATE
+    async getInfluencerById(id: string) {
+        try {
+            const getInfluencer = await this.influencerRepo.findOne({_id: new mongoose.Types.ObjectId(id)})
+
+            return {
+                code: 200,
+                influencer: getInfluencer,
+            };
+        } catch (err) {
+            console.log(err);
+            return {
+                code: 500,
+                message: err,
+            };
+        }
+    }
+
+    // TODO: UPDATE
+    async getOneSocialNetworkAccount(
+        influencerId: string,
+        socialMedia: string,
+        networkUsername: string,
+    ) {
+        if (!influencerId || !socialMedia || !networkUsername) {
+            return {
+                code: 400,
+                message: 'Not enough arguments',
+            };
+        }
+
+        const influencer = await this.influencerRepo.findOne({
+            _id: new mongoose.Types.ObjectId(influencerId),
+        });
+        if (!influencer) {
+            return {
+                code: 404,
+                message: 'Influencer not found',
+            };
+        }
+
+        const socialMediaAccounts = influencer[socialMedia];
+
+        if (!socialMediaAccounts) {
+            return {
+                code: 404,
+                message: 'Social media not found',
+            };
+        }
+
+        const account = socialMediaAccounts.find((item) => item.instagramUsername === networkUsername);
+
+        if (!account) {
+            return {
+                code: 404,
+                message: 'Account not found',
+            };
+        }
+
+        return {
+            code: 200,
+            account,
+        };
+    }
+
+    // TODO: UPDATE
+    async getClientById(id: string) {
+        try {
+            const objectId = new Types.ObjectId(id);
+
+            const getClient = await this.clientRepo.findOne({_id: objectId});
+
+            return {
+                code: 200,
+                client: getClient,
+            };
+        } catch (err) {
+            console.log(err);
+            return {
+                code: 500,
+                message: err,
+            };
+        }
     }
 }

@@ -34,6 +34,11 @@ export class BaseRepository<T> {
         return this.model.create(data);
     }
 
+    async exists(filter: FilterQuery<T>): Promise<boolean> {
+        const result = await this.model.exists(filter);
+        return !!result;
+    }
+
     async updateById(id: string | Types.ObjectId, data: Partial<T>, options?: RepoOptions) {
         const query = this.model.findByIdAndUpdate(id, data, { new: true });
         return applyQueryOptions(query, options);

@@ -13,6 +13,7 @@ export class Client {
 
     @Prop()
     firstName: string;
+
     @Prop()
     balance: number;
 
