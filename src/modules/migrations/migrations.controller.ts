@@ -13,7 +13,7 @@ export class MigrationsController {
     constructor(private readonly migrationsService: MigrationsService) {}
 
     @Auth()
-    // @Roles(Role.admin)
+    @Roles(Role.admin)
     @ApiOperation({ summary: "(ADMIN) Migrate social account (second account id) to influencer's object of first account" })
     @ApiResponseDto(undefined, { successStatusCode: 201 })
     @Patch('account')

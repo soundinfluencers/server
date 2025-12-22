@@ -2,14 +2,13 @@ import {
     BadRequestException,
     ConflictException,
     ForbiddenException,
-    Injectable,
+    Injectable, NotFoundException,
     UnauthorizedException
 } from '@nestjs/common';
 import {CreateClientDto} from './dto/create-client.dto';
 import {CreateInfluencerDto} from './dto/create-influencer.dto';
 import mongoose from 'mongoose';
 import {Types} from 'mongoose';
-import {VerifyDto} from './dto/verify.dto';
 import {Response} from "express";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
@@ -19,8 +18,6 @@ import {VerifyClientRepository} from "../../database/repositories/verify-users/v
 import {VerifyInfluencerRepository} from "../../database/repositories/verify-users/verify-influencer.repository";
 import {Role} from "../../common/types/auth.types";
 import {LoginResponseDto} from "./dto/login.dto";
-import {Client} from "../../database/schemas/users/client.schema";
-import {Influencer} from "../../database/schemas/users/influencer.schema";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -55,9 +52,6 @@ export class AuthService {
         private readonly verifyInfluencerRepo: VerifyInfluencerRepository
     ) {
     }
-
-    // TODO: заглушка для метода verify (нужно убрать)
-    private readonly secretKey = 'd';
 
     private readonly accessKey = process.env.JWT_SECRET;
     private readonly refreshKey = process.env.JWT_REFRESH_SECRET;
@@ -110,8 +104,8 @@ export class AuthService {
         <p>Phone: ${data.phone}</p>
         <p>Referal Code: ${data.referalCode}</p>
         <h2>Do you want to verify this account?</h2>
-        <a href="${process.env.SERVER}/auth/verify-client?verifyId=${generateVerifyId}&responseVerify=accept">ACCEPT</a>
-        <a href="${process.env.SERVER}/auth/verify-client?verifyId=${generateVerifyId}&responseVerify=cancel">CANCEL</a>
+        <a href="${process.env.SERVER}/auth/verify/client?verifyId=${generateVerifyId}&responseVerify=accept">ACCEPT</a>
+        <a href="${process.env.SERVER}/auth/verify/client?verifyId=${generateVerifyId}&responseVerify=cancel">CANCEL</a>
         `,
             'html',
         );
@@ -269,8 +263,8 @@ export class AuthService {
                 )
                 .join('')}
             <h2>Do you want to verify your account?</h2>
-            <a href="${process.env.SERVER}/auth/verify-influencer?verifyId=${generateVerifyId}&responseVerify=accept">ACCEPT</a>
-            <a href="${process.env.SERVER}/auth/verify-influencer?verifyId=${generateVerifyId}&responseVerify=cancel">CANCEL</a>`,
+            <a href="${process.env.SERVER}/auth/verify/influencer?verifyId=${generateVerifyId}&responseVerify=accept">ACCEPT</a>
+            <a href="${process.env.SERVER}/auth/verify/influencer?verifyId=${generateVerifyId}&responseVerify=cancel">CANCEL</a>`,
             'html',
         );
 
@@ -346,7 +340,7 @@ export class AuthService {
         };
     }
 
-    // Выход из аккаунта
+    // Logout
     async logout(refreshToken: string, res: Response) {
         if (refreshToken) {
             await this.clientRepo.updateOne(
@@ -361,11 +355,9 @@ export class AuthService {
         }
 
         res.clearCookie('refreshToken', {path: '/auth/refresh'});
-
-        return {message: 'Logged out'};
     }
 
-    // Генерация access токена
+    // Generates access token
     private generateAccessToken(user: any) {
         return jwt.sign(
             {_id: user._id, role: user.role},
@@ -374,7 +366,7 @@ export class AuthService {
         );
     }
 
-    // Генерация refresh токена
+    // Generates refresh token
     private generateRefreshToken(user) {
         return jwt.sign(
             {_id: user._id},
@@ -383,40 +375,27 @@ export class AuthService {
         );
     }
 
+    // Saves refresh token
     private async saveRefreshToken(userId, token) {
         await this.clientRepo.updateOne({_id: userId}, {refreshToken: token});
         await this.influencerRepo.updateOne({_id: userId}, {refreshToken: token});
     }
 
+    // Verify influencer with sending mail
     async verifyAdminInfluencer(verifyId: string, responseVerify: string) {
-        if (!verifyId || !responseVerify) {
-            return {
-                status: 400,
-                message: 'Not enough arguments',
-            };
-        }
+        if (!verifyId || !responseVerify) throw new BadRequestException('Not enough arguments');
 
         const checkVerifyAdmin = await this.verifyInfluencerRepo.findOne({
             verifyId: verifyId,
         });
 
-        if (!checkVerifyAdmin) {
-            return {
-                code: 404,
-                message: 'not found',
-            };
-        }
+        if (!checkVerifyAdmin) throw new NotFoundException('Influencer not found');
 
         const checkInfluencer = await this.influencerRepo.findOne({
             _id: checkVerifyAdmin.influencerId,
         });
 
-        if (!checkInfluencer) {
-            return {
-                code: 404,
-                message: 'influencer not found ',
-            };
-        }
+        if (!checkInfluencer) throw new NotFoundException('Influencer not found');
 
         if (responseVerify === 'accept') {
             await this.influencerRepo.findOneAndUpdate(
@@ -438,11 +417,6 @@ export class AuthService {
         <p>SoundInfluencers team</p>`,
                 'html',
             );
-
-            return {
-                code: 200,
-                message: 'influencer verify',
-            };
         } else if (responseVerify === 'cancel') {
             await this.influencerRepo.findOneAndUpdate(
                 {_id: checkInfluencer._id},
@@ -460,47 +434,26 @@ export class AuthService {
       <p>Best Regards</p><p>SoundInfluencers Team</p>`,
                 'html',
             );
-            return {
-                code: 200,
-                message: 'influencer not verify',
-            };
         } else {
-            return {
-                code: 200,
-                message: 'response verify is not correct',
-            };
+            throw new BadRequestException("Response can be 'accept' or 'cancel'")
         }
     }
 
+    // Verify client with sending mail
     async verifyAdminClient(verifyId: string, responseVerify: string) {
-        if (!verifyId || !responseVerify) {
-            return {
-                status: 400,
-                message: 'Not enough arguments',
-            };
-        }
+        if (!verifyId || !responseVerify) throw new BadRequestException('Not enough arguments');
 
         const checkVerifyAdmin = await this.verifyClientRepo.findOne({
             verifyId: verifyId,
         });
 
-        if (!checkVerifyAdmin) {
-            return {
-                code: 404,
-                message: 'not found',
-            };
-        }
+        if (!checkVerifyAdmin) throw new NotFoundException('Client not found');
 
         const checkClient = await this.clientRepo.findOne({
             _id: checkVerifyAdmin.clientId,
         });
 
-        if (!checkClient) {
-            return {
-                code: 404,
-                message: 'client not found ',
-            };
-        }
+        if (!checkClient) throw new NotFoundException('Client not found');
 
         if (responseVerify === 'accept') {
             await this.clientRepo.findOneAndUpdate(
@@ -522,11 +475,6 @@ export class AuthService {
 <p>SoundInfluencers team</p>`,
                 'html',
             );
-
-            return {
-                code: 200,
-                message: 'client verify',
-            };
         } else if (responseVerify === 'cancel') {
             await this.clientRepo.findOneAndUpdate(
                 {_id: checkClient._id},
@@ -544,251 +492,8 @@ export class AuthService {
       <p>Best Regards</p><p>SoundInfluencers Team</p>`,
                 'html',
             );
-            return {
-                code: 200,
-                message: 'client not verify',
-            };
         } else {
-            return {
-                code: 200,
-                message: 'response verify is not correct',
-            };
-        }
-    }
-
-    async verify(data: VerifyDto) {
-        try {
-            if (!data.token) {
-                return {
-                    code: 400,
-                    message: 'Not enough arguments',
-                };
-            }
-            const login = jwt.verify(data.token, this.secretKey);
-            const userClient = await this.clientRepo.findOne({_id: login.id});
-            const userInfluencer = await this.influencerRepo.findOne({
-                _id: login.id,
-            });
-
-            if (login.role === 'client' && userClient) {
-                return {
-                    code: 200,
-                    user: userClient,
-                };
-            }
-
-            if (login.role === 'influencer' && userInfluencer) {
-                return {
-                    code: 200,
-                    user: userInfluencer,
-                };
-            }
-
-            return {
-                code: 404,
-                message: 'Not Found',
-            };
-        } catch (err) {
-            return {
-                code: 500,
-                message: err,
-            };
-        }
-    }
-
-    async getInfluencersWithSocialMedia(socialMedia: string) {
-        try {
-            const getInfluencersAll = await this.influencerRepo.findMany(
-                {statusVerify: 'accept'},
-                {
-                    lean: true,
-                    select: ['-password', '-balance', '-phone', '-email'],
-                }
-            );
-
-            const influencersList = getInfluencersAll.map((item) => {
-                const socialMediaAccounts = item[socialMedia];
-
-                if (Array.isArray(socialMediaAccounts)) {
-                    return socialMediaAccounts
-                        .filter(
-                            (account) =>
-                                account.isHidden !== true &&
-                                account.isDeleted !== true &&
-                                account.isVerified === true,
-                        )
-                        .map((account) => ({
-                            ...account,
-                            _id: item._id,
-                        }));
-                }
-
-                return [];
-            });
-
-            return {
-                code: 200,
-                influencers: influencersList.flat(),
-            };
-        } catch (err) {
-            console.log(err);
-            return {
-                code: 500,
-                message: err.message || 'An error occurred while fetching influencers.',
-            };
-        }
-    }
-
-    async getInfluencersWithoutSocialMedia() {
-        try {
-            const influencers = await this.influencerRepo
-                .findMany({statusVerify: 'accept'}, {
-                    lean: true,
-                    select: ['-password', '-balance', '-phone', '-email'],
-                });
-
-            const allAccounts = influencers.map((influencer) => {
-                const socialMediaKeys = [
-                    'instagram',
-                    'tiktok',
-                    'spotify',
-                    'soundcloud',
-                    'facebook',
-                    'youtube',
-                    'press',
-                ];
-
-                const accounts = socialMediaKeys.flatMap((socialMedia) => {
-                    const socialMediaAccounts = influencer[socialMedia];
-                    if (Array.isArray(socialMediaAccounts)) {
-                        return socialMediaAccounts
-                            .filter((account) => account.isHidden !== true)
-                            .map((account) => ({
-                                ...account,
-                                socialMedia,
-                                _id: influencer._id,
-                                firstName: influencer.firstName,
-                            }));
-                    }
-                    return [];
-                });
-
-                return accounts;
-            });
-
-            return {
-                code: 200,
-                influencers: allAccounts.flat(),
-            };
-        } catch (err) {
-            console.error(err);
-            return {
-                code: 500,
-                message: err.message || 'An error occurred while fetching all influencer accounts.',
-            };
-        }
-    }
-
-    async getClients() {
-        try {
-            const getClientsAll = await this.clientRepo
-                .findMany({statusVerify: 'accept'}, {
-                    lean: true,
-                    select: ['-password']
-                });
-
-            return {
-                code: 200,
-                clients: getClientsAll,
-            };
-        } catch (err) {
-            console.log(err);
-            return {
-                code: 500,
-                message: err,
-            };
-        }
-    }
-
-    async getInfluencerById(id: string) {
-        try {
-            const getInfluencer = await this.influencerRepo.findOne({_id: new mongoose.Types.ObjectId(id)})
-
-            return {
-                code: 200,
-                influencer: getInfluencer,
-            };
-        } catch (err) {
-            console.log(err);
-            return {
-                code: 500,
-                message: err,
-            };
-        }
-    }
-
-    async getOneSocialNetworkAccount(
-        influencerId: string,
-        socialMedia: string,
-        networkUsername: string,
-    ) {
-        if (!influencerId || !socialMedia || !networkUsername) {
-            return {
-                code: 400,
-                message: 'Not enough arguments',
-            };
-        }
-
-        const influencer = await this.influencerRepo.findOne({
-            _id: new mongoose.Types.ObjectId(influencerId),
-        });
-        if (!influencer) {
-            return {
-                code: 404,
-                message: 'Influencer not found',
-            };
-        }
-
-        const socialMediaAccounts = influencer[socialMedia];
-
-        if (!socialMediaAccounts) {
-            return {
-                code: 404,
-                message: 'Social media not found',
-            };
-        }
-
-        const account = socialMediaAccounts.find((item) => item.instagramUsername === networkUsername);
-
-        if (!account) {
-            return {
-                code: 404,
-                message: 'Account not found',
-            };
-        }
-
-        return {
-            code: 200,
-            account,
-        };
-    }
-
-    async getClientById(id: string) {
-        try {
-            const objectId = new Types.ObjectId(id);
-
-            const getClient = await this.clientRepo.findOne({_id: objectId});
-
-            return {
-                code: 200,
-                client: getClient,
-            };
-        } catch (err) {
-            console.log(err);
-            return {
-                code: 500,
-                message: err,
-            };
+            throw new BadRequestException("Response can be 'accept' or 'cancel'");
         }
     }
 }
