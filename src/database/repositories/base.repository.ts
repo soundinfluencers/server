@@ -1,9 +1,11 @@
-import {FilterQuery, Model, Types, UpdateQuery} from "mongoose";
+import {ClientSession, FilterQuery, Model, Types, UpdateQuery} from "mongoose";
 import {RepoOptions} from "../types/repo.types";
 import {applyQueryOptions} from "../utils/apply-query-options.util";
 
 export class BaseRepository<T> {
     constructor(protected readonly model: Model<T>) {}
+
+    private _session: ClientSession | null = null;
 
     findById(id: string | Types.ObjectId, options?: RepoOptions) {
         const query = this.model.findById(id);
@@ -29,9 +31,9 @@ export class BaseRepository<T> {
         return query;
     }
 
-
-    async create<U>(data: U): Promise<T> {
-        return this.model.create(data);
+    async create<U>(data: U, options?: { session?: any }): Promise<T> {
+        return this.model.create([data], { session: options?.session })
+            .then(docs => docs[0] as T);
     }
 
     async exists(filter: FilterQuery<T>): Promise<boolean> {
@@ -69,5 +71,34 @@ export class BaseRepository<T> {
     async findOneAndDelete(filter: FilterQuery<T>, options?: RepoOptions) {
         const query = this.model.findOneAndDelete(filter);
         return applyQueryOptions(query, options);
+    }
+
+    async startSession(): Promise<ClientSession> {
+        if (this._session) return this._session; // если сессия уже есть
+        this._session = await this.model.db.startSession();
+        this._session.startTransaction();
+        return this._session;
+    }
+
+    async commitTransaction(): Promise<void> {
+        if (!this._session) return;
+        await this._session.commitTransaction();
+        this._session.endSession();
+        this._session = null;
+    }
+
+    async abortTransaction(): Promise<void> {
+        if (!this._session) return;
+        await this._session.abortTransaction();
+        this._session.endSession();
+        this._session = null;
+    }
+
+    getSession(): ClientSession | null {
+        return this._session;
+    }
+
+    setSession(session: ClientSession) {
+        this._session = session;
     }
 }

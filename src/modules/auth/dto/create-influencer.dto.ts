@@ -127,6 +127,18 @@ export class CreateInfluencerDto {
     @IsString()
     firstName: string;
 
+    @ApiProperty()
+    @IsString()
+    email: string;
+
+    @ApiProperty()
+    @IsString()
+    phone: string;
+
+    @ApiProperty()
+    @IsString()
+    password: string;
+
     @ApiProperty({ type: [CreateSocialAccountDto], required: false })
     @IsArray()
     @ValidateNested({ each: true })
@@ -175,18 +187,6 @@ export class CreateInfluencerDto {
     @Type(() => CreateSocialAccountDto)
     @IsOptional()
     press?: CreateSocialAccountDto[];
-
-    @ApiProperty()
-    @IsString()
-    email: string;
-
-    @ApiProperty()
-    @IsString()
-    phone: string;
-
-    @ApiProperty()
-    @IsString()
-    password: string;
 
     @ApiProperty({ required: false })
     @IsOptional()

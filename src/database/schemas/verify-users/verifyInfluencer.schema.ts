@@ -5,11 +5,11 @@ import {Types} from "mongoose";
     timestamps: true,
 })
 export class VerifyInfluencer {
-    @Prop({type: Types.ObjectId, auto: true})
+    @Prop({ type: Types.ObjectId, auto: true })
     _id: Types.ObjectId;
 
-    @Prop()
-    influencerId: string;
+    @Prop({ type: Types.ObjectId, ref: 'Influencer', required: true })
+    influencerId: Types.ObjectId;
 }
 
 export const VerifyInfluencerSchema = SchemaFactory.createForClass(VerifyInfluencer);
