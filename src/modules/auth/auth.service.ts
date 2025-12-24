@@ -303,14 +303,14 @@ export class AuthService {
         }
 
         const user =
-            (await this.clientRepo.findById(payload.id)) ||
-            (await this.influencerRepo.findById(payload.id));
+            (await this.clientRepo.findById(payload._id)) ||
+            (await this.influencerRepo.findById(payload._id));
 
         if (!user || (user as any).refreshToken !== refreshToken)
             throw new UnauthorizedException('Invalid refresh token');
 
         const newRefreshToken = this.generateRefreshToken(user);
-        await this.saveRefreshToken(user.id, newRefreshToken);
+        await this.saveRefreshToken(user._id, newRefreshToken);
 
         setRefreshTokenCookie(res, newRefreshToken);
 

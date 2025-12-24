@@ -6,14 +6,14 @@ import {
     Param,
     Query,
     Res,
-    Req, Patch, HttpCode,
+    Req, Patch, HttpCode, UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { CreateInfluencerDto } from './dto/create-influencer.dto';
 import {LoginDto, LoginResponseDto} from './dto/login.dto';
-import {ApiOperation, ApiResponse, ApiCookieAuth, ApiQuery, ApiTags} from '@nestjs/swagger';
-import { Response } from 'express';
+import {ApiOperation, ApiCookieAuth, ApiQuery, ApiTags} from '@nestjs/swagger';
+import { Request, Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
@@ -56,7 +56,7 @@ export class AuthController {
     @ApiResponseDto()
     @Post('refresh')
     async refresh(
-        @Req() req,
+        @Req() req: Request,
         @Res({ passthrough: true }) res: Response
     ): Promise<{ accessToken: string }> {
         return this.authService.refresh(req.cookies.refreshToken, res);

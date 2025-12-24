@@ -1,4 +1,4 @@
-import {Body, Controller, Get, Param, Patch, Post, Put, Query, Req} from '@nestjs/common';
+import {Body, Controller, Get, Param, Patch, Post, Put, Query, Req, UnauthorizedException} from '@nestjs/common';
 import {ProfileService} from './profile.service';
 import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from './dto/update-client.dto';
 import {UpdateUserPasswordDto} from './dto/update-password.dto';
@@ -26,6 +26,8 @@ export class ProfileController {
     @ApiResponseDto(ClientUpdatedPersonalDetailsDto)
     @Patch('client/personal')
     updatePersonalClient(@Req() request: AuthenticatedRequest, @Body() data: UpdateClientPersonalDetailsDto): Promise<ClientUpdatedPersonalDetailsDto> {
+        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
+
         return this.profileService.updatePersonalClient({...data, _id: request.user._id});
     }
 
@@ -35,6 +37,8 @@ export class ProfileController {
     @ApiResponseDto(InfluencerUpdatedPersonalDetailsDto)
     @Patch('influencer/personal')
     updatePersonalInfluencer(@Req() request: AuthenticatedRequest, @Body() data: UpdateInfluencerPersonalDetailsDto): Promise<InfluencerUpdatedPersonalDetailsDto> {
+        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
+
         return this.profileService.updatePersonalInfluencer({...data, _id: request.user._id});
     }
 
@@ -44,6 +48,8 @@ export class ProfileController {
     @ApiResponseDto()
     @Patch('password')
     updatePasswordClient(@Req() request: AuthenticatedRequest, @Body() data: UpdateUserPasswordDto) {
+        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
+
         return this.profileService.updateUserPassword({...data, _id: request.user._id, role: request.user.role});
     }
 

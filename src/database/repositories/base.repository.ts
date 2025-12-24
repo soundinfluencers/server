@@ -8,8 +8,8 @@ export class BaseRepository<T> {
 
     private _session: ClientSession | null = null;
 
-    findById(id: string | Types.ObjectId, options?: RepoOptions) {
-        const query = this.model.findById(id);
+    findById(id: string, options?: RepoOptions) {
+        const query = this.model.findById(new Types.ObjectId(id));
         return applyQueryOptions(query, options);
     }
 
