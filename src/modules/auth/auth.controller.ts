@@ -6,7 +6,7 @@ import {
     Param,
     Query,
     Res,
-    Req, Patch,
+    Req, Patch, HttpCode,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -17,7 +17,6 @@ import { Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
-import {AuthenticatedRequest, UserPayload} from "../../common/types/auth.types";
 
 @ApiTags('auth')
 @Controller('auth')
@@ -43,7 +42,7 @@ export class AuthController {
     @Public()
     @ApiOperation({ summary: 'Login user' })
     @ApiResponseDto(LoginResponseDto)
-    @Patch('login')
+    @Post('login')
     async login(
         @Body() dto: LoginDto,
         @Res({ passthrough: true }) res: Response,
@@ -72,14 +71,6 @@ export class AuthController {
         @Res({ passthrough: true }) res: Response,
     ): Promise<void> {
         return this.authService.logout(req.cookies.refreshToken, res);
-    }
-
-    @Auth()
-    @ApiOperation({ summary: 'Get current authenticated user' })
-    @ApiResponse({ status: 200 })
-    @Get('me')
-    getUser(@Req() req: AuthenticatedRequest): UserPayload {
-        return req.user;
     }
 
     @Auth()

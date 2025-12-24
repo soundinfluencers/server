@@ -1,81 +1,110 @@
 import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
 import {Document, Types} from 'mongoose';
+import {
+    InfluencerProfileCategory
+} from "../../../common/types/influencer/influencer.types";
 
-@Schema()
+@Schema({ _id: false })
+export class InfluencerMusicGenre {
+    @Prop({ required: true, index: true })
+    genre: string;
+
+    @Prop({ type: [String], default: [] })
+    subGenres: string[];
+}
+
+export const InfluencerMusicGenreSchema = SchemaFactory.createForClass(InfluencerMusicGenre);
+
+@Schema({ _id: false })
+export class InfluencerCountryStats {
+    @Prop({ required: true, index: true })
+    country: string;
+
+    @Prop({ type: Number, min: 0, max: 100 })
+    percentage: number;
+}
+
+export const InfluencerCountryStatsSchema = SchemaFactory.createForClass(InfluencerCountryStats);
+
+@Schema({ timestamps: true })
 export class SocialAccount {
-    @Prop({type: Types.ObjectId})
-    _id: Types.ObjectId;
+    @Prop({ type: Types.ObjectId, auto: true })
+    _id?: Types.ObjectId;
 
-    @Prop() musicStyle: string;
+    @Prop({ required: true, index: true })
+    username: string;
 
-    @Prop({type: [String], default: []})
-    musicSubStyles: string[];
+    @Prop()
+    profileLink: string;
 
-    @Prop({type: [String], default: []})
-    musicStyleOther: string[];
+    @Prop({ type: Number, min: 0 })
+    followers: number;
 
-    @Prop() instagramUsername: string;
-
-    @Prop() instagramLink: string;
-
-    @Prop() followersNumber: string;
-
-    @Prop() logo: string;
+    @Prop()
+    logoUrl: string;
 
     @Prop({
         type: String,
-        enum: ['community', 'creator'],
-        default: 'community',
+        enum: InfluencerProfileCategory,
+        default: InfluencerProfileCategory.community,
+        index: true,
     })
-    profileCategory: 'community' | 'creator';
+    profileCategory: InfluencerProfileCategory;
 
-    @Prop() price: string;
+    @Prop({ type: Number, min: 0 })
+    price: number;
 
-    @Prop() publicPrice: string;
+    @Prop({ type: Number, min: 0 })
+    publicPrice: number;
 
-    @Prop({type: String, default: null})
+    @Prop({ type: String, default: null })
     currency: string | null;
 
-    @Prop({type: Number, default: 0})
+    @Prop({ type: Number, min: 0, default: 0 })
     initialPrice: number;
 
-    @Prop({
-        type: [
-            {
-                country: String,
-                percentage: Number,
-            },
-        ],
-        default: [],
-    })
-    countries: { country: string; percentage: number }[];
-
-    @Prop({type: [String], default: []})
-    categories: string[];
-
-    @Prop({type: Number, default: null})
+    @Prop({ type: Number, default: null })
     engagementRate: number | null;
 
-    @Prop({type: Number, default: null})
+    @Prop({ type: Number, default: null })
     averageViews: number | null;
 
-    @Prop({type: [String], default: []})
+    @Prop({
+        type: [InfluencerMusicGenreSchema],
+        default: [],
+    })
+    musicGenres: InfluencerMusicGenre[];
+
+    @Prop({ type: [String], default: [], index: true })
     creatorCategories: string[];
 
-    @Prop({default: false})
+    @Prop({
+        type: [InfluencerCountryStatsSchema],
+        default: [],
+    })
+    countries: InfluencerCountryStats[];
+
+    @Prop({ type: [String], default: [], index: true })
+    categories: string[];
+
+    @Prop({ default: false, index: true })
     isHidden: boolean;
 
-    @Prop({default: false})
+    @Prop({ default: false, index: true })
     isDeleted: boolean;
 
-    @Prop({default: false})
+    @Prop({ default: false, index: true })
     isVerified: boolean;
-
-    @Prop({default: null})
-    refreshToken: string | null;
 }
 
 export const SocialAccountSchema = SchemaFactory.createForClass(SocialAccount);
+
+// Indexes for social account schema
+SocialAccountSchema.index({
+    isVerified: 1,
+    isDeleted: 1,
+    isHidden: 1,
+});
 
 @Schema({
     timestamps: true,
@@ -137,3 +166,9 @@ export class Influencer extends Document {
 }
 
 export const InfluencerSchema = SchemaFactory.createForClass(Influencer);
+
+// Indexes for influencer schema
+InfluencerSchema.index({ email: 1 }, { unique: true, background: true });
+InfluencerSchema.index({ role: 1 }, { background: true });
+InfluencerSchema.index({ statusVerify: 1 }, { background: true });
+

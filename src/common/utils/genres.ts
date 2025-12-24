@@ -1,3 +1,5 @@
+import {InfluencerMusicGenre} from "../../database/schemas/users/influencer.schema";
+
 export const returnMusicStyles = (musicStyle: string, musicStyleOther: string[], musicSubStyles: string[]) => {
     const genresSet = new Set();
 
@@ -31,4 +33,12 @@ export const returnMusicStyles = (musicStyle: string, musicStyleOther: string[],
 
         return Array.from(genresSet);
     }
+};
+
+export const getArrayFromAccountMusicGenres = (musicGenres: InfluencerMusicGenre[]): string[] => {
+    return musicGenres.flatMap(g =>
+        g.subGenres.length > 0
+            ? g.subGenres.map(sub => `${g.genre} ${sub}`)
+            : [g.genre]
+    );
 };

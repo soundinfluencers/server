@@ -217,25 +217,25 @@ export class InvoiceService {
       }
 
       const instagramAccounts = checkUser.instagram
-        .map((account) => `<br /> - ${account.instagramUsername}`)
+        .map((account) => `<br /> - ${account.username}`)
         .join('');
       const tiktokAccounts = checkUser.tiktok
-        .map((account) => `<br /> - ${account.instagramUsername}`)
+        .map((account) => `<br /> - ${account.username}`)
         .join('');
       const spotifyAccounts = checkUser.spotify
-        .map((account) => `<br /> - ${account.instagramUsername}`)
+        .map((account) => `<br /> - ${account.username}`)
         .join('');
       const soundcloudAccounts = checkUser.soundcloud
-        .map((account) => `<br /> - ${account.instagramUsername}`)
+        .map((account) => `<br /> - ${account.username}`)
         .join('');
       const facebookAccounts = checkUser.facebook
-        .map((account) => `<br /> - ${account.instagramUsername}`)
+        .map((account) => `<br /> - ${account.username}`)
         .join('');
       const youtubeAccounts = checkUser.youtube
-        .map((account) => `<br /> - ${account.instagramUsername}`)
+        .map((account) => `<br /> - ${account.username}`)
         .join('');
       const pressAccounts = checkUser.press
-        .map((account) => `<br /> - ${account.instagramUsername}`)
+        .map((account) => `<br /> - ${account.username}`)
         .join('');
 
       await this.createPDF(result, data)

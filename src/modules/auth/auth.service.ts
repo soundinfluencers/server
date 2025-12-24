@@ -6,8 +6,8 @@ import {
     UnauthorizedException
 } from '@nestjs/common';
 import {CreateClientDto} from './dto/create-client.dto';
-import {CreateInfluencerDto} from './dto/create-influencer.dto';
-import mongoose from 'mongoose';
+import {CreateInfluencerDto, CreateSocialAccountDto} from './dto/create-influencer.dto';
+import {ClientSession} from 'mongoose';
 import {Types} from 'mongoose';
 import {Response} from "express";
 import sendMail from "../../integrations/nodemailer/nodemailer";
@@ -16,23 +16,13 @@ import {ClientRepository} from "../../database/repositories/users/client.reposit
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {VerifyClientRepository} from "../../database/repositories/verify-users/verify-client.repository";
 import {VerifyInfluencerRepository} from "../../database/repositories/verify-users/verify-influencer.repository";
-import {Role} from "../../common/types/auth.types";
-import {LoginResponseDto} from "./dto/login.dto";
+import {LoginDto, LoginResponseDto} from "./dto/login.dto";
+import {SocialAccount} from "../../database/schemas/users/influencer.schema";
+import {SocialMediaEnum} from "../../common/types/social-media.types";
+import {getArrayFromAccountMusicGenres} from "../../common/utils/genres";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-
-export function generateRandomString() {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let randomString = '';
-
-    for (let i = 0; i < 20; i++) {
-        const randomIndex = Math.floor(Math.random() * characters.length);
-        randomString += characters.charAt(randomIndex);
-    }
-
-    return randomString;
-}
 
 function generateRandomDigits(length) {
     const result = [];
@@ -76,27 +66,34 @@ export class AuthService {
 
         if (existingPhoneUser) throw new ConflictException('User with this phone number already exists');
 
-        const newUser = await this.clientRepo.create({
-            ...data,
-            email: data.email.toLowerCase(),
-            referenceNumber: generateRandomDigits(6),
-            password: bcrypt.hashSync(data.password),
-            balance: 0,
-            isProposalClient: false,
-            isAdmin: false,
-        });
+        const session: ClientSession = await this.clientRepo.startSession();
 
-        const generateVerifyId = generateRandomString();
+        try {
+            const userId = new Types.ObjectId();
+            await this.clientRepo.create({
+                ...data,
+                _id: userId,
+                email: data.email.toLowerCase(),
+                referenceNumber: generateRandomDigits(6),
+                password: bcrypt.hashSync(data.password),
+                balance: 0,
+                isProposalClient: false,
+                isAdmin: false,
+            }, {session});
 
-        await this.verifyClientRepo.create({
-            clientId: newUser._id.toString(),
-            verifyId: generateVerifyId,
-        });
+            const verifyId = new Types.ObjectId();
+            await this.verifyClientRepo.create({
+                _id: verifyId,
+                clientId: userId,
+            }, {session});
 
-        await sendMail(
-            process.env.EMAIL_USER,
-            'SoundInfluencers',
-            `<p>Request from a new client ${data.company}</p><b>Details:</b><br/><br/><p>First Name: ${data.firstName}</p>
+            await session.commitTransaction();
+            session.endSession();
+
+            await sendMail(
+                process.env.EMAIL_USER,
+                'SoundInfluencers',
+                `<p>Request from a new client ${data.company}</p><b>Details:</b><br/><br/><p>First Name: ${data.firstName}</p>
         <p>Company: ${data.company}</p>
         <p>Company Type: ${data.companyType}</p>
         <p>Instagram: ${data.instagramUsername}</p>
@@ -104,184 +101,168 @@ export class AuthService {
         <p>Phone: ${data.phone}</p>
         <p>Referal Code: ${data.referalCode}</p>
         <h2>Do you want to verify this account?</h2>
-        <a href="${process.env.SERVER}/auth/verify/client?verifyId=${generateVerifyId}&responseVerify=accept">ACCEPT</a>
-        <a href="${process.env.SERVER}/auth/verify/client?verifyId=${generateVerifyId}&responseVerify=cancel">CANCEL</a>
+        <a href="${process.env.SERVER}/auth/verify/client?verifyId=${verifyId.toString()}&responseVerify=accept">ACCEPT</a>
+        <a href="${process.env.SERVER}/auth/verify/client?verifyId=${verifyId.toString()}&responseVerify=cancel">CANCEL</a>
         `,
-            'html',
-        );
-        await sendMail(
-            data.email,
-            'SoundInfluencers',
-            `<p>Dear ${data.firstName},</p>
+                'html',
+            );
+            await sendMail(
+                data.email,
+                'SoundInfluencers',
+                `<p>Dear ${data.firstName},</p>
       <p>Hello,</p>
       <p>Thank you for submitting your account request. We will inform you of the outcome shortly.</p>
       <p>Best regards,</p>
       <p>The SoundInfluencers.com Team</p>`,
-            'html',
-        );
+                'html',
+            );
+        } catch (err) {
+            await session.abortTransaction();
+            session.endSession();
+            throw err;
+        }
     }
 
     // Signup influencer
     async createInfluencer(data: CreateInfluencerDto): Promise<void> {
         if (!data) throw new BadRequestException('Not enough arguments');
 
+
         const checkUser =
-            (await this.influencerRepo.findInfluencerByEmail(data.email)) ||
-            (await this.clientRepo.findClientByEmail(data.email));
+            (await this.influencerRepo.exists({email: data.email})) ||
+            (await this.clientRepo.exists({email: data.email}));
 
-        if (checkUser) throw new ConflictException('User with this email already exists')
+        if (checkUser) throw new ConflictException('User with this email already exists');
 
-        const socialNetworks = [
-            'instagram',
-            'tiktok',
-            'spotify',
-            'soundcloud',
-            'facebook',
-            'youtube',
-            'press',
-        ];
+        const session: ClientSession = await this.influencerRepo.startSession();
 
-        for (const network of socialNetworks) {
-            const accounts = data[network] || [];
-            const usernames = accounts.map((item) => item.instagramUsername);
+        try {
+            const socialNetworks = Object.values(SocialMediaEnum);
 
-            const networkFilter = {
-                [`${network}.instagramUsername`]: {$in: usernames},
-                isDeleted: {$ne: true},
-            };
+            for (const network of socialNetworks) {
+                const accounts = data[network] || [];
+                const usernames = accounts.map((item) => item.username);
 
-            const existingUser = await this.influencerRepo.findOne(networkFilter);
-
-            if (existingUser) throw new ConflictException(`Existing username was used while creating new influencer: ${existingUser[network].instagramUsername}`)
-        }
-
-        const processedData = {};
-        for (const network of socialNetworks) {
-            const accounts = data[network] || [];
-
-            processedData[network] = accounts.map((item) => {
-                const musicStyle =
-                    item.musicStyle === 'Other' && item.musicStyleOther
-                        ? item.musicStyleOther[0]
-                        : item.musicStyle;
-
-                const sanitizedPrice = parseFloat(String(item.price).replace(/[^\d.-]/g, '')) || 0;
-                const publicPrice = (sanitizedPrice * 2).toString();
-                const sanitizedInitialPrice = parseInt(String(item.initialPrice).replace(/[^\d.-]/g, '')) || 0
-
-                return {
-                    ...item,
-                    ...(item.profileCategory === 'creator' && {
-                        creatorCategories: item.creatorCategories ?? [],
-                    }),
-                    engagementRate: ['instagram', 'tiktok'].includes(network) ? 0 : null,
-                    averageViews: ['instagram', 'tiktok'].includes(network) ? 0 : null,
-                    followersNumber: item.followersNumber.toString(),
-                    musicStyle: musicStyle,
-                    publicPrice: publicPrice,
-                    initialPrice: sanitizedInitialPrice,
-                    isHidden: false,
-                    isDeleted: false,
-                    isVerified: true,
+                const networkFilter = {
+                    [`${network}.username`]: { $in: usernames },
+                    isDeleted: { $ne: true },
                 };
-            });
-        }
 
-        const newUser = await this.influencerRepo.create({
-            ...data,
-            ...processedData,
-            email: data.email.toLowerCase(),
-            password: bcrypt.hashSync(data.password),
-            currencyNote: '',
-        });
+                const existingUser = await this.influencerRepo.findOne(networkFilter);
 
-        const generateVerifyId = generateRandomString();
-        await this.verifyInfluencerRepo.create({
-            influencerId: newUser._id.toString(),
-            verifyId: generateVerifyId,
-        });
-
-        const formatGenres = (item) => {
-            const genresSet = new Set<string>();
-            if (item.musicStyle || item.musicSubStyles || item.musicStyleOther) {
-                if (item.musicSubStyles?.length > 0) {
-                    for (const subStyle of item.musicSubStyles) {
-                        if (subStyle === 'Melodic, Minimal') {
-                            genresSet.add('Techno (Melodic, Minimal)');
-                        }
-                        if (subStyle === 'Hard, Peak') {
-                            genresSet.add('Techno (Hard, Peak)');
-                        }
-                        if (subStyle === 'Tech House') {
-                            genresSet.add('House (Tech House)');
-                        }
-                        if (subStyle === 'Melodic, Afro') {
-                            genresSet.add('House (Melodic, Afro)');
-                        }
-                    }
-                } else if (item.musicStyle) {
-                    genresSet.add(item.musicStyle);
-                }
-
-                if (item.musicStyleOther?.length > 0) {
-                    for (const otherStyle of item.musicStyleOther) {
-                        if (otherStyle !== 'House') {
-                            genresSet.add(otherStyle);
-                        }
-                    }
+                if (existingUser) {
+                    throw new ConflictException(
+                        `Existing username was used while creating new influencer: ${existingUser[network][0].username}`
+                    );
                 }
             }
-            return Array.from(genresSet);
-        };
 
-        await sendMail(
-            process.env.EMAIL_USER,
-            'SoundInfluencers',
-            `<p>Request from a new partner ${data.firstName}</p>
+            const processedData: { [key: string]: SocialAccount[] } = {};
+
+            for (const network of socialNetworks) {
+                const accounts = data[network] || [];
+
+                processedData[network] = accounts.map((item: CreateSocialAccountDto): SocialAccount => {
+                    const sanitizedPrice = parseFloat(String(item.price).replace(/[^\d.-]/g, '')) || 0;
+                    const publicPrice = sanitizedPrice * 2;
+                    const sanitizedInitialPrice = parseInt(String(item.initialPrice).replace(/[^\d.-]/g, '')) || 0;
+
+                    return {
+                        _id: new Types.ObjectId(),
+                        username: item.username,
+                        profileLink: item.profileLink,
+                        followers: item.followers || 0,
+                        logoUrl: item.logoUrl,
+                        price: sanitizedPrice,
+                        publicPrice: publicPrice,
+                        initialPrice: sanitizedInitialPrice,
+                        currency: item.currency ?? 'EUR',
+                        profileCategory: item.profileCategory,
+                        musicGenres: item.musicGenres ?? [],
+                        creatorCategories: item.creatorCategories ?? [],
+                        countries: item.countries ?? [],
+                        categories: item.categories ?? [],
+                        engagementRate: ['instagram', 'tiktok'].includes(network) ? 0 : null,
+                        averageViews: ['instagram', 'tiktok'].includes(network) ? 0 : null,
+                        isHidden: false,
+                        isDeleted: false,
+                        isVerified: true,
+                    };
+                });
+            }
+
+            const userId = new Types.ObjectId();
+            await this.influencerRepo.create({
+                ...data,
+                ...processedData,
+                _id: userId,
+                email: data.email.toLowerCase(),
+                password: bcrypt.hashSync(data.password),
+                currencyNote: '',
+            }, {session});
+
+            const verifyId = new Types.ObjectId();
+            await this.verifyInfluencerRepo.create({
+                _id: verifyId,
+                influencerId: userId,
+            }, {session});
+
+            await session.commitTransaction();
+            session.endSession();
+
+            await sendMail(
+                process.env.EMAIL_USER,
+                'SoundInfluencers',
+                `<p>Request from a new partner ${data.firstName}</p>
             <b>Details:</b><br/><p>First Name: ${data.firstName}</p>
             <p>Email: ${data.email}</p>
             <p>Phone: ${data.phone}</p>
             <br/>
             ${socialNetworks
-                .map((network) =>
-                    data[network]
-                        ?.map(
-                            (item, index) => `
+                    .map((network) =>
+                        data[network]
+                            ?.map(
+                                (item, index) => `
                 <p><strong>Network: ${network} (${index + 1} account)</strong></p>
                 
             <ul>
-            <li><strong>Username: ${item.instagramUsername}</strong></li>
-            <li><strong>Link: ${item.instagramLink}</strong></li>
-            <li><strong>Followers: ${item.followersNumber}</strong></li>
-            <li><strong>Logo: ${item.logo}</strong></li>
-            <li><strong>Music Styles: ${formatGenres(item).join(', ')}</strong></li>
+            <li><strong>Username: ${item.username}</strong></li>
+            <li><strong>Link: ${item.profileLink}</strong></li>
+            <li><strong>Followers: ${item.followers}</strong></li>
+            <li><strong>Logo: ${item.logoUrl}</strong></li>
+            <li><strong>Music genres: ${getArrayFromAccountMusicGenres(item.musicGenres).join(', ')}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
             <li><strong>Initial Price: ${item.initialPrice}</strong></li>
 </ul>`,
-                        )
-                        .join(''),
-                )
-                .join('')}
+                            )
+                            .join(''),
+                    )
+                    .join('')}
             <h2>Do you want to verify your account?</h2>
-            <a href="${process.env.SERVER}/auth/verify/influencer?verifyId=${generateVerifyId}&responseVerify=accept">ACCEPT</a>
-            <a href="${process.env.SERVER}/auth/verify/influencer?verifyId=${generateVerifyId}&responseVerify=cancel">CANCEL</a>`,
-            'html',
-        );
+            <a href="${process.env.SERVER}/auth/verify/influencer?verifyId=${verifyId.toString()}&responseVerify=accept">ACCEPT</a>
+            <a href="${process.env.SERVER}/auth/verify/influencer?verifyId=${verifyId.toString()}&responseVerify=cancel">CANCEL</a>`,
+                'html',
+            );
 
-        await sendMail(
-            data.email,
-            'SoundInfluencers',
-            `<p>Dear ${data.firstName},</p>
+            await sendMail(
+                data.email,
+                'SoundInfluencers',
+                `<p>Dear ${data.firstName},</p>
             <p>Thank you for submitting your subscription request.</p>
             <p>We will send you an email with a status update shortly.</p>
             <p>Best regards,</p>
             <p>The SoundInfluencers Team</p>`,
-            'html',
-        );
+                'html',
+            );
+        } catch (err) {
+            await session.abortTransaction();
+            session.endSession();
+            throw err;
+        }
     }
 
     // Login
-    async login(dto, res: Response): Promise<LoginResponseDto> {
+    async login(dto: LoginDto, res: Response): Promise<LoginResponseDto> {
         const email = dto.email.toLowerCase();
 
         const user =
@@ -294,8 +275,7 @@ export class AuthService {
 
         if (!isPassword) throw new UnauthorizedException('Wrong password');
 
-        if (user.statusVerify === 'wait')
-            throw new ForbiddenException('Account not verified');
+        if (user.statusVerify === 'wait') throw new ForbiddenException('Account not verified');
 
         const accessToken = this.generateAccessToken(user);
         const refreshToken = this.generateRefreshToken(user);
@@ -305,9 +285,8 @@ export class AuthService {
         setRefreshTokenCookie(res, refreshToken);
 
         return {
-            accessToken,
-            role: user.role as Role,
-            _id: user._id.toString()
+            accessToken: accessToken,
+            user: user
         };
     }
 
