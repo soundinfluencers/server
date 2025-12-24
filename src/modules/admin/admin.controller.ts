@@ -22,10 +22,10 @@ import {AdminSendWhatsappMessageDto} from './dto/admin-send-whatsapp-message.dto
 import {AdminUpdateInfluencerFullAccountDto} from './dto/admin-update-influencer-full-account.dto';
 import {AdminUpdateFullCampaignDto} from './dto/admin-update-full-campaign';
 import {AdminSendMailToInfluencerDto} from './dto/admin-send-mail-to-influencer.dto';
-import {AddSocialMediasDto} from '../profile/dto/add-social-medias.dto';
 import {AdminImportXlsxInfluencersDto} from './dto/admin-import-xlsx-influencers';
 import {decodeAndDecrypt} from "../../common/utils/crypt";
 import {ApiTags} from "@nestjs/swagger";
+import {AddSocialMediasDto} from "../profile/dto/update-influencer.dto";
 
 @ApiTags('admin')
 @Controller('admin')

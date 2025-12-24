@@ -15,14 +15,9 @@ import {AdminUpdateInfluencerFullAccountDto} from './dto/admin-update-influencer
 import {ProposalCampaign} from '../proposal-system/schemas/proposal-campaign.schema';
 import {AdminUpdateFullCampaignDto} from './dto/admin-update-full-campaign';
 import axios from 'axios';
-
-const fs = require('fs');
-const PDFDocument = require('pdfkit');
-const bcrypt = require('bcryptjs');
 import * as process from 'node:process';
 import {AdminSendMailToInfluencerDto} from './dto/admin-send-mail-to-influencer.dto';
 import {AppGateway} from '../websocket/app.gateway';
-import {AddSocialMediasDto} from '../profile/dto/add-social-medias.dto';
 import {AdminImportXlsxInfluencersDto, CountryObj} from "./dto/admin-import-xlsx-influencers";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {
@@ -30,10 +25,15 @@ import {
     createNewPromoRequestTextMessage
 } from "../../common/utils/new-promo-message";
 import {Client} from "../../database/schemas/users/client.schema";
-import {Influencer} from "../../database/schemas/users/influencer.schema";
+import {Influencer, SocialAccount} from "../../database/schemas/users/influencer.schema";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {returnMusicStyles} from "../../common/utils/genres";
-import {MigrateAccountDto} from "../migrations/dto/migrate-account.dto";
+import {AddSocialMediasDto} from "../profile/dto/update-influencer.dto";
+import {InfluencerProfileCategory} from "../../common/types/influencer/influencer.types";
+
+const fs = require('fs');
+const PDFDocument = require('pdfkit');
+const bcrypt = require('bcryptjs');
 
 @Injectable()
 export class AdminService {
@@ -2177,7 +2177,7 @@ export class AdminService {
             }
 
             const instagram = influencer.instagram.find(
-                (insta) => insta.instagramUsername === instagramUsername,
+                (insta) => insta.username === instagramUsername,
             );
 
             if (!instagram) {
@@ -2411,18 +2411,24 @@ export class AdminService {
                 try {
                     const influencerInDatabase = await this.influencerModel.findOne({email: email});
 
-                    const accountsToSave = accountsFromData.map(item => ({
+                    const accountsToSave: SocialAccount[] = accountsFromData.map(item => ({
                         _id: new Types.ObjectId(),
-                        profileCategory: "creator" as const,
-                        musicStyle: "Techno",
-                        musicSubStyles: ["Hard, Peak", "Melodic, Minimal", "Tech House", "Melodic, Afro"],
-                        musicStyleOther: ["House", "EDM", "D&B", "Bass", "Psy, Trance", "Dubstep"],
-                        instagramUsername: item.username,
-                        instagramLink: item.link,
-                        followersNumber: item.followersNumber.toString(),
-                        logo: "https://dl.dropboxusercontent.com/scl/fi/c5ibdvebsopuz6ydi5l3t/2025-07-29T15-50-59.661Zdefault-avatar-profile-icon-social-600nw-1677509740.webp?rlkey=55mdiffm86fhrks7263e8sfrr&dl=0",
-                        price: item.price.toString(),
-                        publicPrice: (item.price * 2).toString(),
+                        profileCategory: InfluencerProfileCategory.creator,
+                        musicGenres: [
+                            {genre: 'Techno', subGenres: ["Hard, Peak", "Melodic, Minimal"]},
+                            {genre: 'House', subGenres: ["Tech House", "Melodic, Afro"]},
+                            {genre: "EDM", subGenres: []},
+                            {genre: "D&B", subGenres: []},
+                            {genre: "Bass", subGenres: []},
+                            {genre: "Psy, Trance", subGenres: []},
+                            {genre: "Dubstep", subGenres: []},
+                        ],
+                        username: item.username,
+                        profileLink: item.link,
+                        followers: item.followersNumber,
+                        logoUrl: "https://dl.dropboxusercontent.com/scl/fi/c5ibdvebsopuz6ydi5l3t/2025-07-29T15-50-59.661Zdefault-avatar-profile-icon-social-600nw-1677509740.webp?rlkey=55mdiffm86fhrks7263e8sfrr&dl=0",
+                        price: item.price,
+                        publicPrice: (item.price * 2),
                         currency: item.currency,
                         initialPrice: item.initialPrice,
                         countries: item.countries,
@@ -2441,7 +2447,7 @@ export class AdminService {
 
                         const newUniqueAccounts = accountsToSave.filter(newAcc => {
                             return !existingTiktokAccounts.some(existingAcc =>
-                                existingAcc.instagramUsername === newAcc.instagramUsername
+                                existingAcc.username === newAcc.username
                             );
                         });
 

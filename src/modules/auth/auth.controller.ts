@@ -43,7 +43,7 @@ export class AuthController {
     @Public()
     @ApiOperation({ summary: 'Login user' })
     @ApiResponseDto(LoginResponseDto)
-    @Patch('login')
+    @Post('login')
     async login(
         @Body() dto: LoginDto,
         @Res({ passthrough: true }) res: Response,

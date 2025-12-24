@@ -1,14 +1,15 @@
-import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
+import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
+import {Types} from "mongoose";
 
 @Schema({
-  timestamps: true,
+    timestamps: true,
 })
 export class VerifyInfluencer {
-  @Prop()
-  influencerId: string;
+    @Prop({type: Types.ObjectId, auto: true})
+    _id: Types.ObjectId;
 
-  @Prop()
-  verifyId: string;
+    @Prop()
+    influencerId: string;
 }
 
 export const VerifyInfluencerSchema = SchemaFactory.createForClass(VerifyInfluencer);

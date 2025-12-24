@@ -5,6 +5,7 @@ import * as cookieParser from 'cookie-parser';
 import { AppModule } from './modules/app/app.module';
 import {ResponseTransformInterceptor} from "./common/interceptors/response-transform.interceptor";
 import {AllExceptionsFilter} from "./common/filters/exceptions.filter";
+import {ValidationPipe} from "@nestjs/common";
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
@@ -13,9 +14,14 @@ async function bootstrap() {
     app.use(bodyParser.json({ limit: '50mb' }));
     app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
-    app.useGlobalInterceptors(new ResponseTransformInterceptor());
-    app.useGlobalFilters(new AllExceptionsFilter());
-
+    app.useGlobalInterceptors(new ResponseTransformInterceptor()); // interceptor for transforming responses to client side
+    app.useGlobalFilters(new AllExceptionsFilter()); // global exception filter
+    app.useGlobalPipes(
+        new ValidationPipe({
+            whitelist: true, // delete unnecessary fields
+            transform: true, // transform payload into DTO classes
+        }),
+    );
     app.enableCors({
         origin: [
             'http://localhost:3000',

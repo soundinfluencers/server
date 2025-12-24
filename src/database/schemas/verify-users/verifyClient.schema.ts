@@ -1,14 +1,15 @@
-import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
+import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
+import {Types} from "mongoose";
 
 @Schema({
-  timestamps: true,
+    timestamps: true,
 })
 export class VerifyClient {
-  @Prop()
-  clientId: string;
+    @Prop({type: Types.ObjectId, auto: true})
+    _id?: Types.ObjectId;
 
-  @Prop()
-  verifyId: string;
+    @Prop()
+    clientId: string;
 }
 
 export const VerifyClientSchema = SchemaFactory.createForClass(VerifyClient);
