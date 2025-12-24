@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
 import {Campaign, CampaignContentItem, SelectInfluencers} from '../../database/schemas/campaign/campaign.schema';
-import mongoose, {ClientSession} from 'mongoose';
+import mongoose, {ClientSession, PipelineStage, Types} from 'mongoose';
 import {CompletedCampaign} from '../../database/schemas/campaign/completed-campaign.schema';
 import axios from 'axios';
 import * as process from 'node:process';
@@ -18,16 +18,19 @@ import {DropboxService} from "../../integrations/dropbox/dropbox";
 import {Client} from "../../database/schemas/users/client.schema";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
 import {
+    InfluencerDashboardPromoStatus,
+    InfluencerGetDashboardPromosQueryDto,
     InfluencerGetPastPromoQueryDto, InfluencerUpdatePromoReqQueryDto,
     InfluencerUpdatePromoResponseUpdateDto
 } from "./dto/influencer-get-promos.dto";
 import {
-    InfluencerConfirmationStatusType,
+    InfluencerConfirmationStatusType, InfluencerDashboardPromo,
     InfluencerPromo, InfluencerPromoClosedStatusType,
     InfluencerPromoRequest,
 } from "../../common/types/influencer/promo.types";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
+import {CompletedCampaignRepository} from "../../database/repositories/campaigns/completed-campaign.repository";
 
 mongoose.Promise = global.Promise;
 
@@ -45,6 +48,7 @@ export class PromosService {
         @InjectModel(CompletedCampaign.name)
         private completedCampaignModel: mongoose.Model<CompletedCampaign>,
         private campaignRepo: CampaignRepository,
+        private completedCampaignRepo: CompletedCampaignRepository,
     ) {
     }
 
@@ -430,169 +434,141 @@ export class PromosService {
         }
     }
 
-    // TODO: refactor - create 2 methods: for getting ongoing promos and for getting completed (use them in switch after)
-    // Returns ongoing / completed influencer's promos
-    async influencerGetOngoingOrPastPromos(influencerId: string, status: InfluencerPromoClosedStatusType = 'wait'): Promise<InfluencerPromo[]> {
-        const checkInfluencer = await this.influencerModel.findOne({
-            _id: influencerId,
-        });
-
-        if (!checkInfluencer) throw new NotFoundException('Influencer not found');
-
-        let campaigns: any[];
-        let allSocialAccounts: any[];
+    // helper for creating pipeline
+    private buildInfluencerDashboardPipeline(
+        influencerId: string,
+        status: InfluencerDashboardPromoStatus,
+        limit?: number,
+    ): PipelineStage[] {
+        const pipeline: PipelineStage[] = [
+            {
+                $match: {
+                    'selectInfluencers.influencerId': new Types.ObjectId(influencerId),
+                },
+            },
+            { $unwind: '$selectInfluencers' },
+            {
+                $match: {
+                    'selectInfluencers.influencerId': new Types.ObjectId(influencerId),
+                },
+            },
+        ];
 
         switch (status) {
-            // for ongoing promos
-            case "wait":
-                // Find campaigns with influencer in them
-                campaigns = await this.campaignModel
-                    .find({
-                        selectInfluencers: {
-                            $elemMatch: {
-                                influencerId: influencerId,
-                                confirmation: 'accept',
-                                closePromo: 'wait',
-                            },
-                        },
-                        $or: [{statusPromo: 'work'}, {statusCampaign: 'work'}],
-                    })
-                    .lean();
-
-                // Getting all influencer's promos from each campaign
-                allSocialAccounts = campaigns.flatMap((item: any) => {
-                    return item.selectInfluencers.map((account: SelectInfluencers): InfluencerPromo & {
-                        clientId: string
-                    } | null => {
-                        if (account.confirmation === 'accept' &&
-                            account.closePromo === 'wait' &&
-                            account.selectedContent) {
-
-                            // Selected campaign content for this promo
-                            const selectedCampaignContentItem: CampaignContentItem = item.campaignContent.find((i) => i._id.toString() === account.selectedContent.campaignContentItemId.toString());
-                            if (!selectedCampaignContentItem) return null;
-
-                            // Selected post description for this promo
-                            const selectedPostDescription: string = selectedCampaignContentItem.postDescriptions.find((i) => i._id.toString() === account.selectedContent.postDescriptionId.toString())?.description;
-
-                            return {
-                                campaignId: item._id.toString(),
-                                influencerId: account.influencerId.toString(),
-                                selectInfluencersId: account._id.toString(),
-                                campaignName: item.campaignName,
-                                socialMediaUsername: account.socialMediaUsername,
-                                statusCampaign: item.statusCampaign as CampaignStatusType,
-                                socialMedia: account.socialMedia as SocialMediaType,
-                                confirmation: account.confirmation as InfluencerConfirmationStatusType,
-                                closedStatus: account.closePromo as InfluencerPromoClosedStatusType,
-                                dateRequest: account.dateRequest,
-                                createdAt: item.createdAt,
-                                videoLink: selectedCampaignContentItem.videoLink,
-                                postDescription: selectedPostDescription ?? "",
-                                storyTag: selectedCampaignContentItem.storyTag ?? "",
-                                storyLink: selectedCampaignContentItem.swipeUpLink ?? "",
-                                additionalBrief: selectedCampaignContentItem.specialWishes ?? "",
-                                clientId: item.clientId.toString(),
-                            };
-                        }
-
-                        return null;
-                    })
-                }).filter(Boolean);
+            case InfluencerDashboardPromoStatus.new:
+                pipeline.push({
+                    $match: {
+                        'selectInfluencers.confirmation': 'wait',
+                    },
+                });
                 break;
-            // For closed promos
-            case "closed":
-                const [ongoingCampaigns, closedCampaigns] = await Promise.all([
-                    this.campaignModel
-                        .find({
-                            selectInfluencers: {
-                                $elemMatch: {
-                                    influencerId,
-                                    $or: [{closePromo: 'close'}, {screenshot: {$ne: ''}}],
-                                },
-                            },
-                        })
-                        .lean(),
 
-                    this.completedCampaignModel
-                        .find({
-                            selectInfluencers: {
-                                $elemMatch: {
-                                    influencerId,
-                                    $or: [{closePromo: 'close'}, {screenshot: {$ne: ''}}],
-                                },
-                            },
-                        })
-                        .lean(),
-                ]);
-                campaigns = [...ongoingCampaigns, ...closedCampaigns];
-
-                allSocialAccounts = campaigns.flatMap((campaign: any) => {
-                    return campaign.selectInfluencers.map((account: any): InfluencerPromo & {
-                        clientId: string
-                    } | null => {
-                        if (account.closePromo === 'close' && account.screenshot === '') {
-
-                            // Getting promo content for this social account
-                            if (account.selectedContent?.campaignContentItemId || (account as any).selectedCampaignContentItem) {
-                                const foundContent = campaign.campaignContent.find(
-                                    (item) =>
-                                        item._id.toString() === account.selectedContent?.campaignContentItemId?.toString() || item._id.toString() === (account as any).selectedCampaignContentItem,
-                                );
-
-                                if (foundContent) {
-                                    const foundPostDescription =
-                                        foundContent.postDescriptions?.find(
-                                            (pd) => pd._id.toString() === account.selectedContent?.postDescriptionId.toString(),
-                                        )?.description ?? (foundContent as any).postDescription ?? '';
-
-                                    return {
-                                        campaignId: campaign._id.toString(),
-                                        influencerId: account.influencerId.toString(),
-                                        selectInfluencersId: account._id.toString(),
-                                        campaignName: campaign.campaignName,
-                                        socialMediaUsername: account.socialMediaUsername,
-                                        statusCampaign: campaign.statusCampaign as CampaignStatusType,
-                                        socialMedia: account.socialMedia as SocialMediaType,
-                                        confirmation: account.confirmation as InfluencerConfirmationStatusType,
-                                        closedStatus: account.closePromo as InfluencerPromoClosedStatusType,
-                                        dateRequest: account.dateRequest,
-                                        createdAt: campaign.createdAt,
-                                        videoLink: foundContent.videoLink,
-                                        postDescription: foundPostDescription ?? "",
-                                        storyTag: foundContent.storyTag ?? "",
-                                        storyLink: foundContent.swipeUpLink ?? "",
-                                        additionalBrief: foundContent.specialWishes ?? "",
-                                        clientId: campaign.clientId.toString(),
-                                    };
-                                }
-                            }
-                        }
-
-                        return null;
-                    })
-                }).filter(Boolean);
+            case InfluencerDashboardPromoStatus.ongoing:
+                pipeline.push({
+                    $match: {
+                        'selectInfluencers.confirmation': 'accept',
+                        'selectInfluencers.closePromo': 'wait',
+                    },
+                });
                 break;
+
+            case InfluencerDashboardPromoStatus.close:
+                pipeline.push({
+                    $match: {
+                        'selectInfluencers.closePromo': 'close',
+                    },
+                });
+                break;
+
+            case InfluencerDashboardPromoStatus.all:
             default:
-                throw new BadRequestException("Unsupported promo status");
+                break;
         }
 
-        if (!campaigns.length || !allSocialAccounts.length) {
-            return [];
+        pipeline.push({ $sort: { createdAt: -1 } });
+
+        if (limit) {
+            pipeline.push({ $limit: Number(limit) });
         }
 
-        return await Promise.all(
-            allSocialAccounts.map(async (item) => {
-                const client = await this.clientModel.findById(item.clientId);
-                const clientName = !client ? 'No Date' : client.company;
+        pipeline.push({
+            $project: {
+                _id: 0,
+                campaignId: '$_id',
+                selectInfluencersId: '$selectInfluencers._id',
+                campaignName: '$campaignName',
+                socialMedia: '$selectInfluencers.socialMedia',
+                statusCampaign: '$statusCampaign',
+                closedStatus: '$selectInfluencers.closePromo',
+                confirmation: '$selectInfluencers.confirmation',
+                createdAt: '$createdAt',
+            },
+        });
 
-                return {
-                    ...item,
-                    client: clientName,
-                    date: item.createdAt,
-                };
-            }),
-        );
+        return pipeline;
+    }
+
+
+    // Returns influencer's promos
+    async influencerGetDashboardPromos(
+        data: InfluencerGetDashboardPromosQueryDto,
+    ): Promise<InfluencerDashboardPromo[]> {
+        const influencerId = data.influencerId;
+        const status = data.status ?? InfluencerDashboardPromoStatus.all;
+        const limit = Number(data.limit ?? 12);
+        if (!Number.isInteger(limit) || limit <= 0) {
+            throw new BadRequestException('Invalid limit');
+        }
+
+        const influencerExists = await this.influencerModel.exists({
+            _id: new Types.ObjectId(influencerId),
+        });
+
+        if (!influencerExists) {
+            throw new NotFoundException('Influencer not found');
+        }
+
+        // new + ongoing
+        if (
+            status === InfluencerDashboardPromoStatus.new ||
+            status === InfluencerDashboardPromoStatus.ongoing
+        ) {
+            return this.campaignRepo
+                .aggregate<InfluencerDashboardPromo>(
+                    this.buildInfluencerDashboardPipeline(influencerId, status, limit),
+                )
+                .exec();
+        }
+
+        // closed
+        if (status === InfluencerDashboardPromoStatus.close) {
+            return this.completedCampaignRepo
+                .aggregate<InfluencerDashboardPromo>(
+                    this.buildInfluencerDashboardPipeline(influencerId, status, limit),
+                )
+                .exec();
+        }
+
+        // all
+        const [active, closed] = await Promise.all([
+            this.campaignRepo
+                .aggregate<InfluencerDashboardPromo>(
+                    this.buildInfluencerDashboardPipeline(influencerId, InfluencerDashboardPromoStatus.all),
+                )
+                .exec(),
+
+            this.completedCampaignRepo
+                .aggregate<InfluencerDashboardPromo>(
+                    this.buildInfluencerDashboardPipeline(influencerId, InfluencerDashboardPromoStatus.all),
+                )
+                .exec(),
+        ]);
+
+        return [...active, ...closed]
+            .sort((a, b) =>
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+            )
+            .slice(0, limit);
     }
 
     async influencerGetOngoingPromo(

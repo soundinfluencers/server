@@ -1,11 +1,11 @@
-import { ApiProperty } from '@nestjs/swagger';
+import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {
     InfluencerConfirmationStatusEnum,
-    InfluencerConfirmationStatusType,
+    InfluencerConfirmationStatusType, InfluencerDashboardPromo,
     InfluencerPromo, InfluencerPromoClosedStatusEnum, InfluencerPromoClosedStatusType,
     InfluencerPromoRequest
 } from "../../../common/types/influencer/promo.types";
-import {SocialMediaType} from "../../../common/types/social-media.types";
+import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
 import {CampaignStatusEnum, CampaignStatusType} from "../../../common/types/client/campaign.types";
 
 // dto for request influencer's past promo (query)
@@ -129,7 +129,7 @@ export class InfluencerUpdatePromoReqQueryDto {
     campaignId: string;
 
     @ApiProperty({
-        description: '_id of needed object inside of addedAccounts array from campaign',
+        description: '_id of needed object inside addedAccounts array from campaign',
         example: '6612fabc999',
     })
     selectInfluencersId: string;
@@ -148,4 +148,87 @@ export class InfluencerUpdatePromoReqQueryDto {
 export class InfluencerUpdatePromoReqBodyDto {
     @ApiProperty()
     result: string;
+}
+
+export enum InfluencerDashboardPromoStatus {
+    ongoing = 'ongoing',
+    close = 'close',
+    new = 'new',
+    all = 'all',
+}
+
+export class InfluencerGetDashboardPromosQueryDto {
+    @ApiPropertyOptional({
+        description: 'Type of promos returned',
+        example: 'all',
+        enum: InfluencerDashboardPromoStatus,
+        default: InfluencerDashboardPromoStatus.all
+    })
+    status: InfluencerDashboardPromoStatus
+
+    @ApiPropertyOptional({
+        default: 12
+    })
+    limit: number;
+
+    influencerId: string;
+}
+
+export class InfluencerDashboardPromoDto implements InfluencerDashboardPromo {
+    @ApiProperty({
+        description: 'Campaign _id',
+        example: '65f123abc456',
+    })
+    campaignId: string;
+
+    @ApiProperty({
+        description: '_id of object inside addedAccounts array from campaign',
+        example: '6612fabc999',
+    })
+    selectInfluencersId: string;
+
+    @ApiProperty({
+        description: 'Campaign name',
+        example: 'Regard & Afterlife',
+    })
+    campaignName: string;
+
+    @ApiProperty({
+        description: 'Social media of account',
+        example: 'tiktok',
+        enum: SocialMediaEnum
+    })
+    socialMedia: SocialMediaType;
+
+    @ApiProperty({
+        description: 'Status of campaign',
+        example: 'Pending',
+        enum: CampaignStatusEnum
+    })
+    statusCampaign: CampaignStatusType;
+
+    @ApiProperty({
+        description: 'Account closed status for promo',
+        example: 'closed',
+        enum: InfluencerPromoClosedStatusEnum
+    })
+    closedStatus: InfluencerPromoClosedStatusType;
+
+    @ApiProperty({
+        description: 'Account confirmation status for promo',
+        example: 'accept',
+        enum: InfluencerConfirmationStatusEnum
+    })
+    confirmation: InfluencerConfirmationStatusType;
+
+    @ApiProperty({
+        description: 'Date when campaign was created',
+        example: '12.08.25',
+    })
+    createdAt: string;
+}
+
+export class InfluencerDashboardPromosDto {
+    @ApiProperty({ type: () => [InfluencerDashboardPromoDto] })
+    promos: InfluencerDashboardPromo[];
 }

@@ -40,7 +40,7 @@ export enum InfluencerConfirmationStatusEnum {
 // type and enum for influencer's closed status
 export type InfluencerPromoClosedStatusType = 'closed' | 'wait';
 export enum InfluencerPromoClosedStatusEnum {
-    closed = 'closed',
+    close = 'close',
     wait = 'wait',
 }
 
@@ -48,4 +48,23 @@ export interface InfluencerPromo extends InfluencerPromoRequest {
     statusCampaign: CampaignStatusType;
     closedStatus: InfluencerPromoClosedStatusType;
     confirmation: InfluencerConfirmationStatusType;
+}
+
+export interface InfluencerDashboardPromo {
+    // _id of campaign
+    campaignId: string;
+    // _id of object inside selectInfluencers array
+    selectInfluencersId: string;
+    // name of campaign
+    campaignName: string;
+    // social media of social account
+    socialMedia: SocialMediaType;
+    // status of campaign
+    statusCampaign: CampaignStatusType;
+    // social account's closed status
+    closedStatus: InfluencerPromoClosedStatusType;
+    // social account's confirmation status
+    confirmation: InfluencerConfirmationStatusType;
+    // campaign creation date
+    createdAt: string;
 }

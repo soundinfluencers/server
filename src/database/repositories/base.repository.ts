@@ -1,6 +1,7 @@
-import {FilterQuery, Model, Types, UpdateQuery} from "mongoose";
+import {FilterQuery, Model, PipelineStage, Types, UpdateQuery} from "mongoose";
 import {RepoOptions} from "../types/repo.types";
 import {applyQueryOptions} from "../utils/apply-query-options.util";
+import {applyAggregateOptions} from "../utils/apply-aggregate-options.util";
 
 export class BaseRepository<T> {
     constructor(protected readonly model: Model<T>) {}
@@ -69,5 +70,15 @@ export class BaseRepository<T> {
     async findOneAndDelete(filter: FilterQuery<T>, options?: RepoOptions) {
         const query = this.model.findOneAndDelete(filter);
         return applyQueryOptions(query, options);
+    }
+
+    aggregate<R = any>(
+        pipeline: PipelineStage[],
+        options?: RepoOptions & {
+            allowDiskUse?: boolean;
+        },
+    ) {
+        const aggregate = this.model.aggregate<R>(pipeline);
+        return applyAggregateOptions(aggregate, options);
     }
 }
