@@ -2,7 +2,7 @@ import {Injectable, Logger} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
 import mongoose, {ClientSession, Model} from 'mongoose';
 import {
-    CampaignAction,
+    CampaignAction, CampaignActionsHistory,
     InfluencerActionsHistory
 } from "../../database/schemas/histories/influencer-actions-history.schema";
 import {Campaign} from "../../database/schemas/campaign/campaign.schema";
@@ -601,10 +601,10 @@ export class InfluencerActionsHistoryService {
             sourceInfluencerId,
             socialMedia,
             socialAccountUsername,
-            targetInfluencerEmail
+            targetInfluencerEmail,
         } = context;
 
-        // Get old owner's account's campaigns history
+        // Получаем все действия аккаунта для миграции
         const actionsToMigrate: CampaignActionWithCampaignMeta[] =
             await this.influencerHistoryRepo.findCampaignActionsForSocialAccount(
                 {
@@ -612,99 +612,89 @@ export class InfluencerActionsHistoryService {
                     socialAccountUsername,
                     socialMedia,
                 },
-                {session},
+                { session },
             );
 
         if (!actionsToMigrate.length) {
-            this.logger.log(`Didn't find any actions for social account ${socialAccountUsername}`)
+            this.logger.log(`Didn't find any actions for social account ${socialAccountUsername}`);
             return;
         }
 
-        // Get new & old owners histories
-        const [sourceHistory, targetHistory] = await Promise.all([
-            this.influencerHistoryRepo.findHistoryByInfluencerId(
-                sourceInfluencerId.toString(),
-                {session},
-            ),
-            this.influencerHistoryRepo.findHistoryByInfluencerId(
-                targetInfluencerId.toString(),
-                {session},
-            ),
-        ]);
-
-        if (!sourceHistory) {
-            throw new Error(`Didn't find history for influencer ${sourceInfluencerId.toString()}`)
-        }
-
-        // Delete specific actions from old owner
-        sourceHistory.campaigns.forEach(campaign => {
-            campaign.actions = campaign.actions.filter(
-                action =>
-                    !(
-                        action.networkUsername === socialAccountUsername &&
-                        action.socialMedia === socialMedia
-                    ),
-            );
-        });
-
-        // Remove empty campaigns
-        sourceHistory.campaigns = sourceHistory.campaigns.filter(
-            c => c.actions.length > 0,
+        // Удаляем действия из старого владельца
+        await this.influencerHistoryRepo.updateOne(
+            { influencerId: sourceInfluencerId },
+            {
+                $pull: {
+                    "campaigns.$[].actions": {
+                        networkUsername: socialAccountUsername,
+                        socialMedia,
+                    },
+                },
+            },
+            { session },
         );
 
-        await sourceHistory.save({session});
+        // Удаляем пустые кампании у старого владельца
+        await this.influencerHistoryRepo.updateOne(
+            { influencerId: sourceInfluencerId },
+            {
+                $pull: {
+                    campaigns: { actions: { $size: 0 } },
+                },
+            },
+            { session },
+        );
 
-        // Add actions for new owner
-        if (!targetHistory) {
-            // If there's no history - creates new
-            await this.influencerHistoryRepo.create({
-                influencerId: targetInfluencerId,
-                influencerEmail: targetInfluencerEmail,
-                campaigns: [],
-                invoices: [],
-            }, {session});
-        }
-
-        let freshTargetHistory =
-            targetHistory ??
-            (await this.influencerHistoryRepo.findHistoryByInfluencerEmail(
-                targetInfluencerEmail,
-                {session},
-            ));
-
+        // Добавляем действия новому владельцу
         for (const action of actionsToMigrate) {
-            let campaign = freshTargetHistory?.campaigns?.find(
-                c => c.campaignId === action.campaignId,
+            // Пытаемся добавить action в существующую кампанию
+            const result = await this.influencerHistoryRepo.updateOne(
+                { influencerId: targetInfluencerId, "campaigns.campaignId": action.campaignId },
+                {
+                    $push: {
+                        "campaigns.$.actions": {
+                            actionNumber: action.actionNumber,
+                            rewardForInfluencer: action.rewardForInfluencer,
+                            networkUsername: action.networkUsername,
+                            socialMedia: action.socialMedia,
+                            currentBalance: action.currentBalance,
+                            date: action.date,
+                            isStillInCampaign: action.isStillInCampaign ?? true,
+                        },
+                    },
+                },
+                { session },
             );
 
-            const actionToPush: CampaignAction = {
-                actionNumber: action.actionNumber,
-                rewardForInfluencer: action.rewardForInfluencer,
-                networkUsername: action.networkUsername,
-                socialMedia: action.socialMedia,
-                currentBalance: action.currentBalance,
-                date: action.date,
-                isStillInCampaign: action.isStillInCampaign ?? true,
+            // Если кампании с таким campaignId нет, создаем её
+            if (result.matchedCount === 0) {
+                await this.influencerHistoryRepo.updateOne(
+                    { influencerId: targetInfluencerId },
+                    {
+                        $setOnInsert: {
+                            influencerEmail: targetInfluencerEmail,
+                        },
+                        $push: {
+                            campaigns: {
+                                campaignId: action.campaignId,
+                                campaignName: action.campaignName,
+                                actions: [
+                                    {
+                                        actionNumber: action.actionNumber,
+                                        rewardForInfluencer: action.rewardForInfluencer,
+                                        networkUsername: action.networkUsername,
+                                        socialMedia: action.socialMedia,
+                                        currentBalance: action.currentBalance,
+                                        date: action.date,
+                                        isStillInCampaign: action.isStillInCampaign ?? true,
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    { upsert: true, session },
+                );
             }
-
-            if (!campaign) {
-                campaign = {
-                    campaignId: action.campaignId,
-                    campaignName: action.campaignName,
-                    actions: [],
-                };
-                freshTargetHistory.campaigns.push(campaign);
-            }
-            console.log('action', action);
-            console.log('campaign found?', !!campaign);
-
-            console.log(campaign, 'campaign')
-            campaign.actions.push(actionToPush);
         }
-
-
-        freshTargetHistory.markModified('campaigns');
-        console.log(freshTargetHistory, 'freshTarget History')
-        await freshTargetHistory.save({session});
     }
 }
