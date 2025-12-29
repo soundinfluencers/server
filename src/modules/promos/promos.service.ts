@@ -18,12 +18,13 @@ import {DropboxService} from "../../integrations/dropbox/dropbox";
 import {Client} from "../../database/schemas/users/client.schema";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
 import {
-    InfluencerDashboardPromoStatus,
+    InfluencerDashboardPromoStatus, InfluencerGetCompletedPromosQueryDto,
     InfluencerGetDashboardPromosQueryDto,
     InfluencerGetPastPromoQueryDto, InfluencerUpdatePromoReqQueryDto,
     InfluencerUpdatePromoResponseUpdateDto
 } from "./dto/influencer-get-promos.dto";
 import {
+    InfluencerCompletedPromo,
     InfluencerConfirmationStatusType, InfluencerDashboardPromo,
     InfluencerPromo, InfluencerPromoClosedStatusType,
     InfluencerPromoRequest,
@@ -51,8 +52,6 @@ export class PromosService {
         private completedCampaignRepo: CompletedCampaignRepository,
     ) {
     }
-
-    // TODO: add logic for getting completed promo or ongoing (through strategy)
 
     async checkUploadStatus(fileName: string): Promise<boolean> {
         const dropboxService = new DropboxService();
@@ -260,6 +259,7 @@ export class PromosService {
                 new Date((b as any).createdAt).getTime() - new Date((a as any).createdAt).getTime())
     };
 
+    // Updates confirmation status for new promo request
     async influencerUpdateResponseNewCampaign(data: InfluencerUpdatePromoResponseUpdateDto & { influencerId: string }) {
         const {influencerId, socialMediaUsername, campaignId, campaignResponse, selectInfluencersId} = data;
 
@@ -434,11 +434,12 @@ export class PromosService {
         }
     }
 
-    // helper for creating pipeline
+    // helper for creating pipeline for influencerGetDashboardPromos
     private buildInfluencerDashboardPipeline(
         influencerId: string,
         status: InfluencerDashboardPromoStatus,
-        limit?: number,
+        limit: number = 12,
+        skip: number = 0
     ): PipelineStage[] {
         const pipeline: PipelineStage[] = [
             {
@@ -446,7 +447,7 @@ export class PromosService {
                     'selectInfluencers.influencerId': new Types.ObjectId(influencerId),
                 },
             },
-            { $unwind: '$selectInfluencers' },
+            {$unwind: '$selectInfluencers'},
             {
                 $match: {
                     'selectInfluencers.influencerId': new Types.ObjectId(influencerId),
@@ -485,11 +486,9 @@ export class PromosService {
                 break;
         }
 
-        pipeline.push({ $sort: { createdAt: -1 } });
-
-        if (limit) {
-            pipeline.push({ $limit: Number(limit) });
-        }
+        pipeline.push({$sort: {createdAt: -1}});
+        pipeline.push({$skip: skip})
+        pipeline.push({$limit: Number(limit)});
 
         pipeline.push({
             $project: {
@@ -508,7 +507,6 @@ export class PromosService {
         return pipeline;
     }
 
-
     // Returns influencer's promos
     async influencerGetDashboardPromos(
         data: InfluencerGetDashboardPromosQueryDto,
@@ -516,9 +514,17 @@ export class PromosService {
         const influencerId = data.influencerId;
         const status = data.status ?? InfluencerDashboardPromoStatus.all;
         const limit = Number(data.limit ?? 12);
+        const page = Number(data.page ?? 1);
+
         if (!Number.isInteger(limit) || limit <= 0) {
             throw new BadRequestException('Invalid limit');
         }
+
+        if (!Number.isInteger(page) || page <= 0) {
+            throw new BadRequestException('Invalid page');
+        }
+
+        const skip = (data.page - 1) * limit;
 
         const influencerExists = await this.influencerModel.exists({
             _id: new Types.ObjectId(influencerId),
@@ -535,7 +541,7 @@ export class PromosService {
         ) {
             return this.campaignRepo
                 .aggregate<InfluencerDashboardPromo>(
-                    this.buildInfluencerDashboardPipeline(influencerId, status, limit),
+                    this.buildInfluencerDashboardPipeline(influencerId, status, limit, skip),
                 )
                 .exec();
         }
@@ -544,7 +550,7 @@ export class PromosService {
         if (status === InfluencerDashboardPromoStatus.close) {
             return this.completedCampaignRepo
                 .aggregate<InfluencerDashboardPromo>(
-                    this.buildInfluencerDashboardPipeline(influencerId, status, limit),
+                    this.buildInfluencerDashboardPipeline(influencerId, status, limit, skip),
                 )
                 .exec();
         }
@@ -553,13 +559,13 @@ export class PromosService {
         const [active, closed] = await Promise.all([
             this.campaignRepo
                 .aggregate<InfluencerDashboardPromo>(
-                    this.buildInfluencerDashboardPipeline(influencerId, InfluencerDashboardPromoStatus.all),
+                    this.buildInfluencerDashboardPipeline(influencerId, InfluencerDashboardPromoStatus.all, skip),
                 )
                 .exec(),
 
             this.completedCampaignRepo
                 .aggregate<InfluencerDashboardPromo>(
-                    this.buildInfluencerDashboardPipeline(influencerId, InfluencerDashboardPromoStatus.all),
+                    this.buildInfluencerDashboardPipeline(influencerId, InfluencerDashboardPromoStatus.all, skip),
                 )
                 .exec(),
         ]);
@@ -569,6 +575,13 @@ export class PromosService {
                 new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
             )
             .slice(0, limit);
+    }
+
+    async influencerGetCompletedPromos(data: InfluencerGetCompletedPromosQueryDto): Promise<InfluencerCompletedPromo[]> {
+        const influencerId = data.influencerId;
+        const limit = Number(data.limit ?? 12);
+
+        return [];
     }
 
     async influencerGetOngoingPromo(

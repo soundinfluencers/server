@@ -85,6 +85,7 @@ export class PromosController {
         return this.promosService.influencerUpdateResponseNewCampaign(dataToUse);
     }
 
+    // todo: add page query
     @Auth()
     @Roles(Role.influencer)
     @ApiOperation({summary: `Returns influencer's ongoing, completed, new requests promos`})
@@ -101,6 +102,7 @@ export class PromosController {
     })
     @Get()
     async influencerGetDashboardPromos(@Req() request: AuthenticatedRequest, @Query() query: InfluencerGetDashboardPromosQueryDto): Promise<InfluencerDashboardPromosDto> {
+        console.log(request.user, 'req')
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
         const promos = await this.promosService.influencerGetDashboardPromos({...query, influencerId: request.user._id});

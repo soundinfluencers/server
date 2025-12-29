@@ -761,7 +761,7 @@ export class ProfileService {
         return {
             socialAccountId: socialAccountObjectId,
             socialMedia: socialMediaOfAccount,
-            socialAccountUsername: socialAccount.username ?? socialAccount.instagramUsername,
+            socialAccountUsername: socialAccount.username ?? (socialAccount as any).instagramUsername,
             socialAccount: socialAccount,
             sourceInfluencerId: sourceInfluencer._id,
             targetInfluencerId: targetInfluencer._id,

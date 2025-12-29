@@ -160,6 +160,28 @@ export enum InfluencerDashboardPromoStatus {
 export class InfluencerGetDashboardPromosQueryDto {
     @ApiPropertyOptional({
         description: 'Type of promos returned',
+        enum: InfluencerDashboardPromoStatus,
+        default: InfluencerDashboardPromoStatus.all,
+    })
+    status: InfluencerDashboardPromoStatus;
+
+    @ApiPropertyOptional({
+        default: 12,
+    })
+    limit: number;
+
+    @ApiPropertyOptional({
+        default: 1,
+        description: 'Page number (starts from 1)',
+    })
+    page: number;
+
+    influencerId: string;
+}
+
+export class InfluencerGetCompletedPromosQueryDto {
+    @ApiPropertyOptional({
+        description: 'Type of promos returned',
         example: 'all',
         enum: InfluencerDashboardPromoStatus,
         default: InfluencerDashboardPromoStatus.all

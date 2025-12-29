@@ -604,7 +604,7 @@ export class InfluencerActionsHistoryService {
             targetInfluencerEmail,
         } = context;
 
-        // Получаем все действия аккаунта для миграции
+        // Getting actions from old owner's history
         const actionsToMigrate: CampaignActionWithCampaignMeta[] =
             await this.influencerHistoryRepo.findCampaignActionsForSocialAccount(
                 {
@@ -620,7 +620,7 @@ export class InfluencerActionsHistoryService {
             return;
         }
 
-        // Удаляем действия из старого владельца
+        // Deleting actions from old owner
         await this.influencerHistoryRepo.updateOne(
             { influencerId: sourceInfluencerId },
             {
@@ -634,7 +634,7 @@ export class InfluencerActionsHistoryService {
             { session },
         );
 
-        // Удаляем пустые кампании у старого владельца
+        // Removing empty campaigns actions
         await this.influencerHistoryRepo.updateOne(
             { influencerId: sourceInfluencerId },
             {
@@ -645,9 +645,10 @@ export class InfluencerActionsHistoryService {
             { session },
         );
 
-        // Добавляем действия новому владельцу
+        // Copying actions to new owner's history
         for (const action of actionsToMigrate) {
-            // Пытаемся добавить action в существующую кампанию
+
+            // Adding actions for existing campaigns
             const result = await this.influencerHistoryRepo.updateOne(
                 { influencerId: targetInfluencerId, "campaigns.campaignId": action.campaignId },
                 {
@@ -666,7 +667,7 @@ export class InfluencerActionsHistoryService {
                 { session },
             );
 
-            // Если кампании с таким campaignId нет, создаем её
+            // If there's no campaign - create
             if (result.matchedCount === 0) {
                 await this.influencerHistoryRepo.updateOne(
                     { influencerId: targetInfluencerId },

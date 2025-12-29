@@ -68,3 +68,22 @@ export interface InfluencerDashboardPromo {
     // campaign creation date
     createdAt: string;
 }
+
+export interface InfluencerCompletedPromo {
+    // _id of campaign
+    campaignId: string;
+    // _id of object inside selectInfluencers array
+    selectInfluencersId: string;
+    // name of campaign
+    campaignName: string;
+    // social account username
+    socialMediaUsername: string;
+    // social media of social account
+    socialMedia: SocialMediaType;
+    // reward for influencer for completing promo
+    reward: number;
+    // post link
+    postLink: string;
+    // client's name or company name
+    client: string;
+}
