@@ -12,8 +12,8 @@ import {Role} from "../../common/types/auth.types";
 export class MigrationsController {
     constructor(private readonly migrationsService: MigrationsService) {}
 
-    @Auth()
-    @Roles(Role.admin)
+    // @Auth()
+    // @Roles(Role.admin)
     @ApiOperation({ summary: "(ADMIN) Migrate social account (second account id) to influencer's object of first account" })
     @ApiResponseDto(undefined, { successStatusCode: 201 })
     @Patch('account')
@@ -21,3 +21,9 @@ export class MigrationsController {
         return this.migrationsService.migrateSocialAccountOrchestrator(data);
     }
 }
+
+// {
+//     "influencerId": "69523e10c9ebda34d0516132",
+//     "socialAccountToMigrateId": "68baaaeb0efdab02cc5195b3",
+//     "socialMediaOfAccount": "instagram"
+// }

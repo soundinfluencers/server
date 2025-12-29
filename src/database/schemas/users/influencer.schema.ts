@@ -28,46 +28,134 @@ export const InfluencerCountryStatsSchema = SchemaFactory.createForClass(Influen
 
 @Schema({ timestamps: true })
 export class SocialAccount {
-    @Prop({ type: Types.ObjectId, auto: true })
-    _id?: Types.ObjectId;
+    // @Prop({ type: Types.ObjectId })
+    // _id: Types.ObjectId;
+    //
+    // @Prop({ required: true, index: true })
+    // username: string;
+    //
+    // @Prop()
+    // profileLink: string;
+    //
+    // @Prop({ type: Number, min: 0 })
+    // followers: number;
+    //
+    // @Prop()
+    // logoUrl: string;
+    //
+    // @Prop() musicStyle: string;
+    //
+    // @Prop({ type: [String], default: [] })
+    // musicSubStyles: string[];
+    //
+    // @Prop({ type: [String], default: [] })
+    // musicStyleOther: string[];
+    //
+    // @Prop({
+    //     type: String,
+    //     enum: InfluencerProfileCategory,
+    //     default: InfluencerProfileCategory.community,
+    //     index: true,
+    // })
+    // profileCategory: InfluencerProfileCategory;
+    //
+    // @Prop({ type: Number, min: 0 })
+    // price: number;
+    //
+    // @Prop({ type: Number, min: 0 })
+    // publicPrice: number;
+    //
+    // @Prop({ type: String, default: null })
+    // currency: string | null;
+    //
+    // @Prop({ type: Number, min: 0, default: 0 })
+    // initialPrice: number;
+    //
+    // @Prop({ type: Number, default: null })
+    // engagementRate: number | null;
+    //
+    // @Prop({ type: Number, default: null })
+    // averageViews: number | null;
+    //
+    // @Prop({
+    //     type: [InfluencerMusicGenreSchema],
+    //     default: [],
+    // })
+    // musicGenres: InfluencerMusicGenre[];
+    //
+    // @Prop({ type: [String], default: [], index: true })
+    // creatorCategories: string[];
+    //
+    // @Prop({
+    //     type: [InfluencerCountryStatsSchema],
+    //     default: [],
+    // })
+    // countries: InfluencerCountryStats[];
+    //
+    // @Prop({ type: [String], default: [], index: true })
+    // categories: string[];
+    //
+    // @Prop({ default: false, index: true })
+    // isHidden: boolean;
+    //
+    // @Prop({ default: false, index: true })
+    // isDeleted: boolean;
+    //
+    // @Prop({ default: false, index: true })
+    // isVerified: boolean;
 
-    @Prop({ required: true, index: true })
-    username: string;
+    @Prop({ type: Types.ObjectId })
+    _id: Types.ObjectId;
+
+    @Prop() musicStyle: string;
 
     @Prop()
     profileLink: string;
 
-    @Prop({ type: Number, min: 0 })
-    followers: number;
+    @Prop({ type: [String], default: [] })
+    musicSubStyles: string[];
 
-    @Prop()
-    logoUrl: string;
+    @Prop({ type: [String], default: [] })
+    musicStyleOther: string[];
+
+    @Prop() instagramUsername: string;
+
+    @Prop({ required: false})
+    username: string;
+
+    @Prop() instagramLink: string;
+
+    @Prop() followersNumber: string;
+
+    @Prop() logo: string;
 
     @Prop({
         type: String,
-        enum: InfluencerProfileCategory,
-        default: InfluencerProfileCategory.community,
-        index: true,
+        enum: ['community', 'creator'],
+        default: 'community',
     })
-    profileCategory: InfluencerProfileCategory;
+    profileCategory: 'community' | 'creator';
 
-    @Prop({ type: Number, min: 0 })
-    price: number;
+    @Prop() price: string;
 
-    @Prop({ type: Number, min: 0 })
-    publicPrice: number;
+    @Prop() publicPrice: string;
 
     @Prop({ type: String, default: null })
     currency: string | null;
 
-    @Prop({ type: Number, min: 0, default: 0 })
+    @Prop({ type: Number, default: 0 })
     initialPrice: number;
 
-    @Prop({ type: Number, default: null })
-    engagementRate: number | null;
-
-    @Prop({ type: Number, default: null })
-    averageViews: number | null;
+    @Prop({
+        type: [
+            {
+                country: String,
+                percentage: Number,
+            },
+        ],
+        default: [],
+    })
+    countries: { country: string; percentage: number }[];
 
     @Prop({
         type: [InfluencerMusicGenreSchema],
@@ -75,25 +163,25 @@ export class SocialAccount {
     })
     musicGenres: InfluencerMusicGenre[];
 
-    @Prop({ type: [String], default: [], index: true })
-    creatorCategories: string[];
-
-    @Prop({
-        type: [InfluencerCountryStatsSchema],
-        default: [],
-    })
-    countries: InfluencerCountryStats[];
-
-    @Prop({ type: [String], default: [], index: true })
+    @Prop({ type: [String], default: [] })
     categories: string[];
 
-    @Prop({ default: false, index: true })
+    @Prop({ type: Number, default: null })
+    engagementRate: number | null;
+
+    @Prop({ type: Number, default: null })
+    averageViews: number | null;
+
+    @Prop({ type: [String], default: [] })
+    creatorCategories: string[];
+
+    @Prop({ default: false })
     isHidden: boolean;
 
-    @Prop({ default: false, index: true })
+    @Prop({ default: false })
     isDeleted: boolean;
 
-    @Prop({ default: false, index: true })
+    @Prop({ default: false })
     isVerified: boolean;
 }
 

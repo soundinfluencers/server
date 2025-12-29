@@ -18,7 +18,6 @@ async function bootstrap() {
     app.useGlobalFilters(new AllExceptionsFilter()); // global exception filter
     app.useGlobalPipes(
         new ValidationPipe({
-            whitelist: true, // delete unnecessary fields
             transform: true, // transform payload into DTO classes
         }),
     );

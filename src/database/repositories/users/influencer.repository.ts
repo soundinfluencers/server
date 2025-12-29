@@ -3,7 +3,7 @@ import {InjectModel} from "@nestjs/mongoose";
 import {Model, Types} from "mongoose";
 import {RepoOptions} from "../../types/repo.types";
 import {BaseRepository} from "../base.repository";
-import {Influencer} from "../../schemas/users/influencer.schema";
+import {Influencer, SocialAccount} from "../../schemas/users/influencer.schema";
 import {applyQueryOptions} from "../../utils/apply-query-options.util";
 
 @Injectable()
@@ -63,7 +63,7 @@ export class InfluencerRepository extends BaseRepository<Influencer> {
     async pushSocialAccount(
         influencerId: Types.ObjectId,
         socialMedia: keyof Influencer,
-        socialAccount: any,
+        socialAccount: SocialAccount,
         options?: RepoOptions,
     ) {
         return this.influencerModel.updateOne(

@@ -2,7 +2,7 @@ import {ProfileService} from "../profile/profile.service";
 import {PromosService} from "../promos/promos.service";
 import {MigrateAccountDto} from "./dto/migrate-account.dto";
 import {Connection} from "mongoose";
-import {Injectable} from "@nestjs/common";
+import {Injectable, Logger} from "@nestjs/common";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {InjectConnection} from "@nestjs/mongoose";
 
@@ -16,6 +16,8 @@ export class MigrationsService {
         private readonly influencersHistoryService: InfluencerActionsHistoryService,
     ) {}
 
+    private readonly logger = new Logger();
+
     // Migrating social account to new owner (with history and updating campaigns)
     async migrateSocialAccountOrchestrator(data: MigrateAccountDto) {
         const session = await this.connection.startSession();
@@ -24,12 +26,15 @@ export class MigrationsService {
         try {
             // move social account to new owner
             const context = await this.profileService.moveSocialAccount(data, session);
+            this.logger.log(`Moved social account`);
 
             // move social account's campaigns history to new owner's history
             await this.influencersHistoryService.moveSocialAccountHistory(context, session);
+            this.logger.log(`Moved social account's actions history`);
 
             // replace all old influencerId with new owner's id in ongoing promos
             await this.promosService.replaceInfluencerIdInOngoingPromos(context, session);
+            this.logger.log(`Replaced influencerId in promos`);
 
             await session.commitTransaction();
         } catch (e) {

@@ -1,7 +1,10 @@
 import {Injectable, Logger} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
 import mongoose, {ClientSession, Model} from 'mongoose';
-import {InfluencerActionsHistory} from "../../database/schemas/histories/influencer-actions-history.schema";
+import {
+    CampaignAction,
+    InfluencerActionsHistory
+} from "../../database/schemas/histories/influencer-actions-history.schema";
 import {Campaign} from "../../database/schemas/campaign/campaign.schema";
 import {UpsertCampaignHistoryDto} from "./dto/upsert-campaign-history.dto";
 import {UpsertInvoiceHistoryDto} from "./dto/upsert-invoice-history.dto";
@@ -598,6 +601,7 @@ export class InfluencerActionsHistoryService {
             sourceInfluencerId,
             socialMedia,
             socialAccountUsername,
+            targetInfluencerEmail
         } = context;
 
         // Get old owner's account's campaigns history
@@ -612,6 +616,7 @@ export class InfluencerActionsHistoryService {
             );
 
         if (!actionsToMigrate.length) {
+            this.logger.log(`Didn't find any actions for social account ${socialAccountUsername}`)
             return;
         }
 
@@ -627,7 +632,9 @@ export class InfluencerActionsHistoryService {
             ),
         ]);
 
-        if (!sourceHistory) return;
+        if (!sourceHistory) {
+            throw new Error(`Didn't find history for influencer ${sourceInfluencerId.toString()}`)
+        }
 
         // Delete specific actions from old owner
         sourceHistory.campaigns.forEach(campaign => {
@@ -652,23 +659,33 @@ export class InfluencerActionsHistoryService {
             // If there's no history - creates new
             await this.influencerHistoryRepo.create({
                 influencerId: targetInfluencerId,
-                influencerEmail: '',
+                influencerEmail: targetInfluencerEmail,
                 campaigns: [],
                 invoices: [],
-            });
+            }, {session});
         }
 
-        const freshTargetHistory =
+        let freshTargetHistory =
             targetHistory ??
-            (await this.influencerHistoryRepo.findHistoryByInfluencerId(
-                targetInfluencerId.toString(),
+            (await this.influencerHistoryRepo.findHistoryByInfluencerEmail(
+                targetInfluencerEmail,
                 {session},
             ));
 
         for (const action of actionsToMigrate) {
-            let campaign = freshTargetHistory.campaigns.find(
+            let campaign = freshTargetHistory?.campaigns?.find(
                 c => c.campaignId === action.campaignId,
             );
+
+            const actionToPush: CampaignAction = {
+                actionNumber: action.actionNumber,
+                rewardForInfluencer: action.rewardForInfluencer,
+                networkUsername: action.networkUsername,
+                socialMedia: action.socialMedia,
+                currentBalance: action.currentBalance,
+                date: action.date,
+                isStillInCampaign: action.isStillInCampaign ?? true,
+            }
 
             if (!campaign) {
                 campaign = {
@@ -678,10 +695,16 @@ export class InfluencerActionsHistoryService {
                 };
                 freshTargetHistory.campaigns.push(campaign);
             }
+            console.log('action', action);
+            console.log('campaign found?', !!campaign);
 
-            campaign.actions.push(action);
+            console.log(campaign, 'campaign')
+            campaign.actions.push(actionToPush);
         }
 
+
+        freshTargetHistory.markModified('campaigns');
+        console.log(freshTargetHistory, 'freshTarget History')
         await freshTargetHistory.save({session});
     }
 }

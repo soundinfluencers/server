@@ -2366,144 +2366,144 @@ export class AdminService {
         }
     }
 
-    async adminImportXlsxInfluencers(data: AdminImportXlsxInfluencersDto) {
-        if (!data.influencers) return {
-            code: 400,
-            message: 'Empty accounts array',
-        }
-
-        try {
-            const accountsFromDataMap: Map<
-                string,
-                {
-                    email: string;
-                    password: string;
-                    phone: string;
-                    firstName: string;
-                    username: string;
-                    link: string;
-                    price: number;
-                    initialPrice: number;
-                    currency: string;
-                    followersNumber: number;
-                    engagementRate: number | string | null;
-                    averageViews: number | null;
-                    countries: CountryObj[];
-                    creatorCategories?: string[];
-                }[]
-            > = new Map();
-
-            let createdCount = 0;
-            let updatedCount = 0;
-            let errors = [];
-
-            for (const account of data.influencers) {
-                const {email} = account;
-
-                if (!accountsFromDataMap.has(email)) {
-                    accountsFromDataMap.set(email, [account]);
-                } else {
-                    accountsFromDataMap.get(email)!.push(account);
-                }
-            }
-
-            for (const [email, accountsFromData] of accountsFromDataMap.entries()) {
-                try {
-                    const influencerInDatabase = await this.influencerModel.findOne({email: email});
-
-                    const accountsToSave: SocialAccount[] = accountsFromData.map(item => ({
-                        _id: new Types.ObjectId(),
-                        profileCategory: InfluencerProfileCategory.creator,
-                        musicGenres: [
-                            {genre: 'Techno', subGenres: ["Hard, Peak", "Melodic, Minimal"]},
-                            {genre: 'House', subGenres: ["Tech House", "Melodic, Afro"]},
-                            {genre: "EDM", subGenres: []},
-                            {genre: "D&B", subGenres: []},
-                            {genre: "Bass", subGenres: []},
-                            {genre: "Psy, Trance", subGenres: []},
-                            {genre: "Dubstep", subGenres: []},
-                        ],
-                        username: item.username,
-                        profileLink: item.link,
-                        followers: item.followersNumber,
-                        logoUrl: "https://dl.dropboxusercontent.com/scl/fi/c5ibdvebsopuz6ydi5l3t/2025-07-29T15-50-59.661Zdefault-avatar-profile-icon-social-600nw-1677509740.webp?rlkey=55mdiffm86fhrks7263e8sfrr&dl=0",
-                        price: item.price,
-                        publicPrice: (item.price * 2),
-                        currency: item.currency,
-                        initialPrice: item.initialPrice,
-                        countries: item.countries,
-                        categories: [],
-                        engagementRate: item.engagementRate !== null ? Number(item.engagementRate) : null,
-                        averageViews: item.averageViews ?? null,
-                        creatorCategories: item.creatorCategories || [],
-                        isHidden: false,
-                        isDeleted: false,
-                        isVerified: true,
-                        refreshToken: null
-                    }));
-
-                    if (influencerInDatabase) {
-                        const existingTiktokAccounts = influencerInDatabase.tiktok || [];
-
-                        const newUniqueAccounts = accountsToSave.filter(newAcc => {
-                            return !existingTiktokAccounts.some(existingAcc =>
-                                existingAcc.username === newAcc.username
-                            );
-                        });
-
-                        if (newUniqueAccounts.length > 0) {
-                            influencerInDatabase.tiktok.push(...newUniqueAccounts);
-                            await influencerInDatabase.save();
-                            updatedCount += newUniqueAccounts.length;
-                        }
-                    } else {
-                        try {
-                            await this.influencerModel.create({
-                                _id: new Types.ObjectId(),
-                                email: email,
-                                phone: accountsFromData[0]?.phone || "",
-                                password: bcrypt.hashSync(accountsFromData[0].password),
-                                firstName: accountsFromData[0].firstName,
-                                role: "influencer",
-                                balance: "0",
-                                statusVerify: "accept",
-                                instagram: [],
-                                tiktok: accountsToSave,
-                                spotify: [],
-                                soundcloud: [],
-                                facebook: [],
-                                youtube: [],
-                                press: []
-                            })
-                        } catch (e) {
-                            this.logger.warn(`Error creating influencer with email: ${email}`, e instanceof Error ? e.stack : new Error().stack);
-                        }
-                        createdCount += accountsToSave.length;
-                    }
-                } catch (err) {
-                    this.logger.warn(`${err}`, err instanceof Error ? err.stack : new Error().stack);
-                    errors.push(`[${email}] - [${accountsFromData.map(acc => accountsFromData[accountsFromData.length - 1].username === acc.username ? `${acc.username}` : `${acc.username}, `)}] Error adding social media accounts:`, err);
-                }
-            }
-
-            return {
-                code: 201,
-                message: "Successfully imported",
-                createdCount,
-                updatedCount,
-                errors
-            }
-        } catch (err) {
-            this.logger.error(
-                `Unexpected error: ${err}`,
-                err instanceof Error ? err.stack : new Error().stack,
-            )
-            return {
-                code: 500,
-                message: 'Internal server error',
-            }
-        }
-    }
+    // async adminImportXlsxInfluencers(data: AdminImportXlsxInfluencersDto) {
+    //     if (!data.influencers) return {
+    //         code: 400,
+    //         message: 'Empty accounts array',
+    //     }
+    //
+    //     try {
+    //         const accountsFromDataMap: Map<
+    //             string,
+    //             {
+    //                 email: string;
+    //                 password: string;
+    //                 phone: string;
+    //                 firstName: string;
+    //                 username: string;
+    //                 link: string;
+    //                 price: number;
+    //                 initialPrice: number;
+    //                 currency: string;
+    //                 followersNumber: number;
+    //                 engagementRate: number | string | null;
+    //                 averageViews: number | null;
+    //                 countries: CountryObj[];
+    //                 creatorCategories?: string[];
+    //             }[]
+    //         > = new Map();
+    //
+    //         let createdCount = 0;
+    //         let updatedCount = 0;
+    //         let errors = [];
+    //
+    //         for (const account of data.influencers) {
+    //             const {email} = account;
+    //
+    //             if (!accountsFromDataMap.has(email)) {
+    //                 accountsFromDataMap.set(email, [account]);
+    //             } else {
+    //                 accountsFromDataMap.get(email)!.push(account);
+    //             }
+    //         }
+    //
+    //         for (const [email, accountsFromData] of accountsFromDataMap.entries()) {
+    //             try {
+    //                 const influencerInDatabase = await this.influencerModel.findOne({email: email});
+    //
+    //                 const accountsToSave: SocialAccount[] = accountsFromData.map(item => ({
+    //                     _id: new Types.ObjectId(),
+    //                     profileCategory: InfluencerProfileCategory.creator,
+    //                     musicGenres: [
+    //                         {genre: 'Techno', subGenres: ["Hard, Peak", "Melodic, Minimal"]},
+    //                         {genre: 'House', subGenres: ["Tech House", "Melodic, Afro"]},
+    //                         {genre: "EDM", subGenres: []},
+    //                         {genre: "D&B", subGenres: []},
+    //                         {genre: "Bass", subGenres: []},
+    //                         {genre: "Psy, Trance", subGenres: []},
+    //                         {genre: "Dubstep", subGenres: []},
+    //                     ],
+    //                     username: item.username,
+    //                     profileLink: item.link,
+    //                     followers: item.followersNumber,
+    //                     logoUrl: "https://dl.dropboxusercontent.com/scl/fi/c5ibdvebsopuz6ydi5l3t/2025-07-29T15-50-59.661Zdefault-avatar-profile-icon-social-600nw-1677509740.webp?rlkey=55mdiffm86fhrks7263e8sfrr&dl=0",
+    //                     price: item.price,
+    //                     publicPrice: (item.price * 2),
+    //                     currency: item.currency,
+    //                     initialPrice: item.initialPrice,
+    //                     countries: item.countries,
+    //                     categories: [],
+    //                     engagementRate: item.engagementRate !== null ? Number(item.engagementRate) : null,
+    //                     averageViews: item.averageViews ?? null,
+    //                     creatorCategories: item.creatorCategories || [],
+    //                     isHidden: false,
+    //                     isDeleted: false,
+    //                     isVerified: true,
+    //                     refreshToken: null
+    //                 }));
+    //
+    //                 if (influencerInDatabase) {
+    //                     const existingTiktokAccounts = influencerInDatabase.tiktok || [];
+    //
+    //                     const newUniqueAccounts = accountsToSave.filter(newAcc => {
+    //                         return !existingTiktokAccounts.some(existingAcc =>
+    //                             existingAcc.username === newAcc.username
+    //                         );
+    //                     });
+    //
+    //                     if (newUniqueAccounts.length > 0) {
+    //                         influencerInDatabase.tiktok.push(...newUniqueAccounts);
+    //                         await influencerInDatabase.save();
+    //                         updatedCount += newUniqueAccounts.length;
+    //                     }
+    //                 } else {
+    //                     try {
+    //                         await this.influencerModel.create({
+    //                             _id: new Types.ObjectId(),
+    //                             email: email,
+    //                             phone: accountsFromData[0]?.phone || "",
+    //                             password: bcrypt.hashSync(accountsFromData[0].password),
+    //                             firstName: accountsFromData[0].firstName,
+    //                             role: "influencer",
+    //                             balance: "0",
+    //                             statusVerify: "accept",
+    //                             instagram: [],
+    //                             tiktok: accountsToSave,
+    //                             spotify: [],
+    //                             soundcloud: [],
+    //                             facebook: [],
+    //                             youtube: [],
+    //                             press: []
+    //                         })
+    //                     } catch (e) {
+    //                         this.logger.warn(`Error creating influencer with email: ${email}`, e instanceof Error ? e.stack : new Error().stack);
+    //                     }
+    //                     createdCount += accountsToSave.length;
+    //                 }
+    //             } catch (err) {
+    //                 this.logger.warn(`${err}`, err instanceof Error ? err.stack : new Error().stack);
+    //                 errors.push(`[${email}] - [${accountsFromData.map(acc => accountsFromData[accountsFromData.length - 1].username === acc.username ? `${acc.username}` : `${acc.username}, `)}] Error adding social media accounts:`, err);
+    //             }
+    //         }
+    //
+    //         return {
+    //             code: 201,
+    //             message: "Successfully imported",
+    //             createdCount,
+    //             updatedCount,
+    //             errors
+    //         }
+    //     } catch (err) {
+    //         this.logger.error(
+    //             `Unexpected error: ${err}`,
+    //             err instanceof Error ? err.stack : new Error().stack,
+    //         )
+    //         return {
+    //             code: 500,
+    //             message: 'Internal server error',
+    //         }
+    //     }
+    // }
 
     async adminUpdateCampaignsUpToDate() {
         const campaigns = await this.campaignsModel.find().lean();

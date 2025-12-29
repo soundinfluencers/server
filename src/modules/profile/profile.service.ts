@@ -744,7 +744,7 @@ export class ProfileService {
         );
 
         const alreadyExists = targetInfluencer[socialMediaOfAccount].some(acc =>
-            acc._id.equals(socialAccountObjectId),
+            acc._id === socialAccountObjectId,
         );
         if (alreadyExists) {
             throw new ConflictException('Social account already exists on target influencer');
@@ -761,7 +761,7 @@ export class ProfileService {
         return {
             socialAccountId: socialAccountObjectId,
             socialMedia: socialMediaOfAccount,
-            socialAccountUsername: socialAccount.username,
+            socialAccountUsername: socialAccount.username ?? socialAccount.instagramUsername,
             socialAccount: socialAccount,
             sourceInfluencerId: sourceInfluencer._id,
             targetInfluencerId: targetInfluencer._id,

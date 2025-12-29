@@ -35,7 +35,7 @@ export class CampaignActionsHistory {
   @Prop({ type: String, required: true })
   campaignName: string;
 
-  @Prop({ type: [CampaignActionSchema], required: true })
+  @Prop({ type: [CampaignActionSchema], required: true, default: [] })
   actions: CampaignAction[];
 }
 
@@ -69,10 +69,10 @@ export class InfluencerActionsHistory extends Document {
   @Prop({ required: true })
   influencerEmail: string;
 
-  @Prop({ required: true, type: [CampaignActionsHistorySchema], _id: false })
+  @Prop({ required: true, type: [CampaignActionsHistorySchema], default: [] })
   campaigns: CampaignActionsHistory[];
 
-  @Prop({ required: true, type: [InvoiceActionSchema], _id: false })
+  @Prop({ required: true, type: [InvoiceActionSchema], default: [] })
   invoices: InvoiceAction[];
 }
 

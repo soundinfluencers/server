@@ -262,11 +262,11 @@ export class AdminController {
         return this.adminService.adminAddNewBrandsToInfluencerAccount(data);
     }
 
-    @Put('influencer/import-xlsx')
-    @UsePipes(new ValidationPipe({transform: true}))
-    adminImportXlsxInfluencers(@Body() data: AdminImportXlsxInfluencersDto) {
-        return this.adminService.adminImportXlsxInfluencers(data);
-    }
+    // @Put('influencer/import-xlsx')
+    // @UsePipes(new ValidationPipe({transform: true}))
+    // adminImportXlsxInfluencers(@Body() data: AdminImportXlsxInfluencersDto) {
+        // return this.adminService.adminImportXlsxInfluencers(data);
+    // }
 
     @Patch('campaigns/update-to-date')
     adminUpdateCampaignsUpToDate() {

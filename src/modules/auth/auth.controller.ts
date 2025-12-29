@@ -31,13 +31,13 @@ export class AuthController {
         return this.authService.createClient(data);
     }
 
-    @Public()
-    @ApiOperation({ summary: 'Create new influencer account' })
-    @ApiResponseDto(undefined, { successStatusCode: 201 })
-    @Post('create/influencer')
-    createInfluencer(@Body() data: CreateInfluencerDto): Promise<void> {
-        return this.authService.createInfluencer(data);
-    }
+    // @Public()
+    // @ApiOperation({ summary: 'Create new influencer account' })
+    // @ApiResponseDto(undefined, { successStatusCode: 201 })
+    // @Post('create/influencer')
+    // createInfluencer(@Body() data: CreateInfluencerDto): Promise<void> {
+    //     return this.authService.createInfluencer(data);
+    // }
 
     @Public()
     @ApiOperation({ summary: 'Login user' })
