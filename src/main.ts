@@ -63,185 +63,165 @@ async function bootstrap() {
 
     const document = SwaggerModule.createDocument(app, config);
 
-    SwaggerModule.setup(process.env.NODE_ENV === 'production' ? 'api' : 'dev-api', app, document, {
-        swaggerOptions: {
-            persistAuthorization: true,
-            plugins: [
-                function () {
-                    return {
-                        afterLoad: (system: any) => {
-                            const waitForTopbar = setInterval(() => {
-                                const topbar = window.document.querySelector('.topbar');
-                                if (!topbar) return;
+    SwaggerModule.setup(
+        process.env.NODE_ENV === 'production' ? 'api' : 'dev-api',
+        app,
+        document,
+        {
+            swaggerOptions: {
+                persistAuthorization: true,
+                plugins: [
+                    function () {
+                        return {
+                            afterLoad: (system: any) => {
+                                (window as any).swaggerSystem = system;
 
-                                clearInterval(waitForTopbar);
+                                const authorizeWhenReady = (token: string) => {
+                                    const interval = setInterval(() => {
+                                        if (system.authActions?.authorize) {
+                                            system.authActions.authorize({ 'access-token': token });
+                                            clearInterval(interval);
+                                        }
+                                    }, 100);
+                                };
 
-                                if (!window.document.getElementById('swagger-login-btn')) {
-                                    const loginBtn = window.document.createElement('button');
-                                    loginBtn.id = 'swagger-login-btn';
-                                    loginBtn.innerText = 'Login';
-                                    loginBtn.style.cssText = `
-                    margin-left:10px;
-                    padding:6px 12px;
-                    border-radius:6px;
-                    background:#4F46E5;
-                    color:#fff;
-                    border:none;
-                    cursor:pointer;
-                  `;
-                                    topbar.appendChild(loginBtn);
+                                const savedToken = localStorage.getItem('swagger_access_token');
+                                if (savedToken) {
+                                    authorizeWhenReady(savedToken);
+                                }
 
-                                    const logoutBtn = window.document.createElement('button');
-                                    logoutBtn.id = 'swagger-logout-btn';
-                                    logoutBtn.innerText = 'Logout';
-                                    logoutBtn.style.cssText = `
-                    margin-left:10px;
-                    padding:6px 12px;
-                    border-radius:6px;
-                    background:#EF4444;
-                    color:#fff;
-                    border:none;
-                    cursor:pointer;
-                  `;
-                                    topbar.appendChild(logoutBtn);
+                                console.log(savedToken, 'saved Token')
 
-                                    const refreshBtn = window.document.createElement('button');
-                                    refreshBtn.id = 'swagger-refresh-btn';
-                                    refreshBtn.innerText = 'Refresh';
-                                    refreshBtn.style.cssText = `
-  margin-left:10px;
-  padding:6px 12px;
-  border-radius:6px;
-  background:#10B981;
-  color:#fff;
-  border:none;
-  cursor:pointer;
-`;
+                                const waitForTopbar = setInterval(() => {
+                                    const topbar = window.document.querySelector('.topbar');
+                                    if (!topbar) return;
+                                    clearInterval(waitForTopbar);
 
-                                    topbar.appendChild(refreshBtn);
-
-                                    logoutBtn.onclick = () => {
-                                        system.authActions.logout('access-token');
-                                        localStorage.removeItem('swagger_access_token');
-                                        alert('Logged out');
-                                        window.location.reload();
-                                    };
-
-                                    loginBtn.onclick = () => {
-                                        const modal = window.document.createElement('div');
-                                        modal.id = 'login-modal';
-                                        modal.style.cssText = `
-                      position: fixed;
-                      top: 0;
-                      left: 0;
-                      width: 100%;
-                      height: 100%;
-                      background: rgba(0,0,0,0.5);
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      z-index: 9999;
-                    `;
-                                        modal.innerHTML = `
-                      <div id="login-box" style="
-                        background:#fff;
-                        padding:20px;
-                        border-radius:8px;
-                        min-width:300px;
-                        display:flex;
-                        flex-direction:column;
-                        gap:10px;
-                      ">
-                        <h3>Login</h3>
-                        <input id="login-email" placeholder="Email" />
-                        <input id="login-password" type="password" placeholder="Password" />
-                        <input id="login-role" placeholder="client" />
-                        <div style="display:flex; gap:10px; justify-content:flex-end;">
-                          <button id="login-submit" style="background:#4F46E5;color:#fff;padding:6px 12px;border:none;border-radius:6px;cursor:pointer;">Login</button>
-                          <button id="login-close" style="background:#ccc;color:#000;padding:6px 12px;border:none;border-radius:6px;cursor:pointer;">Close</button>
-                        </div>
-                      </div>
-                    `;
-                                        window.document.body.appendChild(modal);
-
-                                        (window.document.getElementById('login-close') as HTMLButtonElement).onclick = () => {
-                                            modal.remove();
+                                    if (!window.document.getElementById('swagger-login-btn')) {
+                                        const createButton = (id: string, text: string, bg: string) => {
+                                            const btn = window.document.createElement('button');
+                                            btn.id = id;
+                                            btn.innerText = text;
+                                            btn.style.cssText = `
+                                            margin-left:10px;
+                                            padding:6px 12px;
+                                            border-radius:6px;
+                                            background:${bg};
+                                            color:#fff;
+                                            border:none;
+                                            cursor:pointer;
+                                        `;
+                                            topbar.appendChild(btn);
+                                            return btn;
                                         };
 
-                                        (window.document.getElementById('login-submit') as HTMLButtonElement).onclick = async () => {
-                                            const email = (window.document.getElementById('login-email') as HTMLInputElement).value;
-                                            const password = (window.document.getElementById('login-password') as HTMLInputElement).value;
-                                            const role = (window.document.getElementById('login-role') as HTMLInputElement).value.toLowerCase();
+                                        const loginBtn = createButton('swagger-login-btn', 'Login', '#4F46E5');
+                                        const logoutBtn = createButton('swagger-logout-btn', 'Logout', '#EF4444');
+                                        const refreshBtn = createButton('swagger-refresh-btn', 'Refresh', '#10B981');
 
-                                            const baseUrl = window.location.origin;
+                                        logoutBtn.onclick = () => {
+                                            system.authActions.logout('access-token');
+                                            localStorage.removeItem('swagger_access_token');
+                                            alert('Logged out');
+                                            window.location.reload();
+                                        };
+
+                                        loginBtn.onclick = () => {
+                                            const modal = window.document.createElement('div');
+                                            modal.id = 'login-modal';
+                                            modal.style.cssText = `
+                                            position: fixed;
+                                            top: 0;
+                                            left: 0;
+                                            width: 100%;
+                                            height: 100%;
+                                            background: rgba(0,0,0,0.5);
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            z-index: 9999;
+                                        `;
+                                            modal.innerHTML = `
+                                            <div style="
+                                                background:#fff;
+                                                padding:20px;
+                                                border-radius:8px;
+                                                min-width:300px;
+                                                display:flex;
+                                                flex-direction:column;
+                                                gap:10px;
+                                            ">
+                                                <h3>Login</h3>
+                                                <input id="login-email" placeholder="Email" />
+                                                <input id="login-password" type="password" placeholder="Password" />
+                                                <input id="login-role" placeholder="client" />
+                                                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                                                    <button id="login-submit" style="background:#4F46E5;color:#fff;padding:6px 12px;border:none;border-radius:6px;cursor:pointer;">Login</button>
+                                                    <button id="login-close" style="background:#ccc;color:#000;padding:6px 12px;border:none;border-radius:6px;cursor:pointer;">Close</button>
+                                                </div>
+                                            </div>
+                                        `;
+                                            window.document.body.appendChild(modal);
+
+                                            window.document.getElementById('login-close')!.onclick = () => modal.remove();
+
+                                            window.document.getElementById('login-submit')!.onclick = async () => {
+                                                const email = (window.document.getElementById('login-email') as HTMLInputElement).value;
+                                                const password = (window.document.getElementById('login-password') as HTMLInputElement).value;
+                                                const role = (window.document.getElementById('login-role') as HTMLInputElement).value.toLowerCase();
+
+                                                try {
+                                                    const res = await fetch(`${window.location.origin}/auth/login`, {
+                                                        method: 'POST',
+                                                        headers: {'Content-Type': 'application/json'},
+                                                        body: JSON.stringify({ email, password, role }),
+                                                    }).then(r => r.json());
+
+                                                    if (res.data?.accessToken) {
+                                                        const token = res.data.accessToken.replace(/^Bearer\s+/i, '');
+                                                        localStorage.setItem('swagger_access_token', token);
+                                                        authorizeWhenReady(token);
+                                                        alert('Logged in');
+                                                        modal.remove();
+                                                    } else {
+                                                        alert('Login failed: ' + JSON.stringify(res));
+                                                    }
+                                                } catch (e) {
+                                                    alert('Login error: ' + e);
+                                                }
+                                            };
+                                        };
+
+                                        refreshBtn.onclick = async () => {
                                             try {
-                                                const res = await fetch(`${baseUrl}/auth/login`, {
+                                                const res = await fetch(`${window.location.origin}/auth/refresh`, {
                                                     method: 'POST',
-                                                    headers: {'Content-Type': 'application/json'},
-                                                    body: JSON.stringify({email, password, role}),
+                                                    credentials: 'include',
                                                 }).then(r => r.json());
 
-                                                if (res.data.accessToken) {
-                                                    const token = res.data.accessToken.replace(/^Bearer\s+/i, '');
-                                                    localStorage.setItem('swagger_access_token', token);
-
-                                                    system.authActions.authorize({
-                                                        'access-token': `Bearer ${token}`,
-                                                    });
-
-                                                    alert('Logged in');
-                                                    modal.remove();
-                                                } else {
-                                                    alert('Login failed: ' + JSON.stringify(res));
+                                                if (!res?.data?.accessToken) {
+                                                    alert('Refresh failed');
+                                                    return;
                                                 }
+
+                                                const token = res.data.accessToken.replace(/^Bearer\s+/i, '');
+                                                localStorage.setItem('swagger_access_token', token);
+                                                authorizeWhenReady(token);
+                                                alert('Token refreshed');
                                             } catch (e) {
-                                                alert('Login error: ' + e);
+                                                alert('Refresh error: ' + e);
                                             }
                                         };
-                                    };
-
-                                    refreshBtn.onclick = async () => {
-                                        try {
-                                            const baseUrl = window.location.origin;
-
-                                            const res = await fetch(`${baseUrl}/auth/refresh`, {
-                                                method: 'POST',
-                                                credentials: 'include',
-                                            }).then(r => r.json());
-
-                                            if (!res?.data?.accessToken) {
-                                                alert('Refresh failed');
-                                                return;
-                                            }
-
-                                            const token = res.data.accessToken.replace(/^Bearer\s+/i, '');
-
-                                            localStorage.setItem('swagger_access_token', token);
-
-                                            system.authActions.authorize({
-                                                'access-token': `Bearer ${token}`,
-                                            });
-
-                                            alert('Token refreshed');
-                                        } catch (e) {
-                                            alert('Refresh error: ' + e);
-                                        }
-                                    };
-
-                                    const saved = localStorage.getItem('swagger_access_token');
-                                    if (saved) {
-                                        system.authActions.authorize({
-                                            'access-token': `Bearer ${saved}`,
-                                        });
                                     }
-                                }
-                            }, 500);
-                        },
-                    };
-                },
-            ],
+                                }, 500);
+                            },
+                        };
+                    },
+                ],
+            },
         },
-    });
+    );
+
 
     await app.listen(3001);
 }

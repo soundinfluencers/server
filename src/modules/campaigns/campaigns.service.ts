@@ -49,7 +49,7 @@ export class CampaignsService {
     }
 
     async getClientCampaignsList(clientId: string, status: CampaignStatusTypeForDevelopment = 'ongoing'): Promise<ClientGetCampaignForList[]> {
-        const checkClient = await this.clientModel.findById(clientId);
+        const checkClient = await this.clientModel.findOne({_id: new Types.ObjectId(clientId)});
 
         if (!checkClient) {
             throw new NotFoundException('User not found');
