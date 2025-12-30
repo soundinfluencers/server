@@ -40,18 +40,22 @@ export class ProfileService {
     async updatePersonalClient(data: UpdateClientPersonalDetailsDto): Promise<ClientUpdatedPersonalDetailsDto> {
         const {_id, firstName, company, email, phone} = data;
 
-        if (!_id || !firstName || !company || !email || !phone) {
-            throw new BadRequestException("Not enough arguments");
-        }
+        const updateData: Partial<{
+            firstName: string;
+            company: string;
+            email: string;
+            phone: string;
+        }> = {};
+
+        if (firstName) updateData.firstName = firstName.trim();
+        if (company) updateData.company = company.trim();
+        if (email) updateData.email = email.trim().toLowerCase();
+        if (phone) updateData.phone = phone.trim();
 
         const updatedUser = await this.clientRepo.findOneAndUpdate(
-            {_id: _id},
-            {
-                firstName: firstName.trim(),
-                company: company.trim(),
-                email: email.trim().toLowerCase(),
-                phone: phone.trim(),
-            },
+            { _id: new Types.ObjectId(_id) },
+            { $set: updateData },
+            { new: true }
         );
 
         if (!updatedUser) {
@@ -63,28 +67,31 @@ export class ProfileService {
             company: updatedUser.company,
             email: updatedUser.email,
             phone: updatedUser.phone,
-        }
+        };
     }
 
     // Updates influencer's personal information (firstName, email, phone)
     async updatePersonalInfluencer(data: UpdateInfluencerPersonalDetailsDto): Promise<InfluencerUpdatedPersonalDetailsDto> {
         const {_id, firstName, email, phone} = data;
 
-        if (!_id || !firstName || !email || !phone) {
-            throw new BadRequestException("Not enough arguments");
-        }
+        const updateData: Partial<{
+            firstName: string;
+            email: string;
+            phone: string;
+        }> = {};
+
+        if (firstName) updateData.firstName = firstName.trim();
+        if (email) updateData.email = email.trim().toLowerCase();
+        if (phone) updateData.phone = phone.trim();
 
         const updatedUser = await this.influencerRepo.findOneAndUpdate(
-            {_id: _id},
-            {
-                firstName: firstName.trim(),
-                email: email.trim().toLowerCase(),
-                phone: phone.trim(),
-            },
+            { _id: new Types.ObjectId(_id) },
+            { $set: updateData },
+            { new: true }
         );
 
         if (!updatedUser) {
-            throw new NotFoundException('Influencer not found');
+            throw new NotFoundException("Client not found");
         }
 
         return {
@@ -107,7 +114,7 @@ export class ProfileService {
         }
 
         if (role === Role.client) {
-            const client = await this.clientRepo.findOne({_id: _id});
+            const client = await this.clientRepo.findOne({_id: new Types.ObjectId(_id)});
 
             if (!client) {
                 throw new NotFoundException("Client not found");
@@ -115,7 +122,7 @@ export class ProfileService {
 
             if (bcrypt.compareSync(currentPassword, client.password)) {
                 await this.clientRepo.findOneAndUpdate(
-                    {_id: _id},
+                    {_id: new Types.ObjectId(_id)},
                     {
                         password: bcrypt.hashSync(newPassword),
                     },
@@ -124,7 +131,7 @@ export class ProfileService {
                 throw new BadRequestException("Passwords don't match");
             }
         } else if (role === Role.influencer) {
-            const influencer = await this.influencerRepo.findOne({_id: _id});
+            const influencer = await this.influencerRepo.findOne({_id: new Types.ObjectId(_id)});
 
             if (!influencer) {
                 throw new NotFoundException("Influencer not found");
@@ -132,7 +139,7 @@ export class ProfileService {
 
             if (bcrypt.compareSync(data.currentPassword, influencer.password)) {
                 await this.influencerRepo.findOneAndUpdate(
-                    {_id: _id},
+                    {_id: new Types.ObjectId(_id)},
                     {
                         password: bcrypt.hashSync(newPassword),
                     },

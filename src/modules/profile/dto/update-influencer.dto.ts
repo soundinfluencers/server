@@ -1,38 +1,42 @@
-import { ApiProperty } from '@nestjs/swagger';
+import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import { IsString, IsOptional, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import {CreateSocialAccountDto} from "../../auth/dto/create-influencer.dto";
 
 // DTO for updating personal details
 export class UpdateInfluencerPersonalDetailsDto {
-    @ApiProperty()
-    @IsString()
     _id: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional({ description: "Influencer's updated first name", example: "Eric" })
+    @IsOptional()
     @IsString()
     firstName: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional({ description: "Influencer's updated email", example: "test@gmail.com" })
+    @IsOptional()
     @IsString()
     email: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional({ description: "Influencer's updated phone number", example: "+999999" })
+    @IsOptional()
     @IsString()
     phone: string;
 }
 
 // result of updating personal details
 export class InfluencerUpdatedPersonalDetailsDto {
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     firstName: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     email: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     phone: string;
 }

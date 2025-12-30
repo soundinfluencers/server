@@ -1,31 +1,52 @@
-import {ApiProperty} from '@nestjs/swagger';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import {IsOptional, IsString} from "class-validator";
 
 export class UpdateClientPersonalDetailsDto {
     _id: string;
 
-    @ApiProperty({required: true})
-    firstName: string;
+    @ApiPropertyOptional({ description: "Client's updated first name", example: "Eric" })
+    @IsOptional()
+    @IsString()
+    firstName?: string;
 
-    @ApiProperty({required: true})
-    company: string;
+    @ApiPropertyOptional({ description: "Client's updated company name", example: "NapoleonPR" })
+    @IsOptional()
+    @IsString()
+    company?: string;
 
-    @ApiProperty({required: true})
-    email: string;
+    @ApiPropertyOptional({ description: "Client's updated email", example: "test@gmail.com" })
+    @IsOptional()
+    @IsString()
+    email?: string;
 
-    @ApiProperty({required: true})
-    phone: string;
+    @ApiPropertyOptional({ description: "Client's updated phone number", example: "+9999999" })
+    @IsOptional()
+    @IsString()
+    phone?: string;
 }
 
 export class ClientUpdatedPersonalDetailsDto {
-    @ApiProperty({required: true})
+    @ApiPropertyOptional({
+        description: "Client's updated first name",
+        example: "Eric"
+    })
     firstName: string;
 
-    @ApiProperty({required: true})
+    @ApiPropertyOptional({
+        description: "Client's updated company name",
+        example: "NapoleonPR"
+    })
     company: string;
 
-    @ApiProperty({required: true})
+    @ApiPropertyOptional({
+        description: "Client's updated email",
+        example: "test@gmail.com"
+    })
     email: string;
 
-    @ApiProperty({required: true})
+    @ApiPropertyOptional({
+        description: "Client's updated phone number",
+        example: "+9999999"
+    })
     phone: string;
 }

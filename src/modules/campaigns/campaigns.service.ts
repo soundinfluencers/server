@@ -78,9 +78,6 @@ export class CampaignsService {
 
         let campaigns: any[];
 
-        campaigns = await this.campaignRepo.findMany({})
-        console.log('ALL CAMPAIGNS COUNT:', campaigns.length);
-
         switch (data.status) {
             case "ongoing":
                 campaigns = await this.campaignRepo
