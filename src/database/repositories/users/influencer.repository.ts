@@ -97,4 +97,13 @@ export class InfluencerRepository extends BaseRepository<Influencer> {
         return applyQueryOptions(query, options);
     }
 
+    // Get influencer's social account by socialAccountId
+    async getSocialAccountById(
+        socialAccountId: Types.ObjectId,
+        options?: RepoOptions,
+    ) {
+        const query = this.influencerModel.find({
+
+        })
+    }
 }

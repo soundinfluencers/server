@@ -1,23 +1,24 @@
 import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
-import { IsString, IsOptional, IsArray, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import {IsString, IsOptional, IsArray, ValidateNested} from 'class-validator';
+import {Type} from 'class-transformer';
 import {CreateSocialAccountDto} from "../../auth/dto/create-influencer.dto";
+import {SocialMediaType} from "../../../common/types/social-media.types";
 
 // DTO for updating personal details
 export class UpdateInfluencerPersonalDetailsDto {
     _id: string;
 
-    @ApiPropertyOptional({ description: "Influencer's updated first name", example: "Eric" })
+    @ApiPropertyOptional({description: "Influencer's updated first name", example: "Eric"})
     @IsOptional()
     @IsString()
     firstName: string;
 
-    @ApiPropertyOptional({ description: "Influencer's updated email", example: "test@gmail.com" })
+    @ApiPropertyOptional({description: "Influencer's updated email", example: "test@gmail.com"})
     @IsOptional()
     @IsString()
     email: string;
 
-    @ApiPropertyOptional({ description: "Influencer's updated phone number", example: "+999999" })
+    @ApiPropertyOptional({description: "Influencer's updated phone number", example: "+999999"})
     @IsOptional()
     @IsString()
     phone: string;
@@ -47,51 +48,51 @@ export class AddSocialMediasDto {
     @IsString()
     influencerId: string;
 
-    @ApiProperty({ type: [CreateSocialAccountDto], required: false })
+    @ApiProperty({type: [CreateSocialAccountDto], required: false})
     @IsArray()
-    @ValidateNested({ each: true })
+    @ValidateNested({each: true})
     @Type(() => CreateSocialAccountDto)
     @IsOptional()
     instagram?: CreateSocialAccountDto[];
 
-    @ApiProperty({ type: [CreateSocialAccountDto], required: false })
+    @ApiProperty({type: [CreateSocialAccountDto], required: false})
     @IsArray()
-    @ValidateNested({ each: true })
+    @ValidateNested({each: true})
     @Type(() => CreateSocialAccountDto)
     @IsOptional()
     tiktok?: CreateSocialAccountDto[];
 
-    @ApiProperty({ type: [CreateSocialAccountDto], required: false })
+    @ApiProperty({type: [CreateSocialAccountDto], required: false})
     @IsArray()
-    @ValidateNested({ each: true })
+    @ValidateNested({each: true})
     @Type(() => CreateSocialAccountDto)
     @IsOptional()
     spotify?: CreateSocialAccountDto[];
 
-    @ApiProperty({ type: [CreateSocialAccountDto], required: false })
+    @ApiProperty({type: [CreateSocialAccountDto], required: false})
     @IsArray()
-    @ValidateNested({ each: true })
+    @ValidateNested({each: true})
     @Type(() => CreateSocialAccountDto)
     @IsOptional()
     soundcloud?: CreateSocialAccountDto[];
 
-    @ApiProperty({ type: [CreateSocialAccountDto], required: false })
+    @ApiProperty({type: [CreateSocialAccountDto], required: false})
     @IsArray()
-    @ValidateNested({ each: true })
+    @ValidateNested({each: true})
     @Type(() => CreateSocialAccountDto)
     @IsOptional()
     facebook?: CreateSocialAccountDto[];
 
-    @ApiProperty({ type: [CreateSocialAccountDto], required: false })
+    @ApiProperty({type: [CreateSocialAccountDto], required: false})
     @IsArray()
-    @ValidateNested({ each: true })
+    @ValidateNested({each: true})
     @Type(() => CreateSocialAccountDto)
     @IsOptional()
     youtube?: CreateSocialAccountDto[];
 
-    @ApiProperty({ type: [CreateSocialAccountDto], required: false })
+    @ApiProperty({type: [CreateSocialAccountDto], required: false})
     @IsArray()
-    @ValidateNested({ each: true })
+    @ValidateNested({each: true})
     @Type(() => CreateSocialAccountDto)
     @IsOptional()
     press?: CreateSocialAccountDto[];
@@ -99,16 +100,11 @@ export class AddSocialMediasDto {
 
 // DTO for updating one social account
 export class UpdateSocialMediaAccountDto extends CreateSocialAccountDto {
-    @ApiProperty()
-    @IsString()
     influencerId: string;
 
-    @ApiProperty()
-    @IsString()
-    typeOfSocialMedia: string;
-
-    @ApiProperty({ required: false })
-    @IsOptional()
-    @IsString()
-    oldUsername?: string;
+    @ApiProperty({
+        description: "_id of social account",
+        example: "66a747a89c6e78a6cfb83g5",
+    })
+    socialAccountId: string;
 }

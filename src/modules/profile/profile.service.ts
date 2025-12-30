@@ -152,65 +152,65 @@ export class ProfileService {
         }
     }
 
-//     // TODO: UPDATE
-//     async updateSocialAccount(data: UpdateSocialMediaAccountDto) {
-//         if (!data) throw new BadRequestException("Not enough arguments");
-//
-//         const influencer = await this.influencerRepo.findOne({_id: data._id});
-//         if (!influencer) throw new NotFoundException("Influencer not found");
-//
-//         const socialMediaAccounts = influencer[data.typeOfSocialMedia];
-//         if (!socialMediaAccounts || socialMediaAccounts.length === 0) {
-//             return {
-//                 code: 404,
-//                 message: `No accounts found for type: ${data.typeOfSocialMedia}`,
-//             };
-//         }
-//
-//         const accountIndex = socialMediaAccounts.findIndex(
-//             (account) => account._id?.toString() === data.accountId || account.instagramUsername === data.oldUsername,
-//         );
-//
-//         if (accountIndex === -1) {
-//             return {
-//                 code: 404,
-//                 message: 'Account not found',
-//             };
-//         }
-//
-//         socialMediaAccounts[accountIndex] = {
-//             ...socialMediaAccounts[accountIndex],
-//             instagramUsername: data.newUsername,
-//             instagramLink: data.instagramLink,
-//             followersNumber: data.followersNumber.replace(/[.,]/g, ''),
-//             logo: data.logo,
-//             musicStyle: data.musicStyle,
-//             musicSubStyles: data.musicSubStyles,
-//             musicStyleOther: data.musicStyleOther,
-//             countries: data.countries,
-//             categories: data.categories,
-//             engagementRate: data.engagementRate ?? null,
-//             averageViews: data.averageViews ?? null,
-//             price: data.canUpdatePrice ? data.price : socialMediaAccounts[accountIndex].price,
-//             publicPrice: data.canUpdatePrice ? data.publicPrice : socialMediaAccounts[accountIndex].publicPrice,
-//             currency: data.canUpdatePrice ? data.currency : socialMediaAccounts[accountIndex].currency,
-//             initialPrice: data.canUpdatePrice ? parseInt(String(data.initialPrice).replace(/[^\d.-]/g, '')) : socialMediaAccounts[accountIndex].initialPrice,
-//             profileCategory: data.profileCategory ?? "community",
-//             ...(data.profileCategory === "creator" && {
-//                 creatorCategories: data.creatorCategories ?? [],
-//             }),
-//             isVerified: true,
-//         };
-//
-//         influencer[data.typeOfSocialMedia] = socialMediaAccounts;
-//         await influencer.save();
-//
-//         return {
-//             code: 200,
-//             message: 'Social media account updated successfully',
-//         };
-//     }
-//
+     // TODO: UPDATE
+    async updateSocialAccount(data: UpdateSocialMediaAccountDto) {
+        if (!data) throw new BadRequestException("Not enough arguments");
+
+        const influencer = await this.influencerRepo.findOne({_id: data._id});
+        if (!influencer) throw new NotFoundException("Influencer not found");
+
+        const socialMediaAccounts = influencer[data.typeOfSocialMedia];
+        if (!socialMediaAccounts || socialMediaAccounts.length === 0) {
+            return {
+                code: 404,
+                message: `No accounts found for type: ${data.typeOfSocialMedia}`,
+            };
+        }
+
+        const accountIndex = socialMediaAccounts.findIndex(
+            (account) => account._id?.toString() === data.accountId || account.instagramUsername === data.oldUsername,
+        );
+
+        if (accountIndex === -1) {
+            return {
+                code: 404,
+                message: 'Account not found',
+            };
+        }
+
+        socialMediaAccounts[accountIndex] = {
+            ...socialMediaAccounts[accountIndex],
+            instagramUsername: data.newUsername,
+            instagramLink: data.instagramLink,
+            followersNumber: data.followersNumber.replace(/[.,]/g, ''),
+            logo: data.logo,
+            musicStyle: data.musicStyle,
+            musicSubStyles: data.musicSubStyles,
+            musicStyleOther: data.musicStyleOther,
+            countries: data.countries,
+            categories: data.categories,
+            engagementRate: data.engagementRate ?? null,
+            averageViews: data.averageViews ?? null,
+            price: data.canUpdatePrice ? data.price : socialMediaAccounts[accountIndex].price,
+            publicPrice: data.canUpdatePrice ? data.publicPrice : socialMediaAccounts[accountIndex].publicPrice,
+            currency: data.canUpdatePrice ? data.currency : socialMediaAccounts[accountIndex].currency,
+            initialPrice: data.canUpdatePrice ? parseInt(String(data.initialPrice).replace(/[^\d.-]/g, '')) : socialMediaAccounts[accountIndex].initialPrice,
+            profileCategory: data.profileCategory ?? "community",
+            ...(data.profileCategory === "creator" && {
+                creatorCategories: data.creatorCategories ?? [],
+            }),
+            isVerified: true,
+        };
+
+        influencer[data.typeOfSocialMedia] = socialMediaAccounts;
+        await influencer.save();
+
+        return {
+            code: 200,
+            message: 'Social media account updated successfully',
+        };
+    }
+
 //     // TODO: UPDATE
 //     async sendMailAboutChangingPrice(data: SendMailPriceChangeDto) {
 //         if (!data) {
