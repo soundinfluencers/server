@@ -26,13 +26,14 @@ import {
     AccountObjectForCreateNewPromoRequestMessage,
     createNewPromoRequestHTMLMessage
 } from "../../common/utils/new-promo-message";
-import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 import {getSocialMediaGroup} from "../../common/utils/socialMedia";
 import {returnMusicStyles} from "../../common/utils/genres";
 import {ClientGetDashboardCampaignsQueryDto} from "./dto/get-campaigns.dto";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
 import {CompletedCampaignRepository} from "../../database/repositories/campaigns/completed-campaign.repository";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
+import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
+import {ProposalCampaignRepository} from "../../database/repositories/campaigns/proposal-campaign.repository";
 
 @Injectable()
 export class CampaignsService {
@@ -53,10 +54,12 @@ export class CampaignsService {
         private clientRepo: ClientRepository,
         private campaignRepo: CampaignRepository,
         private completedCampaignRepo: CompletedCampaignRepository,
+        private proposalCampaignRepo: ProposalCampaignRepository,
     ) {
     }
 
     async getClientCampaignsList(data: ClientGetDashboardCampaignsQueryDto): Promise<ClientGetCampaignForList[]> {
+        const status: CampaignStatusTypeForDevelopment = data.status ?? "all"
         const limit = Number(data.limit ?? 12);
         const page = Number(data.page ?? 1);
 
@@ -68,7 +71,7 @@ export class CampaignsService {
             throw new BadRequestException('Invalid page');
         }
 
-        const skip = (data.page - 1) * limit;
+        const skip = (page - 1) * limit;
 
         const checkClient = await this.clientRepo.findOne({_id: new Types.ObjectId(data.clientId)});
 
@@ -78,13 +81,13 @@ export class CampaignsService {
 
         let campaigns: any[];
 
-        switch (data.status) {
+        switch (status) {
             case "ongoing":
                 campaigns = await this.campaignRepo
                     .findMany({
                         clientId: new Types.ObjectId(data.clientId),
                         statusCampaign: {$in: ['work', 'wait', 'estimate', 'po waiting']},
-                    }, { lean: true, limit: limit, skip: skip })
+                    }, {lean: true, limit: limit, skip: skip})
                 break;
             case "closed":
                 campaigns = await this.completedCampaignRepo
@@ -93,12 +96,70 @@ export class CampaignsService {
                             {clientId: new Types.ObjectId(data.clientId)},
                             {userId: new Types.ObjectId(data.clientId)},
                         ],
-                    }, { lean: true, limit: limit, skip: skip })
+                    }, {lean: true, limit: limit, skip: skip})
                 break;
             case "proposal":
-                throw new BadRequestException("Unsupported campaign type")
+                campaigns = await this.proposalCampaignRepo
+                    .findMany({
+                        clientId: new Types.ObjectId(data.clientId)
+                    }, {lean: true, limit: limit, skip: skip})
+                break;
+            case "all":
+                const clientObjectId = new Types.ObjectId(data.clientId);
+
+                campaigns = await this.campaignRepo
+                    .aggregate<ClientGetCampaignForList>([
+                        {
+                            $match: {
+                                clientId: clientObjectId,
+                                statusCampaign: { $in: ['work', 'wait', 'estimate', 'po waiting'] },
+                            },
+                        },
+                        {
+                            $unionWith: {
+                                coll: 'completedcampaigns',
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $or: [
+                                                { clientId: clientObjectId },
+                                                { userId: clientObjectId },
+                                            ],
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                        {
+                            $unionWith: {
+                                coll: 'proposalcampaigns',
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            clientId: clientObjectId,
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                        { $sort: { createdAt: -1 } },
+                        { $skip: skip },
+                        { $limit: limit },
+                        {
+                            $project: {
+                                _id: { $toString: '$_id' },
+                                campaignName: 1,
+                                socialMedia: 1,
+                                createdAt: 1,
+                                campaignPrice: 1,
+                                statusCampaign: 1,
+                            },
+                        },
+                    ])
+                    .exec();
+                break;
             default:
-                throw new BadRequestException("Unsupported campaign type");
+                throw new BadRequestException("Bad request. Not enough arguments (missing campaign status)");
         }
 
 

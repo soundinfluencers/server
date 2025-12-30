@@ -4,8 +4,8 @@ import { ReportSizes, ReportSizesSchema } from './schemas/reports-sizes.schema';
 import { ReportsSizesController } from './reports-sizes.controller';
 import { ReportsSizesService } from './reports-sizes.service';
 import {Campaign, CampaignSchema} from '../../database/schemas/campaign/campaign.schema';
-import { ProposalCampaign, ProposalCampaignSchema } from "../proposal-system/schemas/proposal-campaign.schema";
 import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
+import {ProposalCampaign, ProposalCampaignSchema} from "../../database/schemas/campaign/proposal-campaign.schema";
 
 @Module({
   imports: [

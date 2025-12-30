@@ -11,7 +11,7 @@ export class ClientGetDashboardCampaignsQueryDto {
     @ApiPropertyOptional({
         description: 'Type of campaigns returned',
         enum: CampaignStatusEnumForDevelopment,
-        default: CampaignStatusEnumForDevelopment.ongoing
+        default: CampaignStatusEnumForDevelopment.all
     })
     status: CampaignStatusTypeForDevelopment;
 

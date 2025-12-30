@@ -53,15 +53,15 @@ export class ProfileController {
         return this.profileService.updateUserPassword({...data, _id: request.user._id, role: request.user.role});
     }
 
-    // TODO: UPDATE
-    @Auth()
-    @Roles(Role.influencer)
-    @ApiOperation({summary: "Updates user's password"})
-    @ApiResponseDto()
-    @Put('influencer/update-social-media-account')
-    updateSocialMediaAccount(@Body() data: UpdateSocialMediaAccountDto) {
-        return this.profileService.updateSocialAccount(data);
-    }
+    // // TODO: UPDATE
+    // @Auth()
+    // @Roles(Role.influencer)
+    // @ApiOperation({summary: "Updates user's password"})
+    // @ApiResponseDto()
+    // @Put('influencer/update-social-media-account')
+    // updateSocialMediaAccount(@Body() data: UpdateSocialMediaAccountDto) {
+    //     return this.profileService.updateSocialAccount(data);
+    // }
 
     // // TODO: UPDATE
     // @Patch('influencer/delete-social-media-account')

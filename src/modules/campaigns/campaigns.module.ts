@@ -5,8 +5,8 @@ import {MongooseModule} from "@nestjs/mongoose";
 import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
 import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
 import {CompletedCampaignSchema, CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
-import {ProposalCampaign, ProposalCampaignSchema} from "../proposal-system/schemas/proposal-campaign.schema";
 import {Campaign, CampaignSchema} from "../../database/schemas/campaign/campaign.schema";
+import {ProposalCampaign, ProposalCampaignSchema} from "../../database/schemas/campaign/proposal-campaign.schema";
 
 @Module({
     imports: [

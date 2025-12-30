@@ -12,24 +12,22 @@ import {AdminUpdateClientPayment} from './dto/admin-update-client-payment.update
 import {AdminUpdateCampaignDto} from './dto/admin-update-promo.dto';
 import {AdminSendWhatsappMessageDto} from './dto/admin-send-whatsapp-message.dto';
 import {AdminUpdateInfluencerFullAccountDto} from './dto/admin-update-influencer-full-account.dto';
-import {ProposalCampaign} from '../proposal-system/schemas/proposal-campaign.schema';
 import {AdminUpdateFullCampaignDto} from './dto/admin-update-full-campaign';
 import axios from 'axios';
 import * as process from 'node:process';
 import {AdminSendMailToInfluencerDto} from './dto/admin-send-mail-to-influencer.dto';
 import {AppGateway} from '../websocket/app.gateway';
-import {AdminImportXlsxInfluencersDto, CountryObj} from "./dto/admin-import-xlsx-influencers";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {
     AccountObjectForCreateNewPromoRequestMessage, createNewPromoRequestHTMLMessage,
     createNewPromoRequestTextMessage
 } from "../../common/utils/new-promo-message";
 import {Client} from "../../database/schemas/users/client.schema";
-import {Influencer, SocialAccount} from "../../database/schemas/users/influencer.schema";
+import {Influencer} from "../../database/schemas/users/influencer.schema";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {returnMusicStyles} from "../../common/utils/genres";
 import {AddSocialMediasDto} from "../profile/dto/update-influencer.dto";
-import {InfluencerProfileCategory} from "../../common/types/influencer/influencer.types";
+import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
 
 const fs = require('fs');
 const PDFDocument = require('pdfkit');

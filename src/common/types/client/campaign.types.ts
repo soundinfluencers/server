@@ -4,13 +4,15 @@ import {SocialMediaType} from "../social-media.types";
 export type CampaignStatusTypeForDevelopment =
     'ongoing' |
     'closed' |
-    'proposal'
+    'proposal' |
+    'all'
 
 // Campaign status enum for development backend
 export enum CampaignStatusEnumForDevelopment {
     ongoing = 'ongoing',
     closed = 'closed',
-    proposal = 'proposal'
+    proposal = 'proposal',
+    all = 'all'
 }
 
 // Campaign status type for frontend and database

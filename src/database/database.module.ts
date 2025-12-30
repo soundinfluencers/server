@@ -17,6 +17,8 @@ import {Campaign, CampaignSchema} from "./schemas/campaign/campaign.schema";
 import {CompletedCampaign, CompletedCampaignSchema} from "./schemas/campaign/completed-campaign.schema";
 import {CampaignRepository} from "./repositories/campaigns/campaign.repository";
 import {CompletedCampaignRepository} from "./repositories/campaigns/completed-campaign.repository";
+import {ProposalCampaign, ProposalCampaignSchema} from "./schemas/campaign/proposal-campaign.schema";
+import {ProposalCampaignRepository} from "./repositories/campaigns/proposal-campaign.repository";
 
 @Global()
 @Module({
@@ -29,6 +31,7 @@ import {CompletedCampaignRepository} from "./repositories/campaigns/completed-ca
             { name: InfluencerActionsHistory.name, schema: InfluencerActionsHistorySchema },
             { name: Campaign.name, schema: CampaignSchema },
             { name: CompletedCampaign.name, schema: CompletedCampaignSchema },
+            { name: ProposalCampaign.name, schema: ProposalCampaignSchema }
         ]),
     ],
     providers: [
@@ -39,6 +42,7 @@ import {CompletedCampaignRepository} from "./repositories/campaigns/completed-ca
         InfluencerHistoryRepository,
         CampaignRepository,
         CompletedCampaignRepository,
+        ProposalCampaignRepository,
     ],
     exports: [
         ClientRepository,
@@ -48,6 +52,7 @@ import {CompletedCampaignRepository} from "./repositories/campaigns/completed-ca
         InfluencerHistoryRepository,
         CampaignRepository,
         CompletedCampaignRepository,
+        ProposalCampaignRepository,
     ],
 })
 export class DatabaseModule {}

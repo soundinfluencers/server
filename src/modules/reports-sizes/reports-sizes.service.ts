@@ -5,7 +5,7 @@ import {ReportSizes} from './schemas/reports-sizes.schema';
 import {UpdateReportSizeDto} from './dto/update-report-size.dto';
 import {Campaign} from '../../database/schemas/campaign/campaign.schema';
 import {GetReportSizeDto} from './dto/get-report-size.dto';
-import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
+import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
 
 @Injectable()
 export class ReportsSizesService {
