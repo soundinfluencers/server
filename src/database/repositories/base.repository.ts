@@ -23,13 +23,22 @@ export class BaseRepository<T> {
         options?: RepoOptions & { select?: string[] }
     ) {
         let query = this.model.find(filter);
+
         query = applyQueryOptions(query, options);
 
-        if (options?.select) {
+        if (options?.select?.length) {
             query = query.select(options.select.join(' '));
         }
 
-        return query;
+        if (typeof options?.limit === 'number') {
+            query = query.limit(options.limit);
+        }
+
+        if (typeof options?.skip === 'number') {
+            query = query.skip(options.skip);
+        }
+
+        return query.exec();
     }
 
     async create<U>(data: U, options?: { session?: any }): Promise<T> {

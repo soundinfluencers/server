@@ -1,5 +1,6 @@
 import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {
+    InfluencerCompletedPromo,
     InfluencerConfirmationStatusEnum,
     InfluencerConfirmationStatusType, InfluencerDashboardPromo,
     InfluencerPromo, InfluencerPromoClosedStatusEnum, InfluencerPromoClosedStatusType,
@@ -49,8 +50,11 @@ export class InfluencerPromoRequestDto implements InfluencerPromoRequest {
     @ApiProperty({ type: String, format: 'date-time' })
     dateRequest: string | Date;
 
-    @ApiProperty({ type: String, format: 'date-time' })
-    createdAt: string | Date;
+    @ApiProperty({
+        description: 'Date when campaign was created',
+        example: 'dd.mm.yy',
+    })
+    createdAt: string;
 
     @ApiProperty()
     videoLink: string;
@@ -181,17 +185,15 @@ export class InfluencerGetDashboardPromosQueryDto {
 
 export class InfluencerGetCompletedPromosQueryDto {
     @ApiPropertyOptional({
-        description: 'Type of promos returned',
-        example: 'all',
-        enum: InfluencerDashboardPromoStatus,
-        default: InfluencerDashboardPromoStatus.all
-    })
-    status: InfluencerDashboardPromoStatus
-
-    @ApiPropertyOptional({
         default: 12
     })
     limit: number;
+    
+    @ApiPropertyOptional({
+        default: 1,
+        description: 'Page number (starts from 1)',
+    })
+    page: number;
 
     influencerId: string;
 }
@@ -245,7 +247,7 @@ export class InfluencerDashboardPromoDto implements InfluencerDashboardPromo {
 
     @ApiProperty({
         description: 'Date when campaign was created',
-        example: '12.08.25',
+        example: 'dd.mm.yy',
     })
     createdAt: string;
 }
@@ -253,4 +255,66 @@ export class InfluencerDashboardPromoDto implements InfluencerDashboardPromo {
 export class InfluencerDashboardPromosDto {
     @ApiProperty({ type: () => [InfluencerDashboardPromoDto] })
     promos: InfluencerDashboardPromo[];
+}
+
+export class InfluencerCompletedPromoDto implements InfluencerCompletedPromo {
+    @ApiProperty({
+        description: 'Campaign _id',
+        example: '65f123abc456',
+    })
+    campaignId: string;
+
+    @ApiProperty({
+        description: '_id of object inside addedAccounts array from campaign',
+        example: '6612fabc999',
+    })
+    selectInfluencersId: string;
+
+    @ApiProperty({
+        description: 'Campaign name',
+        example: 'Regard & Afterlife',
+    })
+    campaignName: string;
+
+    @ApiProperty({
+        description: 'Social account username',
+        example: 'techno_tv',
+    })
+    socialMediaUsername: string;
+
+    @ApiProperty({
+        description: 'Social media of account',
+        example: 'tiktok',
+        enum: SocialMediaEnum
+    })
+    socialMedia: SocialMediaType;
+
+    @ApiProperty({
+        description: 'Reward for influencer for completing promo',
+        example: 500,
+    })
+    reward: number;
+
+    @ApiProperty({
+        description: 'Post link',
+        example: 'https://instagram.com/p/ABC123',
+    })
+    postLink: string;
+
+    @ApiProperty({
+        description: "Client's name or company name",
+        example: 'Music Label Inc',
+    })
+    client: string;
+
+    @ApiProperty({
+        description: 'Date when campaign was created',
+        example: 'dd.mm.yy',
+    })
+    createdAt: string;
+}
+
+export class InfluencerCompletedPromosDto {
+    @ApiProperty({ type: () => [InfluencerCompletedPromoDto] })
+    promos: InfluencerCompletedPromo[];
 }

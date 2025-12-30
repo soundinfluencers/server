@@ -1,5 +1,5 @@
-import {SocialMediaType} from "../social-media.types";
-import {CampaignStatusType} from "../client/campaign.types";
+import { SocialMediaType } from "../social-media.types";
+import { CampaignStatusType } from "../client/campaign.types";
 
 export interface InfluencerPromoRequest {
     // id of campaign
@@ -86,4 +86,6 @@ export interface InfluencerCompletedPromo {
     postLink: string;
     // client's name or company name
     client: string;
+    // campaign creation date
+    createdAt: string;
 }

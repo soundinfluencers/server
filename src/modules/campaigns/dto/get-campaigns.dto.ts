@@ -1,10 +1,33 @@
-import { ApiProperty } from '@nestjs/swagger';
+import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {
     CampaignStatusEnum,
-    CampaignStatusType, ClientCampaignForTable,
+    CampaignStatusEnumForDevelopment,
+    CampaignStatusType, CampaignStatusTypeForDevelopment, ClientCampaignForTable,
     ClientGetCampaignForList
 } from "../../../common/types/client/campaign.types";
 import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
+
+export class ClientGetDashboardCampaignsQueryDto {
+    @ApiPropertyOptional({
+        description: 'Type of campaigns returned',
+        enum: CampaignStatusEnumForDevelopment,
+        default: CampaignStatusEnumForDevelopment.ongoing
+    })
+    status: CampaignStatusTypeForDevelopment;
+
+    @ApiPropertyOptional({
+        default: 12,
+    })
+    limit: number;
+
+    @ApiPropertyOptional({
+        default: 1,
+        description: 'Page number (starts from 1)',
+    })
+    page: number;
+
+    clientId: string;
+}
 
 export class ClientGetCampaignForListDto implements ClientGetCampaignForList {
     @ApiProperty()
@@ -16,7 +39,10 @@ export class ClientGetCampaignForListDto implements ClientGetCampaignForList {
     @ApiProperty({ enum: [...Object.values(SocialMediaEnum), 'multipromo'] })
     socialMedia: SocialMediaType | 'multipromo';
 
-    @ApiProperty({ type: String, format: 'date-time' })
+    @ApiProperty({
+        description: 'Date when campaign was created',
+        example: 'dd.mm.yy',
+    })
     creationDate: string;
 
     @ApiProperty()

@@ -32,6 +32,7 @@ import {
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
 import {CompletedCampaignRepository} from "../../database/repositories/campaigns/completed-campaign.repository";
+import { formatDate } from 'src/common/utils/formatters';
 
 mongoose.Promise = global.Promise;
 
@@ -39,6 +40,8 @@ mongoose.Promise = global.Promise;
 export class PromosService {
     private readonly logger = new Logger();
 
+
+    // TODO: use repo instead models
     constructor(
         @InjectModel(Campaign.name)
         private campaignModel: mongoose.Model<Campaign>,
@@ -147,7 +150,7 @@ export class PromosService {
 
         const checkInfluencer = await (async () => {
             const influencer = await this.influencerModel.findOne({
-                _id: influencerId,
+                _id: new Types.ObjectId(influencerId),
             });
 
             if (influencer) {
@@ -196,7 +199,7 @@ export class PromosService {
                                 (newObjectSocialMediaAccount as any).instagramUsername,
                             socialMedia: acc.socialMedia as SocialMediaType,
                             dateRequest: newObjectSocialMediaAccount.dateRequest,
-                            createdAt: newObject.createdAt,
+                            createdAt: formatDate(newObject.createdAt),
                             videoLink: selectedCampaignContentItem.videoLink,
                             postDescription: postDescription,
                             storyTag: selectedCampaignContentItem.storyTag,
@@ -220,7 +223,7 @@ export class PromosService {
                                     (newObjectSocialMediaAccount as any).instagramUsername,
                                 socialMedia: newObject.socialMedia as SocialMediaType,
                                 dateRequest: newObjectSocialMediaAccount.dateRequest,
-                                createdAt: newObject.createdAt,
+                                createdAt: formatDate(newObject.createdAt),
                                 videoLink: selectedVideoObj.videoLink,
                                 postDescription: selectedVideoObj.postDescription,
                                 storyTag: selectedVideoObj.storyTag,
@@ -500,7 +503,18 @@ export class PromosService {
                 statusCampaign: '$statusCampaign',
                 closedStatus: '$selectInfluencers.closePromo',
                 confirmation: '$selectInfluencers.confirmation',
-                createdAt: '$createdAt',
+                createdAt: {
+                    $concat: [
+                        { $dateToString: { date: '$createdAt', format: '%d.%m.' } },
+                        {
+                            $substr: [
+                                { $dateToString: { date: '$createdAt', format: '%Y' } },
+                                2,
+                                2,
+                            ],
+                        },
+                    ],
+                },
             },
         });
 
@@ -559,13 +573,13 @@ export class PromosService {
         const [active, closed] = await Promise.all([
             this.campaignRepo
                 .aggregate<InfluencerDashboardPromo>(
-                    this.buildInfluencerDashboardPipeline(influencerId, InfluencerDashboardPromoStatus.all, skip),
+                    this.buildInfluencerDashboardPipeline(influencerId, InfluencerDashboardPromoStatus.all, limit, skip),
                 )
                 .exec(),
 
             this.completedCampaignRepo
                 .aggregate<InfluencerDashboardPromo>(
-                    this.buildInfluencerDashboardPipeline(influencerId, InfluencerDashboardPromoStatus.all, skip),
+                    this.buildInfluencerDashboardPipeline(influencerId, InfluencerDashboardPromoStatus.all, limit, skip),
                 )
                 .exec(),
         ]);
@@ -577,13 +591,109 @@ export class PromosService {
             .slice(0, limit);
     }
 
+    // Returns influencer's detailed completed promos
     async influencerGetCompletedPromos(data: InfluencerGetCompletedPromosQueryDto): Promise<InfluencerCompletedPromo[]> {
         const influencerId = data.influencerId;
-        const limit = Number(data.limit ?? 12);
 
-        return [];
+        const limit = Number(data.limit ?? 12);
+        const page = Number(data.page ?? 1);
+
+        if (!Number.isInteger(limit) || limit <= 0) {
+            throw new BadRequestException('Invalid limit');
+        }
+
+        if (!Number.isInteger(page) || page <= 0) {
+            throw new BadRequestException('Invalid page');
+        }
+
+        const skip = (data.page - 1) * limit;
+
+        const influencerExists = await this.influencerModel.exists({
+            _id: new Types.ObjectId(influencerId),
+        });
+
+        if (!influencerExists) {
+            throw new NotFoundException('Influencer not found');
+        }
+
+        return await this.completedCampaignRepo.aggregate<InfluencerCompletedPromo>([
+            {
+                $match: {
+                    'selectInfluencers.influencerId': new Types.ObjectId(influencerId),
+                },
+            },
+            {
+                $unwind: '$selectInfluencers',
+            },
+            {
+                $match: {
+                    'selectInfluencers.influencerId': new Types.ObjectId(influencerId),
+                    'selectInfluencers.closePromo': 'close',
+                },
+            },
+            {
+                $lookup: {
+                    from: 'clients',
+                    localField: 'clientId',
+                    foreignField: '_id',
+                    as: 'client',
+                },
+            },
+            {
+                $unwind: {
+                    path: '$client',
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $sort: {createdAt: -1},
+            },
+            {
+                $skip: skip,
+            },
+            {
+                $limit: limit,
+            },
+            {
+                $project: {
+                    _id: 0,
+                    campaignId: { $toString: '$_id' },
+                    selectInfluencersId: { $toString: '$selectInfluencers._id' },
+                    campaignName: '$campaignName',
+                    socialMediaUsername: '$selectInfluencers.socialMediaUsername',
+                    socialMedia: '$selectInfluencers.socialMedia',
+                    reward: { $toDouble: '$selectInfluencers.price' },
+                    postLink: '$selectInfluencers.postLink',
+                    client: {
+                        $ifNull: [
+                            {
+                                $cond: {
+                                    if: { $and: [{ $ne: ['$client.company', null] }, { $ne: ['$client.company', ''] }] },
+                                    then: '$client.company',
+                                    else: '$client.firstName',
+                                },
+                            },
+                            'No information',
+                        ],
+                    },
+                    createdAt: {
+                        $concat: [
+                            { $dateToString: { date: '$createdAt', format: '%d.%m.' } },
+                            {
+                                $substr: [
+                                    { $dateToString: { date: '$createdAt', format: '%Y' } },
+                                    2,
+                                    2,
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]).exec();
     }
 
+    // Return's influencer's detailed ongoing promo
     async influencerGetOngoingPromo(
         influencerId: string,
         campaignId: string,

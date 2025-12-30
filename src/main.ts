@@ -79,7 +79,16 @@ async function bootstrap() {
                                 const authorizeWhenReady = (token: string) => {
                                     const interval = setInterval(() => {
                                         if (system.authActions?.authorize) {
-                                            system.authActions.authorize({ 'access-token': token });
+                                            system.authActions.authorize({
+                                                'access-token': {
+                                                    name: 'access-token',
+                                                    schema: {
+                                                        type: 'http',
+                                                        scheme: 'bearer',
+                                                    },
+                                                    value: token,
+                                                },
+                                            });
                                             clearInterval(interval);
                                         }
                                     }, 100);

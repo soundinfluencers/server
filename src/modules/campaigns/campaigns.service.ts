@@ -29,11 +29,16 @@ import {
 import {ProposalCampaign} from "../proposal-system/schemas/proposal-campaign.schema";
 import {getSocialMediaGroup} from "../../common/utils/socialMedia";
 import {returnMusicStyles} from "../../common/utils/genres";
+import {ClientGetDashboardCampaignsQueryDto} from "./dto/get-campaigns.dto";
+import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
+import {CompletedCampaignRepository} from "../../database/repositories/campaigns/completed-campaign.repository";
+import {ClientRepository} from "../../database/repositories/users/client.repository";
 
 @Injectable()
 export class CampaignsService {
     private readonly logger = new Logger();
 
+    // TODO: use repo instead models
     constructor(
         @InjectModel(Campaign.name)
         private readonly campaignModel: Model<Campaign>,
@@ -45,11 +50,27 @@ export class CampaignsService {
         private completedCampaignModel: mongoose.Model<CompletedCampaign>,
         @InjectModel(ProposalCampaign.name)
         private proposalCampaignModel: mongoose.Model<ProposalCampaign>,
+        private clientRepo: ClientRepository,
+        private campaignRepo: CampaignRepository,
+        private completedCampaignRepo: CompletedCampaignRepository,
     ) {
     }
 
-    async getClientCampaignsList(clientId: string, status: CampaignStatusTypeForDevelopment = 'ongoing'): Promise<ClientGetCampaignForList[]> {
-        const checkClient = await this.clientModel.findOne({_id: new Types.ObjectId(clientId)});
+    async getClientCampaignsList(data: ClientGetDashboardCampaignsQueryDto): Promise<ClientGetCampaignForList[]> {
+        const limit = Number(data.limit ?? 12);
+        const page = Number(data.page ?? 1);
+
+        if (!Number.isInteger(limit) || limit <= 0) {
+            throw new BadRequestException('Invalid limit');
+        }
+
+        if (!Number.isInteger(page) || page <= 0) {
+            throw new BadRequestException('Invalid page');
+        }
+
+        const skip = (data.page - 1) * limit;
+
+        const checkClient = await this.clientRepo.findOne({_id: new Types.ObjectId(data.clientId)});
 
         if (!checkClient) {
             throw new NotFoundException('User not found');
@@ -57,30 +78,32 @@ export class CampaignsService {
 
         let campaigns: any[];
 
-        switch (status) {
+        campaigns = await this.campaignRepo.findMany({})
+        console.log('ALL CAMPAIGNS COUNT:', campaigns.length);
+
+        switch (data.status) {
             case "ongoing":
-                campaigns = await this.campaignModel
-                    .find({
-                        clientId: new Types.ObjectId(clientId),
+                campaigns = await this.campaignRepo
+                    .findMany({
+                        clientId: new Types.ObjectId(data.clientId),
                         statusCampaign: {$in: ['work', 'wait', 'estimate', 'po waiting']},
-                    })
-                    .lean();
+                    }, { lean: true, limit: limit, skip: skip })
                 break;
             case "closed":
-                campaigns = await this.completedCampaignModel
-                    .find({
+                campaigns = await this.completedCampaignRepo
+                    .findMany({
                         $or: [
-                            {clientId: new Types.ObjectId(clientId)},
-                            {userId: new Types.ObjectId(clientId)},
+                            {clientId: new Types.ObjectId(data.clientId)},
+                            {userId: new Types.ObjectId(data.clientId)},
                         ],
-                    })
-                    .lean();
+                    }, { lean: true, limit: limit, skip: skip })
                 break;
             case "proposal":
                 throw new BadRequestException("Unsupported campaign type")
             default:
                 throw new BadRequestException("Unsupported campaign type");
         }
+
 
         return await Promise.all(
             campaigns.map(async (item): Promise<ClientGetCampaignForList> => {

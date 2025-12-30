@@ -12,8 +12,12 @@ import {
     UnauthorizedException
 } from "@nestjs/common";
 import {CampaignsService} from "./campaigns.service";
-import {AuthenticatedRequest} from "../../common/types/auth.types";
-import {ClientCampaignForTableDto, ClientGetCampaignsDto} from "./dto/get-campaigns.dto";
+import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
+import {
+    ClientCampaignForTableDto,
+    ClientGetCampaignsDto,
+    ClientGetDashboardCampaignsQueryDto
+} from "./dto/get-campaigns.dto";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Public} from "../../common/decorators/public.decorator";
@@ -25,8 +29,8 @@ import {
     CampaignStatusEnumForDevelopment,
     CampaignStatusTypeForDevelopment, PublicCampaignForTable
 } from "../../common/types/client/campaign.types";
+import {Roles} from "../../common/decorators/roles.decorator";
 
-// TODO: add 403 forbidden for influencers
 @ApiTags('campaigns')
 @Controller('campaigns')
 export class CampaignsController {
@@ -34,6 +38,7 @@ export class CampaignsController {
     }
 
     @Auth()
+    @Roles(Role.client)
     @ApiOperation({ summary: 'Get client campaigns list' })
     @ApiResponseDto(ClientGetCampaignsDto)
     @ApiQuery({
@@ -41,22 +46,30 @@ export class CampaignsController {
         required: false,
         enum: CampaignStatusEnumForDevelopment,
     })
+    @ApiQuery({
+        name: 'limit',
+        required: false,
+        type: 'number',
+    })
+    @ApiQuery({
+        name: 'page',
+        required: false,
+        type: 'number',
+    })
     @Get()
     async getCampaignsList(
         @Req() request: AuthenticatedRequest,
-        @Query('status') status?: CampaignStatusTypeForDevelopment,
+        @Query() query: ClientGetDashboardCampaignsQueryDto,
     ): Promise<ClientGetCampaignsDto> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
-        const campaigns = await this.campaignsService.getClientCampaignsList(
-            request.user._id,
-            status,
-        );
+        const campaigns = await this.campaignsService.getClientCampaignsList({...query, clientId: request.user._id});
 
         return { campaigns };
     }
 
     @Auth()
+    @Roles(Role.client)
     @ApiOperation({summary: 'Creates a new campaign from client side'})
     @ApiResponseDto(undefined, {successStatusCode: 201})
     @Post()
@@ -131,6 +144,7 @@ export class CampaignsController {
     }
 
     @Auth()
+    @Roles(Role.client)
     @ApiOperation({summary: 'Get client campaign (completed or ongoing)'})
     @ApiQuery({name: 'campaignId', required: true})
     @ApiResponseDto(ClientCampaignForTableDto)
@@ -144,6 +158,7 @@ export class CampaignsController {
 
     // TODO: DELETE (INSTEAD OF THIS - CREATE LOGIC IN client/get/list)
     @Auth()
+    @Roles(Role.client)
     @Get('proposals')
     @ApiOperation({summary: `Gets client's proposal campaigns (Will be deleted)`})
     @ApiResponseDto(ClientGetCampaignsDto)
@@ -164,6 +179,7 @@ export class CampaignsController {
     }
 
     @Auth()
+    @Roles(Role.client)
     @ApiOperation({summary: `Sends full service campaign request`})
     @Post('requests/full-service')
     @ApiResponseDto(undefined, { successStatusCode: 201 })

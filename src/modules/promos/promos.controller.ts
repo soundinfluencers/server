@@ -16,11 +16,12 @@ import {ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {FileInterceptor} from '@nestjs/platform-express';
 import File from 'multer';
 import {
+    InfluencerCompletedPromosDto,
     InfluencerDashboardPromosDto,
     InfluencerDashboardPromoStatus,
+    InfluencerGetCompletedPromosQueryDto,
     InfluencerGetDashboardPromosQueryDto,
     InfluencerGetOngoingOrPastPromoResDto,
-    InfluencerGetOngoingOrPastPromosResDto,
     InfluencerGetPastPromoQueryDto,
     InfluencerGetPromoRequestsDto,
     InfluencerUpdatePromoReqQueryDto,
@@ -32,7 +33,6 @@ import {ApiResponseDto} from "../../common/decorators/api/response/api-response.
 import {InfluencerPromo} from "../../common/types/influencer/promo.types";
 import {Roles} from "../../common/decorators/roles.decorator";
 
-// TODO: add 403 forbidden for clients
 @ApiTags('promos')
 @Controller('promos')
 export class PromosController {
@@ -85,7 +85,6 @@ export class PromosController {
         return this.promosService.influencerUpdateResponseNewCampaign(dataToUse);
     }
 
-    // todo: add page query
     @Auth()
     @Roles(Role.influencer)
     @ApiOperation({summary: `Returns influencer's ongoing, completed, new requests promos`})
@@ -100,12 +99,38 @@ export class PromosController {
         required: false,
         type: 'number',
     })
+    @ApiQuery({
+        name: 'page',
+        required: false,
+        type: 'number',
+    })
     @Get()
     async influencerGetDashboardPromos(@Req() request: AuthenticatedRequest, @Query() query: InfluencerGetDashboardPromosQueryDto): Promise<InfluencerDashboardPromosDto> {
-        console.log(request.user, 'req')
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
         const promos = await this.promosService.influencerGetDashboardPromos({...query, influencerId: request.user._id});
+        return ({promos});
+    }
+
+    @Auth()
+    @Roles(Role.influencer)
+    @ApiOperation({summary: `Returns influencer's detailed completed promos`})
+    @ApiResponseDto(InfluencerCompletedPromosDto)
+    @ApiQuery({
+        name: 'limit',
+        required: false,
+        type: 'number',
+    })
+    @ApiQuery({
+        name: 'page',
+        required: false,
+        type: 'number',
+    })
+    @Get('completed')
+    async influencerGetCompletedPromos(@Req() request: AuthenticatedRequest, @Query() query: InfluencerGetCompletedPromosQueryDto): Promise<InfluencerCompletedPromosDto> {
+        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
+
+        const promos = await this.promosService.influencerGetCompletedPromos({...query, influencerId: request.user._id});
         return ({promos});
     }
 
