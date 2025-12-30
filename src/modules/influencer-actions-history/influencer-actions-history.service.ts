@@ -1,98 +1,55 @@
-import {Injectable, Logger} from '@nestjs/common';
-import {InjectModel} from '@nestjs/mongoose';
-import mongoose, {ClientSession, Model} from 'mongoose';
-import {
-    CampaignAction, CampaignActionsHistory,
-    InfluencerActionsHistory
-} from "../../database/schemas/histories/influencer-actions-history.schema";
-import {Campaign} from "../../database/schemas/campaign/campaign.schema";
-import {UpsertCampaignHistoryDto} from "./dto/upsert-campaign-history.dto";
-import {UpsertInvoiceHistoryDto} from "./dto/upsert-invoice-history.dto";
+import {BadRequestException, Injectable, Logger, NotFoundException} from '@nestjs/common';
+import mongoose, {ClientSession} from 'mongoose';
+import {UpsertCampaignActionDto, UpsertInvoiceActionDto} from "./dto/upsert-actions.dto";
 import {CheckIfInCampaignDto} from "./dto/check-if-in-campaign.dto";
-import {Influencer} from "../../database/schemas/users/influencer.schema";
-import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {InfluencerHistoryRepository} from "../../database/repositories/histories/influencer-history.repository";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {CampaignActionWithCampaignMeta} from "../../database/types/histories/influencer-history.types";
+import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
+import {CompletedCampaignRepository} from "../../database/repositories/campaigns/completed-campaign.repository";
+import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
+import {
+    CampaignAction,
+    InfluencerActionsHistory
+} from "../../database/schemas/histories/influencer-actions-history.schema";
+import {GetAllHistoriesQueryDto} from "./dto/get-history.dto";
 
 @Injectable()
 export class InfluencerActionsHistoryService {
     private readonly logger = new Logger();
 
     constructor(
-        @InjectModel(InfluencerActionsHistory.name)
-        private influencerActionsHistoryModel: Model<InfluencerActionsHistory>,
-        @InjectModel(Influencer.name)
-        private influencerModel: mongoose.Model<Influencer>,
-        @InjectModel(Campaign.name)
-        private campaignModel: mongoose.Model<Campaign>,
-        @InjectModel(CompletedCampaign.name)
-        private completedCampaignModel: mongoose.Model<CompletedCampaign>,
+        private readonly influencerRepo: InfluencerRepository,
+        private readonly campaignRepository: CampaignRepository,
+        private readonly completedCampaignRepo: CompletedCampaignRepository,
         private readonly influencerHistoryRepo: InfluencerHistoryRepository,
     ) {
     }
 
-    async upsertInfluencerCampaignActionsHistory(data: UpsertCampaignHistoryDto) {
+    // Upserts new campaign action to influencer's history
+    async upsertInfluencerCampaignActionsHistory(data: UpsertCampaignActionDto): Promise<void> {
         const {influencerId, campaignId, campaignName, updatedCampaignAction} = data;
 
-        const influencer = await this.influencerModel
-            .findById(new mongoose.Types.ObjectId(influencerId))
-            .select('email balance');
+        if (!updatedCampaignAction) throw new BadRequestException("Missing campaign action");
 
-        if (!influencer) {
-            return {
-                code: 400,
-                message: 'Influencer not found',
-            };
-        }
+        const influencer = await this.influencerRepo.findById(influencerId).select('email balance');
+
+        if (!influencer) throw new NotFoundException(`Influencer ${influencerId} not found`);
 
         const {email, balance} = influencer;
 
-        if (!updatedCampaignAction) {
-            return {
-                code: 400,
-                message: 'Invalid request',
-            };
-        }
+        const {actionNumber, networkUsername, rewardForInfluencer, socialMedia} = updatedCampaignAction;
 
-        const {actionNumber, networkUsername, rewardForInfluencer, socialMedia} =
-            updatedCampaignAction;
-
-        if (
-            !campaignId ||
-            !campaignName ||
-            actionNumber === null ||
-            actionNumber === undefined ||
-            !networkUsername ||
-            rewardForInfluencer === null ||
-            rewardForInfluencer === undefined
-        ) {
-            this.logger.error(
-                `SAVING INFLUENCER HISTORY INVALID REQ:
-       \ncampaignId: ${campaignId}
-       \ncampaignName: ${campaignName}
-       \nactionNumber: ${actionNumber}
-       \nnetworkUsername: ${networkUsername}
-       \nrewardForInfluencer: ${rewardForInfluencer}`,
-                new Error().stack,
-            );
-            return {
-                code: 400,
-                message: 'Invalid request',
-            };
-        }
-
-        const action = {
+        const action: CampaignAction = {
             actionNumber,
             networkUsername,
             rewardForInfluencer,
             socialMedia,
-            currentBalance:
-                actionNumber === 3 ? parseInt(balance) + rewardForInfluencer : parseInt(balance),
-            date: new Date(),
+            currentBalance: actionNumber === 3 ? parseInt(balance) + rewardForInfluencer : parseInt(balance),
+            date: new Date()
         };
 
-        const updateResult = await this.influencerActionsHistoryModel.findOneAndUpdate(
+        const updateResult = await this.influencerHistoryRepo.findOneAndUpdate(
             {
                 influencerId: new mongoose.Types.ObjectId(influencerId),
                 'campaigns.campaignId': campaignId,
@@ -107,100 +64,58 @@ export class InfluencerActionsHistoryService {
             },
         );
 
-        if (updateResult) {
-            return {
-                code: 200,
-                message: 'Influencer actions history updated (existing campaign)',
-            };
-        }
-
-        const campaignPushResult = await this.influencerActionsHistoryModel.findOneAndUpdate(
-            {
-                influencerId: new mongoose.Types.ObjectId(influencerId),
-            },
-            {
-                $push: {
-                    campaigns: {
-                        campaignId,
-                        campaignName,
-                        actions: [action],
+        if (!updateResult) {
+            await this.influencerHistoryRepo.findOneAndUpdate(
+                {
+                    influencerId: new mongoose.Types.ObjectId(influencerId),
+                },
+                {
+                    $push: {
+                        campaigns: {
+                            campaignId,
+                            campaignName,
+                            actions: [action],
+                        },
+                    },
+                    $setOnInsert: {
+                        influencerEmail: email,
                     },
                 },
-                $setOnInsert: {
-                    influencerEmail: email,
+                {
+                    new: true,
+                    upsert: true,
                 },
-            },
-            {
-                new: true,
-                upsert: true,
-            },
-        );
-
-        if (campaignPushResult) {
-            return {
-                code: 200,
-                message: 'Influencer actions history updated (new campaign or document)',
-            };
+            );
         }
-
-        return {
-            code: 500,
-            message: 'Failed to update influencer actions history',
-        };
     }
 
-    async upsertInfluencerInvoiceHistory(data: UpsertInvoiceHistoryDto) {
+    async upsertInfluencerInvoiceHistory(data: UpsertInvoiceActionDto): Promise<void> {
         const {influencerId, invoiceId, paymentMethod, currentBalance, amount} = data;
 
-        if (!influencerId || !amount || !paymentMethod || !invoiceId) {
-            return {
-                code: 400,
-                message: 'Invalid request',
-            };
-        }
+        if (!influencerId || !amount || !paymentMethod || !invoiceId) throw new BadRequestException("Not enough arguments");
 
-        let influencerActionsHistory = await this.influencerActionsHistoryModel.findOne({
+        let influencerActionsHistory = await this.influencerHistoryRepo.findOne({
             influencerId: new mongoose.Types.ObjectId(influencerId),
         });
 
         if (!influencerActionsHistory) {
-            try {
-                const {email} = await this.influencerModel
-                    .findById(new mongoose.Types.ObjectId(influencerId))
-                    .select('email');
+            const {email} = await this.influencerRepo.findById(influencerId).select('email');
 
-                if (!email) {
-                    return {
-                        code: 400,
-                        message: 'Influencer not found',
-                    };
-                }
+            if (!email) throw new NotFoundException(`Influencer ${influencerId} not found`);
 
-                await this.influencerActionsHistoryModel.create({
-                    influencerId: new mongoose.Types.ObjectId(influencerId),
-                    influencerEmail: email,
-                    invoices: [
-                        {
-                            invoiceId: invoiceId,
-                            amount: amount,
-                            paymentMethod: paymentMethod,
-                            currentBalance: currentBalance,
-                            date: new Date(),
-                        },
-                    ],
-                });
-
-                return {
-                    code: 200,
-                    message: 'Influencer invoice history created',
-                };
-            } catch (e) {
-                console.log(e);
-                return {
-                    code: 500,
-                    message: e.message,
-                };
-            }
+            await this.influencerHistoryRepo.create({
+                influencerId: new mongoose.Types.ObjectId(influencerId),
+                influencerEmail: email,
+                invoices: [
+                    {
+                        invoiceId: invoiceId,
+                        amount: amount,
+                        paymentMethod: paymentMethod,
+                        currentBalance: currentBalance,
+                        date: new Date(),
+                    },
+                ],
+            });
         } else {
             influencerActionsHistory.invoices.push({
                 invoiceId,
@@ -210,386 +125,278 @@ export class InfluencerActionsHistoryService {
                 date: new Date(),
             });
 
-            try {
-                await influencerActionsHistory.save();
-                return {
-                    code: 200,
-                    message: 'Influencer invoice history updated',
-                };
-            } catch (e) {
-                console.log(e);
-                return {
-                    code: 500,
-                    message: e.message,
-                };
-            }
+            await influencerActionsHistory.save();
         }
     }
 
-    async getActionsHistoryForAllOfInfluencers() {
-        const influencerActionsHistory = await this.influencerActionsHistoryModel.find().lean().exec();
+    async getAllHistories(data: GetAllHistoriesQueryDto): Promise<InfluencerActionsHistory[]> {
+        const limit = Number(data.limit ?? 10);
+        const page = Number(data.page ?? 1);
 
-        if (!influencerActionsHistory) {
-            return {
-                code: 404,
-                message: 'Influencers actions history not found',
-            };
+        if (!Number.isInteger(limit) || limit <= 0) {
+            throw new BadRequestException('Invalid limit');
         }
 
-        const processedInfluencerActionsHistory = await Promise.all(
-            influencerActionsHistory
-                .map(async (influencerActionsHistory) => {
-                    const influencer = await this.influencerModel.findById(
-                        influencerActionsHistory.influencerId,
-                    );
-
-                    if (!influencer) {
-                        console.warn(
-                            `Influencer not found for ID: ${influencerActionsHistory.influencerId} - INFLUENCER ACTIONS HISTORY SERVICE`,
-                            new Date().toLocaleString(),
-                        );
-                        return null;
-                    }
-
-                    const socialMedias = [
-                        'instagram',
-                        'tiktok',
-                        'youtube',
-                        'spotify',
-                        'soundcloud',
-                        'facebook',
-                        'press',
-                    ];
-
-                    const influencerNetworkUsernames = socialMedias
-                        .flatMap((socialMedia) => {
-                            const influencersSocialMediaAccounts = influencer[socialMedia];
-
-                            if (influencersSocialMediaAccounts) {
-                                return influencersSocialMediaAccounts
-                                    .filter((account) => account && account.instagramUsername)
-                                    .map((account) => ({
-                                        socialMedia: socialMedia,
-                                        networkUsername: account.instagramUsername,
-                                        influencerId: influencer._id,
-                                        publicPrice: account.publicPrice,
-                                        ownerFirstName: influencer.firstName,
-                                    }));
-                            }
-                            return [];
-                        })
-                        .filter(Boolean);
-
-                    const actionsHistory = [
-                        ...influencerActionsHistory.campaigns.flatMap((campaign) =>
-                            campaign.actions.map((action) => ({
-                                typeOfAction: 'campaign',
-                                campaignId: campaign.campaignId,
-                                campaignName: campaign.campaignName,
-                                actionNumber: action.actionNumber,
-                                socialMedia: action.socialMedia,
-                                networkUsername: action.networkUsername,
-                                rewardForInfluencer: action.rewardForInfluencer,
-                                currentBalance: action.currentBalance,
-                                date: action.date,
-                            })),
-                        ),
-                        ...influencerActionsHistory.invoices.map((invoice) => ({
-                            typeOfAction: 'invoice',
-                            invoiceId: invoice.invoiceId,
-                            amount: invoice.amount,
-                            paymentMethod: invoice.paymentMethod,
-                            currentBalance: invoice.currentBalance,
-                            date: invoice.date,
-                        })),
-                    ];
-
-                    actionsHistory.sort((a, b) => {
-                        const dateA = a.date instanceof Date ? a.date.getTime() : 0;
-                        const dateB = b.date instanceof Date ? b.date.getTime() : 0;
-                        return dateB - dateA;
-                    });
-
-                    if (influencerNetworkUsernames?.length > 0) {
-                        return {
-                            influencerId: influencerActionsHistory.influencerId,
-                            influencerNetworkUsernames: influencerNetworkUsernames,
-                            influencerEmail: influencer.email,
-                            history: actionsHistory,
-                        };
-                    }
-
-                    if (influencerNetworkUsernames?.length > 0)
-                        return {
-                            influencerId: influencerActionsHistory.influencerId,
-                            influencerNetworkUsernames: influencerNetworkUsernames,
-                            influencerEmail: influencer.email,
-                            history: actionsHistory,
-                        };
-                })
-                .filter(Boolean),
-        );
-
-        if (!processedInfluencerActionsHistory) {
-            return {
-                code: 404,
-                message: 'Influencers actions history not found',
-            };
+        if (!Number.isInteger(page) || page <= 0) {
+            throw new BadRequestException('Invalid page');
         }
 
-        return {
-            code: 200,
-            influencerActionsHistory: processedInfluencerActionsHistory,
-        };
+        const skip = (page - 1) * limit;
+
+        return await this.influencerHistoryRepo.findMany({}, { lean: true, limit, skip })
     }
 
-    async getActionsHistoryForInfluencer(influencerId: string) {
-        const influencerActionsHistory = await this.influencerActionsHistoryModel
-            .findOne({influencerId: new mongoose.Types.ObjectId(influencerId)})
-            .lean()
-            .exec();
+    // // TODO
+    // async getActionsHistoryForInfluencer(influencerId: string) {
+    //     const influencerActionsHistory = await this.influencerHistoryRepo
+    //         .findOne({influencerId: new mongoose.Types.ObjectId(influencerId)})
+    //         .lean()
+    //         .exec();
+    //
+    //     if (!influencerActionsHistory) {
+    //         return {
+    //             code: 404,
+    //             message: `Influencer's actions history not found`,
+    //         };
+    //     }
+    //
+    //     const influencer = await this.influencerRepo.findById(influencerActionsHistory.influencerId);
+    //
+    //     if (!influencer) {
+    //         console.warn(
+    //             `Influencer not found for ID: ${influencerActionsHistory.influencerId} - INFLUENCER ACTIONS HISTORY SERVICE`,
+    //             new Date().toLocaleString(),
+    //         );
+    //         return {
+    //             code: 404,
+    //             message: 'Influencer not found',
+    //         };
+    //     }
+    //
+    //     const socialMedias = [
+    //         'instagram',
+    //         'tiktok',
+    //         'youtube',
+    //         'spotify',
+    //         'soundcloud',
+    //         'facebook',
+    //         'press',
+    //     ];
+    //
+    //     const processedName = influencer.firstName.trim()
+    //         ? influencer.firstName.trim()
+    //         : influencer.email.includes('@')
+    //             ? influencer.email.split('@')[0]
+    //             : influencer.email;
+    //
+    //     const influencerNetworkUsernames = socialMedias.flatMap((socialMedia) => {
+    //         const accounts = influencer[socialMedia];
+    //
+    //         if (accounts) {
+    //             return accounts
+    //                 .filter((account) => account && account.instagramUsername)
+    //                 .map((account) => ({
+    //                     socialMedia: socialMedia,
+    //                     networkUsername: account.instagramUsername,
+    //                     influencerId: influencer._id,
+    //                     publicPrice: account.publicPrice,
+    //                     ownerFirstName: influencer.firstName.trim()
+    //                         ? influencer.firstName.trim()
+    //                         : influencer.email,
+    //                     networkAccountId: account._id,
+    //                 }));
+    //         }
+    //
+    //         return [];
+    //     });
+    //
+    //     const actionsHistory = [
+    //         ...(influencerActionsHistory.campaigns || []).flatMap((campaign) =>
+    //             campaign.actions.map((action) => ({
+    //                 actionId: (action as any)._id ?? null,
+    //                 typeOfAction: 'campaign',
+    //                 campaignId: campaign.campaignId,
+    //                 campaignName: campaign.campaignName,
+    //                 actionNumber: action.actionNumber,
+    //                 socialMedia: action.socialMedia,
+    //                 networkUsername: action.networkUsername,
+    //                 rewardForInfluencer: action.rewardForInfluencer,
+    //                 currentBalance: action.currentBalance,
+    //                 date: action.date,
+    //                 isStillInCampaign: action.isStillInCampaign ?? true
+    //             })),
+    //         ),
+    //         ...(influencerActionsHistory.invoices || []).map((invoice) => ({
+    //             typeOfAction: 'invoice',
+    //             invoiceId: invoice.invoiceId,
+    //             amount: invoice.amount,
+    //             paymentMethod: invoice.paymentMethod,
+    //             currentBalance: invoice.currentBalance,
+    //             date: invoice.date,
+    //         })),
+    //     ];
+    //
+    //     actionsHistory.sort((a, b) => {
+    //         const dateA = a.date instanceof Date ? a.date.getTime() : 0;
+    //         const dateB = b.date instanceof Date ? b.date.getTime() : 0;
+    //         return dateB - dateA;
+    //     });
+    //
+    //     return {
+    //         code: 200,
+    //         influencerActionsHistory: {
+    //             influencerId: influencer._id,
+    //             influencerNetworkUsernames,
+    //             influencerEmail: influencer.email,
+    //             influencerName: processedName,
+    //             history: actionsHistory,
+    //             currencyNote: influencer?.currencyNote ? influencer.currencyNote : '',
+    //         },
+    //     };
+    // }
+    //
+    // // TODO
+    // async getLastUpdates() {
+    //     try {
+    //         const results = await this.influencerHistoryRepo.aggregate([
+    //             {$unwind: '$campaigns'},
+    //             {$unwind: '$campaigns.actions'},
+    //             {
+    //                 $replaceRoot: {
+    //                     newRoot: {
+    //                         $mergeObjects: [
+    //                             '$campaigns.actions',
+    //                             {
+    //                                 influencerId: '$influencerId',
+    //                                 influencerEmail: '$influencerEmail',
+    //                                 campaignName: '$campaigns.campaignName',
+    //                                 campaignId: '$campaigns.campaignId',
+    //                             },
+    //                         ],
+    //                     },
+    //                 },
+    //             },
+    //
+    //             {$sort: {date: -1}},
+    //
+    //             {$limit: 5},
+    //         ]);
+    //
+    //         return {
+    //             code: 200,
+    //             lastUpdates: results,
+    //         };
+    //     } catch (error) {
+    //         console.error(error);
+    //         return {
+    //             code: 500,
+    //             message: 'Something went wrong while retrieving last updates',
+    //             lastUpdates: [],
+    //         };
+    //     }
+    // }
+    //
+    // // TODO
+    // async checkIfStillInCampaign(data: CheckIfInCampaignDto) {
+    //     try {
+    //         let promo = await this.campaignRepository.findOne(
+    //             {
+    //                 _id: new mongoose.Types.ObjectId(data.campaignId),
+    //                 selectInfluencers: {
+    //                     $elemMatch: {
+    //                         influencerId: data.influencerId,
+    //                         socialMediaUsername: data.networkUsername,
+    //                     },
+    //                 },
+    //             },
+    //             {_id: 1}
+    //         ).lean();
+    //
+    //         if (!promo) {
+    //             promo = await this.completedCampaignRepo.findOne(
+    //                 {
+    //                     _id: new mongoose.Types.ObjectId(data.campaignId),
+    //                     selectInfluencers: {
+    //                         $elemMatch: {
+    //                             influencerId: data.influencerId,
+    //                             socialMediaUsername: data.networkUsername,
+    //                         },
+    //                     },
+    //                 },
+    //                 {_id: 1}
+    //             ).lean();
+    //         }
+    //
+    //         const isStillInCampaign = !!promo;
+    //
+    //         // Обновление истории
+    //         const filter = data.actionId
+    //             ? {"campaigns.actions._id": new mongoose.Types.ObjectId(data.actionId)}
+    //             : {
+    //                 influencerId: new mongoose.Types.ObjectId(data.influencerId),
+    //                 "campaigns.campaignId": data.campaignId,
+    //             };
+    //
+    //         const arrayFilters = data.actionId
+    //             ? [
+    //                 {"campaign.actions._id": new mongoose.Types.ObjectId(data.actionId)},
+    //                 {"action._id": new mongoose.Types.ObjectId(data.actionId)},
+    //             ]
+    //             : [
+    //                 {"campaign.campaignId": data.campaignId},
+    //                 {"action.networkUsername": data.networkUsername},
+    //             ];
+    //
+    //         await this.influencerHistoryRepo.updateOne(
+    //             filter,
+    //             {
+    //                 $set: {
+    //                     "campaigns.$[campaign].actions.$[action].isStillInCampaign": isStillInCampaign,
+    //                     updatedAt: new Date(),
+    //                 },
+    //             },
+    //             {arrayFilters}
+    //         );
+    //
+    //         // Получение обновлённого action
+    //         const historyDoc = await this.influencerHistoryRepo.findOne(filter, {"campaigns.$": 1}).lean();
+    //         const campaign = historyDoc.campaigns[0];
+    //         const updatedAction = data.actionId
+    //             ? campaign.actions.find(a => (a as any)._id.toString() === data.actionId)
+    //             : campaign.actions.find(a => a.networkUsername === data.networkUsername);
+    //
+    //         return {
+    //             code: 200,
+    //             isStillInCampaign,
+    //             isError: false,
+    //             updatedAction: {
+    //                 actionId: (updatedAction as any)._id ?? null,
+    //                 typeOfAction: 'campaign',
+    //                 campaignId: campaign.campaignId,
+    //                 campaignName: campaign.campaignName,
+    //                 actionNumber: updatedAction.actionNumber,
+    //                 socialMedia: updatedAction.socialMedia,
+    //                 networkUsername: updatedAction.networkUsername,
+    //                 rewardForInfluencer: updatedAction.rewardForInfluencer,
+    //                 currentBalance: updatedAction.currentBalance,
+    //                 date: updatedAction.date,
+    //                 isStillInCampaign: updatedAction.isStillInCampaign ?? true
+    //             },
+    //         };
+    //     } catch (e) {
+    //         this.logger.error(
+    //             `Error checking if ${data.socialMedia} account (${data.networkUsername}) still in campaign ${data.campaignId} (${data.campaignName}). \n${e.message}`,
+    //             e instanceof Error ? e.stack : new Error().stack
+    //         );
+    //         return {
+    //             code: 500,
+    //             isStillInCampaign: true,
+    //             isError: true,
+    //             updatedAction: null,
+    //         };
+    //     }
+    // }
 
-        if (!influencerActionsHistory) {
-            return {
-                code: 404,
-                message: `Influencer's actions history not found`,
-            };
-        }
-
-        const influencer = await this.influencerModel.findById(influencerActionsHistory.influencerId);
-
-        if (!influencer) {
-            console.warn(
-                `Influencer not found for ID: ${influencerActionsHistory.influencerId} - INFLUENCER ACTIONS HISTORY SERVICE`,
-                new Date().toLocaleString(),
-            );
-            return {
-                code: 404,
-                message: 'Influencer not found',
-            };
-        }
-
-        const socialMedias = [
-            'instagram',
-            'tiktok',
-            'youtube',
-            'spotify',
-            'soundcloud',
-            'facebook',
-            'press',
-        ];
-
-        const processedName = influencer.firstName.trim()
-            ? influencer.firstName.trim()
-            : influencer.email.includes('@')
-                ? influencer.email.split('@')[0]
-                : influencer.email;
-
-        const influencerNetworkUsernames = socialMedias.flatMap((socialMedia) => {
-            const accounts = influencer[socialMedia];
-
-            if (accounts) {
-                return accounts
-                    .filter((account) => account && account.instagramUsername)
-                    .map((account) => ({
-                        socialMedia: socialMedia,
-                        networkUsername: account.instagramUsername,
-                        influencerId: influencer._id,
-                        publicPrice: account.publicPrice,
-                        ownerFirstName: influencer.firstName.trim()
-                            ? influencer.firstName.trim()
-                            : influencer.email,
-                        networkAccountId: account._id,
-                    }));
-            }
-
-            return [];
-        });
-
-        const actionsHistory = [
-            ...(influencerActionsHistory.campaigns || []).flatMap((campaign) =>
-                campaign.actions.map((action) => ({
-                    actionId: (action as any)._id ?? null,
-                    typeOfAction: 'campaign',
-                    campaignId: campaign.campaignId,
-                    campaignName: campaign.campaignName,
-                    actionNumber: action.actionNumber,
-                    socialMedia: action.socialMedia,
-                    networkUsername: action.networkUsername,
-                    rewardForInfluencer: action.rewardForInfluencer,
-                    currentBalance: action.currentBalance,
-                    date: action.date,
-                    isStillInCampaign: action.isStillInCampaign ?? true
-                })),
-            ),
-            ...(influencerActionsHistory.invoices || []).map((invoice) => ({
-                typeOfAction: 'invoice',
-                invoiceId: invoice.invoiceId,
-                amount: invoice.amount,
-                paymentMethod: invoice.paymentMethod,
-                currentBalance: invoice.currentBalance,
-                date: invoice.date,
-            })),
-        ];
-
-        actionsHistory.sort((a, b) => {
-            const dateA = a.date instanceof Date ? a.date.getTime() : 0;
-            const dateB = b.date instanceof Date ? b.date.getTime() : 0;
-            return dateB - dateA;
-        });
-
-        return {
-            code: 200,
-            influencerActionsHistory: {
-                influencerId: influencer._id,
-                influencerNetworkUsernames,
-                influencerEmail: influencer.email,
-                influencerName: processedName,
-                history: actionsHistory,
-                currencyNote: influencer?.currencyNote ? influencer.currencyNote : '',
-            },
-        };
-    }
-
-    async getLastUpdates() {
-        try {
-            const results = await this.influencerActionsHistoryModel.aggregate([
-                {$unwind: '$campaigns'},
-                {$unwind: '$campaigns.actions'},
-                {
-                    $replaceRoot: {
-                        newRoot: {
-                            $mergeObjects: [
-                                '$campaigns.actions',
-                                {
-                                    influencerId: '$influencerId',
-                                    influencerEmail: '$influencerEmail',
-                                    campaignName: '$campaigns.campaignName',
-                                    campaignId: '$campaigns.campaignId',
-                                },
-                            ],
-                        },
-                    },
-                },
-
-                {$sort: {date: -1}},
-
-                {$limit: 5},
-            ]);
-
-            return {
-                code: 200,
-                lastUpdates: results,
-            };
-        } catch (error) {
-            console.error(error);
-            return {
-                code: 500,
-                message: 'Something went wrong while retrieving last updates',
-                lastUpdates: [],
-            };
-        }
-    }
-
-    async checkIfStillInCampaign(data: CheckIfInCampaignDto) {
-        try {
-            let promo = await this.campaignModel.findOne(
-                {
-                    _id: new mongoose.Types.ObjectId(data.campaignId),
-                    selectInfluencers: {
-                        $elemMatch: {
-                            influencerId: data.influencerId,
-                            socialMediaUsername: data.networkUsername,
-                        },
-                    },
-                },
-                {_id: 1}
-            ).lean();
-
-            if (!promo) {
-                promo = await this.completedCampaignModel.findOne(
-                    {
-                        _id: new mongoose.Types.ObjectId(data.campaignId),
-                        selectInfluencers: {
-                            $elemMatch: {
-                                influencerId: data.influencerId,
-                                socialMediaUsername: data.networkUsername,
-                            },
-                        },
-                    },
-                    {_id: 1}
-                ).lean();
-            }
-
-            const isStillInCampaign = !!promo;
-
-            // Обновление истории
-            const filter = data.actionId
-                ? {"campaigns.actions._id": new mongoose.Types.ObjectId(data.actionId)}
-                : {
-                    influencerId: new mongoose.Types.ObjectId(data.influencerId),
-                    "campaigns.campaignId": data.campaignId,
-                };
-
-            const arrayFilters = data.actionId
-                ? [
-                    {"campaign.actions._id": new mongoose.Types.ObjectId(data.actionId)},
-                    {"action._id": new mongoose.Types.ObjectId(data.actionId)},
-                ]
-                : [
-                    {"campaign.campaignId": data.campaignId},
-                    {"action.networkUsername": data.networkUsername},
-                ];
-
-            await this.influencerActionsHistoryModel.updateOne(
-                filter,
-                {
-                    $set: {
-                        "campaigns.$[campaign].actions.$[action].isStillInCampaign": isStillInCampaign,
-                        updatedAt: new Date(),
-                    },
-                },
-                {arrayFilters}
-            );
-
-            // Получение обновлённого action
-            const historyDoc = await this.influencerActionsHistoryModel.findOne(filter, {"campaigns.$": 1}).lean();
-            const campaign = historyDoc.campaigns[0];
-            const updatedAction = data.actionId
-                ? campaign.actions.find(a => (a as any)._id.toString() === data.actionId)
-                : campaign.actions.find(a => a.networkUsername === data.networkUsername);
-
-            return {
-                code: 200,
-                isStillInCampaign,
-                isError: false,
-                updatedAction: {
-                    actionId: (updatedAction as any)._id ?? null,
-                    typeOfAction: 'campaign',
-                    campaignId: campaign.campaignId,
-                    campaignName: campaign.campaignName,
-                    actionNumber: updatedAction.actionNumber,
-                    socialMedia: updatedAction.socialMedia,
-                    networkUsername: updatedAction.networkUsername,
-                    rewardForInfluencer: updatedAction.rewardForInfluencer,
-                    currentBalance: updatedAction.currentBalance,
-                    date: updatedAction.date,
-                    isStillInCampaign: updatedAction.isStillInCampaign ?? true
-                },
-            };
-        } catch (e) {
-            this.logger.error(
-                `Error checking if ${data.socialMedia} account (${data.networkUsername}) still in campaign ${data.campaignId} (${data.campaignName}). \n${e.message}`,
-                e instanceof Error ? e.stack : new Error().stack
-            );
-            return {
-                code: 500,
-                isStillInCampaign: true,
-                isError: true,
-                updatedAction: null,
-            };
-        }
-    }
 
     // Moves social account's actions history to new owner's history
     async moveSocialAccountHistory(
@@ -612,7 +419,7 @@ export class InfluencerActionsHistoryService {
                     socialAccountUsername,
                     socialMedia,
                 },
-                { session },
+                {session},
             );
 
         if (!actionsToMigrate.length) {
@@ -622,7 +429,7 @@ export class InfluencerActionsHistoryService {
 
         // Deleting actions from old owner
         await this.influencerHistoryRepo.updateOne(
-            { influencerId: sourceInfluencerId },
+            {influencerId: sourceInfluencerId},
             {
                 $pull: {
                     "campaigns.$[].actions": {
@@ -631,18 +438,18 @@ export class InfluencerActionsHistoryService {
                     },
                 },
             },
-            { session },
+            {session},
         );
 
         // Removing empty campaigns actions
         await this.influencerHistoryRepo.updateOne(
-            { influencerId: sourceInfluencerId },
+            {influencerId: sourceInfluencerId},
             {
                 $pull: {
-                    campaigns: { actions: { $size: 0 } },
+                    campaigns: {actions: {$size: 0}},
                 },
             },
-            { session },
+            {session},
         );
 
         // Copying actions to new owner's history
@@ -650,7 +457,7 @@ export class InfluencerActionsHistoryService {
 
             // Adding actions for existing campaigns
             const result = await this.influencerHistoryRepo.updateOne(
-                { influencerId: targetInfluencerId, "campaigns.campaignId": action.campaignId },
+                {influencerId: targetInfluencerId, "campaigns.campaignId": action.campaignId},
                 {
                     $push: {
                         "campaigns.$.actions": {
@@ -664,13 +471,13 @@ export class InfluencerActionsHistoryService {
                         },
                     },
                 },
-                { session },
+                {session},
             );
 
             // If there's no campaign - create
             if (result.matchedCount === 0) {
                 await this.influencerHistoryRepo.updateOne(
-                    { influencerId: targetInfluencerId },
+                    {influencerId: targetInfluencerId},
                     {
                         $setOnInsert: {
                             influencerEmail: targetInfluencerEmail,
@@ -693,7 +500,7 @@ export class InfluencerActionsHistoryService {
                             },
                         },
                     },
-                    { upsert: true, session },
+                    {upsert: true, session},
                 );
             }
         }

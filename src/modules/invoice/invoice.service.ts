@@ -27,35 +27,35 @@ export class InvoiceService {
     private saveInvoiceDataModel: mongoose.Model<SaveInvoiceData>,
   ) {}
 
-  async updateInvoiceDetails(data: UpdateInvoiceDetailsDto) {
-    try {
-      if (!data) {
-        return {
-          status: 400,
-          message: 'Not enough arguments',
-        };
-      }
-
-      const checkUser = await this.invoiceDetailsModel.findOne({ id: data.id });
-
-      if (!checkUser) {
-        await this.invoiceDetailsModel.create(data);
-      } else {
-        await this.invoiceDetailsModel.findOneAndUpdate({ id: data.id }, data);
-      }
-
-      return {
-        code: 200,
-        message: 'invoice details update',
-      };
-    } catch (err) {
-      console.log(err);
-      return {
-        code: 500,
-        message: err,
-      };
-    }
-  }
+  // async updateInvoiceDetails(data: UpdateInvoiceDetailsDto) {
+  //   try {
+  //     if (!data) {
+  //       return {
+  //         status: 400,
+  //         message: 'Not enough arguments',
+  //       };
+  //     }
+  //
+  //     const checkUser = await this.invoiceDetailsModel.findOne({ id: data.id });
+  //
+  //     if (!checkUser) {
+  //       await this.invoiceDetailsModel.create(data);
+  //     } else {
+  //       await this.invoiceDetailsModel.findOneAndUpdate({ id: data.id }, data);
+  //     }
+  //
+  //     return {
+  //       code: 200,
+  //       message: 'invoice details update',
+  //     };
+  //   } catch (err) {
+  //     console.log(err);
+  //     return {
+  //       code: 500,
+  //       message: err,
+  //     };
+  //   }
+  // }
 
   async createPDF(result: any, data: Object) {
     function getFormattedDate() {
@@ -137,37 +137,6 @@ export class InvoiceService {
       writeStream.on('finish', () => resolve('invoice.pdf'));
       writeStream.on('error', reject);
     });
-  }
-
-  async getInvoiceDetails(id: string) {
-    try {
-      if (!id) {
-        return {
-          status: 400,
-          message: 'Not enough arguments',
-        };
-      }
-
-      const checkUser = await this.invoiceDetailsModel.findOne({ id: id });
-
-      if (!checkUser) {
-        return {
-          code: 404,
-          message: 'invoice details not found',
-        };
-      }
-
-      return {
-        code: 200,
-        invoiceDetails: checkUser,
-      };
-    } catch (err) {
-      console.log(err);
-      return {
-        code: 500,
-        message: err,
-      };
-    }
   }
 
   async createInvoice(data: CreateInvoiceDtoDto) {

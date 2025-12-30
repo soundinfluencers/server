@@ -22,7 +22,7 @@ export class CampaignAction {
   date: Date;
 
   @Prop({ type: Boolean, required: false, default: true })
-  isStillInCampaign: boolean;
+  isStillInCampaign?: boolean;
 }
 
 export const CampaignActionSchema = SchemaFactory.createForClass(CampaignAction);
@@ -76,5 +76,4 @@ export class InfluencerActionsHistory extends Document {
   invoices: InvoiceAction[];
 }
 
-export const InfluencerActionsHistorySchema =
-  SchemaFactory.createForClass(InfluencerActionsHistory);
+export const InfluencerActionsHistorySchema = SchemaFactory.createForClass(InfluencerActionsHistory);

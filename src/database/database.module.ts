@@ -19,6 +19,7 @@ import {CampaignRepository} from "./repositories/campaigns/campaign.repository";
 import {CompletedCampaignRepository} from "./repositories/campaigns/completed-campaign.repository";
 import {ProposalCampaign, ProposalCampaignSchema} from "./schemas/campaign/proposal-campaign.schema";
 import {ProposalCampaignRepository} from "./repositories/campaigns/proposal-campaign.repository";
+import {Admin, AdminSchema} from "./schemas/users/admin.schema";
 
 @Global()
 @Module({
@@ -26,6 +27,7 @@ import {ProposalCampaignRepository} from "./repositories/campaigns/proposal-camp
         MongooseModule.forFeature([
             { name: Influencer.name, schema: InfluencerSchema },
             { name: Client.name, schema: ClientSchema },
+            { name: Admin.name, schema: AdminSchema },
             { name: VerifyInfluencer.name, schema: VerifyInfluencerSchema },
             { name: VerifyClient.name, schema: VerifyClientSchema },
             { name: InfluencerActionsHistory.name, schema: InfluencerActionsHistorySchema },

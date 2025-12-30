@@ -1,43 +1,67 @@
-import {Body, Controller, Get, Param, Patch, Post, UsePipes, ValidationPipe} from '@nestjs/common';
+import {
+    Body,
+    Controller,
+    Get,
+    Param,
+    Patch, Query,
+    UsePipes,
+    ValidationPipe
+} from '@nestjs/common';
 import {InfluencerActionsHistoryService} from "./influencer-actions-history.service";
-import {UpsertCampaignHistoryDto} from "./dto/upsert-campaign-history.dto";
-import {UpsertInvoiceHistoryDto} from "./dto/upsert-invoice-history.dto";
 import {CheckIfInCampaignDto} from "./dto/check-if-in-campaign.dto";
-import {ApiTags} from "@nestjs/swagger";
+import {ApiQuery, ApiTags} from "@nestjs/swagger";
+import {Auth} from "../../common/decorators/auth.decorator";
+import {Roles} from "../../common/decorators/roles.decorator";
+import {Role} from "../../common/types/auth.types";
+import {AllHistoriesResponseDto, GetAllHistoriesQueryDto} from "./dto/get-history.dto";
+import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 
 @ApiTags('influencer-actions-history')
 @Controller('influencer-actions-history')
 export class InfluencerActionsHistoryController {
-  constructor(private readonly influencerActionsHistoryService: InfluencerActionsHistoryService) {}
+    constructor(private readonly influencerActionsHistoryService: InfluencerActionsHistoryService) {
+    }
 
-  @Post('upsert/campaign')
-  async upsertInfluencerCampaignActionsHistory(@Body() data: UpsertCampaignHistoryDto) {
-    return this.influencerActionsHistoryService.upsertInfluencerCampaignActionsHistory(data);
-  }
+    @Auth()
+    @Roles(Role.admin)
+    @ApiResponseDto(AllHistoriesResponseDto)
+    @ApiQuery({
+        name: 'limit',
+        required: false,
+        type: 'number',
+    })
+    @ApiQuery({
+        name: 'page',
+        required: false,
+        type: 'number',
+    })
+    @Get()
+    async getAllHistories(@Query() query: GetAllHistoriesQueryDto) {
+        return this.influencerActionsHistoryService.getAllHistories(query);
+    }
 
-  @Post('upsert/invoice')
-  async upsertInfluencerInvoiceHistory(@Body() data: UpsertInvoiceHistoryDto) {
-    return this.influencerActionsHistoryService.upsertInfluencerInvoiceHistory(data);
-  }
-
-  @Get('get/all')
-  async getActionsHistoryForAllOfInfluencers() {
-    return this.influencerActionsHistoryService.getActionsHistoryForAllOfInfluencers();
-  }
-
-  @Get('get/one/:influencerId')
-  getActionsHistoryForInfluencer(@Param('influencerId') influencerId: string) {
-    return this.influencerActionsHistoryService.getActionsHistoryForInfluencer(influencerId);
-  }
-
-  @Get('get/last-updates')
-  getLastUpdates() {
-    return this.influencerActionsHistoryService.getLastUpdates();
-  }
-
-  @Patch('patch/check-if-still-in-campaign')
-  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
-  checkIfStillInCampaign(@Body() data: CheckIfInCampaignDto) {
-    return this.influencerActionsHistoryService.checkIfStillInCampaign(data);
-  }
+    // // TODO
+    // @Auth()
+    // @Roles(Role.admin)
+    // @Get(':influencerId')
+    // getActionsHistoryForInfluencer(@Param('influencerId') influencerId: string) {
+    //     return this.influencerActionsHistoryService.getActionsHistoryForInfluencer(influencerId);
+    // }
+    //
+    // // TODO
+    // @Auth()
+    // @Roles(Role.admin)
+    // @Get('last-updates')
+    // getLastUpdates() {
+    //     return this.influencerActionsHistoryService.getLastUpdates();
+    // }
+    //
+    // // TODO
+    // @Auth()
+    // @Roles(Role.admin)
+    // @Patch('patch/check-if-still-in-campaign')
+    // @UsePipes(new ValidationPipe({whitelist: true, forbidNonWhitelisted: true, transform: true}))
+    // checkIfStillInCampaign(@Body() data: CheckIfInCampaignDto) {
+    //     return this.influencerActionsHistoryService.checkIfStillInCampaign(data);
+    // }
 }
