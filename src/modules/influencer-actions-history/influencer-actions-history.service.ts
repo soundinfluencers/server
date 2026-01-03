@@ -4,7 +4,10 @@ import {UpsertCampaignActionDto, UpsertInvoiceActionDto} from "./dto/upsert-acti
 import {CheckIfInCampaignDto} from "./dto/check-if-in-campaign.dto";
 import {InfluencerHistoryRepository} from "../../database/repositories/histories/influencer-history.repository";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
-import {CampaignActionWithCampaignMeta} from "../../database/types/histories/influencer-history.types";
+import {
+    CampaignActionWithCampaignMeta,
+    ProcessedInfluencerHistory
+} from "../../database/types/histories/influencer-history.types";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {CompletedCampaignRepository} from "../../database/repositories/campaigns/completed-campaign.repository";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
@@ -13,6 +16,7 @@ import {
     InfluencerActionsHistory
 } from "../../database/schemas/histories/influencer-actions-history.schema";
 import {GetAllHistoriesQueryDto} from "./dto/get-history.dto";
+import {SocialMediaEnum} from "../../common/types/social-media.types";
 
 @Injectable()
 export class InfluencerActionsHistoryService {
@@ -89,6 +93,7 @@ export class InfluencerActionsHistoryService {
         }
     }
 
+    // Upserts new invoice action to influencer's history
     async upsertInfluencerInvoiceHistory(data: UpsertInvoiceActionDto): Promise<void> {
         const {influencerId, invoiceId, paymentMethod, currentBalance, amount} = data;
 
@@ -129,6 +134,7 @@ export class InfluencerActionsHistoryService {
         }
     }
 
+    // Return several histories (with limit and page)
     async getAllHistories(data: GetAllHistoriesQueryDto): Promise<InfluencerActionsHistory[]> {
         const limit = Number(data.limit ?? 10);
         const page = Number(data.page ?? 1);
@@ -143,118 +149,96 @@ export class InfluencerActionsHistoryService {
 
         const skip = (page - 1) * limit;
 
-        return await this.influencerHistoryRepo.findMany({}, { lean: true, limit, skip })
+        return await this.influencerHistoryRepo.findMany({}, {lean: true, limit, skip})
     }
 
-    // // TODO
-    // async getActionsHistoryForInfluencer(influencerId: string) {
-    //     const influencerActionsHistory = await this.influencerHistoryRepo
-    //         .findOne({influencerId: new mongoose.Types.ObjectId(influencerId)})
-    //         .lean()
-    //         .exec();
-    //
-    //     if (!influencerActionsHistory) {
-    //         return {
-    //             code: 404,
-    //             message: `Influencer's actions history not found`,
-    //         };
-    //     }
-    //
-    //     const influencer = await this.influencerRepo.findById(influencerActionsHistory.influencerId);
-    //
-    //     if (!influencer) {
-    //         console.warn(
-    //             `Influencer not found for ID: ${influencerActionsHistory.influencerId} - INFLUENCER ACTIONS HISTORY SERVICE`,
-    //             new Date().toLocaleString(),
-    //         );
-    //         return {
-    //             code: 404,
-    //             message: 'Influencer not found',
-    //         };
-    //     }
-    //
-    //     const socialMedias = [
-    //         'instagram',
-    //         'tiktok',
-    //         'youtube',
-    //         'spotify',
-    //         'soundcloud',
-    //         'facebook',
-    //         'press',
-    //     ];
-    //
-    //     const processedName = influencer.firstName.trim()
-    //         ? influencer.firstName.trim()
-    //         : influencer.email.includes('@')
-    //             ? influencer.email.split('@')[0]
-    //             : influencer.email;
-    //
-    //     const influencerNetworkUsernames = socialMedias.flatMap((socialMedia) => {
-    //         const accounts = influencer[socialMedia];
-    //
-    //         if (accounts) {
-    //             return accounts
-    //                 .filter((account) => account && account.instagramUsername)
-    //                 .map((account) => ({
-    //                     socialMedia: socialMedia,
-    //                     networkUsername: account.instagramUsername,
-    //                     influencerId: influencer._id,
-    //                     publicPrice: account.publicPrice,
-    //                     ownerFirstName: influencer.firstName.trim()
-    //                         ? influencer.firstName.trim()
-    //                         : influencer.email,
-    //                     networkAccountId: account._id,
-    //                 }));
-    //         }
-    //
-    //         return [];
-    //     });
-    //
-    //     const actionsHistory = [
-    //         ...(influencerActionsHistory.campaigns || []).flatMap((campaign) =>
-    //             campaign.actions.map((action) => ({
-    //                 actionId: (action as any)._id ?? null,
-    //                 typeOfAction: 'campaign',
-    //                 campaignId: campaign.campaignId,
-    //                 campaignName: campaign.campaignName,
-    //                 actionNumber: action.actionNumber,
-    //                 socialMedia: action.socialMedia,
-    //                 networkUsername: action.networkUsername,
-    //                 rewardForInfluencer: action.rewardForInfluencer,
-    //                 currentBalance: action.currentBalance,
-    //                 date: action.date,
-    //                 isStillInCampaign: action.isStillInCampaign ?? true
-    //             })),
-    //         ),
-    //         ...(influencerActionsHistory.invoices || []).map((invoice) => ({
-    //             typeOfAction: 'invoice',
-    //             invoiceId: invoice.invoiceId,
-    //             amount: invoice.amount,
-    //             paymentMethod: invoice.paymentMethod,
-    //             currentBalance: invoice.currentBalance,
-    //             date: invoice.date,
-    //         })),
-    //     ];
-    //
-    //     actionsHistory.sort((a, b) => {
-    //         const dateA = a.date instanceof Date ? a.date.getTime() : 0;
-    //         const dateB = b.date instanceof Date ? b.date.getTime() : 0;
-    //         return dateB - dateA;
-    //     });
-    //
-    //     return {
-    //         code: 200,
-    //         influencerActionsHistory: {
-    //             influencerId: influencer._id,
-    //             influencerNetworkUsernames,
-    //             influencerEmail: influencer.email,
-    //             influencerName: processedName,
-    //             history: actionsHistory,
-    //             currencyNote: influencer?.currencyNote ? influencer.currencyNote : '',
-    //         },
-    //     };
-    // }
-    //
+    // Return one processed history (found by influencerId)
+    async getActionsHistoryForInfluencer(influencerId: string): Promise<ProcessedInfluencerHistory> {
+        const influencerActionsHistory = await this.influencerHistoryRepo
+            .findOne({influencerId: new mongoose.Types.ObjectId(influencerId)}, {lean: true})
+
+        if (!influencerActionsHistory) {
+            throw new NotFoundException(`History for influencer ${influencerId} was not found`);
+        }
+
+        const influencer = await this.influencerRepo.findById(influencerId);
+
+        if (!influencer) {
+            throw new NotFoundException(`Influencer ${influencerId} not found`);
+        }
+
+        const socialMedias = Object.values(SocialMediaEnum);
+
+        const processedName = influencer.firstName.trim()
+            ? influencer.firstName.trim()
+            : influencer.email.includes('@')
+                ? influencer.email.split('@')[0]
+                : influencer.email;
+
+        const accountsUsernames: {
+            accountId: string;
+            socialMedia: SocialMediaEnum;
+            username: string;
+            publicPrice: number;
+        }[] = socialMedias.flatMap((socialMedia) => {
+            const accounts = influencer[socialMedia];
+
+            if (accounts) {
+                return accounts
+                    .filter((account) => account && account.username)
+                    .map((account) => ({
+                        accountId: account._id.toString(),
+                        socialMedia: socialMedia as SocialMediaEnum,
+                        username: account.username,
+                        publicPrice: account.publicPrice,
+                    }));
+            }
+
+            return [];
+        });
+
+        const actionsHistory = [
+            ...(influencerActionsHistory.campaigns || []).flatMap((campaign) =>
+                campaign.actions.map((action) => ({
+                    actionId: (action as any)._id ?? null,
+                    typeOfAction: 'campaign',
+                    campaignId: campaign.campaignId,
+                    campaignName: campaign.campaignName,
+                    actionNumber: action.actionNumber,
+                    socialMedia: action.socialMedia,
+                    networkUsername: action.networkUsername,
+                    rewardForInfluencer: action.rewardForInfluencer,
+                    currentBalance: action.currentBalance,
+                    date: action.date,
+                    isStillInCampaign: action.isStillInCampaign ?? true
+                })),
+            ),
+            ...(influencerActionsHistory.invoices || []).map((invoice) => ({
+                typeOfAction: 'invoice',
+                invoiceId: invoice.invoiceId,
+                amount: invoice.amount,
+                paymentMethod: invoice.paymentMethod,
+                currentBalance: invoice.currentBalance,
+                date: invoice.date,
+            })),
+        ];
+
+        actionsHistory.sort((a, b) => {
+            const dateA = a.date instanceof Date ? a.date.getTime() : 0;
+            const dateB = b.date instanceof Date ? b.date.getTime() : 0;
+            return dateB - dateA;
+        });
+
+        return {
+            influencerId: influencerId,
+            accountsUsernames: accountsUsernames,
+            influencerEmail: influencer.email,
+            influencerName: processedName,
+            history: actionsHistory,
+            currencyNote: influencer?.currencyNote ? influencer.currencyNote : '',
+        };
+    }
+
     // // TODO
     // async getLastUpdates() {
     //     try {

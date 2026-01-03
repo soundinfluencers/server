@@ -20,8 +20,14 @@ export class Admin {
     @Prop()
     password: string;
 
+    @Prop({default: 'wait'})
+    statusVerify: string;
+
     @Prop({default: null})
     refreshToken: string | null;
 }
 
 export const AdminSchema = SchemaFactory.createForClass(Admin);
+
+// Indexes for admin schema
+AdminSchema.index({ email: 1 }, { unique: true, background: true });

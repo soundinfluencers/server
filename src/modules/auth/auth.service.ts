@@ -20,6 +20,7 @@ import {LoginDto, LoginResponseDto} from "./dto/login.dto";
 import {SocialAccount} from "../../database/schemas/users/influencer.schema";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {getArrayFromAccountMusicGenres} from "../../common/utils/genres";
+import {AdminRepository} from "../../database/repositories/users/admin.repository";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -38,6 +39,7 @@ export class AuthService {
     constructor(
         private readonly clientRepo: ClientRepository,
         private readonly influencerRepo: InfluencerRepository,
+        private readonly adminRepo: AdminRepository,
         private readonly verifyClientRepo: VerifyClientRepository,
         private readonly verifyInfluencerRepo: VerifyInfluencerRepository
     ) {
@@ -52,7 +54,8 @@ export class AuthService {
 
         const [existingEmailUser, existingInstagramUser, existingPhoneUser] = await Promise.all([
             this.influencerRepo.findInfluencerByEmail(data.email) ||
-            this.clientRepo.findClientByEmail(data.email),
+            this.clientRepo.findClientByEmail(data.email) ||
+            this.adminRepo.findAdminByEmail(data.email),
             this.clientRepo.findClientByInstagramUsername(data.instagramUsername),
             data.phone
                 ? this.influencerRepo.findOne({phone: data.phone}) ||
@@ -129,7 +132,8 @@ export class AuthService {
 
         const checkUser =
             (await this.influencerRepo.exists({email: data.email})) ||
-            (await this.clientRepo.exists({email: data.email}));
+            (await this.clientRepo.exists({email: data.email})) ||
+            (await this.adminRepo.exists({email: data.email}));
 
         if (checkUser) throw new ConflictException('User with this email already exists');
 
@@ -266,7 +270,8 @@ export class AuthService {
 
         const user =
             (await this.influencerRepo.findInfluencerByEmail(email)) ||
-            (await this.clientRepo.findClientByEmail(email));
+            (await this.clientRepo.findClientByEmail(email)) ||
+            (await this.adminRepo.findAdminByEmail(email));
 
         if (!user) throw new UnauthorizedException('User not found');
 
@@ -303,7 +308,8 @@ export class AuthService {
 
         const user =
             (await this.clientRepo.findById(payload._id)) ||
-            (await this.influencerRepo.findById(payload._id));
+            (await this.influencerRepo.findById(payload._id)) ||
+            (await this.adminRepo.findById(payload._id));
 
         if (!user || (user as any).refreshToken !== refreshToken)
             throw new UnauthorizedException('Invalid refresh token');
@@ -327,6 +333,11 @@ export class AuthService {
             );
 
             await this.influencerRepo.updateOne(
+                {refreshToken},
+                {$unset: {refreshToken: ''}},
+            );
+
+            await this.adminRepo.updateOne(
                 {refreshToken},
                 {$unset: {refreshToken: ''}},
             );
@@ -357,6 +368,7 @@ export class AuthService {
     private async saveRefreshToken(userId, token) {
         await this.clientRepo.updateOne({_id: userId}, {refreshToken: token});
         await this.influencerRepo.updateOne({_id: userId}, {refreshToken: token});
+        await this.adminRepo.updateOne({_id: userId}, {refreshToken: token});
     }
 
     // Verify influencer with sending mail

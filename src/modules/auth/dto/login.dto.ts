@@ -3,6 +3,7 @@ import {Role} from "../../../common/types/auth.types";
 import {Client} from "../../../database/schemas/users/client.schema";
 import {Influencer} from "../../../database/schemas/users/influencer.schema";
 import {IsEmail, IsEnum, IsString, MinLength} from "class-validator";
+import {Admin} from "../../../database/schemas/users/admin.schema";
 
 export class LoginDto {
     @ApiProperty({
@@ -33,5 +34,5 @@ export class LoginResponseDto {
     accessToken: string;
 
     @ApiProperty()
-    user: Client | Influencer;
+    user: Client | Influencer | Admin;
 }

@@ -13,7 +13,7 @@ import {ApiQuery, ApiTags} from "@nestjs/swagger";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {Role} from "../../common/types/auth.types";
-import {AllHistoriesResponseDto, GetAllHistoriesQueryDto} from "./dto/get-history.dto";
+import {AllHistoriesResponseDto, GetAllHistoriesQueryDto, OneHistoryResponseDto} from "./dto/get-history.dto";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 
 @ApiTags('influencer-actions-history')
@@ -40,13 +40,14 @@ export class InfluencerActionsHistoryController {
         return this.influencerActionsHistoryService.getAllHistories(query);
     }
 
-    // // TODO
-    // @Auth()
-    // @Roles(Role.admin)
-    // @Get(':influencerId')
-    // getActionsHistoryForInfluencer(@Param('influencerId') influencerId: string) {
-    //     return this.influencerActionsHistoryService.getActionsHistoryForInfluencer(influencerId);
-    // }
+    @Auth()
+    @Roles(Role.admin)
+    @ApiResponseDto(OneHistoryResponseDto)
+    @Get(':influencerId')
+    getOneHistory(@Param('influencerId') influencerId: string): Promise<OneHistoryResponseDto> {
+        return this.influencerActionsHistoryService.getActionsHistoryForInfluencer(influencerId);
+    }
+
     //
     // // TODO
     // @Auth()

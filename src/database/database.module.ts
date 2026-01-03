@@ -20,6 +20,7 @@ import {CompletedCampaignRepository} from "./repositories/campaigns/completed-ca
 import {ProposalCampaign, ProposalCampaignSchema} from "./schemas/campaign/proposal-campaign.schema";
 import {ProposalCampaignRepository} from "./repositories/campaigns/proposal-campaign.repository";
 import {Admin, AdminSchema} from "./schemas/users/admin.schema";
+import {AdminRepository} from "./repositories/users/admin.repository";
 
 @Global()
 @Module({
@@ -39,6 +40,7 @@ import {Admin, AdminSchema} from "./schemas/users/admin.schema";
     providers: [
         ClientRepository,
         InfluencerRepository,
+        AdminRepository,
         VerifyClientRepository,
         VerifyInfluencerRepository,
         InfluencerHistoryRepository,
@@ -49,6 +51,7 @@ import {Admin, AdminSchema} from "./schemas/users/admin.schema";
     exports: [
         ClientRepository,
         InfluencerRepository,
+        AdminRepository,
         VerifyClientRepository,
         VerifyInfluencerRepository,
         InfluencerHistoryRepository,
