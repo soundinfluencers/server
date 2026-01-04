@@ -4,10 +4,14 @@ import {
     InfluencerConfirmationStatusEnum,
     InfluencerConfirmationStatusType, InfluencerDashboardPromo,
     InfluencerPromo, InfluencerPromoClosedStatusEnum, InfluencerPromoClosedStatusType,
-    InfluencerPromoRequest
+    InfluencerPromoRequest, InfluencerUpdatedPostDetails
 } from "../../../common/types/influencer/promo.types";
 import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
 import {CampaignStatusEnum, CampaignStatusType} from "../../../common/types/client/campaign.types";
+import {IsInt, IsOptional, IsString, IsUrl, Min, ValidateNested} from "class-validator";
+import {Type} from "class-transformer";
+
+// TODO: add validation for each dto
 
 // dto for request influencer's past promo (query)
 export class InfluencerGetPastPromoQueryDto {
@@ -124,34 +128,90 @@ export class InfluencerGetOngoingOrPastPromosResDto {
     promos: InfluencerGetOngoingOrPastPromoResDto[];
 }
 
-// dto for request for closing influencer's ongoing promo PART 1 (query)
-export class InfluencerUpdatePromoReqQueryDto {
+// dto with updated promo's post details
+export class InfluencerUpdatedPostDetailsDto
+    implements InfluencerUpdatedPostDetails
+{
+    @ApiPropertyOptional({
+        description: 'Link to influencer post',
+        example: 'https://instagram.com/p/ABC123',
+    })
+    @IsOptional()
+    @IsString()
+    @IsUrl()
+    postLink?: string;
+
+    @ApiPropertyOptional({
+        description: 'Screenshot URL of the post',
+        example: 'https://cdn.example.com/screenshots/post.png',
+    })
+    @IsOptional()
+    @IsString()
+    @IsUrl()
+    screenshotUrl?: string;
+
+    @ApiPropertyOptional({
+        description: 'Post impressions count',
+        example: 15234,
+        minimum: 0,
+    })
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    impressions?: number;
+
+    @ApiPropertyOptional({
+        description: 'Post likes count',
+        example: 823,
+        minimum: 0,
+    })
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    like?: number;
+
+    @ApiPropertyOptional({
+        description: 'Internal rating for the post',
+        example: 4.5,
+        minimum: 0,
+    })
+    @IsOptional()
+    @Min(0)
+    rating?: number;
+}
+
+// dto for request for closing influencer's ongoing
+export class InfluencerUpdatePromoReqBodyDto {
     @ApiProperty({
         description: 'Campaign _id',
         example: '65f123abc456',
     })
+    @IsString()
     campaignId: string;
 
     @ApiProperty({
-        description: '_id of needed object inside addedAccounts array from campaign',
+        description: '_id of needed object inside selectInfluencers array from campaign',
         example: '6612fabc999',
     })
+    @IsString()
     selectInfluencersId: string;
 
     @ApiProperty({
         description: "Username of influencer's social account",
         example: 'techno_tv',
     })
+    @IsString()
     socialMediaUsername: string;
 
-    influencerId?: string | undefined;
-}
+    @ApiProperty({
+        description: 'Post details to update',
+        type: InfluencerUpdatedPostDetailsDto,
+    })
+    @ValidateNested()
+    @Type(() => InfluencerUpdatedPostDetailsDto)
+    data: InfluencerUpdatedPostDetailsDto;
 
-// dto for request for closing influencer's ongoing promo PART 2 (body)
-// TODO: finish InfluencerUpdatePromoReqBodyDto
-export class InfluencerUpdatePromoReqBodyDto {
-    @ApiProperty()
-    result: string;
+    influencerId?: string;
 }
 
 export enum InfluencerDashboardPromoStatus {

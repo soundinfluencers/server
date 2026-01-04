@@ -6,6 +6,8 @@ import {Campaign, CampaignSchema} from '../../database/schemas/campaign/campaign
 import {CompletedCampaign, CompletedCampaignSchema} from '../../database/schemas/campaign/completed-campaign.schema';
 import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
 import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
+import {SocialMediaValidationStrategyFactory} from "./strategies/social-media-validation.factory";
+import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 
 @Module({
     imports: [
@@ -17,7 +19,7 @@ import {Influencer, InfluencerSchema} from "../../database/schemas/users/influen
         ]),
     ],
     controllers: [PromosController],
-    providers: [PromosService],
+    providers: [PromosService, SocialMediaValidationStrategyFactory, InfluencerActionsHistoryService],
     exports: [PromosService],
 })
 export class PromosModule {

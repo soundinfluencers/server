@@ -89,3 +89,12 @@ export interface InfluencerCompletedPromo {
     // campaign creation date
     createdAt: string;
 }
+
+// interface for updating promo's post details
+export interface InfluencerUpdatedPostDetails {
+    postLink?: string;
+    screenshotUrl?: string;
+    impressions?: number;
+    like?: number;
+    rating?: number;
+}

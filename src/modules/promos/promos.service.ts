@@ -6,7 +6,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
-import {Campaign, CampaignContentItem, SelectInfluencers} from '../../database/schemas/campaign/campaign.schema';
+import {Campaign} from '../../database/schemas/campaign/campaign.schema';
 import mongoose, {ClientSession, PipelineStage, Types} from 'mongoose';
 import {CompletedCampaign} from '../../database/schemas/campaign/completed-campaign.schema';
 import axios from 'axios';
@@ -20,7 +20,7 @@ import {Influencer} from "../../database/schemas/users/influencer.schema";
 import {
     InfluencerDashboardPromoStatus, InfluencerGetCompletedPromosQueryDto,
     InfluencerGetDashboardPromosQueryDto,
-    InfluencerGetPastPromoQueryDto, InfluencerUpdatePromoReqQueryDto,
+    InfluencerGetPastPromoQueryDto, InfluencerUpdatePromoReqBodyDto,
     InfluencerUpdatePromoResponseUpdateDto
 } from "./dto/influencer-get-promos.dto";
 import {
@@ -32,14 +32,15 @@ import {
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
 import {CompletedCampaignRepository} from "../../database/repositories/campaigns/completed-campaign.repository";
-import { formatDate } from 'src/common/utils/formatters';
+import {formatDate} from 'src/common/utils/formatters';
+import {SocialMediaValidationStrategyFactory} from "./strategies/social-media-validation.factory";
+import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 
 mongoose.Promise = global.Promise;
 
 @Injectable()
 export class PromosService {
     private readonly logger = new Logger();
-
 
     // TODO: use repo instead models
     constructor(
@@ -53,6 +54,8 @@ export class PromosService {
         private completedCampaignModel: mongoose.Model<CompletedCampaign>,
         private campaignRepo: CampaignRepository,
         private completedCampaignRepo: CompletedCampaignRepository,
+        private readonly validationStrategyFactory: SocialMediaValidationStrategyFactory,
+        private readonly influencerActionsHistoryService: InfluencerActionsHistoryService,
     ) {
     }
 
@@ -505,10 +508,10 @@ export class PromosService {
                 confirmation: '$selectInfluencers.confirmation',
                 createdAt: {
                     $concat: [
-                        { $dateToString: { date: '$createdAt', format: '%d.%m.' } },
+                        {$dateToString: {date: '$createdAt', format: '%d.%m.'}},
                         {
                             $substr: [
-                                { $dateToString: { date: '$createdAt', format: '%Y' } },
+                                {$dateToString: {date: '$createdAt', format: '%Y'}},
                                 2,
                                 2,
                             ],
@@ -657,18 +660,18 @@ export class PromosService {
             {
                 $project: {
                     _id: 0,
-                    campaignId: { $toString: '$_id' },
-                    selectInfluencersId: { $toString: '$selectInfluencers._id' },
+                    campaignId: {$toString: '$_id'},
+                    selectInfluencersId: {$toString: '$selectInfluencers._id'},
                     campaignName: '$campaignName',
                     socialMediaUsername: '$selectInfluencers.socialMediaUsername',
                     socialMedia: '$selectInfluencers.socialMedia',
-                    reward: { $toDouble: '$selectInfluencers.price' },
+                    reward: {$toDouble: '$selectInfluencers.price'},
                     postLink: '$selectInfluencers.postLink',
                     client: {
                         $ifNull: [
                             {
                                 $cond: {
-                                    if: { $and: [{ $ne: ['$client.company', null] }, { $ne: ['$client.company', ''] }] },
+                                    if: {$and: [{$ne: ['$client.company', null]}, {$ne: ['$client.company', '']}]},
                                     then: '$client.company',
                                     else: '$client.firstName',
                                 },
@@ -678,10 +681,10 @@ export class PromosService {
                     },
                     createdAt: {
                         $concat: [
-                            { $dateToString: { date: '$createdAt', format: '%d.%m.' } },
+                            {$dateToString: {date: '$createdAt', format: '%d.%m.'}},
                             {
                                 $substr: [
-                                    { $dateToString: { date: '$createdAt', format: '%Y' } },
+                                    {$dateToString: {date: '$createdAt', format: '%Y'}},
                                     2,
                                     2,
                                 ],
@@ -771,24 +774,23 @@ export class PromosService {
         };
     }
 
-    // TODO: finish
+    // Closing influencer's promo
     async influencerUpdateOngoingCampaign(
-        query: InfluencerUpdatePromoReqQueryDto,
-        data: {
-            screenshot?: string | null;
-            rating?: number;
-            postLink?: string;
-            impressions?: number;
-            like?: number;
-        },
+        data: InfluencerUpdatePromoReqBodyDto,
     ): Promise<void> {
-        const {influencerId, campaignId, socialMediaUsername, selectInfluencersId} = query;
+        const {
+            influencerId,
+            campaignId,
+            socialMediaUsername,
+            selectInfluencersId,
+            data: postDetails,
+        } = data;
 
         if (!influencerId || !campaignId || !socialMediaUsername || !selectInfluencersId) {
             throw new BadRequestException('Not enough arguments');
         }
 
-        const campaign = await this.campaignModel
+        const campaign = await this.campaignRepo
             .findOne({
                 _id: campaignId,
                 selectInfluencers: {
@@ -800,8 +802,7 @@ export class PromosService {
                         ],
                     },
                 },
-            })
-            .lean();
+            }, { lean: true });
 
         if (!campaign) {
             throw new NotFoundException('Campaign not found');
@@ -817,47 +818,20 @@ export class PromosService {
             );
         }
 
-        // ---------------- TRANSACTION ----------------
+        // validation by strategy
+        const validationStrategy = this.validationStrategyFactory.get(socialAccount.socialMedia);
+        validationStrategy.validate(postDetails);
 
-        const session = await mongoose.startSession();
+        // transaction
+        const session = await this.campaignRepo.startSession();
 
         try {
             session.startTransaction();
 
-            /** ---------- VALIDATION BY SOCIAL MEDIA ---------- */
-
-            if (
-                socialAccount.socialMedia === 'spotify' ||
-                socialAccount.socialMedia === 'soundcloud'
-            ) {
-                if (socialAccount.socialMedia === 'spotify' && !data.rating) {
-                    throw new BadRequestException('Rating required');
-                }
-
-                if (!data.screenshot) {
-                    throw new BadRequestException('Screenshot required');
-                }
-            }
-
-            if (socialAccount.socialMedia === 'press') {
-                if (!data.postLink) {
-                    throw new BadRequestException('Post link required');
-                }
-            }
-
-            if (
-                !['spotify', 'soundcloud', 'press'].includes(socialAccount.socialMedia)
-            ) {
-                if (!data.postLink || !data.impressions || !data.like || !data.screenshot) {
-                    throw new BadRequestException('Invalid promo data');
-                }
-            }
-
-            /** ---------- CLOSE PROMO (RACE SAFE) ---------- */
-
+            // closing promo for influencer
             const updatePayload = Object.fromEntries(
                 Object.entries({
-                    ...data,
+                    ...postDetails,
                     closePromo: 'close',
                 }).map(([key, value]) => [`selectInfluencers.$.${key}`, value]),
             );
@@ -868,9 +842,7 @@ export class PromosService {
                     'selectInfluencers._id': new mongoose.Types.ObjectId(selectInfluencersId),
                     'selectInfluencers.closePromo': {$ne: 'close'},
                 },
-                {
-                    $set: updatePayload,
-                },
+                {$set: updatePayload},
                 {session},
             );
 
@@ -880,14 +852,11 @@ export class PromosService {
                 return;
             }
 
-            /** ---------- PAY INFLUENCER (ATOMIC) ---------- */
-
-            const reward = Number(
-                socialAccount.price?.replace(/\D/g, ''),
-            );
+            // pay influencer
+            const reward = Number(socialAccount.price?.replace(/\D/g, ''));
 
             if (!reward || Number.isNaN(reward)) {
-                throw new BadRequestException('Invalid influencer reward');
+                throw new InternalServerErrorException('Invalid influencer reward in database');
             }
 
             await this.influencerModel.updateOne(
@@ -896,7 +865,20 @@ export class PromosService {
                 {session},
             );
 
-            /** ---------- COMMIT ---------- */
+            // upserting new campaign action
+            await this.influencerActionsHistoryService.upsertInfluencerCampaignActionsHistory({
+                influencerId: influencerId,
+                campaignId: campaignId,
+                campaignName: campaign.campaignName,
+                updatedCampaignAction: {
+                    actionNumber: 3,
+                    networkUsername: socialMediaUsername,
+                    rewardForInfluencer: Number(
+                        socialAccount.price.replace(/\D/g, ''),
+                    ),
+                    socialMedia: socialAccount.socialMedia
+                }
+            })
 
             await session.commitTransaction();
         } catch (e) {
@@ -904,32 +886,6 @@ export class PromosService {
             throw e;
         } finally {
             session.endSession();
-        }
-
-        // ---------------- AFTER COMMIT ----------------
-        // history is NOT transactional, so only after commit
-
-        const historyResponse = await axios.post(
-            `${process.env.SERVER}/influencer-actions-history/upsert/campaign`,
-            {
-                influencerId,
-                campaignId: new mongoose.Types.ObjectId(campaign._id),
-                campaignName: campaign.campaignName,
-                updatedCampaignAction: {
-                    actionNumber: 3,
-                    networkUsername: socialMediaUsername,
-                    socialMedia: socialAccount.socialMedia,
-                    rewardForInfluencer: Number(
-                        socialAccount.price.replace(/\D/g, ''),
-                    ),
-                },
-            },
-        );
-
-        if (historyResponse.data?.code !== 200) {
-            this.logger.error(
-                `History save failed for campaign ${campaignId}, influencer ${influencerId}`,
-            );
         }
     }
 

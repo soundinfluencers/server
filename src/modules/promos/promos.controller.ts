@@ -4,7 +4,6 @@ import {
     Get,
     Patch,
     Post,
-    Put,
     Query,
     Req,
     UnauthorizedException,
@@ -23,8 +22,7 @@ import {
     InfluencerGetDashboardPromosQueryDto,
     InfluencerGetOngoingOrPastPromoResDto,
     InfluencerGetPastPromoQueryDto,
-    InfluencerGetPromoRequestsDto,
-    InfluencerUpdatePromoReqQueryDto,
+    InfluencerGetPromoRequestsDto, InfluencerUpdatePromoReqBodyDto,
     InfluencerUpdatePromoResponseUpdateDto,
 } from "./dto/influencer-get-promos.dto";
 import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
@@ -176,25 +174,14 @@ export class PromosController {
     @Auth()
     @Roles(Role.influencer)
     @ApiOperation({summary: "Update influencer's promo"})
-    @ApiQuery({name: 'influencerId', required: true})
-    @ApiQuery({name: 'socialNetworkUsername', required: true})
-    @ApiQuery({name: 'campaignId', required: true})
-    @ApiQuery({name: 'selectInfluencersId', required: true})
     @ApiResponseDto(undefined, {successStatusCode: 201})
-    @Put('ongoing/:campaignId')
+    @Patch('ongoing')
     influencerUpdateOngoingCampaign(
-        @Query()
-        query: InfluencerUpdatePromoReqQueryDto,
         @Req() request: AuthenticatedRequest,
-        @Body() body: any,
+        @Body() body: InfluencerUpdatePromoReqBodyDto,
     ) {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
-        query.influencerId = request.user._id;
-
-        return this.promosService.influencerUpdateOngoingCampaign(
-            query,
-            body,
-        );
+        return this.promosService.influencerUpdateOngoingCampaign({...body, influencerId: request.user._id});
     }
 }
