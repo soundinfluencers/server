@@ -1,6 +1,6 @@
 import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
 import {InfluencerActionsHistory} from "../../../database/schemas/histories/influencer-actions-history.schema";
-import {ProcessedInfluencerHistory} from "../../../database/types/histories/influencer-history.types";
+import {ProcessedInfluencerHistory} from "../types/influencer-history.types";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {Type} from "class-transformer";
 

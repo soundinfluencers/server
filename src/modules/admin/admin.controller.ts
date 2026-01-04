@@ -221,14 +221,14 @@ export class AdminController {
         return this.adminService.adminGivePartialRefundToClient(userId, partialRefund, campaignId);
     }
 
-    @Post('promos/close-campaign/:campaignId')
-    adminClosePromo(@Param('campaignId') campaignId: string) {
-        const decryptedCampaignId = decodeAndDecrypt(
-            campaignId,
-            process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
-        );
-        return this.adminService.adminClosePromo(decryptedCampaignId);
-    }
+    // @Post('promos/close-campaign/:campaignId')
+    // adminClosePromo(@Param('campaignId') campaignId: string) {
+    //     const decryptedCampaignId = decodeAndDecrypt(
+    //         campaignId,
+    //         process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
+    //     );
+    //     return this.adminService.adminClosePromo(decryptedCampaignId);
+    // }
 
     @Post('campaign/reopen-campaign/:campaignId')
     adminReopenPromo(@Param('campaignId') campaignId: string) {

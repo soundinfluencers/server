@@ -6,7 +6,7 @@ import {Model, Types} from "mongoose";
 import {RepoOptions} from "../../types/repo.types";
 import {applyQueryOptions} from "../../utils/apply-query-options.util";
 import {SocialMediaType} from "../../../common/types/social-media.types";
-import {CampaignActionWithCampaignMeta} from "../../types/histories/influencer-history.types";
+import {CampaignActionWithCampaignMeta} from "../../../modules/influencer-actions-history/types/influencer-history.types";
 
 @Injectable()
 export class InfluencerHistoryRepository extends BaseRepository<InfluencerActionsHistory> {

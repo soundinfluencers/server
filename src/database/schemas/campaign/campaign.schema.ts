@@ -54,10 +54,10 @@ export class SelectInfluencers {
     screenshot: string;
 
     @Prop({default: ''})
-    impressions: string;
+    impressions: number;
 
     @Prop({default: ''})
-    like: string;
+    like: number;
 
     @Prop({default: null})
     rating: number | null;

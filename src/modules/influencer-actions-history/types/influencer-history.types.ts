@@ -1,4 +1,4 @@
-import {CampaignAction} from "../../schemas/histories/influencer-actions-history.schema";
+import {CampaignAction} from "../../../database/schemas/histories/influencer-actions-history.schema";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 
 export class CampaignActionWithCampaignMeta extends CampaignAction {

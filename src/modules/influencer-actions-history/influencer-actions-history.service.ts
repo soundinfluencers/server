@@ -7,7 +7,7 @@ import {SocialAccountMigrationContext} from "../migrations/types/migrations.type
 import {
     CampaignActionWithCampaignMeta,
     ProcessedInfluencerHistory
-} from "../../database/types/histories/influencer-history.types";
+} from "./types/influencer-history.types";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {CompletedCampaignRepository} from "../../database/repositories/campaigns/completed-campaign.repository";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";

@@ -18,7 +18,7 @@ export const SelectInfluencersForProposalSchema = SchemaFactory.createForClass(S
 
 @Schema({ timestamps: true })
 export class ProposalCampaign {
-    @Prop({ required: false, type: mongoose.Schema.Types.ObjectId, ref: 'Client' })
+    @Prop({ required: false, type: mongoose.Schema.Types.ObjectId, ref: 'Client' || 'Admin' })
     clientId: mongoose.Schema.Types.ObjectId;
 
     @Prop({ required: true })
@@ -43,9 +43,6 @@ export class ProposalCampaign {
 
     @Prop({ required: false, default: 0 })
     publicPrice: number;
-
-    @Prop({ required: false, default: 0 })
-    totalFollowers: number;
 
     @Prop({ required: true, default: 'instagram' })
     socialMedia: string;

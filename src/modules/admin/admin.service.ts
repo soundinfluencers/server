@@ -1013,113 +1013,113 @@ export class AdminService {
         }
     }
 
-    async adminClosePromo(campaignId: string) {
-        if (!campaignId) {
-            return {
-                status: 400,
-                message: 'Not enough arguments',
-            };
-        }
-
-        const campaign = await this.campaignsModel.findOne({_id: campaignId}).lean().exec();
-
-        if (!campaign) {
-            return {
-                status: 404,
-                message: 'Promo not found',
-            };
-        }
-
-        let selectInfluencers = campaign.selectInfluencers;
-        let totalFollowers = 0;
-
-        for (const influencer of campaign.selectInfluencers) {
-            const influencerData = await this.influencerModel
-                .findOne({
-                    [`${influencer.socialMedia}.instagramUsername`]:
-                        influencer.socialMediaUsername || (influencer as any).instagramUsername,
-                })
-                .lean()
-                .exec();
-
-            if (influencerData && influencerData[influencer.socialMedia]) {
-                const socialMediaAccountProfile = influencerData[influencer.socialMedia].find(
-                    (profile: any) =>
-                        profile.instagramUsername === influencer.socialMediaUsername ||
-                        profile.instagramUsername === (influencer as any).instagramUsername,
-                );
-
-                if (socialMediaAccountProfile) {
-                    const followersCount = socialMediaAccountProfile.followersNumber;
-                    const price = socialMediaAccountProfile.price;
-                    const publicPrice = socialMediaAccountProfile.publicPrice;
-
-                    const cleanedPrice = price.replace(/[^\d]/g, '');
-                    const cleanedPublicPrice = publicPrice.replace(/[^\d]/g, '');
-
-                    totalFollowers += parseInt(followersCount);
-
-                    selectInfluencers = selectInfluencers.map((influencer) => {
-                        if (
-                            influencer.socialMediaUsername === socialMediaAccountProfile.instagramUsername ||
-                            (influencer as any).instagramUsername === socialMediaAccountProfile.instagramUsername
-                        ) {
-                            return {
-                                _id: influencer._id,
-                                influencerId: influencer.influencerId,
-                                accountId: socialMediaAccountProfile._id ?? null,
-                                socialMediaUsername:
-                                    influencer.socialMediaUsername || (influencer as any).instagramUsername,
-                                confirmation: influencer.confirmation,
-                                socialMedia: influencer.socialMedia,
-                                closePromo: 'close',
-                                price: cleanedPrice,
-                                publicPrice: cleanedPublicPrice,
-                                selectedContent:
-                                    influencer.selectedContent || (influencer as any).selectedVideo,
-                                followersNumber: parseInt(followersCount),
-                                dateRequest: influencer.dateRequest || '',
-                                postLink: influencer.postLink || '',
-                                screenshot: influencer.screenshot || '',
-                                impressions: influencer.impressions || '',
-                                like: influencer.like || '',
-                                rating: influencer.rating || null,
-                                adminChecked: false,
-                            };
-                        }
-                        return influencer;
-                    });
-                } else {
-                    console.log(`No matching Instagram profile found for ${influencer.socialMediaUsername}`);
-                    return {
-                        status: 404,
-                        message:
-                            'No matching Instagram profile found for influencer' + influencer.socialMediaUsername,
-                    };
-                }
-            } else {
-                console.log(`No influencer data found for ${influencer.socialMediaUsername}`);
-            }
-        }
-
-        await this.completedCampaignModel.create({
-            ...campaign,
-            _id: campaign._id,
-            campaignContent: campaign.campaignContent || (campaign as any).videos,
-            campaignPrice: campaign.campaignPrice || (campaign as any).amount,
-            statusCampaign: 'finally',
-            selectInfluencers: selectInfluencers,
-            totalFollowers: totalFollowers,
-            isCopy: true,
-        });
-
-        await this.campaignsModel.deleteOne({_id: campaignId});
-
-        return {
-            status: 201,
-            message: 'Promo closed successfully',
-        };
-    }
+    // async adminClosePromo(campaignId: string) {
+    //     if (!campaignId) {
+    //         return {
+    //             status: 400,
+    //             message: 'Not enough arguments',
+    //         };
+    //     }
+    //
+    //     const campaign = await this.campaignsModel.findOne({_id: campaignId}).lean().exec();
+    //
+    //     if (!campaign) {
+    //         return {
+    //             status: 404,
+    //             message: 'Promo not found',
+    //         };
+    //     }
+    //
+    //     let selectInfluencers = campaign.selectInfluencers;
+    //     let totalFollowers = 0;
+    //
+    //     for (const influencer of campaign.selectInfluencers) {
+    //         const influencerData = await this.influencerModel
+    //             .findOne({
+    //                 [`${influencer.socialMedia}.instagramUsername`]:
+    //                     influencer.socialMediaUsername || (influencer as any).instagramUsername,
+    //             })
+    //             .lean()
+    //             .exec();
+    //
+    //         if (influencerData && influencerData[influencer.socialMedia]) {
+    //             const socialMediaAccountProfile = influencerData[influencer.socialMedia].find(
+    //                 (profile: any) =>
+    //                     profile.instagramUsername === influencer.socialMediaUsername ||
+    //                     profile.instagramUsername === (influencer as any).instagramUsername,
+    //             );
+    //
+    //             if (socialMediaAccountProfile) {
+    //                 const followersCount = socialMediaAccountProfile.followersNumber;
+    //                 const price = socialMediaAccountProfile.price;
+    //                 const publicPrice = socialMediaAccountProfile.publicPrice;
+    //
+    //                 const cleanedPrice = price.replace(/[^\d]/g, '');
+    //                 const cleanedPublicPrice = publicPrice.replace(/[^\d]/g, '');
+    //
+    //                 totalFollowers += parseInt(followersCount);
+    //
+    //                 selectInfluencers = selectInfluencers.map((influencer) => {
+    //                     if (
+    //                         influencer.socialMediaUsername === socialMediaAccountProfile.instagramUsername ||
+    //                         (influencer as any).instagramUsername === socialMediaAccountProfile.instagramUsername
+    //                     ) {
+    //                         return {
+    //                             _id: influencer._id,
+    //                             influencerId: influencer.influencerId,
+    //                             accountId: socialMediaAccountProfile._id ?? null,
+    //                             socialMediaUsername:
+    //                                 influencer.socialMediaUsername || (influencer as any).instagramUsername,
+    //                             confirmation: influencer.confirmation,
+    //                             socialMedia: influencer.socialMedia,
+    //                             closePromo: 'close',
+    //                             price: cleanedPrice,
+    //                             publicPrice: cleanedPublicPrice,
+    //                             selectedContent:
+    //                                 influencer.selectedContent || (influencer as any).selectedVideo,
+    //                             followersNumber: parseInt(followersCount),
+    //                             dateRequest: influencer.dateRequest || '',
+    //                             postLink: influencer.postLink || '',
+    //                             screenshot: influencer.screenshot || '',
+    //                             impressions: influencer.impressions || '',
+    //                             like: influencer.like || '',
+    //                             rating: influencer.rating || null,
+    //                             adminChecked: false,
+    //                         };
+    //                     }
+    //                     return influencer;
+    //                 });
+    //             } else {
+    //                 console.log(`No matching Instagram profile found for ${influencer.socialMediaUsername}`);
+    //                 return {
+    //                     status: 404,
+    //                     message:
+    //                         'No matching Instagram profile found for influencer' + influencer.socialMediaUsername,
+    //                 };
+    //             }
+    //         } else {
+    //             console.log(`No influencer data found for ${influencer.socialMediaUsername}`);
+    //         }
+    //     }
+    //
+    //     await this.completedCampaignModel.create({
+    //         ...campaign,
+    //         _id: campaign._id,
+    //         campaignContent: campaign.campaignContent || (campaign as any).videos,
+    //         campaignPrice: campaign.campaignPrice || (campaign as any).amount,
+    //         statusCampaign: 'finally',
+    //         selectInfluencers: selectInfluencers,
+    //         totalFollowers: totalFollowers,
+    //         isCopy: true,
+    //     });
+    //
+    //     await this.campaignsModel.deleteOne({_id: campaignId});
+    //
+    //     return {
+    //         status: 201,
+    //         message: 'Promo closed successfully',
+    //     };
+    // }
 
     async adminReopenCampaign(campaignId: string) {
         if (!campaignId) {

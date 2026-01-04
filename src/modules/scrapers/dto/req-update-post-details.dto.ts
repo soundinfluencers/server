@@ -1,4 +1,5 @@
 import {IsNotEmpty, IsString} from 'class-validator';
+import {ApiProperty} from "@nestjs/swagger";
 
 export class ReqUpdatePostDetailsDto {
     @IsString({
@@ -6,6 +7,9 @@ export class ReqUpdatePostDetailsDto {
     })
     @IsNotEmpty({
         message: 'Campaign id cannot be empty',
+    })
+    @ApiProperty({
+        example: '234g1h2b'
     })
     campaignId: string;
 
@@ -15,6 +19,10 @@ export class ReqUpdatePostDetailsDto {
     @IsNotEmpty({
         message: 'Account id cannot be empty',
     })
+    @ApiProperty({
+        example: '234g1h2b',
+        description: 'Id of account that will be updated'
+    })
     accountId: string;
 
     @IsString({
@@ -23,13 +31,10 @@ export class ReqUpdatePostDetailsDto {
     @IsNotEmpty({
         message: 'Socket id cannot be empty',
     })
+    @ApiProperty({
+        example: '234g1h2b'
+    })
     socketId: string;
 
-    @IsString({
-        message: 'Invalid user id',
-    })
-    @IsNotEmpty({
-        message: 'User id cannot be empty',
-    })
     refreshInitiatorId: string;
 }

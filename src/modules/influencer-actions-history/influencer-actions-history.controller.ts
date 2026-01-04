@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import {InfluencerActionsHistoryService} from "./influencer-actions-history.service";
 import {CheckIfInCampaignDto} from "./dto/check-if-in-campaign.dto";
-import {ApiQuery, ApiTags} from "@nestjs/swagger";
+import {ApiOperation, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {Role} from "../../common/types/auth.types";
@@ -25,6 +25,7 @@ export class InfluencerActionsHistoryController {
     @Auth()
     @Roles(Role.admin)
     @ApiResponseDto(AllHistoriesResponseDto)
+    @ApiOperation({summary: "Returns all histories (with limit and page)"})
     @ApiQuery({
         name: 'limit',
         required: false,
@@ -43,6 +44,7 @@ export class InfluencerActionsHistoryController {
     @Auth()
     @Roles(Role.admin)
     @ApiResponseDto(OneHistoryResponseDto)
+    @ApiOperation({summary: "Returns history for one influencer"})
     @Get(':influencerId')
     getOneHistory(@Param('influencerId') influencerId: string): Promise<OneHistoryResponseDto> {
         return this.influencerActionsHistoryService.getActionsHistoryForInfluencer(influencerId);

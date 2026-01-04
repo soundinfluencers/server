@@ -1,13 +1,16 @@
-import {IsNotEmpty, IsString} from 'class-validator';
+import {IsEnum, IsNotEmpty, IsString} from 'class-validator';
+import {ApiProperty} from "@nestjs/swagger";
+import {ScraperAvailableSocialMedias} from "../types/scraper.types";
 
 export class ReqUpdateAllAccountsDto {
-    @IsString({
-        message: 'Invalid social media',
+    @IsEnum(ScraperAvailableSocialMedias, {
+        message: `Social media must be one of: ${Object.values(ScraperAvailableSocialMedias).join(', ')}`,
     })
-    @IsNotEmpty({
-        message: 'Social media cannot be empty',
+    @ApiProperty({
+        enum: ScraperAvailableSocialMedias,
+        description: 'Available social media',
     })
-    socialMedia: string;
+    socialMedia: ScraperAvailableSocialMedias;
 
     @IsString({
         message: 'Invalid socket id',
@@ -15,13 +18,10 @@ export class ReqUpdateAllAccountsDto {
     @IsNotEmpty({
         message: 'Socket id cannot be empty',
     })
+    @ApiProperty({
+        example: '234g1h2b'
+    })
     socketId: string;
 
-    @IsString({
-        message: 'Invalid user id',
-    })
-    @IsNotEmpty({
-        message: 'User id cannot be empty',
-    })
     refreshInitiatorId: string;
 }
