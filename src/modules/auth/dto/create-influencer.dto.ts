@@ -3,7 +3,7 @@ import { IsString, IsNumber, IsOptional, IsEnum, IsArray, ValidateNested, Min, M
 import { Type } from 'class-transformer';
 import { InfluencerProfileCategory } from '../../../common/types/influencer/influencer.types';
 
-class MusicGenreDto {
+export class MusicGenreDto {
     @ApiProperty()
     @IsString()
     genre: string;
@@ -80,12 +80,11 @@ export class CreateSocialAccountDto {
     @IsNumber()
     averageViews?: number | null;
 
-    @ApiProperty({ type: [MusicGenreDto], default: [] })
+    @ApiProperty({ type: [String], required: false })
     @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => MusicGenreDto)
+    @IsString({ each: true })
     @IsOptional()
-    musicGenres?: MusicGenreDto[];
+    musicGenres?: string[];
 
     @ApiProperty({ type: [String], required: false, default: [] })
     @IsArray()

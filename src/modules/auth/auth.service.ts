@@ -19,7 +19,7 @@ import {VerifyInfluencerRepository} from "../../database/repositories/verify-use
 import {LoginDto, LoginResponseDto} from "./dto/login.dto";
 import {SocialAccount} from "../../database/schemas/users/influencer.schema";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
-import {getArrayFromAccountMusicGenres} from "../../common/utils/genres";
+import {getArrayFromAccountMusicGenres, normalizeMusicGenres} from "../../common/utils/genres";
 import {AdminRepository} from "../../database/repositories/users/admin.repository";
 
 const jwt = require('jsonwebtoken');
@@ -181,7 +181,7 @@ export class AuthService {
                         initialPrice: sanitizedInitialPrice,
                         currency: item.currency ?? 'EUR',
                         profileCategory: item.profileCategory,
-                        musicGenres: item.musicGenres ?? [],
+                        musicGenres: normalizeMusicGenres(item.musicGenres) ?? [],
                         creatorCategories: item.creatorCategories ?? [],
                         countries: item.countries ?? [],
                         categories: item.categories ?? [],
@@ -233,7 +233,7 @@ export class AuthService {
             <li><strong>Link: ${item.profileLink}</strong></li>
             <li><strong>Followers: ${item.followers}</strong></li>
             <li><strong>Logo: ${item.logoUrl}</strong></li>
-            <li><strong>Music genres: ${getArrayFromAccountMusicGenres(item.musicGenres).join(', ')}</strong></li>
+            <li><strong>Music genres: ${item.musicGenres.join(', ')}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
             <li><strong>Initial Price: ${item.initialPrice}</strong></li>
 </ul>`,
