@@ -5,7 +5,6 @@ import mongoose, {Types} from 'mongoose';
 import {AdminUpdatePersonalClientDto} from './dto/admin-update-client.dto';
 import {AdminUpdateInfluencerPersonalDto} from './dto/admin-update-influencer-personal.dto';
 import {AdminUpdateInfluencerInstagramDto} from './dto/admin-update-influencer-instagram.dto';
-import {Invoices} from '../invoice/schemas/invoices.schema';
 import {AdminUpdateInfluencerInvoiceDto} from './dto/admin-update-influencer-invoice.dto';
 import {Payment} from '../payment/schemas/payment.entity';
 import {AdminUpdateClientPayment} from './dto/admin-update-client-payment.update';
@@ -28,6 +27,7 @@ import {CompletedCampaign} from "../../database/schemas/campaign/completed-campa
 import {returnMusicStyles} from "../../common/utils/genres";
 import {AddSocialMediasDto} from "../profile/dto/update-influencer.dto";
 import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
+import {InfluencerInvoice} from "../../database/schemas/invoices/influencer-invoice.schema";
 
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
@@ -44,8 +44,8 @@ export class AdminService {
         private clientModel: mongoose.Model<Client>,
         @InjectModel(Influencer.name)
         private influencerModel: mongoose.Model<Influencer>,
-        @InjectModel(Invoices.name)
-        private invoicesModel: mongoose.Model<Invoices>,
+        @InjectModel(InfluencerInvoice.name)
+        private invoicesModel: mongoose.Model<InfluencerInvoice>,
         @InjectModel(Payment.name)
         private paymentModel: mongoose.Model<Payment>,
         @InjectModel(CompletedCampaign.name)

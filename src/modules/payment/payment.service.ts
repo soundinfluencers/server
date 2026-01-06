@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import mongoose from 'mongoose';
 import { Payment } from './schemas/payment.entity';
 import { Response } from 'express';
-import {InvoiceDetails} from "../invoice/schemas/invoice-details.schema";
+import {InvoiceDetails} from "../../database/schemas/invoices/invoice-details.schema";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {Client} from "../../database/schemas/users/client.schema";
 

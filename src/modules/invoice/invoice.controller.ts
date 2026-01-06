@@ -1,11 +1,13 @@
-import {Body, Controller, Get, Post, Query, Res} from '@nestjs/common';
+import {Body, Controller, Get, Post, Query, Req, Res, UnauthorizedException} from '@nestjs/common';
 import {InvoiceService} from './invoice.service';
 import {ApiQuery, ApiTags} from '@nestjs/swagger';
-import {CreateInvoiceDtoDto} from './dto/create-invoice.dto';
+import {CreateInvoiceDto} from './dto/create-invoice.dto';
 import {Response} from 'express';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
-import {Role} from "../../common/types/auth.types";
+import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
+import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
+import {GetInvoicesQueryDto, InvoicesForDashboardDto} from "./dto/invoice.dto";
 
 @ApiTags('invoice')
 @Controller('invoice')
@@ -20,23 +22,35 @@ export class InvoiceController {
 
     @Auth()
     @Roles(Role.influencer)
+    @ApiResponseDto(undefined, { successStatusCode: 201 })
     @Post()
-    createInvoice(@Body() data: CreateInvoiceDtoDto) {
-        return this.invoiceService.createInvoice(data);
+    createInvoice(@Req() req: AuthenticatedRequest, @Body() data: CreateInvoiceDto): Promise<void> {
+        if (!req.user._id) throw new UnauthorizedException('Unauthorized');
+        return this.invoiceService.createInvoice({...data, influencerId: req.user._id});
     }
 
-    @ApiQuery({name: 'influencerId'})
+    @Auth()
+    @Roles(Role.influencer)
+    @ApiResponseDto(InvoicesForDashboardDto)
+    @ApiQuery({
+        name: 'limit',
+        required: false,
+        type: 'number',
+    })
+    @ApiQuery({
+        name: 'page',
+        required: false,
+        type: 'number',
+    })
     @Get()
-    getInvoices(@Query() args: { influencerId: string }) {
-        return this.invoiceService.getInvoices(args.influencerId);
+    async getInvoices(@Req() req: AuthenticatedRequest, @Query() query: GetInvoicesQueryDto): Promise<InvoicesForDashboardDto> {
+        if (!req.user._id) throw new UnauthorizedException('Unauthorized');
+        const invoices = await this.invoiceService.getInvoices({...query, influencerId: req.user._id});
+        return {invoices};
     }
 
-    @ApiQuery({name: 'influencerId'})
-    @Get('saved')
-    getInvoiceSave(@Query() args: { influencerId: string }) {
-        return this.invoiceService.getInvoiceSave(args.influencerId);
-    }
-
+    @Auth()
+    @Roles(Role.influencer, Role.admin)
     @Get('download')
     @ApiQuery({name: 'invoiceId'})
     downloadInvoice(@Query() args: { invoiceId: string }, @Res() res: Response) {

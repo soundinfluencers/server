@@ -1,7 +1,6 @@
 import {BadRequestException, Injectable, Logger, NotFoundException} from '@nestjs/common';
-import mongoose, {ClientSession} from 'mongoose';
+import mongoose, {ClientSession, Types} from 'mongoose';
 import {UpsertCampaignActionDto, UpsertInvoiceActionDto} from "./dto/upsert-actions.dto";
-import {CheckIfInCampaignDto} from "./dto/check-if-in-campaign.dto";
 import {InfluencerHistoryRepository} from "../../database/repositories/histories/influencer-history.repository";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {
@@ -76,7 +75,7 @@ export class InfluencerActionsHistoryService {
                 {
                     $push: {
                         campaigns: {
-                            campaignId,
+                            campaignId: new Types.ObjectId(campaignId),
                             campaignName,
                             actions: [action],
                         },
@@ -123,7 +122,7 @@ export class InfluencerActionsHistoryService {
             });
         } else {
             influencerActionsHistory.invoices.push({
-                invoiceId,
+                invoiceId: new Types.ObjectId(invoiceId),
                 amount,
                 paymentMethod,
                 currentBalance,
