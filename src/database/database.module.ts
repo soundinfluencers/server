@@ -23,6 +23,8 @@ import {Admin, AdminSchema} from "./schemas/users/admin.schema";
 import {AdminRepository} from "./repositories/users/admin.repository";
 import {InfluencerInvoice, InfluencerInvoiceSchema} from "./schemas/invoices/influencer-invoice.schema";
 import {InfluencerInvoiceRepository} from "./repositories/invoices/influencer-invoice.repository";
+import {ReportSizes, ReportSizesSchema} from "./schemas/report-size/reports-sizes.schema";
+import {ReportSizeRepository} from "./repositories/report-size/report-size.repository";
 
 @Global()
 @Module({
@@ -37,7 +39,8 @@ import {InfluencerInvoiceRepository} from "./repositories/invoices/influencer-in
             { name: Campaign.name, schema: CampaignSchema },
             { name: CompletedCampaign.name, schema: CompletedCampaignSchema },
             { name: ProposalCampaign.name, schema: ProposalCampaignSchema },
-            { name: InfluencerInvoice.name, schema: InfluencerInvoiceSchema }
+            { name: InfluencerInvoice.name, schema: InfluencerInvoiceSchema },
+            { name: ReportSizes.name, schema: ReportSizesSchema },
         ]),
     ],
     providers: [
@@ -51,6 +54,7 @@ import {InfluencerInvoiceRepository} from "./repositories/invoices/influencer-in
         CompletedCampaignRepository,
         ProposalCampaignRepository,
         InfluencerInvoiceRepository,
+        ReportSizeRepository,
     ],
     exports: [
         ClientRepository,
@@ -63,6 +67,7 @@ import {InfluencerInvoiceRepository} from "./repositories/invoices/influencer-in
         CompletedCampaignRepository,
         ProposalCampaignRepository,
         InfluencerInvoiceRepository,
+        ReportSizeRepository,
     ],
 })
 export class DatabaseModule {}

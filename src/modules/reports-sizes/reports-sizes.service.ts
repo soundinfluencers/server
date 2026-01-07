@@ -1,112 +1,130 @@
-import {Injectable, Logger} from '@nestjs/common';
-import {InjectModel} from '@nestjs/mongoose';
-import {Model, Types} from 'mongoose';
-import {ReportSizes} from './schemas/reports-sizes.schema';
-import {UpdateReportSizeDto} from './dto/update-report-size.dto';
-import {Campaign} from '../../database/schemas/campaign/campaign.schema';
-import {GetReportSizeDto} from './dto/get-report-size.dto';
-import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
+import {BadRequestException, Injectable, NotFoundException} from '@nestjs/common';
+import {Types} from 'mongoose';
+import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
+import {ProposalCampaignRepository} from "../../database/repositories/campaigns/proposal-campaign.repository";
+import {ReportSizeRepository} from "../../database/repositories/report-size/report-size.repository";
+import {UpdateReportSizeResponse} from "./types/report-size.types";
+import {CompletedCampaignRepository} from "../../database/repositories/campaigns/completed-campaign.repository";
+import {UpdateReportSizeRequestDto} from "./dto/update-report-size.dto";
 
 @Injectable()
 export class ReportsSizesService {
-    private readonly logger = new Logger();
-
     constructor(
-        @InjectModel(ReportSizes.name) private reportsSizesModel: Model<ReportSizes>,
-        @InjectModel(Campaign.name) private readonly campaignModel: Model<Campaign>,
-        @InjectModel(ProposalCampaign.name) private readonly proposalCampaignModel: Model<ProposalCampaign>,
+        private readonly reportSizeRepository: ReportSizeRepository,
+        private readonly campaignRepository: CampaignRepository,
+        private readonly proposalCampaignRepository: ProposalCampaignRepository,
+        private readonly completedCampaignRepository: CompletedCampaignRepository,
     ) {
     }
 
-    async updateReportSize(data: UpdateReportSizeDto) {
-        if (!data.campaignId || !data.columnSizes) {
-            return {code: 400, message: 'Bad Request'};
+    // Updates existing campaign report size or creates new
+    async updateReportSize(
+        data: UpdateReportSizeRequestDto,
+    ): Promise<UpdateReportSizeResponse> {
+
+        const {campaignId, userId, columnSizes} = data;
+
+        if (!campaignId || !userId || !columnSizes) {
+            throw new BadRequestException('Not enough arguments');
         }
 
-        const {campaignId, userId = '66f540faaf4e960d2f9bebfc', columnSizes} = data;
+        const allDefault = Object.values(columnSizes)
+            .every(value => Number(value) === 150);
 
-        const allDefault = Object.values(columnSizes).every(value => Number(value) === 150);
         if (allDefault) {
-            return {code: 200, message: 'Default sizes not saved', data: null};
+            return {
+                message: 'Default sizes not saved',
+            };
         }
+
+        const campaignExists =
+            await this.campaignRepository.exists({campaignId: new Types.ObjectId(campaignId)}) ||
+            await this.proposalCampaignRepository.exists({campaignId: new Types.ObjectId(campaignId)}) ||
+            await this.completedCampaignRepository.exists({campaignId: new Types.ObjectId(campaignId)});
+
+        if (!campaignExists) {
+            throw new NotFoundException('Campaign not found');
+        }
+
+        let reportSizes = await this.reportSizeRepository.findOne({
+            campaignId: new Types.ObjectId(campaignId),
+        });
+
+        const session = await this.reportSizeRepository.startSession();
 
         try {
-            const campaignExists =
-                !!(await this.campaignModel.exists({ _id: campaignId })) ||
-                !!(await this.proposalCampaignModel.exists({ _id: campaignId }));
-
-            if (!campaignExists) {
-                return { code: 404, message: 'Campaign Not Found' };
-            }
-
-            let reportSizes = await this.reportsSizesModel.findOne({campaignId});
+            session.startTransaction();
 
             if (!reportSizes) {
-                reportSizes = await this.reportsSizesModel.create({
-                    campaignId,
+                // TODO: remove as any
+                reportSizes = await this.reportSizeRepository.create({
+                    campaignId: new Types.ObjectId(campaignId),
                     userSizes: [],
-                });
+                }) as any;
             }
 
-            const userSizeIndex = reportSizes.userSizes.findIndex((u) =>
-                u.userId.toString() === userId,
+            const userSizeIndex = reportSizes.userSizes.findIndex(
+                u => u.userId.toString() === userId,
+            );
+
+            const mappedSizes = new Map<string, number>(
+                Object.entries(columnSizes).map(([key, value]) => [
+                    key,
+                    Number(value),
+                ]),
             );
 
             if (userSizeIndex === -1) {
                 reportSizes.userSizes.push({
                     _id: new Types.ObjectId(),
                     userId: new Types.ObjectId(userId),
-                    columnSizes: new Map(
-                        Object.entries(columnSizes).map(([key, value]) => [key, Number(value)]),
-                    ),
+                    columnSizes: mappedSizes,
                 });
             } else {
-                reportSizes.userSizes[userSizeIndex].columnSizes = new Map(
-                    Object.entries(columnSizes).map(([key, value]) => [key, Number(value)]),
-                );
+                reportSizes.userSizes[userSizeIndex].columnSizes = mappedSizes;
             }
 
             await reportSizes.save();
+            await session.commitTransaction();
 
             return {
-                code: 200,
                 message: 'Report sizes updated successfully',
-                data: reportSizes,
+                sizes: [
+                    Object.fromEntries(
+                        reportSizes.userSizes[userSizeIndex].columnSizes,
+                    ),
+                ],
             };
         } catch (err) {
-            this.logger.error(
-                `Error while updating report sizes for \nCampaign id: ${campaignId} \nUser id: ${userId} \n${err.message}`,
-                err instanceof Error ? err.stack : new Error().stack,
-            );
-            return {code: 500, message: 'Internal Server Error'};
+            await session.abortTransaction();
+            throw new err;
+        } finally {
+            session.endSession();
         }
     }
 
-    async getReportSizeForUser({campaignId, userId}: GetReportSizeDto) {
-        try {
-            const reportSizes = await this.reportsSizesModel.findOne({campaignId});
-            if (!reportSizes) return null;
+    // Returns report size for user
+    async getReportSizeForUser(
+        campaignId: string,
+        userId: string,
+    ): Promise<Record<string, number>> {
 
-            const userSizes = reportSizes.userSizes.find(u =>
-                u.userId.toString() === userId,
-            );
+        const reportSizes = await this.reportSizeRepository.findOne({
+            campaignId: new Types.ObjectId(campaignId),
+        });
 
-            if (userSizes) {
-                return {code: 200, sizes: userSizes.columnSizes};
-            }
-
-            const adminSizes = reportSizes.userSizes.find(u =>
-                u.userId.toString() === '66f540faaf4e960d2f9bebfc'
-            )?.columnSizes;
-
-
-            return {code: 200, sizes: adminSizes};
-        } catch (err) {
-            this.logger.error(
-                `Error while getting report sizes for Campaign: ${campaignId}, User: ${userId} \n${err.message}`,
-                err instanceof Error ? err.stack : new Error().stack
-            );
-            throw err;
+        if (!reportSizes) {
+            return {};
         }
+
+        const userSizes =
+            reportSizes.userSizes.find(u => u.userId.toString() === userId) ??
+            reportSizes.userSizes.find(
+                u => u.userId.toString() === '66f540faaf4e960d2f9bebfc',
+            );
+
+        return userSizes
+            ? Object.fromEntries(userSizes.columnSizes)
+            : {};
     }
 }

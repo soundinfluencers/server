@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ReportSizes, ReportSizesSchema } from './schemas/reports-sizes.schema';
+import { ReportSizes, ReportSizesSchema } from '../../database/schemas/report-size/reports-sizes.schema';
 import { ReportsSizesController } from './reports-sizes.controller';
 import { ReportsSizesService } from './reports-sizes.service';
 import {Campaign, CampaignSchema} from '../../database/schemas/campaign/campaign.schema';

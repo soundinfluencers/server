@@ -29,7 +29,7 @@ export const CampaignActionSchema = SchemaFactory.createForClass(CampaignAction)
 
 @Schema()
 export class CampaignActionsHistory {
-    @Prop({type: Types.ObjectId, required: true, ref: "Campaign"})
+    @Prop({type: Types.ObjectId, required: true})
     campaignId: Types.ObjectId;
 
     @Prop({type: String, required: true})

@@ -2,6 +2,7 @@ import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
 import {ProposalCampaignsListItem} from "../types/proposal-system.types";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 
+// TODO: add class validator
 export class GetProposalCampaignsQueryDto {
     @ApiPropertyOptional({
         default: 12,
