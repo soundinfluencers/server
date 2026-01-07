@@ -880,7 +880,7 @@ export class PromosService {
             await session.abortTransaction();
             throw e;
         } finally {
-            session.endSession();
+            await session.endSession();
         }
     }
 

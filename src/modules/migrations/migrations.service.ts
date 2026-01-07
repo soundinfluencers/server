@@ -41,7 +41,7 @@ export class MigrationsService {
             await session.abortTransaction();
             throw e;
         } finally {
-            session.endSession();
+            await session.endSession();
         }
     }
 }

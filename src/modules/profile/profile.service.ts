@@ -1,24 +1,23 @@
 import {
     BadRequestException,
     ConflictException,
-    Injectable,
+    Injectable, InternalServerErrorException,
     NotFoundException,
     UnauthorizedException
 } from '@nestjs/common';
 import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from './dto/update-client.dto';
-import mongoose, {ClientSession, Types} from 'mongoose';
+import {ClientSession, Types} from 'mongoose';
 import {UpdateUserPasswordDto} from './dto/update-password.dto';
 import {
-    AddSocialMediasDto,
+    DeleteSocialAccountDto,
     InfluencerUpdatedPersonalDetailsDto,
     UpdateInfluencerPersonalDetailsDto,
     UpdateSocialMediaAccountDto
 } from './dto/update-influencer.dto';
-import {SendMailPriceChangeDto} from './dto/send-mail-price-change.dto';
 import * as process from 'node:process';
 import {AppGateway} from '../websocket/app.gateway';
 import sendMail from "../../integrations/nodemailer/nodemailer";
-import {Influencer} from "../../database/schemas/users/influencer.schema";
+import {Influencer, SocialAccount} from "../../database/schemas/users/influencer.schema";
 import {MigrateAccountDto} from "../migrations/dto/migrate-account.dto";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
@@ -53,9 +52,9 @@ export class ProfileService {
         if (phone) updateData.phone = phone.trim();
 
         const updatedUser = await this.clientRepo.findOneAndUpdate(
-            { _id: new Types.ObjectId(_id) },
-            { $set: updateData },
-            { new: true }
+            {_id: new Types.ObjectId(_id)},
+            {$set: updateData},
+            {new: true}
         );
 
         if (!updatedUser) {
@@ -85,9 +84,9 @@ export class ProfileService {
         if (phone) updateData.phone = phone.trim();
 
         const updatedUser = await this.influencerRepo.findOneAndUpdate(
-            { _id: new Types.ObjectId(_id) },
-            { $set: updateData },
-            { new: true }
+            {_id: new Types.ObjectId(_id)},
+            {$set: updateData},
+            {new: true}
         );
 
         if (!updatedUser) {
@@ -101,7 +100,7 @@ export class ProfileService {
         };
     }
 
-    // Updates user password
+    // Updates user's password
     async updateUserPassword(data: UpdateUserPasswordDto) {
         const {currentPassword, newPassword, _id, role} = data;
 
@@ -152,64 +151,67 @@ export class ProfileService {
         }
     }
 
-    //  // TODO: UPDATE
-    // async updateSocialAccount(data: UpdateSocialMediaAccountDto) {
-    //     if (!data) throw new BadRequestException("Not enough arguments");
-    //
-    //     const influencer = await this.influencerRepo.findOne({_id: data._id});
-    //     if (!influencer) throw new NotFoundException("Influencer not found");
-    //
-    //     const socialMediaAccounts = influencer[data.typeOfSocialMedia];
-    //     if (!socialMediaAccounts || socialMediaAccounts.length === 0) {
-    //         return {
-    //             code: 404,
-    //             message: `No accounts found for type: ${data.typeOfSocialMedia}`,
-    //         };
-    //     }
-    //
-    //     const accountIndex = socialMediaAccounts.findIndex(
-    //         (account) => account._id?.toString() === data.accountId || account.instagramUsername === data.oldUsername,
-    //     );
-    //
-    //     if (accountIndex === -1) {
-    //         return {
-    //             code: 404,
-    //             message: 'Account not found',
-    //         };
-    //     }
-    //
-    //     socialMediaAccounts[accountIndex] = {
-    //         ...socialMediaAccounts[accountIndex],
-    //         instagramUsername: data.newUsername,
-    //         instagramLink: data.instagramLink,
-    //         followersNumber: data.followersNumber.replace(/[.,]/g, ''),
-    //         logo: data.logo,
-    //         musicStyle: data.musicStyle,
-    //         musicSubStyles: data.musicSubStyles,
-    //         musicStyleOther: data.musicStyleOther,
-    //         countries: data.countries,
-    //         categories: data.categories,
-    //         engagementRate: data.engagementRate ?? null,
-    //         averageViews: data.averageViews ?? null,
-    //         price: data.canUpdatePrice ? data.price : socialMediaAccounts[accountIndex].price,
-    //         publicPrice: data.canUpdatePrice ? data.publicPrice : socialMediaAccounts[accountIndex].publicPrice,
-    //         currency: data.canUpdatePrice ? data.currency : socialMediaAccounts[accountIndex].currency,
-    //         initialPrice: data.canUpdatePrice ? parseInt(String(data.initialPrice).replace(/[^\d.-]/g, '')) : socialMediaAccounts[accountIndex].initialPrice,
-    //         profileCategory: data.profileCategory ?? "community",
-    //         ...(data.profileCategory === "creator" && {
-    //             creatorCategories: data.creatorCategories ?? [],
-    //         }),
-    //         isVerified: true,
-    //     };
-    //
-    //     influencer[data.typeOfSocialMedia] = socialMediaAccounts;
-    //     await influencer.save();
-    //
-    //     return {
-    //         code: 200,
-    //         message: 'Social media account updated successfully',
-    //     };
-    // }
+    // Updates influencer's social account
+    async updateSocialAccount(data: UpdateSocialMediaAccountDto): Promise<SocialAccount> {
+        if (!data.influencerId) throw new BadRequestException("Not enough arguments");
+
+        const influencer = await this.influencerRepo.findOne({_id: new Types.ObjectId(data.influencerId)});
+        if (!influencer) throw new NotFoundException("Influencer not found");
+
+        const socialMediaAccounts = influencer[data.socialMedia];
+        if (!socialMediaAccounts || socialMediaAccounts.length === 0) throw new NotFoundException(`No accounts found for type: ${data.socialMedia}`);
+
+        const socialAccountId = new Types.ObjectId(data.socialAccountId);
+
+        const accountIndex = socialMediaAccounts.findIndex(
+            (account) => account._id.equals(socialAccountId),
+        );
+
+        if (accountIndex === -1) throw new NotFoundException(`Social account not found`)
+
+        const updateFields: Partial<SocialAccount> = {};
+        for (const [key, value] of Object.entries(data)) {
+            if (
+                value !== undefined &&
+                key !== "influencerId" &&
+                key !== "socialAccountId" &&
+                key !== "socialMedia"
+            ) {
+                updateFields[key] = value as any;
+            }
+        }
+
+        // if there's no fields to update - return account in current state (without updating)
+        if (Object.keys(updateFields).length === 0) {
+            return socialMediaAccounts[accountIndex];
+        }
+
+        const updateResult = await this.influencerRepo.updateOne(
+            {
+                _id: influencer._id,
+                [`${data.socialMedia}._id`]: socialAccountId,
+            },
+            {
+                $set: Object.fromEntries(
+                    Object.entries(updateFields).map(([key, value]) => [
+                        `${data.socialMedia}.$.${key}`,
+                        value,
+                    ]),
+                ),
+            },
+        );
+
+        if (updateResult.modifiedCount === 0)
+            throw new InternalServerErrorException("Failed to update social account");
+
+        const updatedInfluencer = await this.influencerRepo.findOne({
+            _id: influencer._id,
+        });
+
+        return updatedInfluencer[data.socialMedia].find((acc) =>
+            acc._id.equals(socialAccountId),
+        );
+    }
 
 //     // TODO: UPDATE
 //     async sendMailAboutChangingPrice(data: SendMailPriceChangeDto) {
@@ -348,78 +350,58 @@ export class ProfileService {
 //         }
 //     }
 //
-//     // TODO: UPDATE
-//     async deleteSocialMediaAccount(data: any) {
-//         try {
-//             if (!data) {
-//                 return {
-//                     code: 400,
-//                     message: 'Not enough arguments',
-//                 };
-//             }
-//
-//             const influencer = await this.influencerModel.findOne({_id: data._id});
-//             if (!influencer) {
-//                 return {
-//                     code: 404,
-//                     message: 'User not found',
-//                 };
-//             }
-//
-//             const socialMediaAccounts = influencer[data.typeOfSocialMedia];
-//             if (!socialMediaAccounts || socialMediaAccounts.length === 0) {
-//                 return {
-//                     code: 404,
-//                     message: `No accounts found for type: ${data.typeOfSocialMedia}`,
-//                 };
-//             }
-//
-//             const accountIndex = socialMediaAccounts.findIndex(
-//                 (account) => account._id.toString() === data.accountId,
-//             );
-//
-//             if (accountIndex === -1) {
-//                 return {
-//                     code: 404,
-//                     message: 'Account not found',
-//                 };
-//             }
-//
-//             socialMediaAccounts[accountIndex].isDeleted = true;
-//
-//             influencer[data.typeOfSocialMedia] = socialMediaAccounts;
-//             const socialMediaAccountName = socialMediaAccounts[accountIndex].instagramUsername;
-//
-//             await influencer.save();
-//
-//             const emailContent = `
-//                 <p>Hi,</p>
-//                 <p>The Influencer <strong>${influencer.firstName}</strong> deleted <strong>${data.typeOfSocialMedia}</strong> account <strong>${socialMediaAccountName}</strong></p>
-//                 <br>
-//                 ${data.deleteReason ? `<p><strong>Reason:</strong> ${data.deleteReason}</p>` : ''}
-//             `;
-//
-//             await sendMail(
-//                 // "nazarkozynets030606@zohomail.eu",
-//                 'admin@soundinfluencers.com',
-//                 'soundinfluencers',
-//                 emailContent,
-//                 'html',
-//             );
-//
-//             return {
-//                 code: 200,
-//                 message: 'Social media account deleted successfully',
-//             };
-//         } catch (err) {
-//             console.error('Error deleting social media account:', err);
-//             return {
-//                 code: 500,
-//                 message: 'Internal server error',
-//             };
-//         }
-//     }
-//
+
+    // Deletes influencer's social account
+    async deleteSocialMediaAccount(data: DeleteSocialAccountDto) {
+        if (!data.influencerId) throw new BadRequestException('Not enough arguments');
+
+        const influencer = await this.influencerRepo.findOne({_id: new Types.ObjectId(data.influencerId)});
+        if (!influencer) throw new NotFoundException("Influencer not found");
+
+        const socialMediaAccounts = influencer[data.socialMedia];
+        if (!socialMediaAccounts || socialMediaAccounts.length === 0) throw new NotFoundException(`Influencer (${influencer.email}) - No social accounts found for type: ${data.socialMedia}`)
+
+        const accountIndex = socialMediaAccounts.findIndex(
+            (account) => account._id.toString() === data.socialAccountId,
+        );
+
+        if (accountIndex === -1) throw new NotFoundException(`Social account not found`);
+        const session = await this.influencerRepo.startSession();
+
+        try {
+            session.startTransaction();
+
+            await this.influencerRepo.updateOne(
+                {_id: influencer._id},
+                {$set: {[`${data.socialMedia}.${accountIndex}.isDeleted`]: true}},
+                {session}
+            );
+
+            const socialMediaAccountName = socialMediaAccounts[accountIndex].username;
+
+            const emailContent = `
+        <p>Hi,</p>
+        <p>The Influencer <strong>${influencer.firstName}</strong> deleted <strong>${data.socialMedia}</strong> account <strong>${socialMediaAccountName}</strong></p>
+        <br>
+        ${data.deleteReason ? `<p><strong>Reason:</strong> ${data.deleteReason}</p>` : ''}
+    `;
+
+            await sendMail(
+                process.env.EMAIL_USER,
+                'soundinfluencers',
+                emailContent,
+                'html',
+            );
+
+            await session.commitTransaction();
+        } catch (err) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            await session.endSession();
+        }
+    }
+
 //     // TODO: UPDATE
 //     async addSocialMediaAccounts(data: AddSocialMediasDto) {
 //         let errors = [];

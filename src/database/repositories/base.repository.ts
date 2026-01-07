@@ -6,8 +6,6 @@ import {applyAggregateOptions} from "../utils/apply-aggregate-options.util";
 export class BaseRepository<T> {
     constructor(protected readonly model: Model<T>) {}
 
-    private _session: ClientSession | null = null;
-
     findById(id: string, options?: RepoOptions) {
         const query = this.model.findById(new Types.ObjectId(id));
         return applyQueryOptions(query, options);
@@ -94,32 +92,7 @@ export class BaseRepository<T> {
         return applyAggregateOptions(aggregate, options);
     }
 
-    async startSession(): Promise<ClientSession> {
-        if (this._session) return this._session;
-        this._session = await this.model.db.startSession();
-        this._session.startTransaction();
-        return this._session;
-    }
-
-    async commitTransaction(): Promise<void> {
-        if (!this._session) return;
-        await this._session.commitTransaction();
-        this._session.endSession();
-        this._session = null;
-    }
-
-    async abortTransaction(): Promise<void> {
-        if (!this._session) return;
-        await this._session.abortTransaction();
-        this._session.endSession();
-        this._session = null;
-    }
-
-    getSession(): ClientSession | null {
-        return this._session;
-    }
-
-    setSession(session: ClientSession) {
-        this._session = session;
+    startSession(): Promise<ClientSession> {
+        return this.model.db.startSession();
     }
 }

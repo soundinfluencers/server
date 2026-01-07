@@ -99,7 +99,7 @@ export class ReportsSizesService {
             await session.abortTransaction();
             throw new err;
         } finally {
-            session.endSession();
+            await session.endSession();
         }
     }
 
