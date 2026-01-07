@@ -37,23 +37,6 @@ export class PromosController {
     constructor(private readonly promosService: PromosService) {
     }
 
-    // TODO: REMOVE TO FILES SERVICE
-    @Post('uploadScreenshot')
-    @ApiOperation({summary: 'Uploads screenshot - will be removed to files controller'})
-    @ApiResponseDto()
-    @UseInterceptors(FileInterceptor('file'))
-    uploadFile(@UploadedFile() file: File) {
-        return this.promosService.uploadDropBox(file);
-    }
-
-    // TODO: REMOVE TO FILES SERVICE
-    @Get('check-upload-status')
-    @ApiOperation({summary: 'Checks if screenshot uploaded - will be removed to files controller'})
-    @ApiResponseDto()
-    async checkUploadStatus(@Query('fileName') fileName: string): Promise<boolean> {
-        return await this.promosService.checkUploadStatus(fileName);
-    }
-
     @Auth()
     @Roles(Role.influencer)
     @ApiOperation({summary: 'Get influencer new promos requests'})

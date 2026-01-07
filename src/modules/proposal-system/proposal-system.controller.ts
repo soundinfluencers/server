@@ -1,4 +1,4 @@
-import {Body, Controller, Get, Put, Query} from '@nestjs/common';
+import {Body, Controller, Get, Patch, Put, Query} from '@nestjs/common';
 import {ProposalSystemService} from './proposal-system.service';
 import {SaveProposalCampaignDto} from './dto/save-proposal-campaign.dto';
 import {ApiQuery, ApiTags} from "@nestjs/swagger";
@@ -13,10 +13,9 @@ export class ProposalSystemController {
     constructor(private readonly proposalSystemService: ProposalSystemService) {
     }
 
-    // TODO: Проверить, нужно ли менять на patch если в сервисе и создаётся, и обновляется документ
     @Auth()
     @Roles(Role.client, Role.admin)
-    @Put('save')
+    @Patch('save')
     saveProposalCampaign(@Body() data: SaveProposalCampaignDto) {
         return this.proposalSystemService.saveProposalCampaign(data);
     }

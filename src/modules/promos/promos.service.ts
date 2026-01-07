@@ -59,11 +59,6 @@ export class PromosService {
     ) {
     }
 
-    async checkUploadStatus(fileName: string): Promise<boolean> {
-        const dropboxService = new DropboxService();
-        return await dropboxService.isFileUploaded(fileName);
-    }
-
     // Returns influencer past promo (find by id, selectInfluencersId)
     async influencerPastPromoOne(data: InfluencerGetPastPromoQueryDto & {
         influencerId: string
@@ -887,15 +882,6 @@ export class PromosService {
         } finally {
             session.endSession();
         }
-    }
-
-    async uploadDropBox(file: any) {
-        const dropboxService = new DropboxService();
-        const screenshotUrl = await dropboxService.uploadFile(file.buffer, file.originalname);
-        return {
-            statusCode: 200,
-            data: screenshotUrl,
-        };
     }
 
     // Replace influencerId in each ongoing promo

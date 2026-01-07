@@ -1,73 +1,36 @@
-import { Controller, Post, UseInterceptors, UploadedFile, UploadedFiles } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import { createWriteStream, readFile, readFileSync } from 'fs';
-import {ApiBody, ApiConsumes, ApiQuery, ApiTags} from '@nestjs/swagger';
-import sizeOf from 'image-size';
+import {Controller, Post, UseInterceptors, UploadedFile, UploadedFiles, Get, Query} from '@nestjs/common';
+import {FileInterceptor} from '@nestjs/platform-express';
+import File from 'multer';
+import {ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
+import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
+import {FileService} from "./file.service";
+import {Auth} from "../../common/decorators/auth.decorator";
 
 @ApiTags('file')
 @Controller('file')
 export class FileController {
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        file: {
-          type: 'string',
-          format: 'binary',
-        },
-      },
-    },
-  })
-  @Post('upload')
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, cb) => {
-          const randomName = Array(32)
-            .fill(null)
-            .map(() => Math.round(Math.random() * 16).toString(16))
-            .join('');
-          return cb(null, `${randomName}${extname(file.originalname)}`);
-        },
-      }),
-    }),
-  )
-  async uploadFile(@UploadedFile() file) {
-    try {
-      if (file && file.filename) {
-        const data = readFileSync(file.path);
-        const dimensions = sizeOf(data);
-        if (dimensions.width && dimensions.height) {
-          const writeStream = createWriteStream(`./uploads/${file.filename}`);
-          writeStream.write(data);
-          writeStream.end();
-
-          return {
-            code: 201,
-            path: `http://localhost:3000/uploads/${file.filename}`,
-          };
-        } else {
-          return {
-            code: 500,
-            message: 'is not image',
-          };
-        }
-      } else {
-        return {
-          code: 500,
-          message: 'error image',
-        };
-      }
-    } catch (err) {
-      console.log(err);
-      return {
-        code: 500,
-        message: err,
-      };
+    constructor(private readonly fileService: FileService) {
     }
-  }
+
+    @Auth()
+    @ApiOperation({summary: 'Uploads screenshot - will be removed to files controller'})
+    @ApiResponseDto()
+    @UseInterceptors(FileInterceptor('file'))
+    @Post()
+    uploadFile(@UploadedFile() file: File) {
+        return this.fileService.uploadDropBox(file);
+    }
+
+    @Auth()
+    @ApiOperation({summary: 'Checks if screenshot uploaded - will be removed to files controller'})
+    @ApiQuery({
+        name: 'fileName',
+        required: true,
+        type: 'string',
+    })
+    @ApiResponseDto()
+    @Get('upload-status')
+    async checkUploadStatus(@Query('fileName') fileName: string): Promise<boolean> {
+        return await this.fileService.checkUploadStatus(fileName);
+    }
 }
