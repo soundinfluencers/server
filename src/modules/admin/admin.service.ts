@@ -25,7 +25,7 @@ import {Client} from "../../database/schemas/users/client.schema";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {returnMusicStyles} from "../../common/utils/genres";
-import {AddSocialMediasDto} from "../profile/dto/update-influencer.dto";
+import {AddSocialMediasDto} from "../profile/dto/influencer/update-influencer.dto";
 import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
 import {InfluencerInvoice} from "../../database/schemas/invoices/influencer-invoice.schema";
 

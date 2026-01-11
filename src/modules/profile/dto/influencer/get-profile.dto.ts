@@ -1,0 +1,107 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+    InfluencerAccountDetails,
+    SocialAccountForAccountDetails
+} from "../../../../common/types/influencer/influencer.types";
+import {ClientAccountDetails} from "../../../../common/types/client/client.types";
+
+export class SocialAccountForAccountDetailsDto implements SocialAccountForAccountDetails {
+    @ApiProperty({
+        description: "Social account's ID",
+        example: '66a747a89c6e78a6cfb83g5',
+    })
+    accountId: string;
+
+    @ApiProperty({
+        description: "Social account's username",
+        example: 'Techno TV',
+    })
+    username: string;
+}
+
+// dto for getting influencer's profile details
+export class InfluencerAccountDetailsDto implements InfluencerAccountDetails {
+    @ApiProperty({ example: 'John' })
+    firstName: string;
+
+    @ApiPropertyOptional({ example: 'Doe' })
+    lastName?: string;
+
+    @ApiProperty({ example: 'john.doe@gmail.com' })
+    email: string;
+
+    @ApiProperty({ example: '+380501234567' })
+    phone: string;
+
+    @ApiProperty({
+        type: [SocialAccountForAccountDetailsDto],
+        description: 'Instagram accounts',
+    })
+    instagramAccounts: SocialAccountForAccountDetailsDto[];
+
+    @ApiProperty({
+        type: [SocialAccountForAccountDetailsDto],
+        description: 'TikTok accounts',
+    })
+    tiktokAccounts: SocialAccountForAccountDetailsDto[];
+
+    @ApiProperty({
+        type: [SocialAccountForAccountDetailsDto],
+        description: 'Spotify accounts',
+    })
+    spotifyAccounts: SocialAccountForAccountDetailsDto[];
+
+    @ApiProperty({
+        type: [SocialAccountForAccountDetailsDto],
+        description: 'YouTube accounts',
+    })
+    youtubeAccounts: SocialAccountForAccountDetailsDto[];
+
+    @ApiProperty({
+        type: [SocialAccountForAccountDetailsDto],
+        description: 'Facebook accounts',
+    })
+    facebookAccounts: SocialAccountForAccountDetailsDto[];
+
+    @ApiProperty({
+        type: [SocialAccountForAccountDetailsDto],
+        description: 'SoundCloud accounts',
+    })
+    soundcloudAccounts: SocialAccountForAccountDetailsDto[];
+
+    @ApiProperty({
+        type: [SocialAccountForAccountDetailsDto],
+        description: 'Press accounts',
+    })
+    pressAccounts: SocialAccountForAccountDetailsDto[];
+
+    @ApiPropertyOptional({
+        description: "Influencer's telegram username",
+        example: '@techno_tv',
+    })
+    telegramUsername?: string;
+
+    @ApiPropertyOptional({
+        description: "Influencer's profile picture URL",
+        example: 'https://cdn.example.com/avatar.jpg',
+    })
+    profilePhotoUrl?: string;
+}
+
+// dto for getting client's profile details
+export class ClientAccountDetailsDto implements ClientAccountDetails {
+    @ApiProperty({ example: 'John' })
+    firstName: string;
+
+    @ApiPropertyOptional({ example: 'Doe' })
+    lastName?: string;
+
+    @ApiProperty({ example: 'Techno TV Company' })
+    companyName: string;
+
+    @ApiProperty({ example: 'john.doe@gmail.com' })
+    email: string;
+
+    @ApiProperty({ example: '+380501234567' })
+    phone: string;
+}

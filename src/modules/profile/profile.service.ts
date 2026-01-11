@@ -5,15 +5,16 @@ import {
     NotFoundException,
     UnauthorizedException
 } from '@nestjs/common';
-import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from './dto/update-client.dto';
+import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from './dto/client/update-client.dto';
 import {ClientSession, Types} from 'mongoose';
 import {UpdateUserPasswordDto} from './dto/update-password.dto';
 import {
+    AddSocialMediasDto,
     DeleteSocialAccountDto,
     InfluencerUpdatedPersonalDetailsDto,
     UpdateInfluencerPersonalDetailsDto,
     UpdateSocialMediaAccountDto
-} from './dto/update-influencer.dto';
+} from './dto/influencer/update-influencer.dto';
 import * as process from 'node:process';
 import {AppGateway} from '../websocket/app.gateway';
 import sendMail from "../../integrations/nodemailer/nodemailer";
@@ -23,6 +24,13 @@ import {SocialAccountMigrationContext} from "../migrations/types/migrations.type
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {Role} from "../../common/types/auth.types";
+import {SocialMediaEnum} from "../../common/types/social-media.types";
+import {CreateSocialAccountDto} from "../auth/dto/create-influencer.dto";
+import {normalizeMusicGenres} from "../../common/utils/genres";
+import {InfluencerAccountDetails} from "../../common/types/influencer/influencer.types";
+import {mapInfluencerToAccountDetailsDto} from "../../common/mappers/influencer.mapper";
+import {ClientAccountDetails} from "../../common/types/client/client.types";
+import {mapClientToAccountDetailsDto} from "../../common/mappers/client.mapper";
 
 const bcrypt = require('bcryptjs');
 
@@ -33,6 +41,26 @@ export class ProfileService {
         private readonly clientRepo: ClientRepository,
         private readonly influencerRepo: InfluencerRepository,
     ) {
+    }
+
+    // Returns client's account details
+    async getClientAccountDetails(clientId: string): Promise<ClientAccountDetails> {
+        if (!clientId) throw new BadRequestException('Client ID is required');
+
+        const client = await this.clientRepo.findById(clientId);
+        if (!client) throw new NotFoundException('Client not found');
+
+        return mapClientToAccountDetailsDto(client);
+    }
+
+    // Returns influencer's account details
+    async getInfluencerAccountDetails(influencerId: string): Promise<InfluencerAccountDetails> {
+        if (!influencerId) throw new BadRequestException('Influencer ID is required');
+
+        const influencer = await this.influencerRepo.findById(influencerId);
+        if (!influencer) throw new NotFoundException('Influencer not found');
+
+        return mapInfluencerToAccountDetailsDto(influencer);
     }
 
     // Updates client's personal information (firstName, company, email, phone)
@@ -402,253 +430,232 @@ export class ProfileService {
         }
     }
 
-//     // TODO: UPDATE
-//     async addSocialMediaAccounts(data: AddSocialMediasDto) {
-//         let errors = [];
-//
-//         if (!data) {
-//             errors.push('Not enough arguments');
-//             return {
-//                 code: 400,
-//                 message: 'Not enough arguments',
-//                 errors,
-//             };
-//         }
-//
-//         const influencer = await this.influencerModel.findOne({_id: data.influencerId});
-//
-//         if (!influencer) {
-//             errors.push('User not found');
-//             return {
-//                 code: 404,
-//                 message: 'User not found',
-//                 errors,
-//             };
-//         }
-//
-//         const socialNetworks = [
-//             'instagram',
-//             'tiktok',
-//             'spotify',
-//             'soundcloud',
-//             'facebook',
-//             'youtube',
-//             'press',
-//         ];
-//
-//         let dataToSendWithEmail = {
-//             influencerId: influencer._id,
-//             accounts: [],
-//         };
-//
-//         for (const network of socialNetworks) {
-//             const accounts = data[network] || [];
-//             const usernames = accounts.map((item) => item.instagramUsername);
-//
-//             const networkFilter = {
-//                 [`${network}.instagramUsername`]: {$in: usernames},
-//                 isDeleted: {$ne: true},
-//             };
-//             const isUsernameUsed = await this.influencerModel.exists(networkFilter);
-//
-//             if (isUsernameUsed) {
-//                 errors.push(`This ${network} username already exists`);
-//                 return {
-//                     code: 409,
-//                     message: `This ${network} username already exists`,
-//                     errors,
-//                 };
-//             }
-//         }
-//
-//         const emailContent = (socialMedia, item) => {
-//             if (socialMedia === 'spotify' || socialMedia === 'soundcloud') {
-//                 return `
-//                     <ul>
-//             <li><strong>${socialMedia === 'spotify' ? 'Spotify playlist name' : 'SoundCloud account name'}: ${item.instagramUsername}</strong></li>
-//             <li><strong>${socialMedia === 'spotify' ? 'Spotify playlist link' : 'SoundCloud link'}: ${item.instagramLink}</strong></li>
-//             <li><strong>Followers: ${item.followersNumber.replace(/[.,]/g, '')}</strong></li>
-//             <li><strong>Logo: ${item.logo}</strong></li>
-//             <li><strong>Price: ${item.price}€</strong></li>
-//             <li><strong>Initial Price: ${item.initialPrice}</strong></li>
-// </ul>
-//                 `;
-//             } else if (socialMedia === 'press') {
-//                 return `
-//                     <ul>
-//             <li><strong>Brand account name: ${item.instagramUsername}</strong></li>
-//             <li><strong>Website link: ${item.instagramLink}</strong></li>
-//             <li><strong>Website link: ${item.followersNumber.replace(/[.,]/g, '')}</strong></li>
-//             <li><strong>Logo: ${item.logo}</strong></li>
-//             <li><strong>Music Genres: ${formatGenres(item).join(', ')}</strong></li>
-//             <li><strong>Price: ${item.price}€</strong></li>
-//             <li><strong>Initial Price: ${item.initialPrice}</strong></li>
-//             `;
-//             } else {
-//                 return `
-//                     <ul>
-//             <li><strong>Username: ${item.instagramUsername}</strong></li>
-//             <li><strong>Link: ${item.instagramLink}</strong></li>
-//             <li><strong>Followers: ${item.followersNumber}</strong></li>
-//             <li><strong>Logo: ${item.logo}</strong></li>
-//             <li><strong>Music Styles: ${formatGenres(item).join(', ')}</strong></li>
-//             <li><strong>Price: ${item.price}€</strong></li>
-//             <li><strong>Initial Price: ${item.initialPrice}</strong></li>
-// </ul>
-//                 `;
-//             }
-//         };
-//         const formatGenres = (item) => {
-//             const genresSet = new Set<string>();
-//             if (item.musicStyle || item.musicSubStyles || item.musicStyleOther) {
-//                 if (item.musicSubStyles?.length > 0) {
-//                     for (const subStyle of item.musicSubStyles) {
-//                         if (subStyle === 'Melodic, Minimal') {
-//                             genresSet.add('Techno (Melodic, Minimal)');
-//                         }
-//                         if (subStyle === 'Hard, Peak') {
-//                             genresSet.add('Techno (Hard, Peak)');
-//                         }
-//                         if (subStyle === 'Tech House') {
-//                             genresSet.add('House (Tech House)');
-//                         }
-//                         if (subStyle === 'Melodic, Afro') {
-//                             genresSet.add('House (Melodic, Afro)');
-//                         }
-//                     }
-//                 } else if (item.musicStyle) {
-//                     genresSet.add(item.musicStyle);
-//                 }
-//
-//                 if (item.musicStyleOther?.length > 0) {
-//                     for (const otherStyle of item.musicStyleOther) {
-//                         if (otherStyle !== 'House') {
-//                             genresSet.add(otherStyle);
-//                         }
-//                     }
-//                 }
-//             }
-//             return Array.from(genresSet);
-//         };
-//
-//         for (const network of socialNetworks) {
-//             const accounts = data[network] || [];
-//             const socialMediaAccounts = influencer[network] || [];
-//
-//             try {
-//                 for (const account of accounts) {
-//                     const sanitizedPrice = parseFloat(String(account.price).replace(/[^\d.-]/g, '')) || 0;
-//                     const sanitizedInitialPrice = parseInt(String(account.initialPrice).replace(/[^\d.-]/g, '')) || 0
-//
-//                     const publicPrice = (sanitizedPrice * 2).toString();
-//                     const accountId = new mongoose.Types.ObjectId();
-//                     socialMediaAccounts.push({
-//                         ...account,
-//                         ...(account.profileCategory === "creator" && {
-//                             creatorCategories: account.creatorCategories ?? [],
-//                         }),
-//                         followersNumber: account.followersNumber.replace(/[.,]/g, ''),
-//                         engagementRate: ['instagram', 'tiktok'].includes(network) ? 0 : null,
-//                         averageViews: ['instagram', 'tiktok'].includes(network) ? 0 : null,
-//                         publicPrice: publicPrice,
-//                         currency: account.currency,
-//                         initialPrice: sanitizedInitialPrice,
-//                         isHidden: false,
-//                         isDeleted: false,
-//                         isVerified: false,
-//                         _id: accountId,
-//                     });
-//
-//                     influencer[network] = socialMediaAccounts;
-//
-//                     dataToSendWithEmail.accounts.push(accountId);
-//                 }
-//             } catch (err) {
-//                 console.error('Error adding social media account:', err);
-//                 errors.push(`Error adding ${network} account. ${err}`);
-//             }
-//         }
-//
-//         try {
-//             await sendMail(
-//                 // "nazarkozynets030606@zohomail.eu",
-//                 'admin@soundinfluencers.com',
-//                 'soundinfluencers',
-//                 `<p>Request from ${influencer.firstName} (${influencer.email}) to add a new Brand</p>
-//             <b>Details:</b><br/>
-//             ${socialNetworks
-//                     .map((network) =>
-//                         data[network]
-//                             ?.map(
-//                                 (item, index) => `
-//                 <p><strong>Network: ${network} (${index + 1} account)</strong></p>
-//
-//                 ${emailContent(network, item)}
-//             `,
-//                             )
-//                             .join(''),
-//                     )
-//                     .join('')}
-//
-//             <h2>Do you want to verify these accounts?</h2>
-// <a href="${process.env.SERVER}/profile/influencer/verify-new-brand?influencerId=${dataToSendWithEmail.influencerId}&accounts=${encodeURIComponent(JSON.stringify(dataToSendWithEmail.accounts))}&isVerified=${true}">ACCEPT</a>
-//         <a href="${process.env.SERVER}/profile/influencer/verify-new-brand?influencerId=${dataToSendWithEmail.influencerId}&accounts=${encodeURIComponent(JSON.stringify(dataToSendWithEmail.accounts))}&isVerified=${false}">DECLINE</a>
-// `,
-//                 'html',
-//             );
-//         } catch (err) {
-//             console.error('Error sending email:', err);
-//             errors.push(`Error sending email. ${err}`);
-//         }
-//
-//         if (errors.length > 0) {
-//             return {
-//                 code: 500,
-//                 message: 'Internal server error',
-//                 errors,
-//             };
-//         } else {
-//             await influencer.save();
-//             return {
-//                 code: 200,
-//                 message: 'Social media account added successfully',
-//             };
-//         }
-//     }
+    // Creates new social accounts and return updated influencer
+    async addSocialMediaAccounts(data: AddSocialMediasDto): Promise<InfluencerAccountDetails> {
+        const {influencerId} = data;
+        if (!influencerId) throw new BadRequestException('Influencer id is missing');
 
-    // TODO: UPDATE
+        let errors = [];
+
+        const influencer = await this.influencerRepo.findById(influencerId);
+
+        if (!influencer) throw new NotFoundException(`Influencer not found`);
+
+        const socialMedias = Object.values(SocialMediaEnum);
+
+        let dataToSendWithEmail = {
+            influencerId: influencerId,
+            accounts: [],
+        };
+
+        // usernames map for check duplicates
+        const usernameMap = new Map<string, string[]>();
+
+        for (const network of socialMedias) {
+            const accounts = data[network] ?? [];
+
+            for (const acc of accounts) {
+                if (!acc?.username) continue;
+
+                const key = acc.username;
+
+                if (!usernameMap.has(key)) {
+                    usernameMap.set(key, []);
+                }
+
+                usernameMap.get(key)!.push(network);
+            }
+        }
+
+        // creating request
+        const or: any[] = [];
+
+        for (const [username, networks] of usernameMap.entries()) {
+            for (const network of networks) {
+                or.push(
+                    {[`${network}.username`]: username}
+                );
+            }
+        }
+
+        // Getting influencers with the same social account names
+        const influencers = await this.influencerRepo.findMany(
+            {$or: or},
+            socialMedias.reduce((acc, n) => {
+                acc[n] = 1;
+                return acc;
+            }, {} as any),
+        );
+
+        const conflicts: { network: string; username: string }[] = [];
+
+        // Pushing info about duplicates
+        for (const influencer of influencers) {
+            for (const network of socialMedias) {
+                const accounts = influencer[network] ?? [];
+
+                for (const acc of accounts) {
+                    if (usernameMap.has(acc.username) || usernameMap.has((acc as any).instagramUsername)) {
+                        conflicts.push({
+                            network,
+                            username: acc.username,
+                        });
+                    }
+                }
+            }
+        }
+
+        // throwing conflict error
+        if (conflicts.length) {
+            throw new ConflictException({
+                message: 'Some usernames already exist',
+                conflicts,
+            });
+        }
+
+        // func for creating mail
+        const emailContent = (socialMedia: SocialMediaEnum, item: CreateSocialAccountDto) => {
+            if (socialMedia === 'spotify' || socialMedia === 'soundcloud') {
+                return `
+                    <ul>
+            <li><strong>${socialMedia === 'spotify' ? 'Spotify playlist name' : 'SoundCloud account name'}: ${item.username}</strong></li>
+            <li><strong>${socialMedia === 'spotify' ? 'Spotify playlist link' : 'SoundCloud link'}: ${item.profileLink}</strong></li>
+            <li><strong>Followers: ${item.followers}</strong></li>
+            <li><strong>Logo: ${item.logoUrl}</strong></li>
+            <li><strong>Price: ${item.price}€</strong></li>
+            <li><strong>Initial Price: ${item.initialPrice}</strong></li>
+</ul>
+                `;
+            } else if (socialMedia === 'press') {
+                return `
+                    <ul>
+            <li><strong>Brand account name: ${item.username}</strong></li>
+            <li><strong>Website link: ${item.profileLink}</strong></li>
+            <li><strong>Website link: ${item.followers}</strong></li>
+            <li><strong>Logo: ${item.logoUrl}</strong></li>
+            <li><strong>Music Genres: ${item.musicGenres}</strong></li>
+            <li><strong>Price: ${item.price}€</strong></li>
+            <li><strong>Initial Price: ${item.initialPrice}</strong></li>
+            `;
+            } else {
+                return `
+                    <ul>
+            <li><strong>Username: ${item.username}</strong></li>
+            <li><strong>Link: ${item.profileLink}</strong></li>
+            <li><strong>Followers: ${item.followers}</strong></li>
+            <li><strong>Logo: ${item.logoUrl}</strong></li>
+            <li><strong>Music Styles: ${item.musicGenres}</strong></li>
+            <li><strong>Price: ${item.price}€</strong></li>
+            <li><strong>Initial Price: ${item.initialPrice}</strong></li>
+</ul>
+                `;
+            }
+        };
+
+        for (const network of socialMedias) {
+            const accounts: CreateSocialAccountDto[] = data[network] || [];
+            const socialMediaAccounts: SocialAccount[] = influencer[network] || [];
+
+            try {
+                for (const account of accounts) {
+                    const formattedMusicGenres = normalizeMusicGenres(account.musicGenres) ?? [];
+
+                    const accountId = new Types.ObjectId();
+                    socialMediaAccounts.push({
+                        ...(account.profileCategory === "creator" && {
+                            creatorCategories: account.creatorCategories ?? [],
+                        }),
+                        _id: accountId,
+                        username: account.username,
+                        profileLink: account.profileLink,
+                        followers: account.followers,
+                        logoUrl: account.logoUrl,
+                        profileCategory: account.profileCategory,
+                        price: account.price,
+                        initialPrice: account.initialPrice,
+                        publicPrice: account.price * 2,
+                        musicGenres: formattedMusicGenres,
+                        countries: account.countries,
+                        categories: account.categories,
+                        engagementRate: ['instagram', 'tiktok'].includes(network) ? 0 : null,
+                        averageViews: ['instagram', 'tiktok'].includes(network) ? 0 : null,
+                        currency: account.currency,
+                        isHidden: false,
+                        isDeleted: false,
+                        isVerified: false
+                    });
+
+                    influencer[network] = socialMediaAccounts;
+
+                    dataToSendWithEmail.accounts.push(accountId);
+                }
+            } catch (err) {
+                console.error('Error adding social media account:', err);
+                errors.push(`Error adding ${network} account. ${err}`);
+            }
+        }
+
+        const session = await this.influencerRepo.startSession();
+        session.startTransaction();
+
+        try {
+            await influencer.save({session});
+
+            await sendMail(
+                process.env.EMAIL_USER,
+                'soundinfluencers',
+                `<p>Request from ${influencer.firstName} (${influencer.email}) to add a new Brand</p>
+            <b>Details:</b><br/>
+            ${socialMedias
+                    .map((network) =>
+                        data[network]
+                            ?.map(
+                                (item, index) => `
+                <p><strong>Network: ${network} (${index + 1} account)</strong></p>
+
+                ${emailContent(network, item)}
+            `,
+                            )
+                            .join(''),
+                    )
+                    .join('')}
+
+            <h2>Do you want to verify these accounts?</h2>
+<a href="${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${dataToSendWithEmail.influencerId}&accounts=${encodeURIComponent(JSON.stringify(dataToSendWithEmail.accounts))}&isVerified=${true}">ACCEPT</a>
+        <a href="${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${dataToSendWithEmail.influencerId}&accounts=${encodeURIComponent(JSON.stringify(dataToSendWithEmail.accounts))}&isVerified=${false}">DECLINE</a>
+`,
+                'html',
+            );
+
+            await session.commitTransaction();
+
+            return mapInfluencerToAccountDetailsDto(influencer);
+        } catch (err) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            await session.endSession();
+        }
+    }
+
+    // Verifies new social accounts
     async verifyNewSocialMediaAccounts(
         influencerId: string,
         accountIds: string[],
         isVerified: boolean,
     ) {
-        if (!influencerId || !accountIds || accountIds.length === 0 || isVerified === undefined) {
-            return {
-                code: 400,
-                message: 'Not enough arguments',
-            };
-        }
+        if (!influencerId || !accountIds || accountIds.length === 0 || isVerified === undefined) throw new BadRequestException("Not enough arguments");
 
-        const influencer = await this.influencerRepo.findOne({_id: influencerId});
+        const influencer = await this.influencerRepo.findById(influencerId);
 
-        if (!influencer) {
-            return {
-                code: 404,
-                message: 'User not found',
-            };
-        }
+        if (!influencer) throw new NotFoundException("Influencer not found");
 
-        const socialNetworks = [
-            'instagram',
-            'tiktok',
-            'spotify',
-            'soundcloud',
-            'facebook',
-            'youtube',
-            'press',
-        ];
+        const socialNetworks = Object.values(SocialMediaEnum);
 
         let updatedAccounts = [];
+
+        const session = await this.influencerRepo.startSession();
+        session.startTransaction();
 
         try {
             socialNetworks.forEach((network) => {
@@ -665,25 +672,19 @@ export class ProfileService {
                 });
             });
 
-            await influencer.save();
+            await influencer.save({session});
+            await session.commitTransaction();
 
             this.webSocketService.server.emit('brands approved', {
                 influencerId,
                 updatedAccounts,
                 isVerified,
             });
-
-            return {
-                code: 200,
-                message: 'Social media account(s) updated successfully',
-            };
         } catch (err) {
-            console.error('Error verifying social media accounts:', err);
-            return {
-                code: 500,
-                message: 'Internal server error',
-                errors: [err.message],
-            };
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            await session.endSession();
         }
     }
 

@@ -1,36 +1,46 @@
-import {
-    Body,
-    Controller,
-    Delete,
-    Get,
-    Param,
-    Patch,
-    Post,
-    Put,
-    Query,
-    Req,
-    UnauthorizedException
-} from '@nestjs/common';
+import {Body, Controller, Delete, Get, Patch, Post, Query, Req, UnauthorizedException} from '@nestjs/common';
 import {ProfileService} from './profile.service';
-import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from './dto/update-client.dto';
+import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from './dto/client/update-client.dto';
 import {UpdateUserPasswordDto} from './dto/update-password.dto';
 import {
-    AddSocialMediasDto, DeleteSocialAccountDto, InfluencerUpdatedPersonalDetailsDto,
+    AddSocialMediasDto,
+    DeleteSocialAccountDto,
+    InfluencerUpdatedPersonalDetailsDto,
     UpdateInfluencerPersonalDetailsDto,
     UpdateSocialMediaAccountDto
-} from './dto/update-influencer.dto';
-import {SendMailPriceChangeDto} from './dto/send-mail-price-change.dto';
-import {ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
+} from './dto/influencer/update-influencer.dto';
+import {ApiExcludeEndpoint, ApiOperation, ApiTags} from '@nestjs/swagger';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {SocialAccount} from "../../database/schemas/users/influencer.schema";
+import {ClientAccountDetailsDto, InfluencerAccountDetailsDto} from "./dto/influencer/get-profile.dto";
 
 @ApiTags('profile')
 @Controller('profile')
 export class ProfileController {
     constructor(private readonly profileService: ProfileService) {
+    }
+
+    @Auth()
+    @Roles(Role.client, Role.admin)
+    @ApiOperation({summary: "Get client's account details"})
+    @ApiResponseDto(ClientAccountDetailsDto)
+    @Get('/client')
+    getClientProfileDetails(@Req() req: AuthenticatedRequest): Promise<ClientAccountDetailsDto> {
+        return this.profileService.getClientAccountDetails(req.user._id);
+    }
+
+    @Auth()
+    @Roles(Role.influencer, Role.admin)
+    @ApiOperation({summary: "Get influencer's account details"})
+    @ApiResponseDto(InfluencerAccountDetailsDto)
+    @Get('/influencer')
+    getInfluencerProfileDetails(@Req() req: AuthenticatedRequest): Promise<InfluencerAccountDetailsDto> {
+        if (!req.user._id) throw new UnauthorizedException('Unauthorized');
+
+        return this.profileService.getInfluencerAccountDetails(req.user._id);
     }
 
     @Auth()
@@ -88,32 +98,34 @@ export class ProfileController {
         return this.profileService.deleteSocialMediaAccount({...data, influencerId: request.user._id});
     }
 
-    // // TODO: UPDATE
-    // @Patch('influencer/add-social-media-accounts')
-    // addSocialMediaAccounts(@Body() data: AddSocialMediasDto) {
-    //     return this.profileService.addSocialMediaAccounts(data);
-    // }
-    //
+    @Auth()
+    @Roles(Role.influencer, Role.admin)
+    @ApiOperation({summary: "Adds new social accounts and returns updated influencer"})
+    @ApiResponseDto(InfluencerAccountDetailsDto, {successStatusCode: 201})
+    @Post('social-account')
+    async addSocialMediaAccounts(@Req() request: AuthenticatedRequest, @Body() data: AddSocialMediasDto): Promise<InfluencerAccountDetailsDto> {
+        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
+
+        return await this.profileService.addSocialMediaAccounts({...data, influencerId: request.user._id});
+    }
+
     // // TODO: UPDATE
     // @Post('influencer/send-mail-price-change')
     // sendMailAboutChangingPrice(@Body() data: SendMailPriceChangeDto) {
     //     return this.profileService.sendMailAboutChangingPrice(data);
     // }
-    //
-    // // TODO: UPDATE
-    // @ApiQuery({name: 'influencerId'})
-    // @ApiQuery({name: 'accounts'})
-    // @ApiQuery({name: 'isVerified'})
-    // @Get('influencer/verify-new-brand')
-    // verifyNewSocialMediaAccounts(
-    //     @Query() query: { influencerId: string; accounts: []; isVerified: boolean },
-    // ) {
-    //     return this.profileService.verifyNewSocialMediaAccounts(
-    //         query.influencerId,
-    //         query.accounts,
-    //         query.isVerified,
-    //     );
-    // }
+
+    @ApiExcludeEndpoint()
+    @Get('influencer/verify-new-accounts')
+    verifyNewSocialMediaAccounts(
+        @Query() query: { influencerId: string; accounts: []; isVerified: boolean },
+    ) {
+        return this.profileService.verifyNewSocialMediaAccounts(
+            query.influencerId,
+            query.accounts,
+            query.isVerified,
+        );
+    }
     //
     // // TODO: UPDATE
     // @ApiQuery({name: 'influencerId'})

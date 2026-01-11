@@ -1,10 +1,10 @@
 import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {IsString, IsOptional, IsArray, ValidateNested, IsEnum, IsNumber, IsBoolean} from 'class-validator';
 import {Type} from 'class-transformer';
-import {CreateSocialAccountDto} from "../../auth/dto/create-influencer.dto";
-import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
-import {InfluencerCountryStats} from "../../../database/schemas/users/influencer.schema";
-import {InfluencerProfileCategory} from "../../../common/types/influencer/influencer.types";
+import {CreateSocialAccountDto} from "../../../auth/dto/create-influencer.dto";
+import {SocialMediaEnum, SocialMediaType} from "../../../../common/types/social-media.types";
+import {InfluencerCountryStats, SocialAccount} from "../../../../database/schemas/users/influencer.schema";
+import {InfluencerProfileCategory} from "../../../../common/types/influencer/influencer.types";
 
 // DTO for updating personal details
 export class UpdateInfluencerPersonalDetailsDto {
@@ -214,4 +214,13 @@ export class DeleteSocialAccountDto {
     @IsString()
     @IsOptional()
     deleteReason?: string;
+}
+
+// dto for returning influencer's all social accounts (EDIT PROFILE PAGE)
+export class InfluencerSocialAccountsDto {
+    @ApiProperty({
+        type: [SocialAccount],
+        isArray: true,
+    })
+    accounts: SocialAccount[];
 }

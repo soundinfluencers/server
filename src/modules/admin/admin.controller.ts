@@ -25,7 +25,7 @@ import {AdminSendMailToInfluencerDto} from './dto/admin-send-mail-to-influencer.
 import {AdminImportXlsxInfluencersDto} from './dto/admin-import-xlsx-influencers';
 import {decodeAndDecrypt} from "../../common/utils/crypt";
 import {ApiTags} from "@nestjs/swagger";
-import {AddSocialMediasDto} from "../profile/dto/update-influencer.dto";
+import {AddSocialMediasDto} from "../profile/dto/influencer/update-influencer.dto";
 
 @ApiTags('admin')
 @Controller('admin')
