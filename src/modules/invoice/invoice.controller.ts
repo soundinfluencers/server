@@ -1,6 +1,6 @@
 import {Body, Controller, Get, Post, Query, Req, Res, UnauthorizedException} from '@nestjs/common';
 import {InvoiceService} from './invoice.service';
-import {ApiQuery, ApiTags} from '@nestjs/swagger';
+import {ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {CreateInvoiceDto} from './dto/create-invoice.dto';
 import {Response} from 'express';
 import {Auth} from "../../common/decorators/auth.decorator";
@@ -22,6 +22,7 @@ export class InvoiceController {
 
     @Auth()
     @Roles(Role.influencer)
+    @ApiOperation({summary: "Creates influencer's invoice"})
     @ApiResponseDto(undefined, { successStatusCode: 201 })
     @Post()
     createInvoice(@Req() req: AuthenticatedRequest, @Body() data: CreateInvoiceDto): Promise<void> {
@@ -31,6 +32,7 @@ export class InvoiceController {
 
     @Auth()
     @Roles(Role.influencer)
+    @ApiOperation({summary: "Gets list of influencer's invoices"})
     @ApiResponseDto(InvoicesForDashboardDto)
     @ApiQuery({
         name: 'limit',
@@ -51,6 +53,7 @@ export class InvoiceController {
 
     @Auth()
     @Roles(Role.influencer, Role.admin)
+    @ApiOperation({summary: "Download invoice"})
     @Get('download')
     @ApiQuery({name: 'invoiceId'})
     downloadInvoice(@Query() args: { invoiceId: string }, @Res() res: Response) {
