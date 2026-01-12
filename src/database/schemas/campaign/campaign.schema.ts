@@ -114,6 +114,9 @@ export const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignCo
     // strict: false,
 })
 export class Campaign {
+    @Prop({type: Types.ObjectId, required: true})
+    _id: Types.ObjectId;
+
     @Prop({type: Types.ObjectId, ref: 'Client', required: true})
     clientId: Types.ObjectId;
 

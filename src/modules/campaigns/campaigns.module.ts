@@ -7,19 +7,11 @@ import {Influencer, InfluencerSchema} from "../../database/schemas/users/influen
 import {CompletedCampaignSchema, CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {Campaign, CampaignSchema} from "../../database/schemas/campaign/campaign.schema";
 import {ProposalCampaign, ProposalCampaignSchema} from "../../database/schemas/campaign/proposal-campaign.schema";
+import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 
 @Module({
-    imports: [
-        MongooseModule.forFeature([
-            { name: Campaign.name, schema: CampaignSchema },
-            { name: Client.name, schema: ClientSchema },
-            { name: Influencer.name, schema: InfluencerSchema },
-            { name: CompletedCampaign.name, schema: CompletedCampaignSchema },
-            { name: ProposalCampaign.name, schema: ProposalCampaignSchema },
-        ]),
-    ],
     controllers: [CampaignsController],
-    providers: [CampaignsService],
+    providers: [CampaignsService, InfluencerActionsHistoryService],
     exports: [CampaignsService],
 })
 export class CampaignsModule {}

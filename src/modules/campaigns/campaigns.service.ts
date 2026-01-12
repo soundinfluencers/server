@@ -1,22 +1,17 @@
 import {
     BadRequestException, ForbiddenException,
-    Injectable, InternalServerErrorException, Logger,
+    Injectable, Logger,
     NotFoundException,
 } from '@nestjs/common';
-import {InjectModel} from "@nestjs/mongoose";
-import {Client} from "../../database/schemas/users/client.schema";
-import mongoose, {Model, Types} from "mongoose";
-import {Influencer} from "../../database/schemas/users/influencer.schema";
+import mongoose, {Types} from "mongoose";
 import {
     CampaignStatusType,
     CampaignStatusTypeForDevelopment,
     ClientCampaignForTable,
     ClientGetCampaignForList, PublicCampaignForTable
 } from "../../common/types/client/campaign.types";
-import {SocialMediaType} from "../../common/types/social-media.types";
+import {SocialMediaEnum, SocialMediaType} from "../../common/types/social-media.types";
 import {formatClientCampaignStatus, formatDate} from "../../common/utils/formatters";
-import {Campaign} from "../../database/schemas/campaign/campaign.schema";
-import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {CreateCampaignDto} from "./dto/create-campaign.dto";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
 import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
@@ -32,32 +27,27 @@ import {ClientGetDashboardCampaignsQueryDto} from "./dto/get-campaigns.dto";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
 import {CompletedCampaignRepository} from "../../database/repositories/campaigns/completed-campaign.repository";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
-import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
 import {ProposalCampaignRepository} from "../../database/repositories/campaigns/proposal-campaign.repository";
+import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
+import {Campaign} from "../../database/schemas/campaign/campaign.schema";
+import {Client} from "../../database/schemas/users/client.schema";
+import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 
 @Injectable()
 export class CampaignsService {
     private readonly logger = new Logger();
 
-    // TODO: use repo instead models
     constructor(
-        @InjectModel(Campaign.name)
-        private readonly campaignModel: Model<Campaign>,
-        @InjectModel(Client.name)
-        private clientModel: mongoose.Model<Client>,
-        @InjectModel(Influencer.name)
-        private influencerModel: mongoose.Model<Influencer>,
-        @InjectModel(CompletedCampaign.name)
-        private completedCampaignModel: mongoose.Model<CompletedCampaign>,
-        @InjectModel(ProposalCampaign.name)
-        private proposalCampaignModel: mongoose.Model<ProposalCampaign>,
-        private clientRepo: ClientRepository,
-        private campaignRepo: CampaignRepository,
-        private completedCampaignRepo: CompletedCampaignRepository,
-        private proposalCampaignRepo: ProposalCampaignRepository,
+        private readonly clientRepo: ClientRepository,
+        private readonly influencerRepo: InfluencerRepository,
+        private readonly influencerActionsHistoryService: InfluencerActionsHistoryService,
+        private readonly campaignRepo: CampaignRepository,
+        private readonly completedCampaignRepo: CompletedCampaignRepository,
+        private readonly proposalCampaignRepo: ProposalCampaignRepository,
     ) {
     }
 
+    // TODO: add 2 statuses
     async getClientCampaignsList(data: ClientGetDashboardCampaignsQueryDto): Promise<ClientGetCampaignForList[]> {
         const status: CampaignStatusTypeForDevelopment = data.status ?? "all"
         const limit = Number(data.limit ?? 12);
@@ -186,7 +176,7 @@ export class CampaignsService {
             data.selectInfluencers.map(async (influencer) => {
                 const dateRequest = influencer.dateRequest;
 
-                const influencerData = await this.influencerModel
+                const influencerData = await this.influencerRepo
                     .findOne({
                         $or: [
                             {
@@ -201,9 +191,7 @@ export class CampaignsService {
                                 [`${influencer.socialMedia}.instagramUsername`]: influencer.socialMediaUsername
                             }
                         ]
-                    })
-                    .lean()
-                    .exec();
+                    }, {lean: true});
 
                 if (!influencerData) {
                     this.logger.log(
@@ -259,43 +247,57 @@ export class CampaignsService {
             })),
         );
 
+        const session = await this.campaignRepo.startSession();
+        session.startTransaction();
 
-        const campaignId = new mongoose.Types.ObjectId();
-        const result = await this.campaignModel.create({
-            ...data,
-            _id: campaignId,
-            clientId: new Types.ObjectId(data.clientId),
-            campaignName: data.campaignName.trim(),
-            selectInfluencers: processedInfluencers,
-            paymentType: !data.paymentType ? 'payment' : data.paymentType,
-            paymentStatus: 'wait',
-            statusCampaign: 'wait',
-            verifyCampaign: 'wait',
-            shareLink: `${process.env.SERVER_CLIENT}/promo-share/${campaignId}/${data.socialMedia}`,
-            campaignContent: processedCampaignContent,
-            createdAt,
-        });
+        let createdCampaign: Campaign;
+        let client: Client;
 
-        let dataClient = await this.clientModel.findOne({_id: data.clientId});
+        try {
+            const campaignId = new mongoose.Types.ObjectId();
+            createdCampaign = await this.campaignRepo.create({
+                ...data,
+                _id: campaignId,
+                clientId: new Types.ObjectId(data.clientId),
+                campaignName: data.campaignName.trim(),
+                selectInfluencers: processedInfluencers,
+                paymentType: !data.paymentType ? 'payment' : data.paymentType,
+                paymentStatus: 'wait',
+                statusCampaign: 'wait',
+                verifyCampaign: 'wait',
+                shareLink: `${process.env.SERVER_CLIENT}/promo-share/${campaignId}/${data.socialMedia}`,
+                campaignContent: processedCampaignContent,
+                createdAt,
+            }, {session});
+
+            client = await this.clientRepo.findOne({_id: data.clientId}, {session});
+
+            await session.commitTransaction();
+        } catch (err) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            await session.endSession();
+        }
 
         const emailStartContent = () => {
             if (data.socialMedia === 'spotify' || data.socialMedia === 'soundcloud') {
                 return `
                     <p>Hi,</p>
-<p>The Client ${dataClient.firstName} has requested the following post for this list of influencers on the ${data.socialMedia}:</p>
+<p>The Client ${client.firstName} has requested the following post for this list of influencers on the ${data.socialMedia}:</p>
 <p><strong>Post Details:</strong></p>
 <p><strong>Campaign Name: ${data.campaignName}</strong></p>
                     `;
             } else if (data.socialMedia === 'press') {
                 return `
                     <p>Hi,</p>
-<p>The client ${dataClient.firstName} has requested the following article for inclusion in this list of magazines in the press:</p>
+<p>The client ${client.firstName} has requested the following article for inclusion in this list of magazines in the press:</p>
 <p><strong>Post Details:</strong></p>
 <p><strong>Campaign Name: ${data.campaignName}</strong></p>`;
             } else {
                 return `
                     <p>Hi,</p>
-<p>The Client ${dataClient.firstName} has requested the following post for this list of influencers on the ${data.socialMedia}:</p>
+<p>The Client ${client.firstName} has requested the following post for this list of influencers on the ${data.socialMedia}:</p>
 <p><strong>Post Details:</strong></p>
 <p><strong>Campaign Name: ${data.campaignName}</strong></p>
                     `;
@@ -411,12 +413,12 @@ export class CampaignsService {
         const emailContent = `
 ${emailStartContent()}
 ${emailVideoContent()}
-<p>Payment Method Used: ${result.paymentType}</p>
+<p>Payment Method Used: ${createdCampaign.paymentType}</p>
 <p>
-    <a style="font-weight: 600" href="${process.env.SERVER}/campaigns/verify?promoId=${result._id}&status=accept">
+    <a style="font-weight: 600" href="${process.env.SERVER}/campaigns/verify?promoId=${createdCampaign._id.toString()}&status=accept">
         Approve
     </a> 
-    <a style="font-weight: 600" href="${process.env.SERVER}/campaigns/verify?promoId=${result._id}&status=cancel">
+    <a style="font-weight: 600" href="${process.env.SERVER}/campaigns/verify?promoId=${createdCampaign._id.toString()}&status=cancel">
         Decline
     </a>
 </p>`;
@@ -429,29 +431,22 @@ ${emailVideoContent()}
         );
     }
 
+    // TODO: update and test
     async verifyCampaign(campaignId: string, status: string) {
         if (!campaignId || !status) throw new BadRequestException('Not enough arguments')
 
-        const checkCampaign = await this.campaignModel.findOne({_id: campaignId}).lean();
+        const checkCampaign: Campaign = await this.campaignRepo.findOne({_id: campaignId}, {lean: true});
 
         if (!checkCampaign) throw new NotFoundException('Campaign not found')
 
         if (status === 'accept' && checkCampaign.statusCampaign === 'wait') {
             const influencersIds = checkCampaign.selectInfluencers.map((item) => item.influencerId);
 
-            const influencers = await this.influencerModel.find({_id: {$in: influencersIds}});
+            const influencers = await this.influencerRepo.findMany({_id: {$in: influencersIds}});
 
             if (!influencers) throw new NotFoundException('Influencers not found')
 
-            const socialMedias = [
-                'instagram',
-                'tiktok',
-                'spotify',
-                'soundcloud',
-                'facebook',
-                'youtube',
-                'press',
-            ];
+            const socialMedias = Object.values(SocialMediaEnum);
 
             for (let influencer of influencers) {
                 const influencerSocialMediaAccountsNested = await Promise.all(
@@ -463,31 +458,26 @@ ${emailVideoContent()}
                                 if (
                                     checkCampaign.selectInfluencers.some(
                                         (influencerData) =>
-                                            (influencerData.socialMediaUsername === account.instagramUsername ||
+                                            (influencerData.socialMediaUsername === account.username ||
                                                 (influencerData as any).instagramUsername ===
-                                                account.instagramUsername) &&
+                                                account.username) &&
                                             influencerData.socialMedia === socialMedia,
                                     )
                                 ) {
-                                    const res = await axios.post(
-                                        `${process.env.SERVER}/influencer-actions-history/upsert/campaign`,
-                                        {
-                                            influencerId: influencer._id,
-                                            campaignId: new mongoose.Types.ObjectId(checkCampaign._id),
-                                            campaignName: checkCampaign.campaignName,
-                                            updatedCampaignAction: {
-                                                actionNumber: 0,
-                                                networkUsername: account.instagramUsername,
-                                                socialMedia: socialMedia,
-                                                rewardForInfluencer: parseInt(account.price),
-                                            },
-                                        },
-                                    );
-
-                                    throw new InternalServerErrorException(`Influencer's history (${account.instagramUsername}) didn't update`)
+                                    await this.influencerActionsHistoryService.upsertInfluencerCampaignActionsHistory({
+                                        influencerId: influencer._id.toString(),
+                                        campaignId: campaignId,
+                                        campaignName: checkCampaign.campaignName,
+                                        updatedCampaignAction: {
+                                            actionNumber: 1,
+                                            networkUsername: account.username,
+                                            rewardForInfluencer: account.price,
+                                            socialMedia: socialMedia
+                                        }
+                                    })
                                 }
 
-                                return account.instagramUsername;
+                                return account.username;
                             }),
                         );
 
@@ -542,7 +532,7 @@ ${emailVideoContent()}
                 updateFields.verifyCampaign = status;
             }
 
-            await this.campaignModel.updateOne({_id: campaignId}, {$set: updateFields});
+            await this.campaignRepo.updateOne({_id: campaignId}, {$set: updateFields});
 
             return {
                 code: 200,
@@ -558,11 +548,11 @@ ${emailVideoContent()}
 
     // Returns one detailed campaign obj - used by campaign report page
     async getClientOngoingOrPastCampaign(campaignId: string, clientId: string): Promise<ClientCampaignForTable> {
-        const client = await this.clientModel.findById(clientId);
+        const client = await this.clientRepo.findById(clientId);
         if (!client) throw new NotFoundException('User not found');
 
-        let campaign: any = await this.campaignModel.findById(campaignId).lean();
-        if (!campaign) campaign = await this.completedCampaignModel.findById(campaignId).lean();
+        let campaign: any = await this.campaignRepo.findById(campaignId, {lean: true});
+        if (!campaign) campaign = await this.completedCampaignRepo.findById(campaignId, {lean: true});
         if (!campaign) throw new NotFoundException('Campaign not found');
 
         const campaignToReturn: ClientCampaignForTable = {
@@ -679,12 +669,12 @@ ${emailVideoContent()}
 
     // Returns client's proposal campaigns
     async getClientProposalCampaigns(clientId: string): Promise<ClientGetCampaignForList[]> {
-        const client = await this.clientModel.findById(clientId);
+        const client = await this.clientRepo.findById(clientId);
         if (!client) throw new NotFoundException('Client not found');
 
         if (!client.isProposalClient) throw new ForbiddenException('Client need to be proposal client')
 
-        const proposalPromos = await this.proposalCampaignModel.find({clientId});
+        const proposalPromos = await this.proposalCampaignRepo.findMany({clientId});
 
         if (proposalPromos.length === 0) {
             return [];
@@ -816,7 +806,7 @@ ${emailVideoContent()}
                         },
                     ];
 
-                    const result = await this.influencerModel.aggregate(aggregationPipeline).exec();
+                    const result = await this.influencerRepo.aggregate(aggregationPipeline).exec();
 
                     if (result.length > 0) {
                         influencerId = result[0].influencerId
@@ -930,7 +920,7 @@ ${emailVideoContent()}
                         },
                     ];
 
-                    const result = await this.influencerModel.aggregate(aggregationPipeline).exec();
+                    const result = await this.influencerRepo.aggregate(aggregationPipeline).exec();
 
                     if (result.length > 0) {
                         influencerId = result[0].influencerId
@@ -1033,7 +1023,7 @@ ${emailVideoContent()}
     async sendNewFullServicedCampaignRequest(data: SendNewFullServicedCampaignRequest) {
         const {clientId, campaignGoal, videos, music, budget, additional = ''} = data;
 
-        const clientObj = await this.clientModel.findById(clientId);
+        const clientObj = await this.clientRepo.findById(clientId);
 
         if (!clientObj) throw new NotFoundException('Client not found');
 
@@ -1056,8 +1046,8 @@ ${emailVideoContent()}
 
         if (!mongoose.Types.ObjectId.isValid(campaignId)) throw new BadRequestException('Invalid campaignId format')
 
-        let campaign: any = await this.campaignModel.findById(campaignId).lean();
-        if (!campaign) campaign = await this.completedCampaignModel.findById(campaignId).lean();
+        let campaign: any = await this.campaignRepo.findById(campaignId, {lean: true});
+        if (!campaign) campaign = await this.completedCampaignRepo.findById(campaignId, {lean: true});
         if (!campaign) throw new NotFoundException('Campaign not found')
 
         const campaignToReturn: PublicCampaignForTable = {

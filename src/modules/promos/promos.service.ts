@@ -62,7 +62,8 @@ export class PromosService {
     // Returns influencer past promo (find by id, selectInfluencersId)
     async influencerPastPromoOne(data: InfluencerGetPastPromoQueryDto & {
         influencerId: string
-    }): Promise<InfluencerPromo> {
+    }): Promise<InfluencerPromo>
+    {
         const {influencerId, campaignId, selectInfluencersId} = data;
 
         if (!influencerId || !campaignId || !selectInfluencersId) throw new BadRequestException('Not enough arguments');
