@@ -1,7 +1,6 @@
-import {Controller, Post, UseInterceptors, UploadedFile, UploadedFiles, Get, Query} from '@nestjs/common';
+import {Controller, Post, UseInterceptors, UploadedFile, Get, Query} from '@nestjs/common';
 import {FileInterceptor} from '@nestjs/platform-express';
-import File from 'multer';
-import {ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
+import {ApiBody, ApiConsumes, ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {FileService} from "./file.service";
 import {Auth} from "../../common/decorators/auth.decorator";
@@ -13,16 +12,28 @@ export class FileController {
     }
 
     @Auth()
-    @ApiOperation({summary: 'Uploads screenshot - will be removed to files controller'})
-    @ApiResponseDto()
+    @ApiOperation({ summary: 'Uploads photo' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                file: {
+                    type: 'string',
+                    format: 'binary',
+                },
+            },
+            required: ['file'],
+        },
+    })
     @UseInterceptors(FileInterceptor('file'))
     @Post()
-    uploadFile(@UploadedFile() file: File) {
+    uploadPhoto(@UploadedFile() file: Express.Multer.File) {
         return this.fileService.uploadDropBox(file);
     }
 
     @Auth()
-    @ApiOperation({summary: 'Checks if screenshot uploaded - will be removed to files controller'})
+    @ApiOperation({summary: 'Checks if photo uploaded'})
     @ApiQuery({
         name: 'fileName',
         required: true,
