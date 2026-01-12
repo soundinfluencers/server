@@ -47,7 +47,6 @@ export class CampaignsService {
     ) {
     }
 
-    // TODO: add 2 statuses
     async getClientCampaignsList(data: ClientGetDashboardCampaignsQueryDto): Promise<ClientGetCampaignForList[]> {
         const status: CampaignStatusTypeForDevelopment = data.status ?? "all"
         const limit = Number(data.limit ?? 12);
@@ -72,11 +71,19 @@ export class CampaignsService {
         let campaigns: any[];
 
         switch (status) {
-            case "ongoing":
+            case "under_review":
                 campaigns = await this.campaignRepo
                     .findMany({
                         clientId: new Types.ObjectId(data.clientId),
-                        statusCampaign: {$in: ['work', 'wait', 'estimate', 'po waiting']},
+                        statusCampaign: 'wait',
+                        verifyCampaign: 'wait'
+                    }, {lean: true, limit: limit, skip: skip})
+                break;
+            case "distributing":
+                campaigns = await this.campaignRepo
+                    .findMany({
+                        clientId: new Types.ObjectId(data.clientId),
+                        statusCampaign: 'work',
                     }, {lean: true, limit: limit, skip: skip})
                 break;
             case "closed":
@@ -449,11 +456,10 @@ ${emailVideoContent()}
             const socialMedias = Object.values(SocialMediaEnum);
 
             for (let influencer of influencers) {
-                const influencerSocialMediaAccountsNested = await Promise.all(
+                await Promise.all(
                     socialMedias.map(async (socialMedia) => {
                         const accounts = influencer[socialMedia];
-
-                        const usernames = await Promise.all(
+                        await Promise.all(
                             accounts.map(async (account) => {
                                 if (
                                     checkCampaign.selectInfluencers.some(
@@ -480,8 +486,6 @@ ${emailVideoContent()}
                                 return account.username;
                             }),
                         );
-
-                        return usernames.filter(Boolean);
                     }),
                 );
 
