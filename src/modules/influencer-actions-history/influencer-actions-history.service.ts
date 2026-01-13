@@ -48,7 +48,7 @@ export class InfluencerActionsHistoryService {
             networkUsername,
             rewardForInfluencer,
             socialMedia,
-            currentBalance: actionNumber === 3 ? parseInt(balance) + rewardForInfluencer : parseInt(balance),
+            currentBalance: actionNumber === 3 ? balance + rewardForInfluencer : balance,
             date: new Date()
         };
 

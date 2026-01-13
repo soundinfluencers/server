@@ -93,6 +93,10 @@ export class CreateInfluencerDto {
 
     @ApiProperty()
     @IsString()
+    lastName: string;
+
+    @ApiProperty()
+    @IsString()
     email: string;
 
     @ApiProperty()
@@ -151,9 +155,4 @@ export class CreateInfluencerDto {
     @Type(() => CreateSocialAccountDto)
     @IsOptional()
     press?: CreateSocialAccountDto[];
-
-    @ApiProperty({ required: false })
-    @IsOptional()
-    @IsString()
-    internalNote?: string;
 }

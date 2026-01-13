@@ -27,11 +27,11 @@ import {Role} from "../../common/types/auth.types";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {CreateSocialAccountDto} from "../auth/dto/create-influencer.dto";
 import {normalizeMusicGenres} from "../../common/utils/genres";
-import {InfluencerAccountDetails} from "../../common/types/influencer/influencer.types";
-import {mapInfluencerToAccountDetailsDto} from "../../common/mappers/influencer.mapper";
+import {InfluencerAccountDetails, SocialAccountDetails} from "../../common/types/influencer/influencer.types";
+import {mapInfluencerToAccountDetailsDto, mapToSocialAccountDetailsDto} from "../../common/mappers/influencer.mapper";
 import {ClientAccountDetails} from "../../common/types/client/client.types";
 import {mapClientToAccountDetailsDto} from "../../common/mappers/client.mapper";
-import {InfluencerAccountDetailsDto} from "./dto/influencer/get-profile.dto";
+import {GetSocialAccountDetailsQueryDto, InfluencerAccountDetailsDto} from "./dto/influencer/get-profile.dto";
 
 const bcrypt = require('bcryptjs');
 
@@ -182,8 +182,43 @@ export class ProfileService {
         }
     }
 
+    // Returns detailed social account
+    async getDetailedSocialAccount(data: GetSocialAccountDetailsQueryDto): Promise<SocialAccountDetails> {
+        const {influencerId, socialMedia, accountId} = data;
+
+        if (!influencerId || !socialMedia || !accountId) throw new BadRequestException("Not enough arguments");
+
+        const accountAggregation = await this.influencerRepo.aggregate([
+            {
+                $match: { _id: new Types.ObjectId(influencerId) }
+            },
+            {
+                $project: {
+                    accounts: `$${socialMedia}`
+                }
+            },
+            {
+                $unwind: '$accounts'
+            },
+            {
+                $match: { 'accounts._id': new Types.ObjectId(accountId) }
+            },
+            {
+                $replaceRoot: { newRoot: '$accounts' }
+            }
+        ]);
+
+        if (!accountAggregation.length) {
+            throw new NotFoundException('Social account not found');
+        }
+
+        const account: SocialAccount = accountAggregation[0];
+
+        return mapToSocialAccountDetailsDto(account);
+    }
+
     // Updates influencer's social account
-    async updateSocialAccount(data: UpdateSocialMediaAccountDto): Promise<SocialAccount> {
+    async updateSocialAccount(data: UpdateSocialMediaAccountDto): Promise<SocialAccountDetails> {
         if (!data.influencerId) throw new BadRequestException("Not enough arguments");
 
         const influencer = await this.influencerRepo.findOne({_id: new Types.ObjectId(data.influencerId)});
@@ -214,7 +249,7 @@ export class ProfileService {
 
         // if there's no fields to update - return account in current state (without updating)
         if (Object.keys(updateFields).length === 0) {
-            return socialMediaAccounts[accountIndex];
+            return mapToSocialAccountDetailsDto(socialMediaAccounts[accountIndex]);
         }
 
         const updateResult = await this.influencerRepo.updateOne(
@@ -239,9 +274,9 @@ export class ProfileService {
             _id: influencer._id,
         });
 
-        return updatedInfluencer[data.socialMedia].find((acc) =>
+        return mapToSocialAccountDetailsDto(updatedInfluencer[data.socialMedia].find((acc) =>
             acc._id.equals(socialAccountId),
-        );
+        ));
     }
 
 //     // TODO: UPDATE
@@ -383,7 +418,7 @@ export class ProfileService {
 //
 
     // Deletes influencer's social account
-    async deleteSocialMediaAccount(data: DeleteSocialAccountDto) {
+    async deleteSocialAccount(data: DeleteSocialAccountDto) {
         if (!data.influencerId) throw new BadRequestException('Not enough arguments');
 
         const influencer = await this.influencerRepo.findOne({_id: new Types.ObjectId(data.influencerId)});

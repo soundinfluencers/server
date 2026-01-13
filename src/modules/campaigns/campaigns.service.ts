@@ -32,6 +32,7 @@ import {InfluencerRepository} from "../../database/repositories/users/influencer
 import {Campaign} from "../../database/schemas/campaign/campaign.schema";
 import {Client} from "../../database/schemas/users/client.schema";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
+import {DraftCampaignRepository} from "../../database/repositories/campaigns/draft-campaign.repository";
 
 @Injectable()
 export class CampaignsService {
@@ -42,6 +43,7 @@ export class CampaignsService {
         private readonly influencerRepo: InfluencerRepository,
         private readonly influencerActionsHistoryService: InfluencerActionsHistoryService,
         private readonly campaignRepo: CampaignRepository,
+        private readonly draftCampaignRepo: DraftCampaignRepository,
         private readonly completedCampaignRepo: CompletedCampaignRepository,
         private readonly proposalCampaignRepo: ProposalCampaignRepository,
     ) {
@@ -62,7 +64,7 @@ export class CampaignsService {
 
         const skip = (page - 1) * limit;
 
-        const checkClient = await this.clientRepo.findOne({_id: new Types.ObjectId(data.clientId)});
+        const checkClient = await this.clientRepo.findById(data.clientId);
 
         if (!checkClient) {
             throw new NotFoundException('User not found');
@@ -71,6 +73,12 @@ export class CampaignsService {
         let campaigns: any[];
 
         switch (status) {
+            case "draft":
+                campaigns = await this.draftCampaignRepo
+                    .findMany({
+                        clientId: new Types.ObjectId(data.clientId),
+                    }, {lean: true, limit: limit, skip: skip})
+                break;
             case "under_review":
                 campaigns = await this.campaignRepo
                     .findMany({

@@ -215,12 +215,3 @@ export class DeleteSocialAccountDto {
     @IsOptional()
     deleteReason?: string;
 }
-
-// dto for returning influencer's all social accounts (EDIT PROFILE PAGE)
-export class InfluencerSocialAccountsDto {
-    @ApiProperty({
-        type: [SocialAccount],
-        isArray: true,
-    })
-    accounts: SocialAccount[];
-}

@@ -952,7 +952,7 @@ export class AdminService {
             influencerFromSelectInfluencers.closePromo = 'close';
             await campaign.save();
 
-            let balance = parseInt(influencerAccount.balance.replace('€', '').trim(), 10);
+            let balance = influencerAccount.balance;
             if (isNaN(balance)) balance = 0;
 
             const reward = parseInt(price.replace('€', '').trim(), 10);

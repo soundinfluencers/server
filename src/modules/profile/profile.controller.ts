@@ -9,13 +9,18 @@ import {
     UpdateInfluencerPersonalDetailsDto,
     UpdateSocialMediaAccountDto
 } from './dto/influencer/update-influencer.dto';
-import {ApiExcludeEndpoint, ApiOperation, ApiTags} from '@nestjs/swagger';
+import {ApiExcludeEndpoint, ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {SocialAccount} from "../../database/schemas/users/influencer.schema";
-import {ClientAccountDetailsDto, InfluencerAccountDetailsDto} from "./dto/influencer/get-profile.dto";
+import {
+    ClientAccountDetailsDto, GetSocialAccountDetailsQueryDto,
+    InfluencerAccountDetailsDto,
+    SocialAccountDetailsDto
+} from "./dto/influencer/get-profile.dto";
+import {SocialMediaEnum} from "../../common/types/social-media.types";
 
 @ApiTags('profile')
 @Controller('profile')
@@ -78,10 +83,30 @@ export class ProfileController {
 
     @Auth()
     @Roles(Role.influencer, Role.admin)
+    @ApiOperation({summary: "Gets detailed influencer's social account"})
+    @ApiResponseDto(SocialAccountDetailsDto)
+    @ApiQuery({
+        name: "accountId",
+        required: true
+    })
+    @ApiQuery({
+        name: "socialMedia",
+        enum: SocialMediaEnum,
+        required: true
+    })
+    @Get('social-account/:accountId/:socialMedia')
+    getDetailedSocialAccount(@Req() request: AuthenticatedRequest, @Query() query: GetSocialAccountDetailsQueryDto): Promise<SocialAccountDetailsDto> {
+        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
+
+        return this.profileService.getDetailedSocialAccount({...query, influencerId: request.user._id});
+    }
+
+    @Auth()
+    @Roles(Role.influencer, Role.admin)
     @ApiOperation({summary: "Updates influencer's social account"})
-    @ApiResponseDto(SocialAccount)
+    @ApiResponseDto(SocialAccountDetailsDto)
     @Patch('social-account')
-    updateSocialMediaAccount(@Req() request: AuthenticatedRequest, @Body() data: UpdateSocialMediaAccountDto): Promise<SocialAccount> {
+    updateSocialAccount(@Req() request: AuthenticatedRequest, @Body() data: UpdateSocialMediaAccountDto): Promise<SocialAccountDetailsDto> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
         return this.profileService.updateSocialAccount({...data, influencerId: request.user._id});
@@ -92,10 +117,10 @@ export class ProfileController {
     @ApiOperation({summary: "Deletes influencer's social account"})
     @ApiResponseDto()
     @Delete('social-account')
-    deleteSocialMediaAccount(@Req() request: AuthenticatedRequest, @Body() data: DeleteSocialAccountDto) {
+    deleteSocialAccount(@Req() request: AuthenticatedRequest, @Body() data: DeleteSocialAccountDto) {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
-        return this.profileService.deleteSocialMediaAccount({...data, influencerId: request.user._id});
+        return this.profileService.deleteSocialAccount({...data, influencerId: request.user._id});
     }
 
     @Auth()

@@ -1,3 +1,5 @@
+import {InfluencerCountryStats, InfluencerMusicGenre} from "../../../database/schemas/users/influencer.schema";
+
 export enum InfluencerProfileCategory {
     community = 'community',
     creator = 'creator'
@@ -14,15 +16,30 @@ export interface InfluencerAccountDetails {
     email: string;
     phone: string;
 
-    instagramAccounts: SocialAccountForAccountDetails[];
-    tiktokAccounts: SocialAccountForAccountDetails[];
-    spotifyAccounts: SocialAccountForAccountDetails[];
-    youtubeAccounts: SocialAccountForAccountDetails[];
-    facebookAccounts: SocialAccountForAccountDetails[];
-    soundcloudAccounts: SocialAccountForAccountDetails[];
-    pressAccounts: SocialAccountForAccountDetails[];
+    instagram: SocialAccountForAccountDetails[];
+    tiktok: SocialAccountForAccountDetails[];
+    spotify: SocialAccountForAccountDetails[];
+    youtube: SocialAccountForAccountDetails[];
+    facebook: SocialAccountForAccountDetails[];
+    soundcloud: SocialAccountForAccountDetails[];
+    press: SocialAccountForAccountDetails[];
 
     lastName?: string;
     telegramUsername?: string;
     profilePhotoUrl?: string;
+}
+
+export interface SocialAccountDetails {
+    _id: string;
+    username: string;
+    profileLink: string;
+    followers: number;
+    logoUrl: string;
+    profileCategory: InfluencerProfileCategory;
+    price: number;
+    currency: string | null;
+    musicGenres: InfluencerMusicGenre[];
+    creatorCategories: string[];
+    countries: InfluencerCountryStats[];
+    categories: string[];
 }

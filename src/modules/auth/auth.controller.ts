@@ -1,12 +1,11 @@
 import {
     Controller,
-    Get,
     Post,
     Body,
-    Param,
     Query,
     Res,
-    Req, Patch, HttpCode, UnauthorizedException,
+    Req,
+    Patch
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateClientDto } from './dto/create-client.dto';

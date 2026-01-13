@@ -21,6 +21,7 @@ import {SocialAccount} from "../../database/schemas/users/influencer.schema";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {getArrayFromAccountMusicGenres, normalizeMusicGenres} from "../../common/utils/genres";
 import {AdminRepository} from "../../database/repositories/users/admin.repository";
+import {Role} from "../../common/types/auth.types";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -306,7 +307,9 @@ export class AuthService {
 
         return {
             accessToken: accessToken,
-            user: user
+            firstName: user.firstName,
+            role: user.role as Role,
+            balance: (user as any).balance ?? undefined
         };
     }
 

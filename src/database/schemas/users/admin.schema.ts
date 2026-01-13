@@ -1,5 +1,6 @@
 import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
 import {Types} from "mongoose";
+import {Role} from "../../../common/types/auth.types";
 
 @Schema({
     timestamps: true,
@@ -8,8 +9,8 @@ export class Admin {
     @Prop({ type: Types.ObjectId })
     _id: Types.ObjectId;
 
-    @Prop({default: 'admin'})
-    role: string;
+    @Prop({required: true, type: String, enum: Role})
+    role: Role;
 
     @Prop()
     firstName: string;

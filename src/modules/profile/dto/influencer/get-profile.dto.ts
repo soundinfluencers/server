@@ -1,9 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-    InfluencerAccountDetails,
+    InfluencerAccountDetails, InfluencerProfileCategory, SocialAccountDetails,
     SocialAccountForAccountDetails
 } from "../../../../common/types/influencer/influencer.types";
 import {ClientAccountDetails} from "../../../../common/types/client/client.types";
+import {InfluencerCountryStats, InfluencerMusicGenre} from "../../../../database/schemas/users/influencer.schema";
+import {SocialMediaEnum} from "../../../../common/types/social-media.types";
+import {IsEnum, IsString} from "class-validator";
 
 export class SocialAccountForAccountDetailsDto implements SocialAccountForAccountDetails {
     @ApiProperty({
@@ -37,43 +40,43 @@ export class InfluencerAccountDetailsDto implements InfluencerAccountDetails {
         type: [SocialAccountForAccountDetailsDto],
         description: 'Instagram accounts',
     })
-    instagramAccounts: SocialAccountForAccountDetailsDto[];
+    instagram: SocialAccountForAccountDetailsDto[];
 
     @ApiProperty({
         type: [SocialAccountForAccountDetailsDto],
         description: 'TikTok accounts',
     })
-    tiktokAccounts: SocialAccountForAccountDetailsDto[];
+    tiktok: SocialAccountForAccountDetailsDto[];
 
     @ApiProperty({
         type: [SocialAccountForAccountDetailsDto],
         description: 'Spotify accounts',
     })
-    spotifyAccounts: SocialAccountForAccountDetailsDto[];
+    spotify: SocialAccountForAccountDetailsDto[];
 
     @ApiProperty({
         type: [SocialAccountForAccountDetailsDto],
         description: 'YouTube accounts',
     })
-    youtubeAccounts: SocialAccountForAccountDetailsDto[];
+    youtube: SocialAccountForAccountDetailsDto[];
 
     @ApiProperty({
         type: [SocialAccountForAccountDetailsDto],
         description: 'Facebook accounts',
     })
-    facebookAccounts: SocialAccountForAccountDetailsDto[];
+    facebook: SocialAccountForAccountDetailsDto[];
 
     @ApiProperty({
         type: [SocialAccountForAccountDetailsDto],
         description: 'SoundCloud accounts',
     })
-    soundcloudAccounts: SocialAccountForAccountDetailsDto[];
+    soundcloud: SocialAccountForAccountDetailsDto[];
 
     @ApiProperty({
         type: [SocialAccountForAccountDetailsDto],
         description: 'Press accounts',
     })
-    pressAccounts: SocialAccountForAccountDetailsDto[];
+    press: SocialAccountForAccountDetailsDto[];
 
     @ApiPropertyOptional({
         description: "Influencer's telegram username",
@@ -104,4 +107,59 @@ export class ClientAccountDetailsDto implements ClientAccountDetails {
 
     @ApiProperty({ example: '+380501234567' })
     phone: string;
+}
+
+// query dto for getting detailed social account
+export class GetSocialAccountDetailsQueryDto {
+    @ApiProperty({ example: '66a747a89c6e78a6cfb83g5' })
+    @IsString()
+    accountId: string;
+
+    @ApiProperty({
+        enum: SocialMediaEnum,
+        example: 'instagram'
+    })
+    @IsEnum(SocialMediaEnum)
+    socialMedia: SocialMediaEnum;
+
+    influencerId?: string;
+}
+
+// dto for getting detailed social account
+export class SocialAccountDetailsDto implements SocialAccountDetails {
+    @ApiProperty({ example: '66a747a89c6e78a6cfb83g5' })
+    _id: string;
+
+    @ApiProperty({ example: 'Techno TV' })
+    username: string;
+
+    @ApiProperty({ example: 'https://instagram.com/technotv' })
+    profileLink: string;
+
+    @ApiProperty({ example: 12000 })
+    followers: number;
+
+    @ApiProperty({ example: 'https://cdn.example.com/logo.png' })
+    logoUrl: string;
+
+    @ApiProperty({ example: 'music', enum: InfluencerProfileCategory })
+    profileCategory: InfluencerProfileCategory;
+
+    @ApiProperty({ example: 60 })
+    price: number;
+
+    @ApiProperty({ example: 'EUR', nullable: true })
+    currency: string | null;
+
+    @ApiProperty({ example: ['Techno', 'Hardstyle'], isArray: true })
+    musicGenres: InfluencerMusicGenre[];
+
+    @ApiProperty({ example: ['DJ', 'Producer'], isArray: true })
+    creatorCategories: string[];
+
+    @ApiProperty({ example: [{ country: 'US', percentage: 60 }, { country: 'DE', percentage: 40 }], isArray: true })
+    countries: InfluencerCountryStats[];
+
+    @ApiProperty({ example: ['Music', 'Entertainment'], isArray: true })
+    categories: string[];
 }

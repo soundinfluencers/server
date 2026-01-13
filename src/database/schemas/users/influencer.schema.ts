@@ -3,6 +3,7 @@ import {Document, Types} from 'mongoose';
 import {
     InfluencerProfileCategory
 } from "../../../common/types/influencer/influencer.types";
+import {Role} from "../../../common/types/auth.types";
 
 @Schema({ _id: false })
 export class InfluencerMusicGenre {
@@ -193,14 +194,17 @@ export class Influencer extends Document {
     @Prop()
     _id: Types.ObjectId;
 
-    @Prop({default: 'influencer'})
-    role: string;
+    @Prop({required: true, type: String, enum: Role})
+    role: Role;
 
     @Prop({default: 0})
-    balance: string;
+    balance: number;
 
-    @Prop()
+    @Prop({type: String, required: true})
     firstName: string;
+
+    @Prop({type: String, required: false})
+    lastName?: string;
 
     @Prop({lowercase: true})
     email: string;
