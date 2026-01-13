@@ -1,5 +1,6 @@
 import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
 import {Types} from 'mongoose';
+import {SocialMediaEnum} from "../../../common/types/social-media.types";
 
 @Schema({_id: false, timestamps: false})
 export class SelectedContent {
@@ -155,7 +156,7 @@ export class Campaign {
     @Prop({required: false, default: 0})
     partialRefund: number;
 
-    @Prop({required: true})
+    @Prop({type: String, required: true, enum: [...Object.values(SocialMediaEnum), 'multipromo']})
     socialMedia: string;
 
     @Prop({required: false, default: false})
@@ -173,11 +174,8 @@ export class Campaign {
     @Prop({required: false, default: []})
     hiddenColumns: string[];
 
-    @Prop({type: Date})
-    createdAt?: Date;
-
-    @Prop({type: Date})
-    updatedAt?: Date;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 export const CampaignSchema = SchemaFactory.createForClass(Campaign);
