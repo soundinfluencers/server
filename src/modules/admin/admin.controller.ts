@@ -24,9 +24,10 @@ import {AdminUpdateFullCampaignDto} from './dto/admin-update-full-campaign';
 import {AdminSendMailToInfluencerDto} from './dto/admin-send-mail-to-influencer.dto';
 import {AdminImportXlsxInfluencersDto} from './dto/admin-import-xlsx-influencers';
 import {decodeAndDecrypt} from "../../common/utils/crypt";
-import {ApiTags} from "@nestjs/swagger";
+import {ApiExcludeController, ApiTags} from "@nestjs/swagger";
 import {AddSocialMediasDto} from "../profile/dto/influencer/update-influencer.dto";
 
+@ApiExcludeController()
 @ApiTags('admin')
 @Controller('admin')
 export class AdminController {

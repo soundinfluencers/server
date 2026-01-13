@@ -1,7 +1,7 @@
 import {
     BadRequestException,
     ConflictException,
-    Injectable, InternalServerErrorException,
+    Injectable, InternalServerErrorException, Logger,
     NotFoundException,
     UnauthorizedException
 } from '@nestjs/common';
@@ -31,6 +31,7 @@ import {InfluencerAccountDetails} from "../../common/types/influencer/influencer
 import {mapInfluencerToAccountDetailsDto} from "../../common/mappers/influencer.mapper";
 import {ClientAccountDetails} from "../../common/types/client/client.types";
 import {mapClientToAccountDetailsDto} from "../../common/mappers/client.mapper";
+import {InfluencerAccountDetailsDto} from "./dto/influencer/get-profile.dto";
 
 const bcrypt = require('bcryptjs');
 
@@ -42,6 +43,8 @@ export class ProfileService {
         private readonly influencerRepo: InfluencerRepository,
     ) {
     }
+
+    private readonly logger = new Logger('ProfileService');
 
     // Returns client's account details
     async getClientAccountDetails(clientId: string): Promise<ClientAccountDetails> {
@@ -514,6 +517,7 @@ export class ProfileService {
         }
 
         // func for creating mail
+        // todo: parsing initial price
         const emailContent = (socialMedia: SocialMediaEnum, item: CreateSocialAccountDto) => {
             if (socialMedia === 'spotify' || socialMedia === 'soundcloud') {
                 return `
@@ -523,7 +527,7 @@ export class ProfileService {
             <li><strong>Followers: ${item.followers}</strong></li>
             <li><strong>Logo: ${item.logoUrl}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
-            <li><strong>Initial Price: ${item.initialPrice}</strong></li>
+            <li><strong>Initial Price: ${item.price}</strong></li>
 </ul>
                 `;
             } else if (socialMedia === 'press') {
@@ -535,7 +539,7 @@ export class ProfileService {
             <li><strong>Logo: ${item.logoUrl}</strong></li>
             <li><strong>Music Genres: ${item.musicGenres}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
-            <li><strong>Initial Price: ${item.initialPrice}</strong></li>
+            <li><strong>Initial Price: ${item.price}</strong></li>
             `;
             } else {
                 return `
@@ -546,7 +550,7 @@ export class ProfileService {
             <li><strong>Logo: ${item.logoUrl}</strong></li>
             <li><strong>Music Styles: ${item.musicGenres}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
-            <li><strong>Initial Price: ${item.initialPrice}</strong></li>
+            <li><strong>Initial Price: ${item.price}</strong></li>
 </ul>
                 `;
             }
@@ -560,6 +564,7 @@ export class ProfileService {
                 for (const account of accounts) {
                     const formattedMusicGenres = normalizeMusicGenres(account.musicGenres) ?? [];
 
+                    // todo: parsing initial price
                     const accountId = new Types.ObjectId();
                     socialMediaAccounts.push({
                         ...(account.profileCategory === "creator" && {
@@ -572,13 +577,13 @@ export class ProfileService {
                         logoUrl: account.logoUrl,
                         profileCategory: account.profileCategory,
                         price: account.price,
-                        initialPrice: account.initialPrice,
+                        initialPrice: account.price,
                         publicPrice: account.price * 2,
                         musicGenres: formattedMusicGenres,
                         countries: account.countries,
                         categories: account.categories,
-                        engagementRate: ['instagram', 'tiktok'].includes(network) ? 0 : null,
-                        averageViews: ['instagram', 'tiktok'].includes(network) ? 0 : null,
+                        engagementRate: null,
+                        averageViews: null,
                         currency: account.currency,
                         isHidden: false,
                         isDeleted: false,
@@ -600,7 +605,15 @@ export class ProfileService {
 
         try {
             await influencer.save({session});
+            await session.commitTransaction();
+        } catch (err) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            await session.endSession();
+        }
 
+        try {
             await sendMail(
                 process.env.EMAIL_USER,
                 'soundinfluencers',
@@ -626,16 +639,17 @@ export class ProfileService {
 `,
                 'html',
             );
-
-            await session.commitTransaction();
-
-            return mapInfluencerToAccountDetailsDto(influencer);
         } catch (err) {
-            await session.abortTransaction();
-            throw err;
-        } finally {
-            await session.endSession();
+            this.logger.warn(`New social accounts for influencer ${influencerId} were added but email failed`, err);
         }
+
+        let result: InfluencerAccountDetailsDto = null;
+        try {
+            result = mapInfluencerToAccountDetailsDto(influencer);
+        } catch (err) {
+            this.logger.warn(`Error mapping influencer ${influencerId} to AccountDetailsDto: ${err.message}`);
+        }
+        return result;
     }
 
     // Verifies new social accounts

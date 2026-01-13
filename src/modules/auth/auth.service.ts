@@ -2,7 +2,7 @@ import {
     BadRequestException,
     ConflictException,
     ForbiddenException,
-    Injectable, NotFoundException,
+    Injectable, Logger, NotFoundException,
     UnauthorizedException
 } from '@nestjs/common';
 import {CreateClientDto} from './dto/create-client.dto';
@@ -45,6 +45,7 @@ export class AuthService {
     ) {
     }
 
+    private readonly logger = new Logger('AuthService');
     private readonly accessKey = process.env.JWT_SECRET;
     private readonly refreshKey = process.env.JWT_REFRESH_SECRET;
 
@@ -70,9 +71,12 @@ export class AuthService {
         if (existingPhoneUser) throw new ConflictException('User with this phone number already exists');
 
         const session: ClientSession = await this.clientRepo.startSession();
+        session.startTransaction();
+
+        const userId = new Types.ObjectId();
+        const verifyId = new Types.ObjectId();
 
         try {
-            const userId = new Types.ObjectId();
             await this.clientRepo.create({
                 ...data,
                 _id: userId,
@@ -84,15 +88,20 @@ export class AuthService {
                 isAdmin: false,
             }, {session});
 
-            const verifyId = new Types.ObjectId();
             await this.verifyClientRepo.create({
                 _id: verifyId,
                 clientId: userId,
             }, {session});
 
             await session.commitTransaction();
-            session.endSession();
+        } catch (err) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            await session.endSession();
+        }
 
+        try {
             await sendMail(
                 process.env.EMAIL_USER,
                 'SoundInfluencers',
@@ -120,11 +129,9 @@ export class AuthService {
                 'html',
             );
         } catch (err) {
-            await session.abortTransaction();
-            session.endSession();
-            throw err;
+            this.logger.warn(`Client ${userId.toString()} created but email failed`, err);
         }
-    }
+    };
 
     // Signup influencer
     async createInfluencer(data: CreateInfluencerDto): Promise<void> {
@@ -137,64 +144,69 @@ export class AuthService {
 
         if (checkUser) throw new ConflictException('User with this email already exists');
 
+        const socialNetworks = Object.values(SocialMediaEnum);
+
+        for (const network of socialNetworks) {
+            const accounts = data[network] || [];
+            const usernames = accounts.map((item) => item.username);
+
+            const networkFilter = {
+                [`${network}.username`]: {$in: usernames},
+                isDeleted: {$ne: true},
+            };
+
+            const existingUser = await this.influencerRepo.findOne(networkFilter);
+
+            if (existingUser) {
+                throw new ConflictException(
+                    `Existing username was used while creating new influencer: ${existingUser[network][0].username}`
+                );
+            }
+        }
+
+        const processedData: { [key: string]: SocialAccount[] } = {};
+
+        for (const network of socialNetworks) {
+            const accounts = data[network] || [];
+
+            processedData[network] = accounts.map((item: CreateSocialAccountDto): SocialAccount => {
+                const sanitizedPrice = parseFloat(String(item.price).replace(/[^\d.-]/g, '')) || 0;
+                const publicPrice = sanitizedPrice * 2;
+                // const sanitizedInitialPrice = parseInt(String(item.initialPrice).replace(/[^\d.-]/g, '')) || 0;
+
+                // TODO: initial price, parsing currency
+
+                return {
+                    _id: new Types.ObjectId(),
+                    username: item.username,
+                    profileLink: item.profileLink,
+                    followers: item.followers || 0,
+                    logoUrl: item.logoUrl,
+                    price: sanitizedPrice,
+                    publicPrice: publicPrice,
+                    initialPrice: sanitizedPrice,
+                    currency: item.currency ?? 'EUR',
+                    profileCategory: item.profileCategory,
+                    musicGenres: normalizeMusicGenres(item.musicGenres) ?? [],
+                    creatorCategories: item.creatorCategories ?? [],
+                    countries: item.countries ?? [],
+                    categories: item.categories ?? [],
+                    engagementRate: null,
+                    averageViews: null,
+                    isHidden: false,
+                    isDeleted: false,
+                    isVerified: true,
+                };
+            });
+        }
+
+        const userId = new Types.ObjectId();
+        const verifyId = new Types.ObjectId();
+
         const session: ClientSession = await this.influencerRepo.startSession();
+        session.startTransaction();
 
         try {
-            const socialNetworks = Object.values(SocialMediaEnum);
-
-            for (const network of socialNetworks) {
-                const accounts = data[network] || [];
-                const usernames = accounts.map((item) => item.username);
-
-                const networkFilter = {
-                    [`${network}.username`]: { $in: usernames },
-                    isDeleted: { $ne: true },
-                };
-
-                const existingUser = await this.influencerRepo.findOne(networkFilter);
-
-                if (existingUser) {
-                    throw new ConflictException(
-                        `Existing username was used while creating new influencer: ${existingUser[network][0].username}`
-                    );
-                }
-            }
-
-            const processedData: { [key: string]: SocialAccount[] } = {};
-
-            for (const network of socialNetworks) {
-                const accounts = data[network] || [];
-
-                processedData[network] = accounts.map((item: CreateSocialAccountDto): SocialAccount => {
-                    const sanitizedPrice = parseFloat(String(item.price).replace(/[^\d.-]/g, '')) || 0;
-                    const publicPrice = sanitizedPrice * 2;
-                    const sanitizedInitialPrice = parseInt(String(item.initialPrice).replace(/[^\d.-]/g, '')) || 0;
-
-                    return {
-                        _id: new Types.ObjectId(),
-                        username: item.username,
-                        profileLink: item.profileLink,
-                        followers: item.followers || 0,
-                        logoUrl: item.logoUrl,
-                        price: sanitizedPrice,
-                        publicPrice: publicPrice,
-                        initialPrice: sanitizedInitialPrice,
-                        currency: item.currency ?? 'EUR',
-                        profileCategory: item.profileCategory,
-                        musicGenres: normalizeMusicGenres(item.musicGenres) ?? [],
-                        creatorCategories: item.creatorCategories ?? [],
-                        countries: item.countries ?? [],
-                        categories: item.categories ?? [],
-                        engagementRate: ['instagram', 'tiktok'].includes(network) ? 0 : null,
-                        averageViews: ['instagram', 'tiktok'].includes(network) ? 0 : null,
-                        isHidden: false,
-                        isDeleted: false,
-                        isVerified: true,
-                    };
-                });
-            }
-
-            const userId = new Types.ObjectId();
             await this.influencerRepo.create({
                 ...data,
                 ...processedData,
@@ -204,15 +216,21 @@ export class AuthService {
                 currencyNote: '',
             }, {session});
 
-            const verifyId = new Types.ObjectId();
             await this.verifyInfluencerRepo.create({
                 _id: verifyId,
                 influencerId: userId,
             }, {session});
 
             await session.commitTransaction();
-            session.endSession();
+        } catch (err) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            await session.endSession();
+        }
 
+        try {
+            // todo: parsing initial price
             await sendMail(
                 process.env.EMAIL_USER,
                 'SoundInfluencers',
@@ -235,7 +253,7 @@ export class AuthService {
             <li><strong>Logo: ${item.logoUrl}</strong></li>
             <li><strong>Music genres: ${item.musicGenres.join(', ')}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
-            <li><strong>Initial Price: ${item.initialPrice}</strong></li>
+            <li><strong>Initial Price: ${item.price}</strong></li>
 </ul>`,
                             )
                             .join(''),
@@ -258,9 +276,7 @@ export class AuthService {
                 'html',
             );
         } catch (err) {
-            await session.abortTransaction();
-            session.endSession();
-            throw err;
+            this.logger.warn(`Influencer ${userId.toString()} created but email failed`, err);
         }
     }
 

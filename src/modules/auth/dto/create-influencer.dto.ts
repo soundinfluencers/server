@@ -55,30 +55,10 @@ export class CreateSocialAccountDto {
     @IsNumber()
     price?: number;
 
-    @ApiProperty({ type: Number, required: false })
-    @IsOptional()
-    @IsNumber()
-    publicPrice?: number;
-
     @ApiProperty({ required: false, default: 'EUR' })
     @IsOptional()
     @IsString()
     currency?: string | null;
-
-    @ApiProperty({ type: Number, required: false, default: 0 })
-    @IsOptional()
-    @IsNumber()
-    initialPrice?: number;
-
-    @ApiProperty({ type: Number, required: false })
-    @IsOptional()
-    @IsNumber()
-    engagementRate?: number | null;
-
-    @ApiProperty({ type: Number, required: false })
-    @IsOptional()
-    @IsNumber()
-    averageViews?: number | null;
 
     @ApiProperty({ type: [String], required: false })
     @IsArray()
@@ -104,21 +84,6 @@ export class CreateSocialAccountDto {
     @IsString({ each: true })
     @IsOptional()
     categories?: string[];
-
-    @ApiProperty({ required: false })
-    @IsOptional()
-    @IsBoolean()
-    isHidden?: boolean;
-
-    @ApiProperty({ required: false })
-    @IsOptional()
-    @IsBoolean()
-    isDeleted?: boolean;
-
-    @ApiProperty({ required: false })
-    @IsOptional()
-    @IsBoolean()
-    isVerified?: boolean;
 }
 
 export class CreateInfluencerDto {
