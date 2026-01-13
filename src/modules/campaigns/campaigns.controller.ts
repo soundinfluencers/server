@@ -23,11 +23,11 @@ import {Auth} from "../../common/decorators/auth.decorator";
 import {Public} from "../../common/decorators/public.decorator";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
 import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
-import {CreateCampaignDto} from "./dto/create-campaign.dto";
+import {CreateCampaignDto, DraftCampaignDto} from "./dto/create-campaign.dto";
 import { Response } from 'express';
 import {
     CampaignStatusEnumForDevelopment,
-    CampaignStatusTypeForDevelopment, PublicCampaignForTable
+    PublicCampaignForTable
 } from "../../common/types/client/campaign.types";
 import {Roles} from "../../common/decorators/roles.decorator";
 
@@ -70,11 +70,24 @@ export class CampaignsController {
 
     @Auth()
     @Roles(Role.client)
-    @ApiOperation({summary: 'Creates a new campaign from client side'})
+    @ApiOperation({summary: 'Creates a new default campaign'})
     @ApiResponseDto(undefined, {successStatusCode: 201})
     @Post()
-    createCampaign(@Body() data: CreateCampaignDto) {
-        return this.campaignsService.createCampaign(data);
+    createCampaign(@Req() req: AuthenticatedRequest, @Body() data: CreateCampaignDto) {
+        if (!req.user._id) throw new UnauthorizedException('Unauthorized');
+
+        return this.campaignsService.createCampaign({...data, clientId: req.user._id});
+    }
+
+    @Auth()
+    @Roles(Role.client)
+    @ApiOperation({summary: 'Saves new campaign draft'})
+    @ApiResponseDto(undefined, {successStatusCode: 201})
+    @Post('draft')
+    createDraftCampaign(@Req() req: AuthenticatedRequest, @Body() data: DraftCampaignDto) {
+        if (!req.user._id) throw new UnauthorizedException('Unauthorized');
+
+        return this.campaignsService.createDraftCampaign({...data, clientId: req.user._id});
     }
 
     @Public()

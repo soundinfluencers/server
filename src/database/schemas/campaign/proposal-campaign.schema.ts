@@ -18,7 +18,7 @@ export const SelectInfluencersForProposalSchema = SchemaFactory.createForClass(S
 
 @Schema({ timestamps: true })
 export class ProposalCampaign {
-    @Prop({ required: false, type: mongoose.Schema.Types.ObjectId, ref: 'Client' || 'Admin' })
+    @Prop({ required: false, type: mongoose.Schema.Types.ObjectId })
     clientId: mongoose.Schema.Types.ObjectId;
 
     @Prop({ required: true })

@@ -1,10 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
+import {SocialMediaEnum} from "../../../common/types/social-media.types";
+import {IsArray, IsEnum, IsMongoId, IsOptional, IsString, ValidateNested} from "class-validator";
+import {Type} from "class-transformer";
 
 export class SelectedCampaignContentItemDto {
   @ApiProperty()
+  @IsMongoId()
   campaignContentItemId: string;
 
   @ApiProperty()
+  @IsMongoId()
   postDescriptionId: string;
 }
 
@@ -30,6 +35,7 @@ export class SelectInfluencerDto {
 
 export class PostDescriptionDto {
   @ApiProperty()
+  @IsMongoId()
   _id: string;
 
   @ApiProperty()
@@ -62,9 +68,10 @@ export class CampaignContentItemDto {
   socialMediaGroup: string;
 }
 
+// todo: add class validator
+// dto for creating campaign
 export class CreateCampaignDto {
-  @ApiProperty({ required: true })
-  clientId: string;
+  clientId?: string;
 
   @ApiProperty({ type: () => [SelectInfluencerDto] })
   selectInfluencers: SelectInfluencerDto[];
@@ -89,4 +96,47 @@ export class CreateCampaignDto {
 
   @ApiProperty({ required: true })
   socialMedia: string;
+}
+
+export class DraftCampaignAccountDto {
+    @ApiProperty({ example: '6659bd485bc4317ed7c73555' })
+    @IsMongoId()
+    influencerId: string;
+
+    @ApiProperty({ example: '6659bd485bc4317ed7c73556' })
+    @IsMongoId()
+    accountId: string;
+
+    @ApiProperty({ description: 'Selected content configuration', required: false })
+    @ValidateNested()
+    @Type(() => SelectedCampaignContentItemDto)
+    selectedContent: SelectedCampaignContentItemDto;
+}
+
+// dto for creating campaign draft
+export class DraftCampaignDto {
+    clientId?: string;
+
+    @ApiProperty({ type: [DraftCampaignAccountDto] })
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => DraftCampaignAccountDto)
+    addedAccounts: DraftCampaignAccountDto[];
+
+    @ApiProperty({ type: [CampaignContentItemDto] })
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => CampaignContentItemDto)
+    campaignContent: CampaignContentItemDto[];
+
+    @ApiProperty({ example: 'My first draft campaign' })
+    @IsString()
+    campaignName: string;
+
+    @ApiProperty({
+        enum: [...Object.values(SocialMediaEnum), 'multipromo'],
+        example: SocialMediaEnum.instagram,
+    })
+    @IsEnum([...Object.values(SocialMediaEnum), 'multipromo'])
+    socialMedia: SocialMediaEnum | 'multipromo';
 }

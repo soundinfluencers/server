@@ -1,7 +1,12 @@
 import {Prop, Schema, SchemaFactory} from "@nestjs/mongoose";
 import {Types} from "mongoose";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
-import {SelectedContent, SelectedContentSchema} from "./campaign.schema";
+import {
+    CampaignContentItem,
+    CampaignContentItemSchema,
+    SelectedContent,
+    SelectedContentSchema
+} from "./campaign.schema";
 
 @Schema()
 export class DraftCampaignAccount {
@@ -30,6 +35,11 @@ export class DraftCampaign {
 
     @Prop({type: [DraftCampaignAccountSchema], required: true})
     addedAccounts: DraftCampaignAccount[];
+
+    @Prop({
+        type: [CampaignContentItemSchema],
+    })
+    campaignContent: CampaignContentItem[];
 
     @Prop({type: String, required: true})
     campaignName: string;

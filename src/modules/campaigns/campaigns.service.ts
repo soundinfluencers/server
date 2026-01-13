@@ -12,7 +12,7 @@ import {
 } from "../../common/types/client/campaign.types";
 import {SocialMediaEnum, SocialMediaType} from "../../common/types/social-media.types";
 import {formatClientCampaignStatus, formatDate} from "../../common/utils/formatters";
-import {CreateCampaignDto} from "./dto/create-campaign.dto";
+import {CreateCampaignDto, DraftCampaignDto} from "./dto/create-campaign.dto";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
 import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
 import sendMail from "../../integrations/nodemailer/nodemailer";
@@ -33,6 +33,7 @@ import {Campaign} from "../../database/schemas/campaign/campaign.schema";
 import {Client} from "../../database/schemas/users/client.schema";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {DraftCampaignRepository} from "../../database/repositories/campaigns/draft-campaign.repository";
+import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
 
 @Injectable()
 export class CampaignsService {
@@ -182,7 +183,7 @@ export class CampaignsService {
         );
     }
 
-    async createCampaign(data: CreateCampaignDto) {
+    async createCampaign(data: CreateCampaignDto): Promise<void> {
         if (!data) throw new BadRequestException('Not enough arguments')
 
         const createdAt = new Date();
@@ -444,6 +445,23 @@ ${emailVideoContent()}
             emailContent,
             'html',
         );
+    }
+
+    async createDraftCampaign(data: DraftCampaignDto): Promise<void> {
+        await this.draftCampaignRepo.create({
+            ...data,
+            _id: new Types.ObjectId(),
+            clientId: new Types.ObjectId(data.clientId),
+            addedAccounts: data.addedAccounts.map((acc) => ({
+                _id: new Types.ObjectId(),
+                influencerId: new Types.ObjectId(acc.influencerId),
+                accountId: new Types.ObjectId(acc.accountId),
+                selectedContent: {
+                    campaignContentItemId: new Types.ObjectId(acc.selectedContent.campaignContentItemId),
+                    postDescriptionId: new Types.ObjectId(acc.selectedContent.postDescriptionId)
+                },
+            }))
+        });
     }
 
     // TODO: update and test
