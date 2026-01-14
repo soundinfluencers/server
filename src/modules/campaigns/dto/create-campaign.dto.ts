@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
-import {IsArray, IsEnum, IsMongoId, IsOptional, IsString, ValidateNested} from "class-validator";
+import {IsArray, IsEnum, IsMongoId, IsString, ValidateNested} from "class-validator";
 import {Type} from "class-transformer";
 
 export class SelectedCampaignContentItemDto {
@@ -114,7 +114,7 @@ export class DraftCampaignAccountDto {
 }
 
 // dto for creating campaign draft
-export class DraftCampaignDto {
+export class CreateDraftCampaignDto {
     clientId?: string;
 
     @ApiProperty({ type: [DraftCampaignAccountDto] })

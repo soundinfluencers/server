@@ -1,4 +1,4 @@
-import {Body, Controller, Delete, Get, Patch, Post, Query, Req, UnauthorizedException} from '@nestjs/common';
+import {Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UnauthorizedException} from '@nestjs/common';
 import {ProfileService} from './profile.service';
 import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from './dto/client/update-client.dto';
 import {UpdateUserPasswordDto} from './dto/update-password.dto';
@@ -9,14 +9,14 @@ import {
     UpdateInfluencerPersonalDetailsDto,
     UpdateSocialMediaAccountDto
 } from './dto/influencer/update-influencer.dto';
-import {ApiExcludeEndpoint, ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
+import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
-import {SocialAccount} from "../../database/schemas/users/influencer.schema";
 import {
-    ClientAccountDetailsDto, GetSocialAccountDetailsQueryDto,
+    ClientAccountDetailsDto,
+    GetSocialAccountDetailsParamsDto,
     InfluencerAccountDetailsDto,
     SocialAccountDetailsDto
 } from "./dto/influencer/get-profile.dto";
@@ -85,20 +85,20 @@ export class ProfileController {
     @Roles(Role.influencer, Role.admin)
     @ApiOperation({summary: "Gets detailed influencer's social account"})
     @ApiResponseDto(SocialAccountDetailsDto)
-    @ApiQuery({
+    @ApiParam({
         name: "accountId",
         required: true
     })
-    @ApiQuery({
+    @ApiParam({
         name: "socialMedia",
         enum: SocialMediaEnum,
         required: true
     })
     @Get('social-account/:accountId/:socialMedia')
-    getDetailedSocialAccount(@Req() request: AuthenticatedRequest, @Query() query: GetSocialAccountDetailsQueryDto): Promise<SocialAccountDetailsDto> {
+    getDetailedSocialAccount(@Req() request: AuthenticatedRequest, @Param() params: GetSocialAccountDetailsParamsDto): Promise<SocialAccountDetailsDto> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
-        return this.profileService.getDetailedSocialAccount({...query, influencerId: request.user._id});
+        return this.profileService.getDetailedSocialAccount({...params, influencerId: request.user._id});
     }
 
     @Auth()

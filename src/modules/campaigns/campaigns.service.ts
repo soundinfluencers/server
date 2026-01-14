@@ -1,6 +1,6 @@
 import {
     BadRequestException, ForbiddenException,
-    Injectable, Logger,
+    Injectable, InternalServerErrorException, Logger,
     NotFoundException,
 } from '@nestjs/common';
 import mongoose, {Types} from "mongoose";
@@ -12,7 +12,7 @@ import {
 } from "../../common/types/client/campaign.types";
 import {SocialMediaEnum, SocialMediaType} from "../../common/types/social-media.types";
 import {formatClientCampaignStatus, formatDate} from "../../common/utils/formatters";
-import {CreateCampaignDto, DraftCampaignDto} from "./dto/create-campaign.dto";
+import {CreateCampaignDto, CreateDraftCampaignDto} from "./dto/create-campaign.dto";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
 import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
 import sendMail from "../../integrations/nodemailer/nodemailer";
@@ -23,7 +23,7 @@ import {
 } from "../../common/utils/new-promo-message";
 import {getSocialMediaGroup} from "../../common/utils/socialMedia";
 import {returnMusicStyles} from "../../common/utils/genres";
-import {ClientGetDashboardCampaignsQueryDto} from "./dto/get-campaigns.dto";
+import {ClientGetDashboardCampaignsQueryDto, DetailedDraftCampaignDto} from "./dto/get-campaigns.dto";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
 import {CompletedCampaignRepository} from "../../database/repositories/campaigns/completed-campaign.repository";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
@@ -33,7 +33,7 @@ import {Campaign} from "../../database/schemas/campaign/campaign.schema";
 import {Client} from "../../database/schemas/users/client.schema";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {DraftCampaignRepository} from "../../database/repositories/campaigns/draft-campaign.repository";
-import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
+import {mapToDetailedDraftCampaignDto} from "../../common/mappers/campaign.mapper";
 
 @Injectable()
 export class CampaignsService {
@@ -50,6 +50,7 @@ export class CampaignsService {
     ) {
     }
 
+    // Returns campaigns list for client with diff statuses
     async getClientCampaignsList(data: ClientGetDashboardCampaignsQueryDto): Promise<ClientGetCampaignForList[]> {
         const status: CampaignStatusTypeForDevelopment = data.status ?? "all"
         const limit = Number(data.limit ?? 12);
@@ -176,13 +177,14 @@ export class CampaignsService {
                     campaignName: item.campaignName,
                     socialMedia: item.socialMedia as SocialMediaType,
                     creationDate: formatDate(item.createdAt),
-                    price: item.campaignPrice,
-                    status: formatClientCampaignStatus(item.statusCampaign) as CampaignStatusType,
+                    price: item.campaignPrice ?? undefined,
+                    status: formatClientCampaignStatus(item.statusCampaign) as CampaignStatusType ?? undefined,
                 };
             }),
         );
     }
 
+    // Creates new campaign (NOT DRAFT)
     async createCampaign(data: CreateCampaignDto): Promise<void> {
         if (!data) throw new BadRequestException('Not enough arguments')
 
@@ -447,7 +449,23 @@ ${emailVideoContent()}
         );
     }
 
-    async createDraftCampaign(data: DraftCampaignDto): Promise<void> {
+    // Returns detailed draft
+    async getDraftCampaign(draftId: string): Promise<DetailedDraftCampaignDto> {
+        if (!draftId || !Types.ObjectId.isValid(draftId)) throw new BadRequestException('Invalid draftId');
+
+        const draft = await this.draftCampaignRepo.findById(draftId);
+
+        if (!draft) throw new NotFoundException('Draft not found');
+
+        try {
+            return mapToDetailedDraftCampaignDto(draft);
+        } catch (err) {
+            throw new InternalServerErrorException(`Draft ${draftId} found, but mapper can't proceed it`, err);
+        }
+    }
+
+    // Creates new campaign draft
+    async createDraftCampaign(data: CreateDraftCampaignDto): Promise<void> {
         await this.draftCampaignRepo.create({
             ...data,
             _id: new Types.ObjectId(),
@@ -468,7 +486,7 @@ ${emailVideoContent()}
     async verifyCampaign(campaignId: string, status: string) {
         if (!campaignId || !status) throw new BadRequestException('Not enough arguments')
 
-        const checkCampaign: Campaign = await this.campaignRepo.findOne({_id: campaignId}, {lean: true});
+        const checkCampaign: Campaign = await this.campaignRepo.findById(campaignId, {lean: true});
 
         if (!checkCampaign) throw new NotFoundException('Campaign not found')
 

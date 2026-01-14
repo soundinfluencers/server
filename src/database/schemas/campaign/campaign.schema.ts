@@ -101,8 +101,8 @@ export class CampaignContentItem {
     @Prop({required: false, default: undefined})
     specialWishes: string;
 
-    @Prop({required: true, default: 'instagram'})
-    socialMedia: string;
+    @Prop({required: true, enum: SocialMediaEnum})
+    socialMedia: SocialMediaEnum;
 
     @Prop({required: true, default: 'main'})
     socialMediaGroup: string;

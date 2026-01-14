@@ -19,6 +19,9 @@ export class DraftCampaignAccount {
     @Prop({required: true, type: Types.ObjectId, ref: 'SocialAccount'})
     accountId: Types.ObjectId;
 
+    @Prop({type: String, required: true, enum: [...Object.values(SocialMediaEnum)]})
+    socialMedia: SocialMediaEnum;
+
     @Prop({required: true, type: SelectedContentSchema})
     selectedContent: SelectedContent;
 }

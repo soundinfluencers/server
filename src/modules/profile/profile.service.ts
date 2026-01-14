@@ -31,7 +31,10 @@ import {InfluencerAccountDetails, SocialAccountDetails} from "../../common/types
 import {mapInfluencerToAccountDetailsDto, mapToSocialAccountDetailsDto} from "../../common/mappers/influencer.mapper";
 import {ClientAccountDetails} from "../../common/types/client/client.types";
 import {mapClientToAccountDetailsDto} from "../../common/mappers/client.mapper";
-import {GetSocialAccountDetailsQueryDto, InfluencerAccountDetailsDto} from "./dto/influencer/get-profile.dto";
+import {
+    GetSocialAccountDetailsParamsDto,
+    InfluencerAccountDetailsDto
+} from "./dto/influencer/get-profile.dto";
 
 const bcrypt = require('bcryptjs');
 
@@ -183,7 +186,7 @@ export class ProfileService {
     }
 
     // Returns detailed social account
-    async getDetailedSocialAccount(data: GetSocialAccountDetailsQueryDto): Promise<SocialAccountDetails> {
+    async getDetailedSocialAccount(data: GetSocialAccountDetailsParamsDto): Promise<SocialAccountDetails> {
         const {influencerId, socialMedia, accountId} = data;
 
         if (!influencerId || !socialMedia || !accountId) throw new BadRequestException("Not enough arguments");

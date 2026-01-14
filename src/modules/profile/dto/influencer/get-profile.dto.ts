@@ -110,7 +110,7 @@ export class ClientAccountDetailsDto implements ClientAccountDetails {
 }
 
 // query dto for getting detailed social account
-export class GetSocialAccountDetailsQueryDto {
+export class GetSocialAccountDetailsParamsDto {
     @ApiProperty({ example: '66a747a89c6e78a6cfb83g5' })
     @IsString()
     accountId: string;

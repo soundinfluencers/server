@@ -3,7 +3,7 @@ import {
     CampaignStatusEnum,
     CampaignStatusEnumForDevelopment,
     CampaignStatusType, CampaignStatusTypeForDevelopment, ClientCampaignForTable,
-    ClientGetCampaignForList
+    ClientGetCampaignForList, SafeCampaignContent, SafeSelectedContent
 } from "../../../common/types/client/campaign.types";
 import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
 
@@ -45,11 +45,11 @@ export class ClientGetCampaignForListDto implements ClientGetCampaignForList {
     })
     creationDate: string;
 
-    @ApiProperty()
-    price: number;
+    @ApiPropertyOptional()
+    price?: number;
 
-    @ApiProperty({ enum: CampaignStatusEnum })
-    status: CampaignStatusType;
+    @ApiPropertyOptional({ enum: CampaignStatusEnum })
+    status?: CampaignStatusType;
 }
 
 export class ClientGetCampaignsDto {
@@ -109,3 +109,36 @@ export class ClientCampaignForTableDto implements ClientCampaignForTable {
     hiddenColumns: string[];
 }
 
+export class DetailedDraftCampaignAccountDto {
+    @ApiProperty()
+    _id: string;
+
+    @ApiProperty()
+    influencerId: string;
+
+    @ApiProperty()
+    accountId: string;
+
+    @ApiProperty()
+    socialMedia: SocialMediaEnum;
+
+    @ApiProperty({ type: SafeSelectedContent })
+    selectedContent: SafeSelectedContent;
+}
+
+export class DetailedDraftCampaignDto {
+    @ApiProperty()
+    _id: string;
+
+    @ApiProperty()
+    campaignName: string;
+
+    @ApiProperty({enum: [...Object.values(SocialMediaEnum), 'multipromo']})
+    socialMedia: SocialMediaType | 'multipromo';
+
+    @ApiProperty({type: DetailedDraftCampaignAccountDto, isArray: true})
+    addedAccounts: DetailedDraftCampaignAccountDto[];
+
+    @ApiProperty({type: SafeCampaignContent, isArray: true})
+    campaignContent: SafeCampaignContent[];
+}

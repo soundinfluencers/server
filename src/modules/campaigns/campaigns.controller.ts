@@ -1,4 +1,4 @@
-import {ApiOperation, ApiQuery, ApiTags} from "@nestjs/swagger";
+import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {
     BadRequestException,
     Body,
@@ -16,14 +16,14 @@ import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
 import {
     ClientCampaignForTableDto,
     ClientGetCampaignsDto,
-    ClientGetDashboardCampaignsQueryDto
+    ClientGetDashboardCampaignsQueryDto, DetailedDraftCampaignDto
 } from "./dto/get-campaigns.dto";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Public} from "../../common/decorators/public.decorator";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
 import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
-import {CreateCampaignDto, DraftCampaignDto} from "./dto/create-campaign.dto";
+import {CreateCampaignDto, CreateDraftCampaignDto} from "./dto/create-campaign.dto";
 import { Response } from 'express';
 import {
     CampaignStatusEnumForDevelopment,
@@ -81,10 +81,25 @@ export class CampaignsController {
 
     @Auth()
     @Roles(Role.client)
+    @ApiOperation({summary: 'Get detailed campaign draft'})
+    @ApiResponseDto(DetailedDraftCampaignDto)
+    @ApiParam({
+        name: 'draftId',
+        required: true,
+    })
+    @Get('draft/:draftId')
+    getDraftCampaign(@Req() req: AuthenticatedRequest, @Param('draftId') draftId: string): Promise<DetailedDraftCampaignDto> {
+        if (!req.user._id) throw new UnauthorizedException('Unauthorized');
+
+        return this.campaignsService.getDraftCampaign(draftId);
+    }
+
+    @Auth()
+    @Roles(Role.client)
     @ApiOperation({summary: 'Saves new campaign draft'})
     @ApiResponseDto(undefined, {successStatusCode: 201})
     @Post('draft')
-    createDraftCampaign(@Req() req: AuthenticatedRequest, @Body() data: DraftCampaignDto) {
+    createDraftCampaign(@Req() req: AuthenticatedRequest, @Body() data: CreateDraftCampaignDto) {
         if (!req.user._id) throw new UnauthorizedException('Unauthorized');
 
         return this.campaignsService.createDraftCampaign({...data, clientId: req.user._id});

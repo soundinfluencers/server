@@ -1,4 +1,6 @@
-import {SocialMediaType} from "../social-media.types";
+import {SocialMediaEnum, SocialMediaType} from "../social-media.types";
+import {ApiProperty} from "@nestjs/swagger";
+import {Types} from "mongoose";
 
 // Campaign status type for development backend
 export type CampaignStatusTypeForDevelopment =
@@ -38,8 +40,27 @@ export interface ClientGetCampaignForList {
     campaignName: string;
     socialMedia: SocialMediaType | 'multipromo';
     creationDate: string;
-    price: number;
-    status: CampaignStatusType;
+    price?: number;
+    status?: CampaignStatusType;
+}
+
+export class SafeSelectedContent {
+    campaignContentItemId: string | Types.ObjectId;
+    postDescriptionId: string | Types.ObjectId;
+}
+
+export class SafeCampaignContent {
+    _id: string | Types.ObjectId;
+    socialMedia: SocialMediaEnum;
+    socialMediaGroup: string;
+    videoLink: string;
+    postDescriptions: {
+        _id: string | Types.ObjectId;
+        description: string;
+    }[];
+    storyTag?: string;
+    swipeUpLink?: string;
+    specialWishes?: string;
 }
 
 // Used by campaign report page
