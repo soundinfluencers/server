@@ -3,16 +3,16 @@ import {
     Controller,
     Get,
     Param,
-    Patch, Query,
+    Patch, Query, Req,
     UsePipes,
     ValidationPipe
 } from '@nestjs/common';
 import {InfluencerActionsHistoryService} from "./influencer-actions-history.service";
 import {CheckIfInCampaignDto} from "./dto/check-if-in-campaign.dto";
-import {ApiOperation, ApiQuery, ApiTags} from "@nestjs/swagger";
+import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
-import {Role} from "../../common/types/auth.types";
+import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
 import {AllHistoriesResponseDto, GetAllHistoriesQueryDto, OneHistoryResponseDto} from "./dto/get-history.dto";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 
@@ -20,6 +20,15 @@ import {ApiResponseDto} from "../../common/decorators/api/response/api-response.
 @Controller('influencer-actions-history')
 export class InfluencerActionsHistoryController {
     constructor(private readonly influencerActionsHistoryService: InfluencerActionsHistoryService) {
+    }
+
+    @Auth()
+    @Roles(Role.influencer)
+    @ApiResponseDto(OneHistoryResponseDto)
+    @ApiOperation({summary: "Returns current user's history"})
+    @Get('/me')
+    getMyHistory(@Req() req: AuthenticatedRequest): Promise<OneHistoryResponseDto> {
+        return this.influencerActionsHistoryService.getActionsHistoryForInfluencer(req.user._id);
     }
 
     @Auth()
@@ -45,6 +54,11 @@ export class InfluencerActionsHistoryController {
     @Roles(Role.admin)
     @ApiResponseDto(OneHistoryResponseDto)
     @ApiOperation({summary: "Returns history for one influencer"})
+    @ApiParam({
+        name: 'influencerId',
+        required: true,
+        type: 'string'
+    })
     @Get(':influencerId')
     getOneHistory(@Param('influencerId') influencerId: string): Promise<OneHistoryResponseDto> {
         return this.influencerActionsHistoryService.getActionsHistoryForInfluencer(influencerId);
