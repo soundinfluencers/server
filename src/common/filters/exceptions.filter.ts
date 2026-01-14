@@ -21,23 +21,30 @@ export class AllExceptionsFilter implements ExceptionFilter {
                 ? exception.getStatus()
                 : HttpStatus.INTERNAL_SERVER_ERROR;
 
-        const message =
-            exception instanceof HttpException
-                ? exception.message
-                : 'Internal server error';
+        let errorResponse: any = {
+            statusCode: status,
+            message: 'Internal server error',
+        };
+
+        if (exception instanceof HttpException) {
+            const res = exception.getResponse();
+
+            if (typeof res === 'object') {
+                errorResponse = {
+                    statusCode: status,
+                    ...(res as object),
+                };
+            } else {
+                errorResponse.message = res;
+            }
+        }
 
         if (exception instanceof Error) {
-            this.logger.error(
-                exception.message,
-                exception.stack,
-            );
+            this.logger.error(exception.message, exception.stack);
         } else {
             this.logger.error(exception);
         }
 
-        response.status(status).json({
-            statusCode: status,
-            message,
-        });
+        response.status(status).json(errorResponse);
     }
 }

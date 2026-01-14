@@ -43,3 +43,11 @@ export interface SocialAccountDetails {
     countries: InfluencerCountryStats[];
     categories: string[];
 }
+
+export enum SocialAccountSortByEnum {
+    bestMatch = 'bestMatch',
+    lowestPrice = 'lowestPrice',
+    highestPrice = 'highestPrice',
+    lowestFollowers = 'lowestFollowers',
+    highestFollowers = 'highestFollowers',
+}

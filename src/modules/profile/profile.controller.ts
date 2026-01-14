@@ -9,19 +9,20 @@ import {
     UpdateInfluencerPersonalDetailsDto,
     UpdateSocialMediaAccountDto
 } from './dto/influencer/update-influencer.dto';
-import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiTags} from '@nestjs/swagger';
+import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {
-    ClientAccountDetailsDto,
+    ClientAccountDetailsDto, FoundAccountsDto,
     GetSocialAccountDetailsParamsDto,
     InfluencerAccountDetailsDto,
     SocialAccountDetailsDto
 } from "./dto/influencer/get-profile.dto";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
-import {SocialAccountSearchFiltersDto} from "./dto/client/search-social-accounts.dto";
+import {SocialAccountFilterQueryDto, SocialAccountSearchFiltersDto} from "./dto/client/search-social-accounts.dto";
+import {SocialAccountSortByEnum} from "../../common/types/influencer/influencer.types";
 
 @ApiTags('profile')
 @Controller('profile')
@@ -150,9 +151,27 @@ export class ProfileController {
     @Auth()
     @Roles(Role.client)
     @ApiOperation({summary: "Gets filtered social accounts"})
+    @ApiResponseDto(FoundAccountsDto, {successStatusCode: 200})
+    @ApiQuery({
+        name: "page",
+        type: "number",
+        required: true
+    })
+    @ApiQuery({
+        name: "limit",
+        type: "number",
+        required: true
+    })
+    @ApiQuery({
+        name: "sortBy",
+        type: "string",
+        enum: SocialAccountSortByEnum,
+        required: true
+    })
     @Post('social-account/filter')
-    findAccountsByFilter(@Body() filters: SocialAccountSearchFiltersDto) {
-        return this.profileService.findAccountsByFilter(filters);
+    async findAccountsByFilter(@Query() query: SocialAccountFilterQueryDto,@Body() filters: SocialAccountSearchFiltersDto): Promise<FoundAccountsDto> {
+        const accounts = await this.profileService.findAccountsByFilter({...filters, page: query.page, limit: query.limit, sortBy: query.sortBy});
+        return ({accounts});
     }
 
     // // TODO: UPDATE

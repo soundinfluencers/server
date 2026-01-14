@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {
     InfluencerAccountDetails, InfluencerProfileCategory, SocialAccountDetails,
     SocialAccountForAccountDetails
@@ -24,16 +24,16 @@ export class SocialAccountForAccountDetailsDto implements SocialAccountForAccoun
 
 // dto for getting influencer's profile details
 export class InfluencerAccountDetailsDto implements InfluencerAccountDetails {
-    @ApiProperty({ example: 'John' })
+    @ApiProperty({example: 'John'})
     firstName: string;
 
-    @ApiPropertyOptional({ example: 'Doe' })
+    @ApiPropertyOptional({example: 'Doe'})
     lastName?: string;
 
-    @ApiProperty({ example: 'john.doe@gmail.com' })
+    @ApiProperty({example: 'john.doe@gmail.com'})
     email: string;
 
-    @ApiProperty({ example: '+380501234567' })
+    @ApiProperty({example: '+380501234567'})
     phone: string;
 
     @ApiProperty({
@@ -93,25 +93,25 @@ export class InfluencerAccountDetailsDto implements InfluencerAccountDetails {
 
 // dto for getting client's profile details
 export class ClientAccountDetailsDto implements ClientAccountDetails {
-    @ApiProperty({ example: 'John' })
+    @ApiProperty({example: 'John'})
     firstName: string;
 
-    @ApiPropertyOptional({ example: 'Doe' })
+    @ApiPropertyOptional({example: 'Doe'})
     lastName?: string;
 
-    @ApiProperty({ example: 'Techno TV Company' })
+    @ApiProperty({example: 'Techno TV Company'})
     companyName: string;
 
-    @ApiProperty({ example: 'john.doe@gmail.com' })
+    @ApiProperty({example: 'john.doe@gmail.com'})
     email: string;
 
-    @ApiProperty({ example: '+380501234567' })
+    @ApiProperty({example: '+380501234567'})
     phone: string;
 }
 
 // query dto for getting detailed social account
 export class GetSocialAccountDetailsParamsDto {
-    @ApiProperty({ example: '66a747a89c6e78a6cfb83g5' })
+    @ApiProperty({example: '66a747a89c6e78a6cfb83g5'})
     @IsString()
     accountId: string;
 
@@ -127,39 +127,87 @@ export class GetSocialAccountDetailsParamsDto {
 
 // dto for getting detailed social account
 export class SocialAccountDetailsDto implements SocialAccountDetails {
-    @ApiProperty({ example: '66a747a89c6e78a6cfb83g5' })
+    @ApiProperty({example: '66a747a89c6e78a6cfb83g5'})
     _id: string;
 
-    @ApiProperty({ example: 'Techno TV' })
+    @ApiProperty({example: 'Techno TV'})
     username: string;
 
-    @ApiProperty({ example: 'https://instagram.com/technotv' })
+    @ApiProperty({example: 'https://instagram.com/technotv'})
     profileLink: string;
 
-    @ApiProperty({ example: 12000 })
+    @ApiProperty({example: 12000})
     followers: number;
 
-    @ApiProperty({ example: 'https://cdn.example.com/logo.png' })
+    @ApiProperty({example: 'https://cdn.example.com/logo.png'})
     logoUrl: string;
 
-    @ApiProperty({ example: 'music', enum: InfluencerProfileCategory })
+    @ApiProperty({example: 'music', enum: InfluencerProfileCategory})
     profileCategory: InfluencerProfileCategory;
 
-    @ApiProperty({ example: 60 })
+    @ApiProperty({example: 60})
     price: number;
 
-    @ApiProperty({ example: 'EUR', nullable: true })
+    @ApiProperty({example: 'EUR', nullable: true})
     currency: string | null;
 
-    @ApiProperty({ example: ['Techno', 'Hardstyle'], isArray: true })
+    @ApiProperty({example: ['Techno', 'Hardstyle'], isArray: true})
     musicGenres: InfluencerMusicGenre[];
 
-    @ApiProperty({ example: ['DJ', 'Producer'], isArray: true })
+    @ApiProperty({example: ['DJ', 'Producer'], isArray: true})
     creatorCategories: string[];
 
-    @ApiProperty({ example: [{ country: 'US', percentage: 60 }, { country: 'DE', percentage: 40 }], isArray: true })
+    @ApiProperty({example: [{country: 'US', percentage: 60}, {country: 'DE', percentage: 40}], isArray: true})
     countries: InfluencerCountryStats[];
 
-    @ApiProperty({ example: ['Music', 'Entertainment'], isArray: true })
+    @ApiProperty({example: ['Music', 'Entertainment'], isArray: true})
     categories: string[];
+}
+
+// dto for returning found social accounts with filter (creating campaign page)
+export class FoundAccountDto {
+    @ApiProperty({example: '66a747a89c6e78a6cfb83g5'})
+    accountId: string;
+
+    @ApiProperty({example: '66a747a89c6e78a6cfb83g5'})
+    influencerId: string;
+
+    @ApiProperty({example: 'Techno TV'})
+    username: string;
+
+    @ApiProperty({example: 'https://cdn.example.com/logo.png'})
+    logoUrl: string;
+
+    @ApiProperty({example: 12000})
+    followers: number;
+
+    @ApiProperty()
+    prices: {
+        'EUR': number;
+        'USD': number;
+        'GBP': number;
+    }; // publicPrice of account (NOT DEFAULT PRICE)
+
+    @ApiProperty({example: 'instagram', enum: SocialMediaEnum})
+    socialMedia: SocialMediaEnum;
+
+    @ApiProperty()
+    countries: {
+        country: string,
+        percentage: number
+    }[];
+
+    @ApiPropertyOptional()
+    musicGenres?: string[]; // FORMATTED music genres (InfluencerMusicGenre[] -> string[])
+
+    @ApiPropertyOptional()
+    creatorCategories?: string[];
+
+    @ApiPropertyOptional()
+    categories?: string[];
+}
+
+export class FoundAccountsDto {
+    @ApiProperty({type: FoundAccountDto, isArray: true})
+    accounts: FoundAccountDto[];
 }

@@ -1,7 +1,25 @@
-import {ApiPropertyOptional} from "@nestjs/swagger";
-import {SocialMediaEnum} from "../../../../common/types/social-media.types";
-import {IsArray, IsEnum, IsNumber, IsOptional} from "class-validator";
-import {InfluencerProfileCategory} from "../../../../common/types/influencer/influencer.types";
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { SocialMediaEnum } from "../../../../common/types/social-media.types";
+import {IsArray, IsEnum, IsInt, IsNumber, IsOptional, IsString, Min} from "class-validator";
+import {InfluencerProfileCategory, SocialAccountSortByEnum} from "../../../../common/types/influencer/influencer.types";
+import {Type} from "class-transformer";
+
+export class SocialAccountFilterQueryDto {
+    @Type(() => Number)
+    @IsInt({ message: 'page must be an integer' })
+    @Min(1, { message: 'page must be >= 1' })
+    page: number;
+
+    @Type(() => Number)
+    @IsInt({ message: 'limit must be an integer' })
+    @Min(1, { message: 'limit must be >= 1' })
+    limit: number;
+
+    @IsEnum(SocialAccountSortByEnum, {
+        message: 'sortBy has invalid value'
+    })
+    sortBy: SocialAccountSortByEnum;
+}
 
 export class SocialAccountSearchFiltersDto {
     @ApiPropertyOptional({
@@ -9,9 +27,12 @@ export class SocialAccountSearchFiltersDto {
         isArray: true,
         enum: SocialMediaEnum,
     })
-    @IsArray()
-    @IsEnum(SocialMediaEnum, {each: true})
     @IsOptional()
+    @IsArray({ message: 'socialMedias must be an array' })
+    @IsEnum(SocialMediaEnum, {
+        each: true,
+        message: `socialMedias must contain only valid SocialMediaEnum values`
+    })
     socialMedias?: SocialMediaEnum[];
 
     @ApiPropertyOptional({
@@ -19,9 +40,12 @@ export class SocialAccountSearchFiltersDto {
         isArray: true,
         enum: InfluencerProfileCategory,
     })
-    @IsArray()
-    @IsEnum(InfluencerProfileCategory, {each: true})
     @IsOptional()
+    @IsArray({ message: 'profileTypes must be an array' })
+    @IsEnum(InfluencerProfileCategory, {
+        each: true,
+        message: 'profileTypes must contain only valid InfluencerProfileCategory values'
+    })
     profileTypes?: InfluencerProfileCategory[];
 
     @ApiPropertyOptional({
@@ -29,60 +53,70 @@ export class SocialAccountSearchFiltersDto {
         type: 'string',
         isArray: true,
     })
-    @IsArray()
     @IsOptional()
-    musicGenres?: string[]; // musicGenres = influencer.account.musicGenres
+    @IsString({ each: true })
+    @IsArray({ message: 'musicGenres must be an array of strings' })
+    musicGenres?: string[];
 
     @ApiPropertyOptional({
         name: 'musicGenresFilterMethod',
         enum: ['and', 'or']
     })
-    @IsEnum(['and', 'or'], {each: true})
     @IsOptional()
-    musicGenresFilterMethod?: string; // method for filtering social accounts music genres
+    @IsEnum(['and', 'or'], {
+        message: 'musicGenresFilterMethod must be either "and" or "or"'
+    })
+    musicGenresFilterMethod?: 'and' | 'or';
 
     @ApiPropertyOptional({
         name: 'countries',
         type: 'string',
         isArray: true,
     })
-    @IsArray()
     @IsOptional()
-    countries?: string[]; // countries = influencer.account.countries
+    @IsString({ each: true })
+    @IsArray({ message: 'countries must be an array of country codes/strings' })
+    countries?: string[];
 
     @ApiPropertyOptional({
         name: 'additionalTopics',
         type: 'string',
         isArray: true,
     })
-    @IsArray()
     @IsOptional()
-    additionalTopics?: string[]; // additionalTopics = influencer.account.categories
+    @IsString({ each: true })
+    @IsArray({ message: 'additionalTopics must be an array of strings' })
+    additionalTopics?: string[];
 
     @ApiPropertyOptional({
         name: 'budget',
         type: 'number',
     })
-    @IsNumber()
+    @Type(() => Number)
+    @IsNumber({}, {
+        message: 'budget must be a number'
+    })
     @IsOptional()
     budget?: number;
 
     @ApiPropertyOptional({
         name: 'currency',
-        enum: ['£', '$', '€']
+        enum: ['EUR', 'USD', 'GBP']
     })
-    @IsEnum(['£', '$', '€'], {each: true})
     @IsOptional()
-    currency?: string;
+    @IsEnum(['EUR', 'USD', 'GBP'], {
+        message: 'currency must be one of: EUR, USD, GBP'
+    })
+    currency?: 'EUR' | 'USD' | 'GBP';
 
-    // music categories + entertainment categories = influencer.account.creatorCategories
     @ApiPropertyOptional({
         name: 'musicCategories',
         type: 'string',
         isArray: true,
     })
-    @IsArray()
     @IsOptional()
+    @IsString({ each: true })
+    @IsArray({ message: 'musicCategories must be an array of strings' })
     musicCategories?: string[];
 
     @ApiPropertyOptional({
@@ -90,7 +124,8 @@ export class SocialAccountSearchFiltersDto {
         type: 'string',
         isArray: true,
     })
-    @IsArray()
+    @IsString({ each: true })
     @IsOptional()
+    @IsArray({ message: 'entertainmentCategories must be an array of strings' })
     entertainmentCategories?: string[];
 }

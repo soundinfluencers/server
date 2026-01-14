@@ -32,6 +32,7 @@ import {mapInfluencerToAccountDetailsDto, mapToSocialAccountDetailsDto} from "..
 import {ClientAccountDetails} from "../../common/types/client/client.types";
 import {mapClientToAccountDetailsDto} from "../../common/mappers/client.mapper";
 import {
+    FoundAccountDto,
     GetSocialAccountDetailsParamsDto,
     InfluencerAccountDetailsDto
 } from "./dto/influencer/get-profile.dto";
@@ -813,8 +814,243 @@ export class ProfileService {
     }
 
     // Returns filtered social accounts (currently using at create campaign page)
-    async findAccountsByFilter(filters: SocialAccountSearchFiltersDto) {
+    async findAccountsByFilter(
+        filters: SocialAccountSearchFiltersDto & {
+            page?: number;
+            limit?: number;
+            sortBy?: string;
+        }
+    ): Promise<FoundAccountDto[]> {
+        const {
+            socialMedias,
+            page = 1,
+            limit = 20,
+            sortBy = 'bestMatch',
+        } = filters;
 
+        const skip = (page - 1) * limit;
+
+        // Какие соцсети разворачиваем
+        const socialFields = socialMedias?.length
+            ? socialMedias
+            : Object.values(SocialMediaEnum);
+
+        // Pipeline
+        const pipeline: any[] = [];
+
+        // Объединяем все выбранные соцсети в один массив
+        pipeline.push({
+            $project: {
+                allAccounts: {
+                    $reduce: {
+                        // гарантируем, что каждый соцблок — массив
+                        input: socialFields.map(f => ({ $ifNull: [`$${f}`, []] })),
+                        initialValue: [],
+                        in: { $concatArrays: ['$$value', '$$this'] }
+                    }
+                }
+            }
+        });
+
+        // Разворачиваем аккаунты
+        pipeline.push({ $unwind: '$allAccounts' });
+
+        // Базовые фильтры аккаунта
+        pipeline.push({
+            $match: {
+                'allAccounts.isDeleted': false,
+                'allAccounts.isHidden': false,
+                'allAccounts.isVerified': true,
+            }
+        });
+
+        // profileCategory
+        if (filters.profileTypes?.length) {
+            pipeline.push({
+                $match: {
+                    'allAccounts.profileCategory': { $in: filters.profileTypes }
+                }
+            });
+        }
+
+        // budget + currency
+        if (filters.budget) {
+            pipeline.push({
+                $match: {
+                    'allAccounts.price': { $lte: filters.budget }
+                }
+            });
+        }
+
+        if (filters.currency) {
+            pipeline.push({
+                $match: {
+                    'allAccounts.currency': filters.currency
+                }
+            });
+        }
+
+        // musicGenres (and / or)
+        if (filters.musicGenres?.length) {
+            if (filters.musicGenresFilterMethod === 'and') {
+                filters.musicGenres.forEach(genre => {
+                    pipeline.push({
+                        $match: {
+                            'allAccounts.musicGenres.genre': genre
+                        }
+                    });
+                });
+            } else {
+                pipeline.push({
+                    $match: {
+                        'allAccounts.musicGenres.genre': { $in: filters.musicGenres }
+                    }
+                });
+            }
+        }
+
+        // countries
+        if (filters.countries?.length) {
+            pipeline.push({
+                $match: {
+                    'allAccounts.countries.country': { $in: filters.countries }
+                }
+            });
+        }
+
+        // categories
+        const categories = [
+            ...(filters.additionalTopics || []),
+            ...(filters.musicCategories || []),
+            ...(filters.entertainmentCategories || []),
+        ];
+
+        if (categories.length) {
+            pipeline.push({
+                $match: {
+                    'allAccounts.categories': { $in: categories }
+                }
+            });
+        }
+
+        // bestMatch score
+        if (sortBy === 'bestMatch') {
+            pipeline.push({
+                $addFields: {
+                    score: {
+                        $cond: [
+                            { $gt: ['$allAccounts.followers', 0] },
+                            {
+                                $divide: [
+                                    '$allAccounts.publicPrice',
+                                    '$allAccounts.followers'
+                                ]
+                            },
+                            Number.MAX_SAFE_INTEGER
+                        ]
+                    }
+                }
+            });
+        }
+
+        // todo: получать курс до этого, чтобы возвращать правильный
+
+        // returned type
+        pipeline.push({
+            $addFields: {
+                allAccounts: {
+                    $map: {
+                        input: { $ifNull: ['$allAccounts', []] },
+                        as: 'acc',
+                        in: {
+                            accountId: '$$acc._id',
+                            influencerId: '$_id',
+                            username: '$$acc.username',
+                            logoUrl: '$$acc.logoUrl',
+                            followers: '$$acc.followers',
+                            prices: {
+                                EUR: { $ifNull: ['$$acc.publicPrice', 0] },
+                                USD: { $multiply: [{ $ifNull: ['$$acc.publicPrice', 0] }, 1.08] },
+                                GBP: { $multiply: [{ $ifNull: ['$$acc.publicPrice', 0] }, 0.92] }
+                            },
+                            socialMedia: '$$acc.socialMedia',
+                            countries: {
+                                $map: {
+                                    input: { $ifNull: ['$$acc.countries', []] },
+                                    as: 'c',
+                                    in: {
+                                        country: '$$c.country',
+                                        percentage: { $ifNull: ['$$c.percentage', 0] }
+                                    }
+                                }
+                            },
+                            musicGenres: {
+                                $map: {
+                                    input: { $ifNull: ['$$acc.musicGenres', []] },
+                                    as: 'm',
+                                    in: '$$m.genre'
+                                }
+                            },
+                            creatorCategories: { $ifNull: ['$$acc.creatorCategories', []] },
+                            categories: { $ifNull: ['$$acc.categories', []] }
+                        }
+                    }
+                }
+            }
+        });
+
+        // сортировка
+        const sortStage: any = {};
+        switch (sortBy) {
+            case 'bestMatch':
+                pipeline.push({
+                    $addFields: {
+                        'allAccounts.score': {
+                            $cond: [
+                                { $eq: ['$allAccounts.followers', 0] },
+                                Number.MAX_SAFE_INTEGER,
+                                { $divide: ['$allAccounts.publicPrice', '$allAccounts.followers'] }
+                            ]
+                        }
+                    }
+                });
+                sortStage['allAccounts.score'] = 1;
+                break;
+            case 'lowestPrice':
+                sortStage['allAccounts.price'] = 1;
+                break;
+            case 'highestPrice':
+                sortStage['allAccounts.price'] = -1;
+                break;
+            case 'lowestFollowers':
+                sortStage['allAccounts.followers'] = 1;
+                break;
+            case 'highestFollowers':
+                sortStage['allAccounts.followers'] = -1;
+                break;
+            default:
+                sortStage['allAccounts.followers'] = -1;
+                break;
+        }
+        pipeline.push({ $sort: sortStage });
+
+        // Пагинация
+        pipeline.push({
+            $facet: {
+                data: [
+                    { $skip: skip },
+                    { $limit: limit }
+                ],
+                total: [
+                    { $count: 'count' }
+                ]
+            }
+        });
+
+        const result = await this.influencerRepo.aggregate(pipeline);
+
+        // разворачиваем массив аккаунтов
+        return result[0]?.data.map(d => d.allAccounts) || [];
     }
 
     // // TODO: UPDATE

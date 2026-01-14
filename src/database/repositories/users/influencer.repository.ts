@@ -91,23 +91,6 @@ export class InfluencerRepository extends BaseRepository<Influencer> {
         return applyQueryOptions(query, options);
     }
 
-    // Get all
-    async getSocialAccountsWithFilter(
-        filter: Partial<SocialAccount>,
-        options: RepoOptions,
-    ) {
-        const query = this.influencerModel.aggregate([
-            { $unwind: '$socialAccounts' },
-            { $match: Object.entries(filter).reduce((acc, [key, value]) => {
-                    acc[`socialAccounts.${key}`] = value;
-                    return acc;
-                }, {} as Record<string, any> ) },
-            { $replaceRoot: { newRoot: '$socialAccounts' } }
-        ]);
-
-        return applyQueryOptions(query, options);
-    }
-
     // Get influencer's social account by socialAccountId
     async getSocialAccountById(
         socialAccountId: Types.ObjectId,
