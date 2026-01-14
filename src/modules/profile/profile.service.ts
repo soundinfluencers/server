@@ -35,6 +35,7 @@ import {
     GetSocialAccountDetailsParamsDto,
     InfluencerAccountDetailsDto
 } from "./dto/influencer/get-profile.dto";
+import {SocialAccountSearchFiltersDto} from "./dto/client/search-social-accounts.dto";
 
 const bcrypt = require('bcryptjs');
 
@@ -809,6 +810,11 @@ export class ProfileService {
             targetInfluencerId: targetInfluencer._id,
             targetInfluencerEmail: targetInfluencer.email
         };
+    }
+
+    // Returns filtered social accounts (currently using at create campaign page)
+    async findAccountsByFilter(filters: SocialAccountSearchFiltersDto) {
+
     }
 
     // // TODO: UPDATE

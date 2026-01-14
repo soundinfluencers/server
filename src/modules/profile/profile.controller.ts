@@ -9,7 +9,7 @@ import {
     UpdateInfluencerPersonalDetailsDto,
     UpdateSocialMediaAccountDto
 } from './dto/influencer/update-influencer.dto';
-import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiQuery, ApiTags} from '@nestjs/swagger';
+import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiTags} from '@nestjs/swagger';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
@@ -21,6 +21,7 @@ import {
     SocialAccountDetailsDto
 } from "./dto/influencer/get-profile.dto";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
+import {SocialAccountSearchFiltersDto} from "./dto/client/search-social-accounts.dto";
 
 @ApiTags('profile')
 @Controller('profile')
@@ -134,12 +135,6 @@ export class ProfileController {
         return await this.profileService.addSocialMediaAccounts({...data, influencerId: request.user._id});
     }
 
-    // // TODO: UPDATE
-    // @Post('influencer/send-mail-price-change')
-    // sendMailAboutChangingPrice(@Body() data: SendMailPriceChangeDto) {
-    //     return this.profileService.sendMailAboutChangingPrice(data);
-    // }
-
     @ApiExcludeEndpoint()
     @Get('influencer/verify-new-accounts')
     verifyNewSocialMediaAccounts(
@@ -151,6 +146,20 @@ export class ProfileController {
             query.isVerified,
         );
     }
+
+    @Auth()
+    @Roles(Role.client)
+    @ApiOperation({summary: "Gets filtered social accounts"})
+    @Post('social-account/filter')
+    findAccountsByFilter(@Body() filters: SocialAccountSearchFiltersDto) {
+        return this.profileService.findAccountsByFilter(filters);
+    }
+
+    // // TODO: UPDATE
+    // @Post('influencer/send-mail-price-change')
+    // sendMailAboutChangingPrice(@Body() data: SendMailPriceChangeDto) {
+    //     return this.profileService.sendMailAboutChangingPrice(data);
+    // }
     //
     // // TODO: UPDATE
     // @ApiQuery({name: 'influencerId'})

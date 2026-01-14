@@ -5,43 +5,43 @@ import {
 } from "../../../common/types/influencer/influencer.types";
 import {Role} from "../../../common/types/auth.types";
 
-@Schema({ _id: false })
+@Schema({_id: false})
 export class InfluencerMusicGenre {
-    @Prop({ required: true, index: true })
+    @Prop({required: true, index: true})
     genre: string;
 
-    @Prop({ type: [String], default: [] })
+    @Prop({type: [String], default: []})
     subGenres: string[];
 }
 
 export const InfluencerMusicGenreSchema = SchemaFactory.createForClass(InfluencerMusicGenre);
 
-@Schema({ _id: false })
+@Schema({_id: false})
 export class InfluencerCountryStats {
-    @Prop({ required: true, index: true })
+    @Prop({required: true, index: true})
     country: string;
 
-    @Prop({ type: Number, min: 0, max: 100 })
+    @Prop({type: Number, min: 0, max: 100})
     percentage: number;
 }
 
 export const InfluencerCountryStatsSchema = SchemaFactory.createForClass(InfluencerCountryStats);
 
-@Schema({ timestamps: true })
+@Schema({timestamps: true})
 export class SocialAccount {
-    @Prop({ type: Types.ObjectId })
+    @Prop({type: Types.ObjectId})
     _id: Types.ObjectId;
 
-    @Prop({ required: true, index: true })
+    @Prop({required: true, index: true})
     username: string;
 
-    @Prop()
+    @Prop({required: true, index: true})
     profileLink: string;
 
-    @Prop({ type: Number, min: 0 })
+    @Prop({required: true, type: Number, min: 0})
     followers: number;
 
-    @Prop()
+    @Prop({required: true})
     logoUrl: string;
 
     @Prop({
@@ -52,32 +52,17 @@ export class SocialAccount {
     })
     profileCategory: InfluencerProfileCategory;
 
-    @Prop({ type: Number, min: 0 })
+    @Prop({type: Number, min: 0})
     price: number;
 
-    @Prop({ type: Number, min: 0 })
+    @Prop({type: Number, min: 0})
     publicPrice: number;
 
-    @Prop({ type: String, default: null })
+    @Prop({type: String, default: null})
     currency: string | null;
 
-    @Prop({ type: Number, min: 0, default: 0 })
+    @Prop({type: Number, min: 0, default: 0})
     initialPrice: number;
-
-    @Prop({ type: Number, default: null })
-    engagementRate: number | null;
-
-    @Prop({ type: Number, default: null })
-    averageViews: number | null;
-
-    @Prop({
-        type: [InfluencerMusicGenreSchema],
-        default: [],
-    })
-    musicGenres: InfluencerMusicGenre[];
-
-    @Prop({ type: [String], default: [], index: true })
-    creatorCategories: string[];
 
     @Prop({
         type: [InfluencerCountryStatsSchema],
@@ -85,17 +70,32 @@ export class SocialAccount {
     })
     countries: InfluencerCountryStats[];
 
-    @Prop({ type: [String], default: [], index: true })
-    categories: string[];
-
-    @Prop({ default: false, index: true })
+    @Prop({default: false, index: true})
     isHidden: boolean;
 
-    @Prop({ default: false, index: true })
+    @Prop({default: false, index: true})
     isDeleted: boolean;
 
-    @Prop({ default: false, index: true })
+    @Prop({default: false, index: true})
     isVerified: boolean;
+
+    @Prop({
+        type: [InfluencerMusicGenreSchema],
+        required: false
+    })
+    musicGenres?: InfluencerMusicGenre[];
+
+    @Prop({type: [String], required: false, index: true})
+    creatorCategories?: string[];
+
+    @Prop({type: [String], required: false, index: true})
+    categories?: string[];
+
+    @Prop({type: Number, required: false})
+    engagementRate?: number;
+
+    @Prop({type: Number, required: false})
+    averageViews?: number;
 
     // @Prop({ type: Types.ObjectId })
     // _id: Types.ObjectId;
@@ -252,7 +252,7 @@ export class Influencer extends Document {
 export const InfluencerSchema = SchemaFactory.createForClass(Influencer);
 
 // Indexes for influencer schema
-InfluencerSchema.index({ email: 1 }, { unique: true, background: true });
-InfluencerSchema.index({ role: 1 }, { background: true });
-InfluencerSchema.index({ statusVerify: 1 }, { background: true });
+InfluencerSchema.index({email: 1}, {unique: true, background: true});
+InfluencerSchema.index({role: 1}, {background: true});
+InfluencerSchema.index({statusVerify: 1}, {background: true});
 
