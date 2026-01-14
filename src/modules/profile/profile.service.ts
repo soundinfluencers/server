@@ -933,7 +933,7 @@ export class ProfileService {
             });
         }
 
-        // bestMatch score
+        // bestMatch score (для сортировки)
         if (sortBy === 'bestMatch') {
             pipeline.push({
                 $addFields: {
@@ -953,49 +953,40 @@ export class ProfileService {
             });
         }
 
-        // todo: получать курс до этого, чтобы возвращать правильный
-
-        // returned type
+        // Возвращаем только нужные поля DTO
         pipeline.push({
-            $addFields: {
-                allAccounts: {
+            $project: {
+                _id: 0,
+                accountId: '$allAccounts._id',
+                influencerId: '$_id',
+                username: '$allAccounts.username',
+                logoUrl: '$allAccounts.logoUrl',
+                followers: '$allAccounts.followers',
+                prices: {
+                    EUR: { $ifNull: ['$allAccounts.publicPrice', 0] },
+                    USD: { $multiply: [{ $ifNull: ['$allAccounts.publicPrice', 0] }, 1.08] },
+                    GBP: { $multiply: [{ $ifNull: ['$allAccounts.publicPrice', 0] }, 0.92] }
+                },
+                socialMedia: '$allAccounts.socialMedia',
+                countries: {
                     $map: {
-                        input: { $ifNull: ['$allAccounts', []] },
-                        as: 'acc',
+                        input: { $ifNull: ['$allAccounts.countries', []] },
+                        as: 'c',
                         in: {
-                            accountId: '$$acc._id',
-                            influencerId: '$_id',
-                            username: '$$acc.username',
-                            logoUrl: '$$acc.logoUrl',
-                            followers: '$$acc.followers',
-                            prices: {
-                                EUR: { $ifNull: ['$$acc.publicPrice', 0] },
-                                USD: { $multiply: [{ $ifNull: ['$$acc.publicPrice', 0] }, 1.08] },
-                                GBP: { $multiply: [{ $ifNull: ['$$acc.publicPrice', 0] }, 0.92] }
-                            },
-                            socialMedia: '$$acc.socialMedia',
-                            countries: {
-                                $map: {
-                                    input: { $ifNull: ['$$acc.countries', []] },
-                                    as: 'c',
-                                    in: {
-                                        country: '$$c.country',
-                                        percentage: { $ifNull: ['$$c.percentage', 0] }
-                                    }
-                                }
-                            },
-                            musicGenres: {
-                                $map: {
-                                    input: { $ifNull: ['$$acc.musicGenres', []] },
-                                    as: 'm',
-                                    in: '$$m.genre'
-                                }
-                            },
-                            creatorCategories: { $ifNull: ['$$acc.creatorCategories', []] },
-                            categories: { $ifNull: ['$$acc.categories', []] }
+                            country: '$$c.country',
+                            percentage: { $ifNull: ['$$c.percentage', 0] }
                         }
                     }
-                }
+                },
+                musicGenres: {
+                    $map: {
+                        input: { $ifNull: ['$allAccounts.musicGenres', []] },
+                        as: 'm',
+                        in: '$$m.genre'
+                    }
+                },
+                creatorCategories: { $ifNull: ['$allAccounts.creatorCategories', []] },
+                categories: { $ifNull: ['$allAccounts.categories', []] }
             }
         });
 
@@ -1003,33 +994,22 @@ export class ProfileService {
         const sortStage: any = {};
         switch (sortBy) {
             case 'bestMatch':
-                pipeline.push({
-                    $addFields: {
-                        'allAccounts.score': {
-                            $cond: [
-                                { $eq: ['$allAccounts.followers', 0] },
-                                Number.MAX_SAFE_INTEGER,
-                                { $divide: ['$allAccounts.publicPrice', '$allAccounts.followers'] }
-                            ]
-                        }
-                    }
-                });
-                sortStage['allAccounts.score'] = 1;
+                sortStage['score'] = 1;
                 break;
             case 'lowestPrice':
-                sortStage['allAccounts.price'] = 1;
+                sortStage['prices.EUR'] = 1;
                 break;
             case 'highestPrice':
-                sortStage['allAccounts.price'] = -1;
+                sortStage['prices.EUR'] = -1;
                 break;
             case 'lowestFollowers':
-                sortStage['allAccounts.followers'] = 1;
+                sortStage['followers'] = 1;
                 break;
             case 'highestFollowers':
-                sortStage['allAccounts.followers'] = -1;
+                sortStage['followers'] = -1;
                 break;
             default:
-                sortStage['allAccounts.followers'] = -1;
+                sortStage['followers'] = -1;
                 break;
         }
         pipeline.push({ $sort: sortStage });
@@ -1049,9 +1029,9 @@ export class ProfileService {
 
         const result = await this.influencerRepo.aggregate(pipeline);
 
-        // разворачиваем массив аккаунтов
-        return result[0]?.data.map(d => d.allAccounts) || [];
+        return result[0]?.data || [];
     }
+
 
     // // TODO: UPDATE
     // async getInfluencersWithSocialMedia(socialMedia: string) {
