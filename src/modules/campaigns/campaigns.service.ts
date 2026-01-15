@@ -519,6 +519,7 @@ ${emailVideoContent()}
                                         campaignId: campaignId,
                                         campaignName: checkCampaign.campaignName,
                                         updatedCampaignAction: {
+                                            socialAccountId: account._id,
                                             actionNumber: 1,
                                             networkUsername: account.username,
                                             rewardForInfluencer: account.price,

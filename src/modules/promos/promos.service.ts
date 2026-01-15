@@ -867,6 +867,7 @@ export class PromosService {
                 campaignId: campaignId,
                 campaignName: campaign.campaignName,
                 updatedCampaignAction: {
+                    socialAccountId: socialAccount._id,
                     actionNumber: 3,
                     networkUsername: socialMediaUsername,
                     rewardForInfluencer: Number(

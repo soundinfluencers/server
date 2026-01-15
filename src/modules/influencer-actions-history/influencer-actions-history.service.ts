@@ -1,4 +1,4 @@
-import {BadRequestException, Injectable, Logger, NotFoundException} from '@nestjs/common';
+import {BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException} from '@nestjs/common';
 import mongoose, {ClientSession, Types} from 'mongoose';
 import {UpsertCampaignActionDto, UpsertInvoiceActionDto} from "./dto/upsert-actions.dto";
 import {InfluencerHistoryRepository} from "../../database/repositories/histories/influencer-history.repository";
@@ -14,8 +14,17 @@ import {
     CampaignAction,
     InfluencerActionsHistory
 } from "../../database/schemas/histories/influencer-actions-history.schema";
-import {GetAllHistoriesQueryDto} from "./dto/get-history.dto";
+import {
+    GetAllHistoriesQueryDto,
+    GetCurrentUserCampaignsHistoryQueryDto,
+    HistoryCampaignItemForProcessedHistory
+} from "./dto/get-history.dto";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
+import {
+    HistoryCampaignActionStatus,
+    HistoryCampaignActionStatusLabel
+} from "../../common/types/influencer/influencer.types";
+import {formatDate} from "../../common/utils/formatters";
 
 @Injectable()
 export class InfluencerActionsHistoryService {
@@ -41,13 +50,14 @@ export class InfluencerActionsHistoryService {
 
         const {email, balance} = influencer;
 
-        const {actionNumber, networkUsername, rewardForInfluencer, socialMedia} = updatedCampaignAction;
+        const {actionNumber, networkUsername, rewardForInfluencer, socialMedia, socialAccountId} = updatedCampaignAction;
 
         const action: CampaignAction = {
+            socialAccountId,
             actionNumber,
             networkUsername,
             rewardForInfluencer,
-            socialMedia,
+            socialMedia: socialMedia as SocialMediaEnum,
             currentBalance: actionNumber === 3 ? balance + rewardForInfluencer : balance,
             date: new Date()
         };
@@ -131,6 +141,81 @@ export class InfluencerActionsHistoryService {
 
             await influencerActionsHistory.save();
         }
+    }
+
+    // Returns current influencer's campaigns history
+    async getCurrentUserCampaignHistory(data: GetCurrentUserCampaignsHistoryQueryDto): Promise<HistoryCampaignItemForProcessedHistory[]> {
+        const page = Math.max((data.page ?? 1), 1);
+        const limit = Math.max((data.limit ?? 20), 1);
+        const skip = (page - 1) * limit;
+
+        const rawHistory = await this.influencerHistoryRepo.aggregate([
+            { $match: { influencerId: new Types.ObjectId(data.influencerId) } },
+
+            { $unwind: { path: '$campaigns', preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: '$campaigns.actions', preserveNullAndEmptyArrays: true } },
+
+            {
+                $lookup: {
+                    from: 'campaigns',
+                    localField: 'campaigns.campaignId',
+                    foreignField: '_id',
+                    as: 'openCampaign',
+                },
+            },
+            { $unwind: { path: '$openCampaign', preserveNullAndEmptyArrays: true } },
+
+            {
+                $lookup: {
+                    from: 'completedcampaigns',
+                    localField: 'campaigns.campaignId',
+                    foreignField: '_id',
+                    as: 'closedCampaign',
+                },
+            },
+            { $unwind: { path: '$closedCampaign', preserveNullAndEmptyArrays: true } },
+
+            {
+                $project: {
+                    _id: 0,
+                    campaignId: '$campaigns.campaignId',
+                    campaignName: '$campaigns.campaignName',
+
+                    campaignSocialMedia: {
+                        $ifNull: [
+                            '$campaigns.actions.socialMedia',
+                            { $ifNull: ['$openCampaign.socialMedia', '$closedCampaign.socialMedia'] },
+                        ],
+                    },
+
+                    socialAccountId: '$campaigns.actions.socialAccountId',
+                    price: '$campaigns.actions.rewardForInfluencer',
+                    status: '$campaigns.actions.actionNumber',
+                    date: '$campaigns.actions.date',
+                    currentBalance: '$campaigns.actions.currentBalance',
+                },
+            },
+
+            { $sort: { date: -1 } },
+            { $skip: skip },
+            { $limit: limit },
+        ]);
+
+        let history: HistoryCampaignItemForProcessedHistory[] = [];
+
+        try {
+            history = rawHistory.map(item => ({
+                ...item,
+                date: formatDate(item.date),
+                status: item.status as HistoryCampaignActionStatus,
+                statusLabel:
+                    HistoryCampaignActionStatusLabel[item.status as HistoryCampaignActionStatus],
+            })) satisfies HistoryCampaignItemForProcessedHistory[];
+        } catch (error) {
+            throw new InternalServerErrorException(`Found ${data.influencerId} history, but can't proceed it: ${error}`);
+        }
+
+        return history;
     }
 
     // Return several histories (with limit and page)

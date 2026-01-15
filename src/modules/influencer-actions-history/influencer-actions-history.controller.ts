@@ -13,7 +13,12 @@ import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
-import {AllHistoriesResponseDto, GetAllHistoriesQueryDto, OneHistoryResponseDto} from "./dto/get-history.dto";
+import {
+    AllHistoriesResponseDto, CurrentUserCampaignHistoryDto,
+    GetAllHistoriesQueryDto,
+    GetCurrentUserCampaignsHistoryQueryDto, HistoryCampaignItemForProcessedHistory,
+    OneHistoryResponseDto
+} from "./dto/get-history.dto";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 
 @ApiTags('influencer-actions-history')
@@ -24,11 +29,22 @@ export class InfluencerActionsHistoryController {
 
     @Auth()
     @Roles(Role.influencer)
-    @ApiResponseDto(OneHistoryResponseDto)
-    @ApiOperation({summary: "Returns current user's history"})
+    @ApiResponseDto(CurrentUserCampaignHistoryDto)
+    @ApiOperation({summary: "Returns current influencer's campaigns activity history"})
+    @ApiQuery({
+        name: 'limit',
+        required: false,
+        type: 'number',
+    })
+    @ApiQuery({
+        name: 'page',
+        required: false,
+        type: 'number',
+    })
     @Get('/me')
-    getMyHistory(@Req() req: AuthenticatedRequest): Promise<OneHistoryResponseDto> {
-        return this.influencerActionsHistoryService.getActionsHistoryForInfluencer(req.user._id);
+    async getMyHistory(@Req() req: AuthenticatedRequest, @Query() query: GetCurrentUserCampaignsHistoryQueryDto): Promise<CurrentUserCampaignHistoryDto> {
+        const history = await this.influencerActionsHistoryService.getCurrentUserCampaignHistory({...query, influencerId: req.user._id});
+        return ({history});
     }
 
     @Auth()

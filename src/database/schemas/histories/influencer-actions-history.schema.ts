@@ -1,19 +1,23 @@
 import mongoose, {Document, Types} from 'mongoose';
 import {Prop, Schema, SchemaFactory} from '@nestjs/mongoose';
+import {SocialMediaEnum} from "../../../common/types/social-media.types";
 
 @Schema()
 export class CampaignAction {
-    @Prop({type: Number, required: true})
+    @Prop({type: Types.ObjectId, required: true})
+    socialAccountId: Types.ObjectId;
+
+    @Prop({type: Number, required: true, min: 0, max: 5})
     actionNumber: number;
 
-    @Prop({type: Number, required: false})
+    @Prop({type: Number, required: true})
     rewardForInfluencer: number;
 
     @Prop({type: String, required: true})
     networkUsername: string;
 
-    @Prop({type: String, required: false})
-    socialMedia: string;
+    @Prop({type: String, required: true, enum: SocialMediaEnum})
+    socialMedia: SocialMediaEnum;
 
     @Prop({type: Number, required: true})
     currentBalance: number;

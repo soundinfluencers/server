@@ -51,3 +51,26 @@ export enum SocialAccountSortByEnum {
     lowestFollowers = 'lowestFollowers',
     highestFollowers = 'highestFollowers',
 }
+
+// enum for influencer's history campaign action status
+export enum HistoryCampaignActionStatus {
+    pending = 0, // influencer got new promo (can accept/deny)
+    inDistribution = 1, // influencer accepted this promo request (can post & submit insights)
+    insightsSubmitted = 2, // influencer submitted insights (can create invoice for this promo)
+    invoiceSubmitted = 3, // influencer submitted invoice for this promo and waiting for payment
+    paid = 4, // influencer got payment
+    denied = 5 // influencer denied this promo request
+}
+
+// record for influencer's history campaign action status
+export const HistoryCampaignActionStatusLabel: Record<
+    HistoryCampaignActionStatus,
+    string
+> = {
+    [HistoryCampaignActionStatus.pending]: 'Pending',
+    [HistoryCampaignActionStatus.inDistribution]: 'In Distribution',
+    [HistoryCampaignActionStatus.insightsSubmitted]: 'Insights Submitted',
+    [HistoryCampaignActionStatus.invoiceSubmitted]: 'Invoice Submitted',
+    [HistoryCampaignActionStatus.paid]: 'Paid',
+    [HistoryCampaignActionStatus.denied]: 'Denied',
+};

@@ -1,7 +1,10 @@
-import { ValidateNested, IsString, IsNumber, IsOptional } from 'class-validator';
+import {ValidateNested, IsString, IsNumber, IsOptional, IsMongoId} from 'class-validator';
 import { Type } from 'class-transformer';
+import {Types} from "mongoose";
 
 export class NewCampaignActionDto {
+    socialAccountId: Types.ObjectId;
+
     @IsNumber()
     actionNumber: number;
 

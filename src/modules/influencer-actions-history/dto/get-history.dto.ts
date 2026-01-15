@@ -1,8 +1,10 @@
-import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
+import {ApiProperty, ApiPropertyOptional, getSchemaPath} from "@nestjs/swagger";
 import {InfluencerActionsHistory} from "../../../database/schemas/histories/influencer-actions-history.schema";
 import {ProcessedInfluencerHistory} from "../types/influencer-history.types";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {Type} from "class-transformer";
+import {HistoryCampaignActionStatus} from "../../../common/types/influencer/influencer.types";
+import {IsNumber, IsOptional} from "class-validator";
 
 export class GetAllHistoriesQueryDto {
     @ApiPropertyOptional({
@@ -37,25 +39,73 @@ class AccountForProcessedHistory {
     publicPrice: number | string;
 }
 
-class HistoryCampaignItemForProcessedHistory {
+export class GetCurrentUserCampaignsHistoryQueryDto {
+    @ApiPropertyOptional({
+        default: 12,
+    })
+    @Type(() => Number)
+    @IsNumber({}, {
+        message: 'limit must be a number'
+    })
+    @IsOptional()
+    limit: number;
+
+    @ApiPropertyOptional({
+        default: 1,
+        description: 'Page number (starts from 1)',
+    })
+    @Type(() => Number)
+    @IsNumber({}, {
+        message: 'page must be a number'
+    })
+    @IsOptional()
+    page: number;
+
+    influencerId: string;
+}
+
+export class HistoryCampaignItemForProcessedHistory {
     @ApiProperty()
-    type: 'campaign';
+    type?: 'campaign';
+
+    @ApiProperty()
+    campaignId: string;
 
     @ApiProperty()
     campaignName: string;
 
-    @ApiProperty()
-    campaignSocialMedia: SocialMediaEnum;
-
-
-    @ApiProperty()
-    amount: number;
+    @ApiProperty({type: 'string', enum: [...Object.values(SocialMediaEnum), 'multipromo']})
+    campaignSocialMedia: SocialMediaEnum | 'multipromo';
 
     @ApiProperty()
-    currentBalance: number;
+    socialAccountId: string;
+
+    @ApiProperty()
+    price: number;
+
+    @ApiProperty({
+        enum: HistoryCampaignActionStatus,
+        example: HistoryCampaignActionStatus.inDistribution,
+        description: 'Campaign status code',
+    })
+    status: HistoryCampaignActionStatus;
+
+    @ApiProperty({
+        example: 'In Distribution',
+        description: 'Human readable campaign status',
+    })
+    statusLabel: string;
 
     @ApiProperty()
     date: Date;
+
+    @ApiPropertyOptional()
+    currentBalance?: number;
+}
+
+export class CurrentUserCampaignHistoryDto {
+    @ApiProperty({ type: HistoryCampaignItemForProcessedHistory, isArray: true })
+    history: HistoryCampaignItemForProcessedHistory[];
 }
 
 // todo: закончить тип invoice action (сейчас просто заглушка)
@@ -76,9 +126,10 @@ class HistoryInvoiceItemForProcessedHistory {
     date: Date;
 }
 
-class HistoryItemForProcessedHistory = HistoryCampaignItemForProcessedHistory | HistoryInvoiceItemForProcessedHistory;
+export type HistoryItemForProcessedHistory =
+    | HistoryCampaignItemForProcessedHistory
+    | HistoryInvoiceItemForProcessedHistory;
 
-// TODO: finish (сейчас просто заглушка)
 export class OneHistoryResponseDto implements ProcessedInfluencerHistory {
     @ApiProperty()
     influencerId: string;
@@ -96,7 +147,12 @@ export class OneHistoryResponseDto implements ProcessedInfluencerHistory {
     @ApiProperty()
     currencyNote: string;
 
-    @ApiProperty({ type: HistoryItemForProcessedHistory, isArray: true })
-    @Type(() => HistoryItemForProcessedHistory)
+    @ApiProperty({
+        isArray: true,
+        oneOf: [
+            { $ref: getSchemaPath(HistoryCampaignItemForProcessedHistory) },
+            { $ref: getSchemaPath(HistoryInvoiceItemForProcessedHistory) },
+        ],
+    })
     history: HistoryItemForProcessedHistory[];
 }
