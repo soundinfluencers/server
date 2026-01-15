@@ -839,14 +839,35 @@ export class ProfileService {
         const pipeline: any[] = [];
 
         // Объединяем все выбранные соцсети в один массив
+        const socialFieldEntries = socialFields.map(f => ({
+            k: f,
+            v: `$${f}`
+        }));
+
         pipeline.push({
             $project: {
+                influencerId: '$_id',
                 allAccounts: {
                     $reduce: {
-                        // гарантируем, что каждый соцблок — массив
-                        input: socialFields.map(f => ({ $ifNull: [`$${f}`, []] })),
+                        input: socialFieldEntries,
                         initialValue: [],
-                        in: { $concatArrays: ['$$value', '$$this'] }
+                        in: {
+                            $concatArrays: [
+                                '$$value',
+                                {
+                                    $map: {
+                                        input: { $ifNull: ['$$this.v', []] },
+                                        as: 'acc',
+                                        in: {
+                                            $mergeObjects: [
+                                                '$$acc',
+                                                { socialMedia: '$$this.k' }
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        }
                     }
                 }
             }
