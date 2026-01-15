@@ -37,10 +37,31 @@ class AccountForProcessedHistory {
     publicPrice: number | string;
 }
 
-// TODO: finish
-class HistoryItemForProcessedHistory {
-    @ApiProperty({ enum: { campaign: 'campaign', invoice: 'invoice' } })
-    type: 'campaign' | 'invoice';
+class HistoryCampaignItemForProcessedHistory {
+    @ApiProperty()
+    type: 'campaign';
+
+    @ApiProperty()
+    campaignName: string;
+
+    @ApiProperty()
+    campaignSocialMedia: SocialMediaEnum;
+
+
+    @ApiProperty()
+    amount: number;
+
+    @ApiProperty()
+    currentBalance: number;
+
+    @ApiProperty()
+    date: Date;
+}
+
+// todo: закончить тип invoice action (сейчас просто заглушка)
+class HistoryInvoiceItemForProcessedHistory {
+    @ApiProperty()
+    type: 'invoice';
 
     @ApiProperty()
     title: string;
@@ -54,6 +75,8 @@ class HistoryItemForProcessedHistory {
     @ApiProperty()
     date: Date;
 }
+
+class HistoryItemForProcessedHistory = HistoryCampaignItemForProcessedHistory | HistoryInvoiceItemForProcessedHistory;
 
 // TODO: finish (сейчас просто заглушка)
 export class OneHistoryResponseDto implements ProcessedInfluencerHistory {
