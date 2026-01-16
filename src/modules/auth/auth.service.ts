@@ -19,7 +19,7 @@ import {VerifyInfluencerRepository} from "../../database/repositories/verify-use
 import {LoginDto, LoginResponseDto} from "./dto/login.dto";
 import {SocialAccount} from "../../database/schemas/users/influencer.schema";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
-import {getArrayFromAccountMusicGenres, normalizeMusicGenres} from "../../common/utils/genres";
+import {getArrayFromMusicGenreDto, normalizeDtoToMusicGenres} from "../../common/utils/genres";
 import {AdminRepository} from "../../database/repositories/users/admin.repository";
 import {Role} from "../../common/types/auth.types";
 
@@ -81,6 +81,7 @@ export class AuthService {
             await this.clientRepo.create({
                 ...data,
                 _id: userId,
+                role: Role.client,
                 email: data.email.toLowerCase(),
                 referenceNumber: generateRandomDigits(6),
                 password: bcrypt.hashSync(data.password),
@@ -188,7 +189,7 @@ export class AuthService {
                     initialPrice: sanitizedPrice,
                     currency: item.currency ?? 'EUR',
                     profileCategory: item.profileCategory,
-                    musicGenres: normalizeMusicGenres(item.musicGenres) ?? [],
+                    musicGenres: normalizeDtoToMusicGenres(item.musicGenres) ?? [],
                     creatorCategories: item.creatorCategories ?? [],
                     countries: item.countries ?? [],
                     categories: item.categories ?? [],
@@ -196,7 +197,7 @@ export class AuthService {
                     averageViews: null,
                     isHidden: false,
                     isDeleted: false,
-                    isVerified: true,
+                    isVerified: false,
                 };
             });
         }
@@ -213,6 +214,7 @@ export class AuthService {
                 ...processedData,
                 _id: userId,
                 email: data.email.toLowerCase(),
+                role: Role.influencer,
                 password: bcrypt.hashSync(data.password),
                 currencyNote: '',
             }, {session});
@@ -252,7 +254,7 @@ export class AuthService {
             <li><strong>Link: ${item.profileLink}</strong></li>
             <li><strong>Followers: ${item.followers}</strong></li>
             <li><strong>Logo: ${item.logoUrl}</strong></li>
-            <li><strong>Music genres: ${item.musicGenres.join(', ')}</strong></li>
+            <li><strong>Music genres: ${getArrayFromMusicGenreDto(item.musicGenres)}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
             <li><strong>Initial Price: ${item.price}</strong></li>
 </ul>`,
@@ -393,12 +395,11 @@ export class AuthService {
     // Verify influencer with sending mail
     async verifyAdminInfluencer(verifyId: string, responseVerify: string) {
         if (!verifyId || !responseVerify) throw new BadRequestException('Not enough arguments');
+        if (!['accept', 'cancel'].includes(responseVerify)) throw new BadRequestException('Invalid response type');
 
-        const checkVerifyAdmin = await this.verifyInfluencerRepo.findOne({
-            verifyId: verifyId,
-        });
+        const checkVerifyAdmin = await this.verifyInfluencerRepo.findById(verifyId);
 
-        if (!checkVerifyAdmin) throw new NotFoundException('Influencer not found');
+        if (!checkVerifyAdmin) throw new NotFoundException('Verify influencer document not found');
 
         const checkInfluencer = await this.influencerRepo.findOne({
             _id: checkVerifyAdmin.influencerId,
@@ -406,45 +407,82 @@ export class AuthService {
 
         if (!checkInfluencer) throw new NotFoundException('Influencer not found');
 
-        if (responseVerify === 'accept') {
-            await this.influencerRepo.findOneAndUpdate(
-                {_id: checkInfluencer._id},
-                {statusVerify: responseVerify},
-            );
+        const session = await this.influencerRepo.startSession();
+        session.startTransaction();
 
-            await this.verifyInfluencerRepo.findOneAndDelete({verifyId: verifyId});
+        try {
+            if (responseVerify === 'accept') {
+                await this.influencerRepo.updateOne(
+                    {_id: new Types.ObjectId(checkInfluencer._id)},
+                    {
+                        $set: {
+                            'statusVerify': responseVerify,
+                            'instagram.$[].isVerified': true,
+                            'tiktok.$[].isVerified': true,
+                            'spotify.$[].isVerified': true,
+                            'soundcloud.$[].isVerified': true,
+                            'facebook.$[].isVerified': true,
+                            'youtube.$[].isVerified': true,
+                            'press.$[].isVerified': true,
+                        },
+                    },
+                    {session},
+                );
+            } else if (responseVerify === 'cancel') {
+                await this.influencerRepo.updateOne(
+                    {_id: new Types.ObjectId(checkInfluencer._id)},
+                    {
+                        $set: {
+                            'statusVerify': responseVerify,
+                        },
+                    },
+                    {session},
+                );
+            }
 
-            sendMail(
-                checkInfluencer.email,
-                'SoundInfluencers',
-                `<p>Dear ${checkInfluencer.firstName},</p>
+            await this.verifyInfluencerRepo.findOneAndDelete({verifyId: verifyId}, {session});
+
+            await session.commitTransaction();
+        } catch (err) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            await session.endSession();
+        }
+
+        try {
+            switch (responseVerify) {
+                case 'accept':
+                    await sendMail(
+                        checkInfluencer.email,
+                        'SoundInfluencers',
+                        `<p>Dear ${checkInfluencer.firstName},</p>
         <p>Thank you for confirming your information with us. Your account details have been successfully verified.</p> 
         <p>You can now access your personal account by clicking on the link below:</p>
         <a href="${process.env.SERVER_CLIENT}/login/influencer" style="font-weight: 600">*Access Link*</a>
         <p>If you have any questions or encounter any issues, please don't hesitate to contact our support team or reply to this message.</p>
         <p>Best regards,</p>
         <p>SoundInfluencers team</p>`,
-                'html',
-            );
-        } else if (responseVerify === 'cancel') {
-            await this.influencerRepo.findOneAndUpdate(
-                {_id: checkInfluencer._id},
-                {statusVerify: responseVerify},
-            );
-
-            await this.verifyInfluencerRepo.findOneAndDelete({verifyId: verifyId});
-            sendMail(
-                checkInfluencer.email,
-                'SoundInfluencers',
-                `<p>Hi,</p>
+                        'html',
+                    );
+                    break;
+                case 'cancel':
+                    await sendMail(
+                        checkInfluencer.email,
+                        'SoundInfluencers',
+                        `<p>Hi,</p>
       <p>thanks for the application!</p>
       <p>Unfortunately we're not sure there's a good fit for us right now.</p>
       <p>We suggest trying again in the future 🙂</p> 
       <p>Best Regards</p><p>SoundInfluencers Team</p>`,
-                'html',
-            );
-        } else {
-            throw new BadRequestException("Response can be 'accept' or 'cancel'")
+                        'html',
+                    );
+                    break;
+                default:
+                    break;
+            }
+        } catch (err) {
+            this.logger.warn(`Influencer ${checkVerifyAdmin.influencerId} was verified but failed email`, err);
         }
     }
 

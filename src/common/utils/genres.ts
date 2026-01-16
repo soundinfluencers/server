@@ -1,4 +1,5 @@
 import {InfluencerMusicGenre} from "../../database/schemas/users/influencer.schema";
+import {MusicGenreDto} from "../../modules/auth/dto/create-influencer.dto";
 
 export const returnMusicStyles = (musicStyle: string, musicStyleOther: string[], musicSubStyles: string[]) => {
     const genresSet = new Set();
@@ -45,7 +46,7 @@ export const getArrayFromAccountMusicGenres = (musicGenres: InfluencerMusicGenre
 };
 
 // Parses string[] to InfluencerMusicGenre[]
-export const normalizeMusicGenres = (musicGenres: string[]): InfluencerMusicGenre[] => {
+export const normalizeStringToMusicGenres = (musicGenres: string[]): InfluencerMusicGenre[] => {
     return musicGenres.map((item) => {
         const match = item.match(/^(.+?)\s*\((.+)\)$/);
 
@@ -66,4 +67,52 @@ export const normalizeMusicGenres = (musicGenres: string[]): InfluencerMusicGenr
             subGenres: [],
         };
     });
+};
+
+// Parses MusicGenreDto[] to InfluencerMusicGenre[]
+export const normalizeDtoToMusicGenres = (
+    musicGenres: MusicGenreDto[] = []
+): InfluencerMusicGenre[] => {
+    const formatGenreName = (value: string): string => {
+        return value
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    };
+
+    return musicGenres.map(genreDto => ({
+        genre: formatGenreName(genreDto.genre),
+        subGenres: (genreDto.subGenres ?? []).map(sub =>
+            formatGenreName(sub)
+        ),
+    }));
+};
+
+// Parses MusicGenreDto[] to string[]
+export const getArrayFromMusicGenreDto = (
+    musicGenres: MusicGenreDto[] = []
+): string[] => {
+    const formatGenreName = (value: string): string =>
+        value
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+
+    const result: string[] = [];
+
+    for (const genreDto of musicGenres) {
+        const mainGenre = formatGenreName(genreDto.genre);
+
+        if (!genreDto.subGenres || genreDto.subGenres.length === 0) {
+            result.push(mainGenre);
+            continue;
+        }
+
+        for (const sub of genreDto.subGenres) {
+            const subGenre = formatGenreName(sub);
+            result.push(`${mainGenre} ${subGenre}`);
+        }
+    }
+
+    return result;
 };

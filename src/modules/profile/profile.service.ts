@@ -26,7 +26,7 @@ import {ClientRepository} from "../../database/repositories/users/client.reposit
 import {Role} from "../../common/types/auth.types";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {CreateSocialAccountDto} from "../auth/dto/create-influencer.dto";
-import {normalizeMusicGenres} from "../../common/utils/genres";
+import {getArrayFromMusicGenreDto, normalizeDtoToMusicGenres} from "../../common/utils/genres";
 import {InfluencerAccountDetails, SocialAccountDetails} from "../../common/types/influencer/influencer.types";
 import {mapInfluencerToAccountDetailsDto, mapToSocialAccountDetailsDto} from "../../common/mappers/influencer.mapper";
 import {ClientAccountDetails} from "../../common/types/client/client.types";
@@ -255,6 +255,10 @@ export class ProfileService {
         // if there's no fields to update - return account in current state (without updating)
         if (Object.keys(updateFields).length === 0) {
             return mapToSocialAccountDetailsDto(socialMediaAccounts[accountIndex]);
+        }
+
+        if (updateFields?.musicGenres?.length > 0) {
+            updateFields.musicGenres = normalizeDtoToMusicGenres(updateFields.musicGenres);
         }
 
         const updateResult = await this.influencerRepo.updateOne(
@@ -577,7 +581,7 @@ export class ProfileService {
             <li><strong>Website link: ${item.profileLink}</strong></li>
             <li><strong>Website link: ${item.followers}</strong></li>
             <li><strong>Logo: ${item.logoUrl}</strong></li>
-            <li><strong>Music Genres: ${item.musicGenres}</strong></li>
+            <li><strong>Music Genres: ${getArrayFromMusicGenreDto(item.musicGenres)}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
             <li><strong>Initial Price: ${item.price}</strong></li>
             `;
@@ -588,7 +592,7 @@ export class ProfileService {
             <li><strong>Link: ${item.profileLink}</strong></li>
             <li><strong>Followers: ${item.followers}</strong></li>
             <li><strong>Logo: ${item.logoUrl}</strong></li>
-            <li><strong>Music Styles: ${item.musicGenres}</strong></li>
+            <li><strong>Music Genres: ${getArrayFromMusicGenreDto(item.musicGenres)}</strong></li>
             <li><strong>Price: ${item.price}€</strong></li>
             <li><strong>Initial Price: ${item.price}</strong></li>
 </ul>
@@ -602,7 +606,7 @@ export class ProfileService {
 
             try {
                 for (const account of accounts) {
-                    const formattedMusicGenres = normalizeMusicGenres(account.musicGenres) ?? [];
+                    const formattedMusicGenres = normalizeDtoToMusicGenres(account.musicGenres) ?? [];
 
                     // todo: parsing initial price
                     const accountId = new Types.ObjectId();

@@ -5,7 +5,7 @@ import {
     Query,
     Res,
     Req,
-    Patch
+    Patch, Get
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -72,20 +72,18 @@ export class AuthController {
         return this.authService.logout(req.cookies.refreshToken, res);
     }
 
-    @Auth()
     @ApiOperation({ summary: 'Verify influencer by admin' })
     @ApiQuery({ name: 'verifyId' })
     @ApiQuery({ name: 'responseVerify' })
-    @Patch('verify/influencer')
+    @Get('verify/influencer')
     verifyAdminInfluencer(@Query() args: { verifyId: string; responseVerify: string }) {
         return this.authService.verifyAdminInfluencer(args.verifyId, args.responseVerify);
     }
 
-    @Auth()
     @ApiOperation({ summary: 'Verify client by admin' })
     @ApiQuery({ name: 'verifyId' })
     @ApiQuery({ name: 'responseVerify' })
-    @Patch('verify/client')
+    @Get('verify/client')
     verifyAdminClient(@Query() args: { verifyId: string; responseVerify: string }) {
         return this.authService.verifyAdminClient(args.verifyId, args.responseVerify);
     }

@@ -31,53 +31,47 @@ export class CreateSocialAccountDto {
     @IsString()
     username: string;
 
-    @ApiProperty({ required: false })
-    @IsOptional()
+    @ApiProperty({ required: true })
     @IsString()
-    profileLink?: string;
+    profileLink: string;
 
-    @ApiProperty({ type: Number, required: false })
-    @IsOptional()
+    @ApiProperty({ type: Number, required: true })
     @IsNumber()
-    followers?: number;
+    followers: number;
 
-    @ApiProperty({ required: false })
-    @IsOptional()
+    @ApiProperty({ required: true })
     @IsString()
-    logoUrl?: string;
+    logoUrl: string;
 
     @ApiProperty({ enum: InfluencerProfileCategory, default: InfluencerProfileCategory.community })
     @IsEnum(InfluencerProfileCategory)
     profileCategory: InfluencerProfileCategory;
 
-    @ApiProperty({ type: Number, required: false })
-    @IsOptional()
+    @ApiProperty({ type: Number, required: true })
     @IsNumber()
-    price?: number;
+    price: number;
 
-    @ApiProperty({ required: false, default: 'EUR' })
-    @IsOptional()
+    @ApiProperty({ required: true, default: 'EUR' })
     @IsString()
-    currency?: string | null;
+    currency: string | null;
 
-    @ApiProperty({ type: [String], required: false })
+    @ApiProperty({ type: [CountryStatsDto], required: true })
     @IsArray()
-    @IsString({ each: true })
+    @ValidateNested({ each: true })
+    @Type(() => CountryStatsDto)
+    countries: CountryStatsDto[];
+
+    @ApiProperty({ type: [MusicGenreDto], required: false })
+    @Type(() => MusicGenreDto)
+    @IsArray()
     @IsOptional()
-    musicGenres?: string[];
+    musicGenres?: MusicGenreDto[];
 
     @ApiProperty({ type: [String], required: false, default: [] })
     @IsArray()
     @IsString({ each: true })
     @IsOptional()
     creatorCategories?: string[];
-
-    @ApiProperty({ type: [CountryStatsDto], default: [] })
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => CountryStatsDto)
-    @IsOptional()
-    countries?: CountryStatsDto[];
 
     @ApiProperty({ type: [String], required: false, default: [] })
     @IsArray()
