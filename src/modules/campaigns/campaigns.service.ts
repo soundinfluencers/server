@@ -29,7 +29,7 @@ import {CompletedCampaignRepository} from "../../database/repositories/campaigns
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {ProposalCampaignRepository} from "../../database/repositories/campaigns/proposal-campaign.repository";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
-import {Campaign} from "../../database/schemas/campaign/campaign.schema";
+import {Campaign, CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
 import {Client} from "../../database/schemas/users/client.schema";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {DraftCampaignRepository} from "../../database/repositories/campaigns/draft-campaign.repository";
@@ -190,8 +190,8 @@ export class CampaignsService {
 
         const createdAt = new Date();
 
-        const processedInfluencers = await Promise.all(
-            data.selectInfluencers.map(async (influencer) => {
+        const processedAccounts = await Promise.all(
+            data.addedAccounts.map(async (influencer) => {
                 const dateRequest = influencer.dateRequest;
 
                 const influencerData = await this.influencerRepo
@@ -206,7 +206,7 @@ export class CampaignsService {
                                 _id: new Types.ObjectId(influencer.influencerId)
                             },
                             {
-                                [`${influencer.socialMedia}.instagramUsername`]: influencer.socialMediaUsername
+                                [`${influencer.socialMedia}.username`]: influencer.socialMediaUsername
                             }
                         ]
                     }, {lean: true});
@@ -222,7 +222,7 @@ export class CampaignsService {
 
                 const socialMediaAccount = influencerData[influencer.socialMedia].find(
                     (account) =>
-                        account.instagramUsername === influencer.socialMediaUsername
+                        account.username === influencer.socialMediaUsername
                 );
 
                 if (socialMediaAccount) {
@@ -241,7 +241,7 @@ export class CampaignsService {
                         accountId: new Types.ObjectId(influencer.socialMediaAccountId),
                         price: socialMediaAccount.price,
                         publicPrice: socialMediaAccount.publicPrice,
-                        followersNumber: parseInt(socialMediaAccount.followersNumber.replace(/[.,]/g, '')),
+                        followersNumber: socialMediaAccount.followers,
                         createdAt,
                         dateRequest,
                     };
@@ -251,18 +251,18 @@ export class CampaignsService {
 
         const processedCampaignContent = await Promise.all(
             data.campaignContent.map(async (campaignContentItem) => ({
-                videoLink: campaignContentItem.videoLink.trim(),
-                postDescriptions: campaignContentItem.postDescriptions.map((pd) => ({
+                _id: new mongoose.Types.ObjectId(campaignContentItem._id),
+                videoLink: campaignContentItem.mainLink.trim(),
+                socialMedia: campaignContentItem.socialMedia as SocialMediaEnum,
+                socialMediaGroup: campaignContentItem.socialMediaGroup,
+                postDescriptions: campaignContentItem?.descriptions.map((pd) => ({
                     _id: new mongoose.Types.ObjectId(pd._id),
                     description: pd.description.trim(),
-                })),
-                storyTag: campaignContentItem.storyTag?.trim(),
-                swipeUpLink: campaignContentItem.swipeUpLink?.trim(),
-                specialWishes: campaignContentItem.specialWishes?.trim(),
-                socialMedia: campaignContentItem.socialMedia,
-                socialMediaGroup: campaignContentItem.socialMediaGroup,
-                _id: new mongoose.Types.ObjectId(campaignContentItem._id),
-            })),
+                })) ?? undefined,
+                storyTag: campaignContentItem.taggedUser?.trim() ?? undefined,
+                swipeUpLink: campaignContentItem.taggedLink?.trim() ?? undefined,
+                specialWishes: campaignContentItem.additionalBrief?.trim() ?? undefined,
+            } satisfies CampaignContentItem)),
         );
 
         const session = await this.campaignRepo.startSession();
@@ -278,7 +278,7 @@ export class CampaignsService {
                 _id: campaignId,
                 clientId: new Types.ObjectId(data.clientId),
                 campaignName: data.campaignName.trim(),
-                selectInfluencers: processedInfluencers,
+                selectInfluencers: processedAccounts,
                 paymentType: !data.paymentType ? 'payment' : data.paymentType,
                 paymentStatus: 'wait',
                 statusCampaign: 'wait',
@@ -299,27 +299,12 @@ export class CampaignsService {
         }
 
         const emailStartContent = () => {
-            if (data.socialMedia === 'spotify' || data.socialMedia === 'soundcloud') {
                 return `
                     <p>Hi,</p>
-<p>The Client ${client.firstName} has requested the following post for this list of influencers on the ${data.socialMedia}:</p>
+<p>The Client ${client.firstName} has requested the following ${data.socialMedia === SocialMediaEnum.press ? 'article for inclusion in' : 'post for'} this list of influencers on the ${data.socialMedia}:</p>
 <p><strong>Post Details:</strong></p>
 <p><strong>Campaign Name: ${data.campaignName}</strong></p>
                     `;
-            } else if (data.socialMedia === 'press') {
-                return `
-                    <p>Hi,</p>
-<p>The client ${client.firstName} has requested the following article for inclusion in this list of magazines in the press:</p>
-<p><strong>Post Details:</strong></p>
-<p><strong>Campaign Name: ${data.campaignName}</strong></p>`;
-            } else {
-                return `
-                    <p>Hi,</p>
-<p>The Client ${client.firstName} has requested the following post for this list of influencers on the ${data.socialMedia}:</p>
-<p><strong>Post Details:</strong></p>
-<p><strong>Campaign Name: ${data.campaignName}</strong></p>
-                    `;
-            }
         };
 
         const emailVideoContent = () => {
@@ -341,15 +326,15 @@ export class CampaignsService {
           </ul>
           <p><strong>Selected Influencers:</strong></p>
           <ul>
-              ${processedInfluencers
+              ${processedAccounts
                             .filter(
-                                (influencer) =>
-                                    influencer.selectedContent?.campaignContentItemId.toString() ===
+                                (account) =>
+                                    account.selectedContent?.campaignContentItemId.toString() ===
                                     campaignContentItem._id.toString(),
                             )
                             .map(
-                                (influencer) =>
-                                    `<li>${influencer.socialMedia} username: ${influencer.socialMediaUsername}</li>`,
+                                (account) =>
+                                    `<li>${account.socialMedia} username: ${account.socialMediaUsername}</li>`,
                             )
                             .join('')}
           </ul>
@@ -375,7 +360,7 @@ export class CampaignsService {
           </ul>
           <p><strong>Selected Influencers:</strong></p>
           <ul>
-              ${processedInfluencers
+              ${processedAccounts
                             .filter(
                                 (influencer) =>
                                     influencer.selectedContent?.campaignContentItemId.toString() ===
@@ -410,7 +395,7 @@ export class CampaignsService {
           </ul>
           <p><strong>Selected Influencers:</strong></p>
           <ul>
-              ${processedInfluencers
+              ${processedAccounts
                             .filter(
                                 (influencer) =>
                                     influencer.selectedContent?.campaignContentItemId.toString() ===
