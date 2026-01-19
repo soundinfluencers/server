@@ -39,7 +39,7 @@ export class InfluencerActionsHistoryService {
     }
 
     // Upserts new campaign action to influencer's history
-    async upsertInfluencerCampaignActionsHistory(data: UpsertCampaignActionDto): Promise<void> {
+    async upsertInfluencerCampaignActionsHistory(data: UpsertCampaignActionDto, session?: ClientSession): Promise<void> {
         const {influencerId, campaignId, campaignName, updatedCampaignAction} = data;
 
         if (!updatedCampaignAction) throw new BadRequestException("Missing campaign action");
@@ -74,6 +74,7 @@ export class InfluencerActionsHistoryService {
             },
             {
                 new: true,
+                session: session ?? undefined
             },
         );
 

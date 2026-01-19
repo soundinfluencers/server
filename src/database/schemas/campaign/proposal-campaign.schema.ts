@@ -1,20 +1,20 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
 import mongoose from 'mongoose';
 import {
+    CampaignAccount,
     CampaignContentItem,
     CampaignContentItemSchema,
-    SelectInfluencers
 } from "./campaign.schema";
 
 @Schema()
-export class SelectInfluencersForProposal extends SelectInfluencers {
+export class CampaignAccountForProposal extends CampaignAccount {
     @Prop({ default: [] })
     genres: string[];
 
     @Prop({ default: [] })
     countries: object[];
 }
-export const SelectInfluencersForProposalSchema = SchemaFactory.createForClass(SelectInfluencersForProposal);
+export const SelectInfluencersForProposalSchema = SchemaFactory.createForClass(CampaignAccountForProposal);
 
 @Schema({ timestamps: true })
 export class ProposalCampaign {
@@ -29,7 +29,7 @@ export class ProposalCampaign {
         type: [SelectInfluencersForProposalSchema],
         default: [],
     })
-    selectInfluencers: SelectInfluencersForProposal[];
+    addedAccounts: CampaignAccountForProposal[];
 
     @Prop({
         required: false,

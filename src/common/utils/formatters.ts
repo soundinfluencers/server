@@ -1,5 +1,6 @@
 // Из типа Date в string 'DD.MM.YY'
-import {CampaignStatusType} from "../types/client/campaign.types";
+
+import {CampaignStatusEnum} from "../types/client/campaign.types";
 
 export const formatDate = (date: Date): string => {
     const day = String(date.getDate()).padStart(2, '0');
@@ -9,15 +10,21 @@ export const formatDate = (date: Date): string => {
     return `${day}.${month}.${year}`;
 };
 
-export const formatClientCampaignStatus = (status: string): CampaignStatusType => {
+export const formatClientCampaignStatus = (status: string): CampaignStatusEnum => {
     switch (status) {
         case 'wait':
-            return 'Pending';
+            return CampaignStatusEnum.pending;
+        case 'pending':
+            return CampaignStatusEnum.pending;
         case 'work':
-            return 'Distributing';
+            return CampaignStatusEnum.distributing;
+        case 'distributing':
+            return CampaignStatusEnum.distributing;
         case 'finally':
-            return 'Completed';
+            return CampaignStatusEnum.completed;
+        case 'completed':
+            return CampaignStatusEnum.completed;
         default:
-            return 'Pending';
+            return CampaignStatusEnum.pending;
     }
 }

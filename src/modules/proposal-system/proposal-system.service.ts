@@ -1,21 +1,13 @@
-import {BadRequestException, Injectable, Logger} from '@nestjs/common';
-import {InjectConnection} from '@nestjs/mongoose';
-import mongoose, {Connection, Types} from 'mongoose';
+import {BadRequestException, Injectable} from '@nestjs/common';
+import mongoose, {Types} from 'mongoose';
 import {SaveProposalCampaignDto} from './dto/save-proposal-campaign.dto';
 import {ProposalCampaignRepository} from "../../database/repositories/campaigns/proposal-campaign.repository";
-import {ClientRepository} from "../../database/repositories/users/client.repository";
-import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {ProposalCampaignsListItem} from "./types/proposal-system.types";
 
 @Injectable()
 export class ProposalSystemService {
-    private readonly logger = new Logger();
-
     constructor(
         private readonly proposalCampaignRepo: ProposalCampaignRepository,
-        private readonly clientRepo: ClientRepository,
-        private readonly influencerRepo: InfluencerRepository,
-        @InjectConnection() private readonly connection: Connection,
     ) {
     }
 
@@ -32,7 +24,7 @@ export class ProposalSystemService {
                     ? new mongoose.Types.ObjectId(data.clientId)
                     : new mongoose.Types.ObjectId('66f540faaf4e960d2f9bebfc'),
                 campaignName: data.campaignName.trim(),
-                selectInfluencers: data.selectInfluencers.map(account => ({
+                addedAccounts: data.selectInfluencers.map(account => ({
                     ...account,
                     selectedContent: {
                         campaignContentItemId: new Types.ObjectId(account.selectedContent.campaignContentItemId),
@@ -56,7 +48,7 @@ export class ProposalSystemService {
                         ? new mongoose.Types.ObjectId(data.clientId)
                         : new mongoose.Types.ObjectId('66f540faaf4e960d2f9bebfc'),
                     campaignName: data.campaignName.trim(),
-                    selectInfluencers: data.selectInfluencers.map(account => ({
+                    addedAccounts: data.selectInfluencers.map(account => ({
                         ...account,
                         selectedContent: {
                             campaignContentItemId: new Types.ObjectId(account.selectedContent.campaignContentItemId),

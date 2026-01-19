@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
-import { AdminService } from './admin.service';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AdminController } from './admin.controller';
 import { Payment } from '../payment/schemas/payment.entity';
 import {CompletedCampaignSchema, CompletedCampaign} from '../../database/schemas/campaign/completed-campaign.schema';
 import { WebsocketModule } from '../websocket/app.gateway';
@@ -24,7 +22,7 @@ import {InfluencerInvoice, InfluencerInvoiceSchema} from "../../database/schemas
     ]),
     WebsocketModule,
   ],
-  controllers: [AdminController],
-  providers: [AdminService],
+  // controllers: [AdminController],
+  // providers: [AdminService],
 })
 export class AdminModule {}

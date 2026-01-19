@@ -1,19 +1,21 @@
 import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {
     CampaignStatusEnum,
-    CampaignStatusEnumForDevelopment,
-    CampaignStatusType, CampaignStatusTypeForDevelopment, ClientCampaignForTable,
-    ClientGetCampaignForList, SafeCampaignContent, SafeSelectedContent
+    CampaignTypeEnumForDevelopment,
+    ClientCampaignForTable,
+    ClientGetCampaignForList,
+    SafeCampaignContent,
+    SafeSelectedContent
 } from "../../../common/types/client/campaign.types";
 import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
 
 export class ClientGetDashboardCampaignsQueryDto {
     @ApiPropertyOptional({
         description: 'Type of campaigns returned',
-        enum: CampaignStatusEnumForDevelopment,
-        default: CampaignStatusEnumForDevelopment.all
+        enum: CampaignTypeEnumForDevelopment,
+        default: CampaignTypeEnumForDevelopment.all
     })
-    status: CampaignStatusTypeForDevelopment;
+    status: CampaignTypeEnumForDevelopment;
 
     @ApiPropertyOptional({
         default: 12,
@@ -36,7 +38,7 @@ export class ClientGetCampaignForListDto implements ClientGetCampaignForList {
     @ApiProperty()
     campaignName: string;
 
-    @ApiProperty({ enum: [...Object.values(SocialMediaEnum), 'multipromo'] })
+    @ApiProperty({enum: [...Object.values(SocialMediaEnum), 'multipromo']})
     socialMedia: SocialMediaType | 'multipromo';
 
     @ApiProperty({
@@ -48,12 +50,12 @@ export class ClientGetCampaignForListDto implements ClientGetCampaignForList {
     @ApiPropertyOptional()
     price?: number;
 
-    @ApiPropertyOptional({ enum: CampaignStatusEnum })
-    status?: CampaignStatusType;
+    @ApiPropertyOptional({enum: CampaignStatusEnum})
+    status?: CampaignStatusEnum;
 }
 
 export class ClientGetCampaignsDto {
-    @ApiProperty({ type: () => [ClientGetCampaignForListDto] })
+    @ApiProperty({type: () => [ClientGetCampaignForListDto]})
     campaigns?: ClientGetCampaignForList[];
 }
 
@@ -64,17 +66,17 @@ export class ClientCampaignForTableDto implements ClientCampaignForTable {
     @ApiProperty()
     campaignName: string;
 
-    @ApiProperty({ enum: [...Object.values(SocialMediaEnum), 'multipromo'] })
+    @ApiProperty({enum: [...Object.values(SocialMediaEnum), 'multipromo']})
     socialMedia: SocialMediaType | 'multipromo';
 
-    @ApiProperty({ type: String, example: '12.12.25' })
+    @ApiProperty({type: String, example: '12.12.25'})
     creationDate: string;
 
     @ApiProperty()
     price: number;
 
-    @ApiProperty({ enum: CampaignStatusEnum })
-    status: CampaignStatusType;
+    @ApiProperty({enum: CampaignStatusEnum})
+    status: CampaignStatusEnum;
 
     // TODO: implement interface for this
     @ApiProperty()
@@ -97,7 +99,13 @@ export class ClientCampaignForTableDto implements ClientCampaignForTable {
     totalImpressions: number;
 
     @ApiProperty()
-    isClosed: boolean;
+    totalComments: number;
+
+    @ApiProperty()
+    totalShares: number;
+
+    // @ApiProperty()
+    // isClosed: boolean;
 
     @ApiProperty()
     isCpmAndResultHidden: boolean;
@@ -105,8 +113,8 @@ export class ClientCampaignForTableDto implements ClientCampaignForTable {
     @ApiProperty()
     isPriceHidden: boolean;
 
-    @ApiProperty()
-    hiddenColumns: string[];
+    @ApiPropertyOptional()
+    hiddenColumns?: string[];
 }
 
 export class DetailedDraftCampaignAccountDto {
@@ -122,7 +130,7 @@ export class DetailedDraftCampaignAccountDto {
     @ApiProperty()
     socialMedia: SocialMediaEnum;
 
-    @ApiProperty({ type: SafeSelectedContent })
+    @ApiProperty({type: SafeSelectedContent})
     selectedContent: SafeSelectedContent;
 }
 

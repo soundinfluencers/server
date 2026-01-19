@@ -1,4 +1,4 @@
-import {Body, Controller, Get, Patch, Put, Query} from '@nestjs/common';
+import {Body, Controller, Get, Patch, Query} from '@nestjs/common';
 import {ProposalSystemService} from './proposal-system.service';
 import {SaveProposalCampaignDto} from './dto/save-proposal-campaign.dto';
 import {ApiQuery, ApiTags} from "@nestjs/swagger";

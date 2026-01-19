@@ -26,7 +26,7 @@ import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-c
 import {CreateCampaignDto, CreateDraftCampaignDto} from "./dto/create-campaign.dto";
 import { Response } from 'express';
 import {
-    CampaignStatusEnumForDevelopment,
+    CampaignTypeEnumForDevelopment,
     PublicCampaignForTable
 } from "../../common/types/client/campaign.types";
 import {Roles} from "../../common/decorators/roles.decorator";
@@ -44,7 +44,7 @@ export class CampaignsController {
     @ApiQuery({
         name: 'status',
         required: false,
-        enum: CampaignStatusEnumForDevelopment,
+        enum: CampaignTypeEnumForDevelopment,
     })
     @ApiQuery({
         name: 'limit',

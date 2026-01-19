@@ -2,17 +2,15 @@ import {SocialMediaEnum, SocialMediaType} from "../social-media.types";
 import {ApiProperty} from "@nestjs/swagger";
 import {Types} from "mongoose";
 
-// Campaign status type for development backend
-export type CampaignStatusTypeForDevelopment =
-    'draft' |
-    'under_review' |
-    'distributing' |
-    'closed' |
-    'proposal' |
-    'all'
+// Campaign verify status
+export enum CampaignConfirmationEnum {
+    wait = 'wait',
+    accept = 'accept',
+    decline = 'decline',
+}
 
-// Campaign status enum for development backend
-export enum CampaignStatusEnumForDevelopment {
+// Campaign type enum for getting correct campaigns
+export enum CampaignTypeEnumForDevelopment {
     draft = 'draft',
     underReview = 'under_review',
     distributing = 'distributing',
@@ -21,17 +19,21 @@ export enum CampaignStatusEnumForDevelopment {
     all = 'all'
 }
 
-// Campaign status type for frontend and database
-export type CampaignStatusType =
-    'Pending' |
-    'Distributing' |
-    'Completed' ;
-
-// Campaign status enum for frontend and database
+// Verified campaign progress status enum
 export enum CampaignStatusEnum {
-    Pending = 'Pending',
-    Distributing = 'Distributing',
-    Completed = 'Completed',
+    pending = 'pending',
+    distributing = 'distributing',
+    completed = 'completed',
+}
+
+// Enum for selected payment method
+export enum CampaignPaymentMethodEnum {
+    bankCard = 'bank_card',
+    paypal = 'paypal',
+    bankTransferUk = 'bank_transfer_uk',
+    bankTransferEu = 'bank_transfer_eu',
+    bankTransferInternational = 'bank_transfer_international',
+    crypto = 'crypto',
 }
 
 // Using at home page
@@ -41,26 +43,26 @@ export interface ClientGetCampaignForList {
     socialMedia: SocialMediaType | 'multipromo';
     creationDate: string;
     price?: number;
-    status?: CampaignStatusType;
+    status?: CampaignStatusEnum;
 }
 
 export class SafeSelectedContent {
     campaignContentItemId: string | Types.ObjectId;
-    postDescriptionId: string | Types.ObjectId;
+    descriptionId?: string | Types.ObjectId;
 }
 
 export class SafeCampaignContent {
     _id: string | Types.ObjectId;
     socialMedia: SocialMediaEnum;
     socialMediaGroup: string;
-    videoLink: string;
-    postDescriptions: {
+    mainLink: string;
+    descriptions?: {
         _id: string | Types.ObjectId;
         description: string;
     }[];
-    storyTag?: string;
-    swipeUpLink?: string;
-    specialWishes?: string;
+    taggedUser?: string;
+    taggedLink?: string;
+    additionalBrief?: string;
 }
 
 // Used by campaign report page
@@ -70,45 +72,52 @@ export interface ClientCampaignForTable {
     socialMedia: SocialMediaType | 'multipromo';
     creationDate: string;
     price: number;
-    status: CampaignStatusType;
+    status: CampaignStatusEnum;
 
     // TODO: interface for campaign's added accounts
     addedAccounts: any[];
 
-    // TODO: interface for campaign content
-    campaignContent: any[];
+    campaignContent: SafeCampaignContent[];
 
     shareLink: string;
+
     totalFollowers: number;
     totalLikes: number;
     totalImpressions: number;
-    isClosed: boolean;
+    totalComments: number;
+    totalShares: number;
+
     isCpmAndResultHidden: boolean;
     isPriceHidden: boolean;
-    hiddenColumns: string[];
+
+    hiddenColumns?: string[];
+    cpm?: number;
 }
 
 export interface PublicCampaignForTable {
     campaignId: string;
-    clientId: string;
+    // clientId: string;
     price: number;
     campaignName: string;
     socialMedia: SocialMediaType | 'multipromo';
     creationDate: string;
-    status: CampaignStatusType;
+    status: CampaignStatusEnum;
 
     // TODO: interface for campaign's added accounts
     addedAccounts: any[];
-
-    // TODO: interface for campaign content
-    campaignContent: any[];
+    campaignContent: SafeCampaignContent[];
 
     shareLink: string;
+
     totalFollowers: number;
     totalLikes: number;
     totalImpressions: number;
-    isClosed: boolean;
+    totalComments: number;
+    totalShares: number;
+
     isCpmAndResultHidden: boolean;
     isPriceHidden: boolean;
-    hiddenColumns: string[];
+
+    hiddenColumns?: string[];
+    cpm?: number;
 }

@@ -10,7 +10,7 @@ export class SelectedCampaignContentItemDto {
 
     @ApiProperty()
     @IsMongoId()
-    postDescriptionId: string;
+    descriptionId: string;
 }
 
 export class SelectInfluencerDto {
@@ -89,7 +89,7 @@ export class CampaignContentItemDto {
     @ApiPropertyOptional({required: false})
     @IsString()
     @IsOptional()
-    additionalBrief?: string; // was swipeUpWishes
+    additionalBrief?: string; // was specialWishes
 }
 
 // dto for creating campaign

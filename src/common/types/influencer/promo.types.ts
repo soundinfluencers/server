@@ -1,5 +1,5 @@
 import { SocialMediaType } from "../social-media.types";
-import { CampaignStatusType } from "../client/campaign.types";
+import { CampaignStatusEnum } from "../client/campaign.types";
 
 export interface InfluencerPromoRequest {
     // id of campaign
@@ -14,7 +14,7 @@ export interface InfluencerPromoRequest {
     // Client's name or company name
     client?: string;
     campaignName: string;
-    socialMediaUsername: string;
+    username: string;
 
     // social media of social account
     socialMedia: SocialMediaType;
@@ -22,10 +22,10 @@ export interface InfluencerPromoRequest {
     createdAt: string | Date;
 
     // promo's info
-    videoLink: string;
-    postDescription: string;
-    storyTag?: string;
-    storyLink?: string;
+    mainLink: string;
+    description: string;
+    taggedUser?: string;
+    taggedLink?: string;
     additionalBrief?: string;
 }
 
@@ -45,7 +45,7 @@ export enum InfluencerPromoClosedStatusEnum {
 }
 
 export interface InfluencerPromo extends InfluencerPromoRequest {
-    statusCampaign: CampaignStatusType;
+    statusCampaign: CampaignStatusEnum;
     closedStatus: InfluencerPromoClosedStatusType;
     confirmation: InfluencerConfirmationStatusType;
 }
@@ -60,7 +60,7 @@ export interface InfluencerDashboardPromo {
     // social media of social account
     socialMedia: SocialMediaType;
     // status of campaign
-    statusCampaign: CampaignStatusType;
+    statusCampaign: CampaignStatusEnum;
     // social account's closed status
     closedStatus: InfluencerPromoClosedStatusType;
     // social account's confirmation status
@@ -77,7 +77,7 @@ export interface InfluencerCompletedPromo {
     // name of campaign
     campaignName: string;
     // social account username
-    socialMediaUsername: string;
+    username: string;
     // social media of social account
     socialMedia: SocialMediaType;
     // reward for influencer for completing promo
@@ -96,5 +96,7 @@ export interface InfluencerUpdatedPostDetails {
     screenshotUrl?: string;
     impressions?: number;
     like?: number;
+    comments?: number;
+    shares?: number;
     rating?: number;
 }

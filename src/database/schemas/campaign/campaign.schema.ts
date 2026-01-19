@@ -1,20 +1,29 @@
 import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
 import {Types} from 'mongoose';
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
+import {
+    CampaignConfirmationEnum,
+    CampaignPaymentMethodEnum,
+    CampaignStatusEnum
+} from "../../../common/types/client/campaign.types";
+import {
+    InfluencerConfirmationStatusEnum,
+    InfluencerPromoClosedStatusEnum
+} from "../../../common/types/influencer/promo.types";
 
 @Schema({_id: false, timestamps: false})
 export class SelectedContent {
     @Prop({type: Types.ObjectId, required: true})
     campaignContentItemId: Types.ObjectId;
 
-    @Prop({type: Types.ObjectId, required: true})
-    postDescriptionId: Types.ObjectId;
+    @Prop({type: Types.ObjectId, required: false})
+    descriptionId?: Types.ObjectId;
 }
 
 export const SelectedContentSchema = SchemaFactory.createForClass(SelectedContent);
 
 @Schema({timestamps: true})
-export class SelectInfluencers {
+export class CampaignAccount {
     @Prop({type: Types.ObjectId, required: true})
     _id: Types.ObjectId;
 
@@ -24,96 +33,104 @@ export class SelectInfluencers {
     @Prop({type: Types.ObjectId, required: true, ref: "SocialAccount"})
     accountId: Types.ObjectId;
 
-    @Prop({default: 'instagram'})
-    socialMedia: string;
+    @Prop({required: true, enum: SocialMediaEnum})
+    socialMedia: SocialMediaEnum;
 
-    @Prop()
-    socialMediaUsername: string;
+    @Prop({required: true, type: String})
+    username: string; // was socialMediaUsername
 
-    @Prop({default: 'wait'})
-    confirmation: string;
+    @Prop({required: true, type: Number})
+    price: number; // saving account's price cause after closing campaign if account will increase price, we need to show the old one
 
-    @Prop({default: '0'})
-    price: string;
+    @Prop({required: true, type: Number})
+    publicPrice: number; // saving account's publicPrice cause after closing campaign if account will increase publicPrice, we need to show the old one
 
-    @Prop({default: '0'})
-    publicPrice: string;
+    @Prop({required: true, type: Number})
+    followers: number; // saving account's followers amount cause after closing campaign if account will grow, we need to show the old one
 
-    @Prop({type: SelectedContentSchema})
+    @Prop({type: SelectedContentSchema, required: true})
     selectedContent: SelectedContent;
 
-    @Prop()
-    dateRequest: string;
+    @Prop({required: true, type: String, enum: InfluencerConfirmationStatusEnum, default: 'wait'})
+    confirmation: InfluencerConfirmationStatusEnum;
 
-    @Prop({default: 'wait'})
-    closePromo: string;
+    @Prop({required: true, type: String, enum: InfluencerPromoClosedStatusEnum, default: 'wait'})
+    closePromo: InfluencerPromoClosedStatusEnum;
 
-    @Prop({default: ''})
-    postLink: string;
+    @Prop({required: false, type: String})
+    dateRequest?: string;
 
-    @Prop({default: ''})
-    screenshot: string;
+    @Prop({type: String, required: false})
+    postLink?: string;
 
-    @Prop({default: ''})
-    impressions: number;
+    @Prop({type: String, required: false})
+    screenshot?: string;
 
-    @Prop({default: ''})
-    like: number;
+    @Prop({type: Number, required: false})
+    impressions?: number;
 
-    @Prop({default: null})
-    rating: number | null;
+    @Prop({type: Number, required: false})
+    like?: number;
 
-    @Prop({default: false})
-    adminChecked: boolean | null;
+    @Prop({type: Number, required: false})
+    comments?: number;
 
-    @Prop({default: 0})
-    followersNumber: number;
+    @Prop({type: Number, required: false})
+    shares?: number;
 
-    @Prop({type: Date})
-    createdAt?: Date;
+    @Prop({type: Number, required: false})
+    rating?: number;
 
-    @Prop({type: Date})
-    updatedAt?: Date;
+    @Prop({type: Boolean, required: false})
+    adminChecked?: boolean;
+
+    createdAt: Date;
+    updatedAt: Date;
 }
 
-const SelectInfluencersSchema = SchemaFactory.createForClass(SelectInfluencers);
+const CampaignAccountSchema = SchemaFactory.createForClass(CampaignAccount);
+
+@Schema({timestamps: false})
+export class CampaignContentDescriptionItem {
+    @Prop({type: Types.ObjectId, required: true})
+    _id: Types.ObjectId;
+
+    @Prop({type: String, required: true})
+    description: string;
+}
+
+export const CampaignContentDescriptionItemSchema = SchemaFactory.createForClass(CampaignContentDescriptionItem);
 
 @Schema()
 export class CampaignContentItem {
     @Prop({type: Types.ObjectId, required: true})
     _id: Types.ObjectId;
 
-    @Prop()
-    videoLink: string;
-
-    @Prop()
-    postDescriptions: {
-        _id: Types.ObjectId;
-        description: string;
-    }[];
-
-    @Prop({required: false, default: undefined})
-    storyTag: string;
-
-    @Prop({required: false, default: undefined})
-    swipeUpLink: string;
-
-    @Prop({required: false, default: undefined})
-    specialWishes: string;
-
     @Prop({required: true, enum: SocialMediaEnum})
     socialMedia: SocialMediaEnum;
 
-    @Prop({required: true, default: 'main'})
+    @Prop({required: true, type: String, default: 'main'})
     socialMediaGroup: string;
+
+    @Prop({type: String, required: true})
+    mainLink: string; // was videoLink
+
+    @Prop({type: [CampaignContentDescriptionItemSchema], required: false})
+    descriptions?: CampaignContentDescriptionItem[]; // was postDescriptions
+
+    @Prop({required: false, type: String})
+    taggedUser?: string;
+
+    @Prop({required: false, type: String})
+    taggedLink?: string; // was swipeUpLink
+
+    @Prop({required: false, type: String})
+    additionalBrief?: string; // was specialWishes
 }
 
 export const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignContentItem);
 
-@Schema({
-    timestamps: true,
-    // strict: false,
-})
+@Schema({timestamps: true})
 export class Campaign {
     @Prop({type: Types.ObjectId, required: true})
     _id: Types.ObjectId;
@@ -121,58 +138,50 @@ export class Campaign {
     @Prop({type: Types.ObjectId, ref: 'Client', required: true})
     clientId: Types.ObjectId;
 
-    @Prop({
-        required: true,
-        type: [SelectInfluencersSchema],
-    })
-    selectInfluencers: SelectInfluencers[];
+    @Prop({type: String, required: true, enum: [...Object.values(SocialMediaEnum), 'multipromo']})
+    socialMedia: SocialMediaEnum | 'multipromo';
 
-    @Prop({
-        type: [CampaignContentItemSchema],
-    })
-    campaignContent: CampaignContentItem[];
-
-    @Prop()
+    @Prop({required: true, type: String})
     campaignName: string;
 
-    @Prop({required: true, default: 'payment'})
-    paymentType: string;
-
-    @Prop({required: true, default: 'wait'})
-    paymentStatus: string;
-
-    @Prop({required: true})
-    statusCampaign: string;
-
-    @Prop({required: true})
+    @Prop({required: true, type: Number})
     campaignPrice: number;
 
-    @Prop({default: 'wait'})
-    verifyCampaign: string;
+    @Prop({required: true, type: [CampaignAccountSchema]})
+    addedAccounts: CampaignAccount[];
 
-    @Prop({required: false, default: ''})
-    replacementsNotes: string;
+    @Prop({required: true, type: [CampaignContentItemSchema]})
+    campaignContent: CampaignContentItem[];
 
-    @Prop({required: false, default: 0})
-    partialRefund: number;
+    @Prop({required: true, type: String, enum: CampaignConfirmationEnum})
+    verifyCampaign: CampaignConfirmationEnum;
 
-    @Prop({type: String, required: true, enum: [...Object.values(SocialMediaEnum), 'multipromo']})
-    socialMedia: string;
+    @Prop({required: true, enum: CampaignStatusEnum, type: String})
+    statusCampaign: CampaignStatusEnum;
 
-    @Prop({required: false, default: false})
-    isCpmAndResultHidden: boolean;
+    @Prop({required: true, default: 'wait', enum: ['wait', 'confirmed'], type: String})
+    paymentStatus: ['wait', 'confirmed'];
 
-    @Prop({required: false, default: false})
-    isPriceHidden: boolean;
+    @Prop({required: true, enum: CampaignPaymentMethodEnum, type: String})
+    paymentType: CampaignPaymentMethodEnum;
 
-    @Prop({required: false, default: false})
-    isCopy: boolean;
-
-    @Prop({required: false, default: `${process.env.SERVER_CLIENT}`})
+    @Prop({required: true, type: String})
     shareLink: string;
 
-    @Prop({required: false, default: []})
-    hiddenColumns: string[];
+    @Prop({required: false})
+    replacementsNotes?: string;
+
+    @Prop({required: false})
+    partialRefund?: number;
+
+    @Prop({required: false, type: [String]})
+    hiddenColumns?: string[];
+
+    @Prop({required: false, type: Boolean})
+    isCpmAndResultHidden?: boolean;
+
+    @Prop({required: false, type: Boolean})
+    isPriceHidden?: boolean;
 
     createdAt: Date;
     updatedAt: Date;

@@ -7,7 +7,7 @@ import {
     InfluencerPromoRequest, InfluencerUpdatedPostDetails
 } from "../../../common/types/influencer/promo.types";
 import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
-import {CampaignStatusEnum, CampaignStatusType} from "../../../common/types/client/campaign.types";
+import {CampaignStatusEnum} from "../../../common/types/client/campaign.types";
 import {IsInt, IsOptional, IsString, IsUrl, Min, ValidateNested} from "class-validator";
 import {Type} from "class-transformer";
 
@@ -46,7 +46,7 @@ export class InfluencerPromoRequestDto implements InfluencerPromoRequest {
     campaignName: string;
 
     @ApiProperty()
-    socialMediaUsername: string;
+    username: string;
 
     @ApiProperty()
     socialMedia: SocialMediaType;
@@ -61,16 +61,16 @@ export class InfluencerPromoRequestDto implements InfluencerPromoRequest {
     createdAt: string;
 
     @ApiProperty()
-    videoLink: string;
+    mainLink: string;
 
     @ApiProperty()
-    postDescription: string;
+    description: string;
 
     @ApiProperty()
-    storyTag?: string;
+    taggedUser?: string;
 
     @ApiProperty()
-    storyLink?: string;
+    taggedLink?: string;
 
     @ApiProperty()
     additionalBrief?: string;
@@ -100,7 +100,7 @@ export class InfluencerUpdatePromoResponseUpdateDto {
         description: "Username of influencer's social account",
         example: 'techno_tv',
     })
-    socialMediaUsername: string;
+    username: string;
 
     @ApiProperty({
         description: "Influencer's response to new promo request",
@@ -113,7 +113,7 @@ export class InfluencerUpdatePromoResponseUpdateDto {
 // dto for returning detailed ongoing promo
 export class InfluencerGetOngoingOrPastPromoResDto extends InfluencerPromoRequestDto implements InfluencerPromo {
     @ApiProperty({ enum: CampaignStatusEnum })
-    statusCampaign: CampaignStatusType;
+    statusCampaign: CampaignStatusEnum;
 
     @ApiProperty({ enum: InfluencerPromoClosedStatusEnum })
     closedStatus: InfluencerPromoClosedStatusType;
@@ -122,16 +122,8 @@ export class InfluencerGetOngoingOrPastPromoResDto extends InfluencerPromoReques
     confirmation: InfluencerConfirmationStatusType;
 }
 
-// dto for returning an array of detailed ongoing promos
-export class InfluencerGetOngoingOrPastPromosResDto {
-    @ApiProperty({ type: () => [InfluencerGetOngoingOrPastPromoResDto] })
-    promos: InfluencerGetOngoingOrPastPromoResDto[];
-}
-
 // dto with updated promo's post details
-export class InfluencerUpdatedPostDetailsDto
-    implements InfluencerUpdatedPostDetails
-{
+export class InfluencerUpdatedPostDetailsDto implements InfluencerUpdatedPostDetails {
     @ApiPropertyOptional({
         description: 'Link to influencer post',
         example: 'https://instagram.com/p/ABC123',
@@ -171,6 +163,26 @@ export class InfluencerUpdatedPostDetailsDto
     like?: number;
 
     @ApiPropertyOptional({
+        description: 'Post comments count',
+        example: 190,
+        minimum: 0,
+    })
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    comments?: number;
+
+    @ApiPropertyOptional({
+        description: 'Post shares count',
+        example: 703,
+        minimum: 0,
+    })
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    shares?: number;
+
+    @ApiPropertyOptional({
         description: 'Internal rating for the post',
         example: 4.5,
         minimum: 0,
@@ -201,7 +213,7 @@ export class InfluencerUpdatePromoReqBodyDto {
         example: 'techno_tv',
     })
     @IsString()
-    socialMediaUsername: string;
+    username: string;
 
     @ApiProperty({
         description: 'Post details to update',
@@ -289,7 +301,7 @@ export class InfluencerDashboardPromoDto implements InfluencerDashboardPromo {
         example: 'Pending',
         enum: CampaignStatusEnum
     })
-    statusCampaign: CampaignStatusType;
+    statusCampaign: CampaignStatusEnum;
 
     @ApiProperty({
         description: 'Account closed status for promo',
@@ -340,7 +352,7 @@ export class InfluencerCompletedPromoDto implements InfluencerCompletedPromo {
         description: 'Social account username',
         example: 'techno_tv',
     })
-    socialMediaUsername: string;
+    username: string;
 
     @ApiProperty({
         description: 'Social media of account',

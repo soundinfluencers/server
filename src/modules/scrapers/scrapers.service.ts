@@ -238,7 +238,7 @@ export class ScrapersService {
         const campaign = await this.campaignRepository.findById(data.campaignId);
         if (!campaign) throw new NotFoundException(`Campaign ${data.campaignId} not found`)
 
-        const accountPostDetails = campaign.selectInfluencers.find(
+        const accountPostDetails = campaign.addedAccounts.find(
             i => i._id.toString() === data.accountId && this.availableSocialMedias.includes(i.socialMedia),
         );
         if (!accountPostDetails) {
@@ -249,7 +249,7 @@ export class ScrapersService {
         }
 
         if (!accountPostDetails.postLink) {
-            throw new ConflictException(`Post link is missing for account ${accountPostDetails.socialMediaUsername} in campaign ${data.campaignId}`);
+            throw new ConflictException(`Post link is missing for account ${accountPostDetails.username} in campaign ${data.campaignId}`);
         }
 
         this.scrapersGateway.startAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
@@ -258,7 +258,7 @@ export class ScrapersService {
             [
                 {
                     accountId: accountPostDetails._id.toString(),
-                    socialMediaUsername: accountPostDetails.socialMediaUsername,
+                    socialMediaUsername: accountPostDetails.username,
                     postLink: accountPostDetails.postLink,
                     impressions: accountPostDetails.impressions,
                     like: accountPostDetails.like,
@@ -295,7 +295,7 @@ export class ScrapersService {
         this.logger.log(`[SCRAPER] updatePostDetailsInCampaign executed in ${durationSec}s`);
 
         return {
-            message: `${accountPostDetails.socialMediaUsername} post details updated!`,
+            message: `${accountPostDetails.username} post details updated!`,
             newImpressions: scraped.newImpressions ?? accountPostDetails.impressions,
             newLikes: scraped.newLikes ?? accountPostDetails.like,
         };
@@ -313,7 +313,7 @@ export class ScrapersService {
             throw new NotFoundException(`Campaign not found: ${data.campaignId}`);
         }
 
-        const accounts = campaign.selectInfluencers.filter(
+        const accounts = campaign.addedAccounts.filter(
             acc => this.availableSocialMedias.includes(acc.socialMedia) && !!acc.postLink
         );
 
@@ -390,7 +390,7 @@ export class ScrapersService {
                     const resultMap = await this.scrapePostDetailsBatch(
                         retryGrouped[socialMedia].map(acc => ({
                             accountId: acc._id.toString(),
-                            socialMediaUsername: acc.socialMediaUsername,
+                            socialMediaUsername: acc.username,
                             postLink: acc.postLink,
                             impressions: acc.impressions,
                             like: acc.like,

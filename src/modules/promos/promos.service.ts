@@ -5,18 +5,11 @@ import {
     Logger,
     NotFoundException,
 } from '@nestjs/common';
-import {InjectModel} from '@nestjs/mongoose';
-import {Campaign} from '../../database/schemas/campaign/campaign.schema';
 import mongoose, {ClientSession, PipelineStage, Types} from 'mongoose';
-import {CompletedCampaign} from '../../database/schemas/campaign/completed-campaign.schema';
 import axios from 'axios';
 import * as process from 'node:process';
-import {CampaignStatusType} from "../../common/types/client/campaign.types";
 import {SocialMediaType} from "../../common/types/social-media.types";
 import sendMail from "../../integrations/nodemailer/nodemailer";
-import {DropboxService} from "../../integrations/dropbox/dropbox";
-import {Client} from "../../database/schemas/users/client.schema";
-import {Influencer} from "../../database/schemas/users/influencer.schema";
 import {
     InfluencerDashboardPromoStatus, InfluencerGetCompletedPromosQueryDto,
     InfluencerGetDashboardPromosQueryDto,
@@ -24,7 +17,7 @@ import {
     InfluencerUpdatePromoResponseUpdateDto
 } from "./dto/influencer-get-promos.dto";
 import {
-    InfluencerCompletedPromo,
+    InfluencerCompletedPromo, InfluencerConfirmationStatusEnum,
     InfluencerConfirmationStatusType, InfluencerDashboardPromo,
     InfluencerPromo, InfluencerPromoClosedStatusType,
     InfluencerPromoRequest,
@@ -35,6 +28,8 @@ import {CompletedCampaignRepository} from "../../database/repositories/campaigns
 import {formatDate} from 'src/common/utils/formatters';
 import {SocialMediaValidationStrategyFactory} from "./strategies/social-media-validation.factory";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
+import {ClientRepository} from "../../database/repositories/users/client.repository";
+import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 
 mongoose.Promise = global.Promise;
 
@@ -42,58 +37,48 @@ mongoose.Promise = global.Promise;
 export class PromosService {
     private readonly logger = new Logger();
 
-    // TODO: use repo instead models
     constructor(
-        @InjectModel(Campaign.name)
-        private campaignModel: mongoose.Model<Campaign>,
-        @InjectModel(Client.name)
-        private clientModel: mongoose.Model<Client>,
-        @InjectModel(Influencer.name)
-        private influencerModel: mongoose.Model<Influencer>,
-        @InjectModel(CompletedCampaign.name)
-        private completedCampaignModel: mongoose.Model<CompletedCampaign>,
-        private campaignRepo: CampaignRepository,
-        private completedCampaignRepo: CompletedCampaignRepository,
+        private readonly clientRepo: ClientRepository,
+        private readonly influencerRepo: InfluencerRepository,
+        private readonly campaignRepo: CampaignRepository,
+        private readonly completedCampaignRepo: CompletedCampaignRepository,
         private readonly validationStrategyFactory: SocialMediaValidationStrategyFactory,
         private readonly influencerActionsHistoryService: InfluencerActionsHistoryService,
     ) {
     }
 
     // Returns influencer past promo (find by id, selectInfluencersId)
-    async influencerPastPromoOne(data: InfluencerGetPastPromoQueryDto & {
-        influencerId: string
-    }): Promise<InfluencerPromo>
-    {
+    async influencerPastPromoOne(data: InfluencerGetPastPromoQueryDto & { influencerId: string }): Promise<InfluencerPromo> {
         const {influencerId, campaignId, selectInfluencersId} = data;
 
         if (!influencerId || !campaignId || !selectInfluencersId) throw new BadRequestException('Not enough arguments');
 
-        const influencer = await this.influencerModel.findById(influencerId);
+        const influencer = await this.influencerRepo.findById(influencerId);
         if (!influencer) throw new NotFoundException('Influencer not found')
 
-        let campaign = await this.completedCampaignModel.findOne({_id: campaignId}).lean().exec();
+        let campaign = await this.completedCampaignRepo.findOne({_id: campaignId}, {lean: true});
 
         if (!campaign) {
-            campaign = (await this.campaignModel.findOne({_id: campaignId}).lean().exec()) as any;
+            campaign = (await this.campaignRepo.findOne({_id: campaignId}, {lean: true})) as any;
 
             if (!campaign) throw new NotFoundException('Campaign not found');
         }
 
-        const client = await this.clientModel.findById(campaign.clientId || (campaign as any).userId);
+        const client = await this.clientRepo.findById(campaign.clientId || (campaign as any).userId);
 
         if (!client) throw new NotFoundException('Client not found');
 
-        const selectedAccount = campaign.selectInfluencers.find((influencerItem) => influencerItem._id.toString() === selectInfluencersId);
+        const selectedAccount = campaign.addedAccounts.find((influencerItem) => influencerItem._id.toString() === selectInfluencersId);
 
         if (!selectedAccount) throw new NotFoundException(`Influencer's social account not found in this campaign`);
 
         let contentItem: {
             _id: string,
-            videoLink: string,
-            postDescription: string,
-            storyTag: string,
-            storyLink: string,
-            specialWishes: string,
+            mainLink: string,
+            description: string,
+            taggedUser: string,
+            taggedLink: string,
+            additionalBrief: string,
         } | null = null;
 
         if (selectedAccount.selectedContent?.campaignContentItemId || (selectedAccount as any).selectedCampaignContentItem) {
@@ -104,17 +89,17 @@ export class PromosService {
 
             if (foundContent) {
                 const foundPostDescription =
-                    foundContent.postDescriptions?.find(
-                        (pd) => pd._id.toString() === selectedAccount.selectedContent?.postDescriptionId.toString(),
+                    foundContent.descriptions?.find(
+                        (pd) => pd._id.toString() === selectedAccount.selectedContent?.descriptionId.toString(),
                     )?.description ?? (foundContent as any).postDescription ?? '';
 
                 contentItem = {
                     _id: foundContent._id.toString(),
-                    videoLink: foundContent.videoLink,
-                    postDescription: foundPostDescription || null,
-                    storyTag: foundContent.storyTag || null,
-                    storyLink: foundContent.swipeUpLink || null,
-                    specialWishes: foundContent.specialWishes,
+                    mainLink: foundContent.mainLink,
+                    description: foundPostDescription || null,
+                    taggedUser: foundContent.taggedUser || null,
+                    taggedLink: foundContent.taggedLink || null,
+                    additionalBrief: foundContent.additionalBrief,
                 };
             }
         }
@@ -126,18 +111,17 @@ export class PromosService {
             campaignName: campaign.campaignName,
             influencerId: influencerId,
             selectInfluencersId: data.selectInfluencersId,
-            socialMediaUsername:
-                selectedAccount.socialMediaUsername || (selectedAccount as any).instagramUsername,
+            username: selectedAccount.username ?? (selectedAccount as any).socialMediaUsernamea ?? (selectedAccount as any).instagramUsername,
             dateRequest: selectedAccount.dateRequest,
             createdAt: campaign.createdAt,
             client: client?.company || client?.firstName || 'No information',
             socialMedia: campaign.socialMedia as SocialMediaType,
-            videoLink: (contentItem as any).videoLink,
-            postDescription: (contentItem as any).postDescription,
-            storyTag: (contentItem as any).storyTag,
-            storyLink: (contentItem as any).swipeUpLink,
-            additionalBrief: (contentItem as any).specialWishes,
-            statusCampaign: campaign.statusCampaign as CampaignStatusType,
+            mainLink: contentItem.mainLink,
+            description: contentItem.description,
+            taggedUser: contentItem.taggedUser,
+            taggedLink: contentItem.taggedLink,
+            additionalBrief: contentItem.additionalBrief,
+            statusCampaign: campaign.statusCampaign,
             closedStatus: "closed" as InfluencerPromoClosedStatusType,
             confirmation: "accept" as InfluencerConfirmationStatusType
         };
@@ -148,7 +132,7 @@ export class PromosService {
         if (!influencerId) throw new BadRequestException('Not enough arguments');
 
         const checkInfluencer = await (async () => {
-            const influencer = await this.influencerModel.findOne({
+            const influencer = await this.influencerRepo.findOne({
                 _id: new Types.ObjectId(influencerId),
             });
 
@@ -159,24 +143,23 @@ export class PromosService {
 
         if (!checkInfluencer) throw new NotFoundException('Influencer not found');
 
-        const promos = await this.campaignModel
-            .find({
+        const promos = await this.campaignRepo
+            .findMany({
                 selectInfluencers: {
                     $elemMatch: {influencerId: influencerId, confirmation: 'wait'},
                 },
                 $or: [{verifyPromo: 'accept'}, {verifyCampaign: 'accept'}],
-            })
-            .lean();
+            }, {lean: true});
 
         if (!promos) return [];
 
         const allSocialMediaAccounts = promos
             .flatMap((item) => {
-                return item.selectInfluencers.flatMap((acc): any[] => {
+                return item.addedAccounts.flatMap((acc): any[] => {
                     if (acc.confirmation !== 'wait' || acc.influencerId.toString() !== influencerId)
                         return [];
 
-                    const {selectInfluencers, ...newObject} = item;
+                    const {addedAccounts, ...newObject} = item;
                     const {_id, ...newObjectSocialMediaAccount} = acc;
 
                     if (acc.selectedContent?.campaignContentItemId) {
@@ -184,8 +167,8 @@ export class PromosService {
                             (item) => item._id.toString() === acc.selectedContent?.campaignContentItemId.toString(),
                         );
 
-                        const postDescription = selectedCampaignContentItem?.postDescriptions?.find(
-                            (pd) => pd._id.toString() === acc.selectedContent?.postDescriptionId?.toString(),
+                        const postDescription = selectedCampaignContentItem?.descriptions?.find(
+                            (pd) => pd._id.toString() === acc.selectedContent?.descriptionId?.toString(),
                         )?.description ?? "";
 
                         return [{
@@ -193,17 +176,18 @@ export class PromosService {
                             influencerId: newObjectSocialMediaAccount.influencerId.toString(),
                             selectInfluencersId: acc._id.toString(),
                             campaignName: newObject.campaignName,
-                            socialMediaUsername:
-                                newObjectSocialMediaAccount.socialMediaUsername ||
+                            username:
+                                newObjectSocialMediaAccount.username ??
+                                (newObjectSocialMediaAccount as any).socialMediaUsername ??
                                 (newObjectSocialMediaAccount as any).instagramUsername,
                             socialMedia: acc.socialMedia as SocialMediaType,
                             dateRequest: newObjectSocialMediaAccount.dateRequest,
                             createdAt: formatDate(newObject.createdAt),
-                            videoLink: selectedCampaignContentItem.videoLink,
-                            postDescription: postDescription,
-                            storyTag: selectedCampaignContentItem.storyTag,
-                            storyLink: selectedCampaignContentItem.swipeUpLink,
-                            additionalBrief: selectedCampaignContentItem.specialWishes,
+                            mainLink: selectedCampaignContentItem.mainLink,
+                            description: postDescription,
+                            taggedUser: selectedCampaignContentItem.taggedUser,
+                            taggedLink: selectedCampaignContentItem.taggedLink,
+                            additionalBrief: selectedCampaignContentItem.additionalBrief,
                             userId: newObject.clientId || (newObject as any).userId,
                         }];
                     } else if ((acc as any).selectedVideo) {
@@ -218,7 +202,8 @@ export class PromosService {
                                 selectInfluencersId: acc._id.toString(),
                                 campaignName: newObject.campaignName,
                                 socialMediaUsername:
-                                    newObjectSocialMediaAccount.socialMediaUsername ||
+                                    newObjectSocialMediaAccount.username ??
+                                    (newObjectSocialMediaAccount as any).socialMediaUsername ??
                                     (newObjectSocialMediaAccount as any).instagramUsername,
                                 socialMedia: newObject.socialMedia as SocialMediaType,
                                 dateRequest: newObjectSocialMediaAccount.dateRequest,
@@ -244,7 +229,7 @@ export class PromosService {
 
         const promosWithClientName: InfluencerPromoRequest[] = await Promise.all(
             filteredByInfluencerId.map(async (item) => {
-                const client = await this.clientModel.findById(
+                const client = await this.clientRepo.findById(
                     (item as any).clientId || (item as any).userId,
                 );
                 const clientName = client.company || client.firstName || 'No information';
@@ -262,177 +247,140 @@ export class PromosService {
     };
 
     // Updates confirmation status for new promo request
-    async influencerUpdateResponseNewCampaign(data: InfluencerUpdatePromoResponseUpdateDto & { influencerId: string }) {
-        const {influencerId, socialMediaUsername, campaignId, campaignResponse, selectInfluencersId} = data;
+    async influencerUpdateResponseNewCampaign(
+        data: InfluencerUpdatePromoResponseUpdateDto & { influencerId: string },
+    ) {
+        const { influencerId, username, campaignId, campaignResponse, selectInfluencersId } = data;
 
-        if (!socialMediaUsername || !campaignId || !campaignResponse || !selectInfluencersId) throw new BadRequestException('Not enough arguments');
+        if (!username || !campaignId || !campaignResponse || !selectInfluencersId) {
+            throw new BadRequestException('Not enough arguments');
+        }
 
-        const findNewCampaign = await this.campaignModel.findById(campaignId).lean().exec();
+        const campaign = await this.campaignRepo.findById(campaignId).lean().exec();
+        if (!campaign) throw new NotFoundException('Promo not found');
 
-        if (!findNewCampaign) throw new NotFoundException('Promo not found');
+        const selectedAcc = campaign.addedAccounts.find(
+            acc => acc._id.toString() === selectInfluencersId,
+        );
+        if (!selectedAcc) throw new NotFoundException('Selected influencer not found');
 
-        if (campaignResponse === 'accept') {
-            const selectInfluencersAcc = findNewCampaign.selectInfluencers.find(
-                (influencer) => influencer._id.toString() === selectInfluencersId,
-            );
+        const session = await this.campaignRepo.startSession();
+        session.startTransaction();
 
-            const resultOfSavingHistory = await axios.post(
-                `${process.env.SERVER}/influencer-actions-history/upsert/campaign`,
+        try {
+            const isAccept = campaignResponse === InfluencerConfirmationStatusEnum.accept;
+
+            await this.influencerActionsHistoryService.upsertInfluencerCampaignActionsHistory(
                 {
-                    influencerId: influencerId,
-                    campaignId: new mongoose.Types.ObjectId(findNewCampaign._id),
-                    campaignName: findNewCampaign.campaignName,
+                    influencerId,
+                    campaignId: campaign._id.toString(),
+                    campaignName: campaign.campaignName,
                     updatedCampaignAction: {
-                        actionNumber: 1,
-                        networkUsername: socialMediaUsername,
-                        socialMedia: selectInfluencersAcc.socialMedia,
-                        rewardForInfluencer: selectInfluencersAcc.price.replace(/\D/g, ''),
+                        socialAccountId: selectedAcc.accountId,
+                        actionNumber: isAccept ? 1 : 5,
+                        networkUsername: selectedAcc.username,
+                        socialMedia: selectedAcc.socialMedia,
+                        rewardForInfluencer: selectedAcc.price,
                     },
                 },
+                session,
             );
 
-            if (resultOfSavingHistory.data.code !== 200) throw new InternalServerErrorException('Something went wrong');
-
-            const updateNewPromo = await this.campaignModel.findOneAndUpdate(
+            await this.campaignRepo.findOneAndUpdate(
                 {
                     _id: campaignId,
                     selectInfluencers: {
-                        $elemMatch: {
-                            _id: new mongoose.Types.ObjectId(selectInfluencersId),
-                        },
+                        $elemMatch: { _id: new mongoose.Types.ObjectId(selectInfluencersId) },
                     },
                 },
                 {
                     $set: {
-                        ...(findNewCampaign.statusCampaign
-                            ? {statusCampaign: 'work'}
-                            : {statusPromo: 'work'}),
+                        ...(isAccept
+                            ? campaign.statusCampaign
+                                ? { statusCampaign: 'work' }
+                                : { statusPromo: 'work' }
+                            : {}),
+
                         'selectInfluencers.$.confirmation': campaignResponse,
                     },
+                    ...(isAccept
+                        ? {}
+                        : {
+                            $inc: {
+                                partialRefund: selectedAcc.price,
+                            },
+                        }),
                 },
+                { session },
             );
 
-            const checkUserInfluencer = await this.influencerModel.findById(influencerId);
-            const checkUserClient = await this.clientModel.findById(
-                findNewCampaign.clientId || (findNewCampaign as any).userId,
+            await session.commitTransaction();
+        } catch (err) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            await session.endSession();
+        }
+
+        try {
+            const influencer = await this.influencerRepo.findById(influencerId);
+            const client = await this.clientRepo.findById(
+                campaign.clientId || (campaign as any).userId,
             );
 
-            const selectedCampaignContentItem = findNewCampaign.campaignContent?.find(
-                (item) => item._id.toString() === selectInfluencersAcc.selectedContent?.campaignContentItemId.toString()
-            );
-            const selectedPostDescription = selectedCampaignContentItem?.postDescriptions?.find(
-                (pd) => pd._id.toString() === selectInfluencersAcc.selectedContent?.postDescriptionId.toString()
-            )?.description ?? '';
+            switch (campaignResponse) {
+                case InfluencerConfirmationStatusEnum.accept: {
+                    const contentItem = campaign.campaignContent?.find(
+                        item =>
+                            item._id.toString() ===
+                            selectedAcc.selectedContent?.campaignContentItemId?.toString(),
+                    );
 
-            await sendMail(
-                // 'nazarkozynets030606@zohomail.eu',
-                'admin@soundinfluencers.com',
-                'SoundInfluencers',
-                `<p>${checkUserInfluencer.email} accepted the offer for ${checkUserClient.email}'s campaign</p><br/>
-    <p><b>Details:</b></p>
-    <p><b>Campaign Name:</b> ${findNewCampaign.campaignName}</p>
-    <p><b>Client Name:</b> ${checkUserClient.firstName}</p>
-    <p><b>Campaign Content:</b><br/>
-  ${
-                    selectedCampaignContentItem
-                        ? `<div style="margin-bottom:10px;">
-          <a href="${selectedCampaignContentItem.videoLink}">${selectedCampaignContentItem.videoLink}</a>
-          ${selectedPostDescription ? `<p><b>Description:</b> ${selectedPostDescription}</p>` : ''}
-          ${selectedCampaignContentItem.storyTag ? `<p><b>Story Tag:</b> ${selectedCampaignContentItem.storyTag}</p>` : ''}
-          ${selectedCampaignContentItem.swipeUpLink ? `<p><b>Swipe Up Link:</b> ${selectedCampaignContentItem.swipeUpLink}</p>` : ''}
-          ${selectedCampaignContentItem.specialWishes ? `<p><b>Special Wishes:</b> ${selectedCampaignContentItem.specialWishes}</p>` : ''}
-        </div>`
-                        : ''
+                    const postDescription =
+                        contentItem?.descriptions?.find(
+                            pd =>
+                                pd._id.toString() ===
+                                selectedAcc.selectedContent?.descriptionId?.toString(),
+                        )?.description ?? '';
+
+                    await sendMail(
+                        'admin@soundinfluencers.com',
+                        'SoundInfluencers',
+                        `<p>${influencer.email} accepted the offer for ${client.email}'s campaign</p>
+         <p><b>Campaign:</b> ${campaign.campaignName}</p>
+         ${
+                            contentItem
+                                ? `
+           <a href="${contentItem.mainLink}">${contentItem.mainLink}</a>
+           ${postDescription ? `<p><b>Description:</b> ${postDescription}</p>` : ''}
+           ${contentItem.taggedUser ? `<p><b>Story Tag:</b> ${contentItem.taggedUser}</p>` : ''}
+           ${contentItem.taggedLink ? `<p><b>Swipe Up Link:</b> ${contentItem.taggedLink}</p>` : ''}
+           ${contentItem.additionalBrief ? `<p><b>Special Wishes:</b> ${contentItem.additionalBrief}</p>` : ''}
+         `
+                                : ''
+                        }`,
+                        'html',
+                    );
+                    break;
                 }
-</p>`,
-                'html',
-            );
 
-            return;
-        } else {
-            const selectInfluencersAcc = findNewCampaign.selectInfluencers.find(
-                (influencer) => influencer._id.toString() === selectInfluencersId,
-            );
+                case InfluencerConfirmationStatusEnum.reject: {
+                    await sendMail(
+                        'admin@soundinfluencers.com',
+                        'SoundInfluencers',
+                        `<p>${influencer.email} declined the offer for ${client.email}'s campaign</p>
+         <p><b>Campaign:</b> ${campaign.campaignName}</p>`,
+                        'html',
+                    );
+                    break;
+                }
 
-            const resultOfSavingHistory = await axios.post(
-                `${process.env.SERVER}/influencer-actions-history/upsert/campaign`,
-                {
-                    influencerId: influencerId,
-                    campaignId: new mongoose.Types.ObjectId(findNewCampaign._id),
-                    campaignName: findNewCampaign.campaignName,
-                    updatedCampaignAction: {
-                        actionNumber: 2,
-                        networkUsername: socialMediaUsername,
-                        socialMedia: selectInfluencersAcc.socialMedia,
-                        rewardForInfluencer: selectInfluencersAcc.price.replace(/\D/g, ''),
-                    },
-                },
-            );
-
-            if (resultOfSavingHistory.data.code !== 200) throw new InternalServerErrorException('Something went wrong');
-
-            const updatePromo = await this.campaignModel.findOneAndUpdate(
-                {
-                    _id: campaignId,
-                    selectInfluencers: {
-                        $elemMatch: {
-                            _id: new mongoose.Types.ObjectId(selectInfluencersId),
-                        },
-                    },
-                },
-                {
-                    $set: {
-                        'selectInfluencers.$.confirmation': campaignResponse,
-                        partialRefund:
-                            findNewCampaign.partialRefund + selectInfluencersAcc.price.replace(/\D/g, ''),
-                    },
-                },
-                {new: true},
-            );
-
-            const checkUserInfluencer = await this.influencerModel.findById(influencerId);
-            const checkUserClient = await this.clientModel.findById(
-                findNewCampaign.clientId || (findNewCampaign as any).userId,
-            );
-
-            await sendMail(
-                // 'nazarkozynets030606@zohomail.eu',
-                'admin@soundinfluencers.com',
-                'SoundInfluencers',
-                `<p>${checkUserInfluencer.email} declined the offer for ${checkUserClient.email}'s campaign</p><br/>
-                <p><b>Details:</b></p>
-                <p><b>Campaign Name:</b> ${findNewCampaign.campaignName}</p>
-                <p><b>Client Name:</b> ${checkUserClient.firstName}</p>
-                <p><b>Campaign Content:</b> ${
-                    findNewCampaign.campaignContent
-                        ? findNewCampaign.campaignContent
-                            .map(
-                                (campaignContentItem) => `
-                  <div style="margin-bottom:10px;">
-                    <a href="${campaignContentItem.videoLink}">
-                      ${campaignContentItem.videoLink}
-                    </a>
-                    ${
-                                    campaignContentItem.postDescriptions?.length
-                                        ? `<ul>
-                            ${campaignContentItem.postDescriptions
-                                            .map((pd) => `<li><b>Description:</b> ${pd.description}</li>`)
-                                            .join('')}
-                          </ul>`
-                                        : ''
-                                }
-                  </div>
-                `,
-                            )
-                            .join('')
-                        : (findNewCampaign as any).videos
-                            .map((video) => `<a href="${video.videoLink}">${video.videoLink}</a>`)
-                            .join(', ')
-                }</p>`,
-                'html',
-            );
-
-            return;
+                case InfluencerConfirmationStatusEnum.wait:
+                default:
+                    break;
+            }
+        } catch (err) {
+            throw new Error(`${data.selectInfluencersId} ${data.username} response to ${data.campaignId} updated, but email failed, ${err}`);
         }
     }
 
@@ -539,7 +487,7 @@ export class PromosService {
 
         const skip = (data.page - 1) * limit;
 
-        const influencerExists = await this.influencerModel.exists({
+        const influencerExists = await this.influencerRepo.exists({
             _id: new Types.ObjectId(influencerId),
         });
 
@@ -607,7 +555,7 @@ export class PromosService {
 
         const skip = (data.page - 1) * limit;
 
-        const influencerExists = await this.influencerModel.exists({
+        const influencerExists = await this.influencerRepo.exists({
             _id: new Types.ObjectId(influencerId),
         });
 
@@ -703,24 +651,24 @@ export class PromosService {
             throw new BadRequestException('Not enough arguments');
         }
 
-        const influencer = await this.influencerModel.findById(influencerId);
+        const influencer = await this.influencerRepo.findById(influencerId);
         if (!influencer) {
             throw new NotFoundException('Influencer not found');
         }
 
-        const campaign = await this.campaignModel.findById(campaignId).lean();
+        const campaign = await this.campaignRepo.findById(campaignId).lean();
         if (!campaign) {
             throw new NotFoundException('Campaign not found');
         }
 
-        const client = await this.clientModel.findById(
+        const client = await this.clientRepo.findById(
             campaign.clientId || (campaign as any).userId,
         );
         if (!client) {
             throw new NotFoundException('Client not found');
         }
 
-        const selectedInfluencer = campaign.selectInfluencers.find(
+        const selectedInfluencer = campaign.addedAccounts.find(
             (item) => item._id.toString() === selectInfluencersId,
         );
 
@@ -743,10 +691,10 @@ export class PromosService {
         }
 
         const postDescription =
-            selectedCampaignContentItem.postDescriptions?.find(
+            selectedCampaignContentItem.descriptions?.find(
                 (pd) =>
                     pd._id.toString() ===
-                    selectedInfluencer.selectedContent.postDescriptionId?.toString(),
+                    selectedInfluencer.selectedContent.descriptionId?.toString(),
             )?.description ?? '';
 
         return {
@@ -754,17 +702,17 @@ export class PromosService {
             influencerId: selectedInfluencer.influencerId.toString(),
             selectInfluencersId: selectedInfluencer._id.toString(),
             campaignName: campaign.campaignName,
-            socialMediaUsername: selectedInfluencer.socialMediaUsername,
+            username: selectedInfluencer.username,
             socialMedia: selectedInfluencer.socialMedia as SocialMediaType,
             dateRequest: selectedInfluencer.dateRequest,
             createdAt: campaign.createdAt,
-            videoLink: selectedCampaignContentItem.videoLink,
-            postDescription,
-            storyTag: selectedCampaignContentItem.storyTag,
-            storyLink: selectedCampaignContentItem.swipeUpLink,
-            additionalBrief: selectedCampaignContentItem.specialWishes,
+            mainLink: selectedCampaignContentItem.mainLink,
+            description: postDescription,
+            taggedUser: selectedCampaignContentItem.taggedUser,
+            taggedLink: selectedCampaignContentItem.taggedLink,
+            additionalBrief: selectedCampaignContentItem.additionalBrief,
             client: client.company,
-            statusCampaign: campaign.statusCampaign as CampaignStatusType,
+            statusCampaign: campaign.statusCampaign,
             closedStatus: selectedInfluencer.closePromo as InfluencerPromoClosedStatusType,
             confirmation: selectedInfluencer.confirmation as InfluencerConfirmationStatusType,
         };
@@ -777,12 +725,12 @@ export class PromosService {
         const {
             influencerId,
             campaignId,
-            socialMediaUsername,
+            username,
             selectInfluencersId,
             data: postDetails,
         } = data;
 
-        if (!influencerId || !campaignId || !socialMediaUsername || !selectInfluencersId) {
+        if (!influencerId || !campaignId || !username || !selectInfluencersId) {
             throw new BadRequestException('Not enough arguments');
         }
 
@@ -793,18 +741,19 @@ export class PromosService {
                     $elemMatch: {
                         influencerId,
                         $or: [
-                            {socialMediaUsername},
-                            {instagramUsername: socialMediaUsername},
+                            {username: username},
+                            {socialMediaUsername: username},
+                            {instagramUsername: username},
                         ],
                     },
                 },
-            }, { lean: true });
+            }, {lean: true});
 
         if (!campaign) {
             throw new NotFoundException('Campaign not found');
         }
 
-        const socialAccount = campaign.selectInfluencers.find(
+        const socialAccount = campaign.addedAccounts.find(
             (item) => item._id.toString() === selectInfluencersId,
         );
 
@@ -832,14 +781,14 @@ export class PromosService {
                 }).map(([key, value]) => [`selectInfluencers.$.${key}`, value]),
             );
 
-            const updateResult = await this.campaignModel.updateOne(
+            const updateResult = await this.campaignRepo.updateOne(
                 {
                     _id: campaignId,
                     'selectInfluencers._id': new mongoose.Types.ObjectId(selectInfluencersId),
                     'selectInfluencers.closePromo': {$ne: 'close'},
                 },
                 {$set: updatePayload},
-                {session},
+                {session}
             );
 
             // promo already closed by another request
@@ -849,13 +798,13 @@ export class PromosService {
             }
 
             // pay influencer
-            const reward = Number(socialAccount.price?.replace(/\D/g, ''));
+            const reward = socialAccount.price;
 
             if (!reward || Number.isNaN(reward)) {
                 throw new InternalServerErrorException('Invalid influencer reward in database');
             }
 
-            await this.influencerModel.updateOne(
+            await this.influencerRepo.updateOne(
                 {_id: influencerId},
                 {$inc: {balance: reward}},
                 {session},
@@ -868,14 +817,12 @@ export class PromosService {
                 campaignName: campaign.campaignName,
                 updatedCampaignAction: {
                     socialAccountId: socialAccount._id,
-                    actionNumber: 3,
-                    networkUsername: socialMediaUsername,
-                    rewardForInfluencer: Number(
-                        socialAccount.price.replace(/\D/g, ''),
-                    ),
+                    actionNumber: 2,
+                    networkUsername: username,
+                    rewardForInfluencer: socialAccount.price,
                     socialMedia: socialAccount.socialMedia
                 }
-            })
+            }, session)
 
             await session.commitTransaction();
         } catch (e) {

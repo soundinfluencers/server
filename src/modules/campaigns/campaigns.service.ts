@@ -1,14 +1,18 @@
 import {
-    BadRequestException, ForbiddenException,
-    Injectable, InternalServerErrorException, Logger,
+    BadRequestException,
+    ForbiddenException,
+    Injectable,
+    InternalServerErrorException,
+    Logger,
     NotFoundException,
 } from '@nestjs/common';
 import mongoose, {Types} from "mongoose";
 import {
-    CampaignStatusType,
-    CampaignStatusTypeForDevelopment,
+    CampaignStatusEnum,
+    CampaignTypeEnumForDevelopment,
     ClientCampaignForTable,
-    ClientGetCampaignForList, PublicCampaignForTable
+    ClientGetCampaignForList,
+    PublicCampaignForTable
 } from "../../common/types/client/campaign.types";
 import {SocialMediaEnum, SocialMediaType} from "../../common/types/social-media.types";
 import {formatClientCampaignStatus, formatDate} from "../../common/utils/formatters";
@@ -52,7 +56,7 @@ export class CampaignsService {
 
     // Returns campaigns list for client with diff statuses
     async getClientCampaignsList(data: ClientGetDashboardCampaignsQueryDto): Promise<ClientGetCampaignForList[]> {
-        const status: CampaignStatusTypeForDevelopment = data.status ?? "all"
+        const status: CampaignTypeEnumForDevelopment = data.status ?? CampaignTypeEnumForDevelopment.all
         const limit = Number(data.limit ?? 12);
         const page = Number(data.page ?? 1);
 
@@ -178,7 +182,7 @@ export class CampaignsService {
                     socialMedia: item.socialMedia as SocialMediaType,
                     creationDate: formatDate(item.createdAt),
                     price: item.campaignPrice ?? undefined,
-                    status: formatClientCampaignStatus(item.statusCampaign) as CampaignStatusType ?? undefined,
+                    status: formatClientCampaignStatus(item.statusCampaign) as CampaignStatusEnum ?? undefined,
                 };
             }),
         );
@@ -233,8 +237,8 @@ export class CampaignsService {
                             campaignContentItemId: new Types.ObjectId(
                                 influencer.selectedCampaignContentItem.campaignContentItemId,
                             ),
-                            postDescriptionId: new Types.ObjectId(
-                                influencer.selectedCampaignContentItem.postDescriptionId,
+                            descriptionId: new Types.ObjectId(
+                                influencer.selectedCampaignContentItem.descriptionId,
                             ),
                         },
                         influencerId: influencerId,
@@ -252,16 +256,16 @@ export class CampaignsService {
         const processedCampaignContent = await Promise.all(
             data.campaignContent.map(async (campaignContentItem) => ({
                 _id: new mongoose.Types.ObjectId(campaignContentItem._id),
-                videoLink: campaignContentItem.mainLink.trim(),
+                mainLink: campaignContentItem.mainLink.trim(),
                 socialMedia: campaignContentItem.socialMedia as SocialMediaEnum,
                 socialMediaGroup: campaignContentItem.socialMediaGroup,
-                postDescriptions: campaignContentItem?.descriptions.map((pd) => ({
+                descriptions: campaignContentItem?.descriptions.map((pd) => ({
                     _id: new mongoose.Types.ObjectId(pd._id),
                     description: pd.description.trim(),
                 })) ?? undefined,
-                storyTag: campaignContentItem.taggedUser?.trim() ?? undefined,
-                swipeUpLink: campaignContentItem.taggedLink?.trim() ?? undefined,
-                specialWishes: campaignContentItem.additionalBrief?.trim() ?? undefined,
+                taggedUser: campaignContentItem.taggedUser?.trim() ?? undefined,
+                taggedLink: campaignContentItem.taggedLink?.trim() ?? undefined,
+                additionalBrief: campaignContentItem.additionalBrief?.trim() ?? undefined,
             } satisfies CampaignContentItem)),
         );
 
@@ -314,15 +318,15 @@ export class CampaignsService {
                         (campaignContentItem, index) => `
           <p><strong>Song/Playlist ${index + 1}:</strong></p>
           <ul>
-              <li><strong>Track/Playlist Link:</strong> ${campaignContentItem.videoLink}</li>
+              <li><strong>Track/Playlist Link:</strong> ${campaignContentItem.mainLink}</li>
               <li><strong>Track/Playlist Titles:</strong>
                 <ul>
-                  ${campaignContentItem.postDescriptions
+                  ${campaignContentItem.descriptions
                             .map((pd, i) => `<li>${i + 1}. ${pd.description}</li>`)
                             .join('')}
                 </ul>
               </li>
-              <li><strong>Special Wishes:</strong> ${campaignContentItem.specialWishes}</li>
+              <li><strong>Special Wishes:</strong> ${campaignContentItem.additionalBrief}</li>
           </ul>
           <p><strong>Selected Influencers:</strong></p>
           <ul>
@@ -347,16 +351,16 @@ export class CampaignsService {
                         (campaignContentItem, index) => `
           <p><strong>Article ${index + 1}:</strong></p>
           <ul>
-              <li><strong>Link to Music/Events/News:</strong> ${campaignContentItem.videoLink}</li>
+              <li><strong>Link to Music/Events/News:</strong> ${campaignContentItem.mainLink}</li>
               <li><strong>Descriptions:</strong>
                 <ul>
-                  ${campaignContentItem.postDescriptions
+                  ${campaignContentItem.descriptions
                             .map((pd, i) => `<li>${i + 1}. ${pd.description}</li>`)
                             .join('')}
                 </ul>
               </li>
-              <li><strong>Link To Press Release:</strong> ${campaignContentItem.storyTag}</li>
-              <li><strong>Special Wishes:</strong> ${campaignContentItem.specialWishes}</li>
+              <li><strong>Link To Press Release:</strong> ${campaignContentItem.taggedUser}</li>
+              <li><strong>Special Wishes:</strong> ${campaignContentItem.additionalBrief}</li>
           </ul>
           <p><strong>Selected Influencers:</strong></p>
           <ul>
@@ -381,17 +385,17 @@ export class CampaignsService {
                         (campaignContentItem, index) => `
           <p><strong>Post Content ${index + 1}:</strong></p>
           <ul>
-              <li><strong>Link:</strong> ${campaignContentItem.videoLink}</li>
+              <li><strong>Link:</strong> ${campaignContentItem.mainLink}</li>
               <li><strong>Post Descriptions:</strong>
                 <ul>
-                  ${campaignContentItem.postDescriptions
+                  ${campaignContentItem.descriptions
                             .map((pd, i) => `<li>${i + 1}. ${pd.description}</li>`)
                             .join('')}
                 </ul>
               </li>
-              <li><strong>Story Tag:</strong> ${campaignContentItem.storyTag}</li>
-              <li><strong>Swipe Up Link:</strong> ${campaignContentItem.swipeUpLink}</li>
-              <li><strong>Special Wishes:</strong> ${campaignContentItem.specialWishes}</li>
+              <li><strong>Story Tag:</strong> ${campaignContentItem.taggedUser}</li>
+              <li><strong>Swipe Up Link:</strong> ${campaignContentItem.taggedLink}</li>
+              <li><strong>Special Wishes:</strong> ${campaignContentItem.additionalBrief}</li>
           </ul>
           <p><strong>Selected Influencers:</strong></p>
           <ul>
@@ -461,7 +465,7 @@ ${emailVideoContent()}
                 accountId: new Types.ObjectId(acc.accountId),
                 selectedContent: {
                     campaignContentItemId: new Types.ObjectId(acc.selectedContent.campaignContentItemId),
-                    postDescriptionId: new Types.ObjectId(acc.selectedContent.postDescriptionId)
+                    postDescriptionId: new Types.ObjectId(acc.selectedContent.descriptionId)
                 },
             }))
         });
@@ -475,8 +479,8 @@ ${emailVideoContent()}
 
         if (!checkCampaign) throw new NotFoundException('Campaign not found')
 
-        if (status === 'accept' && checkCampaign.statusCampaign === 'wait') {
-            const influencersIds = checkCampaign.selectInfluencers.map((item) => item.influencerId);
+        if (status === 'accept' && checkCampaign.statusCampaign === CampaignStatusEnum.pending) {
+            const influencersIds = checkCampaign.addedAccounts.map((item) => item.influencerId);
 
             const influencers = await this.influencerRepo.findMany({_id: {$in: influencersIds}});
 
@@ -491,9 +495,9 @@ ${emailVideoContent()}
                         await Promise.all(
                             accounts.map(async (account) => {
                                 if (
-                                    checkCampaign.selectInfluencers.some(
+                                    checkCampaign.addedAccounts.some(
                                         (influencerData) =>
-                                            (influencerData.socialMediaUsername === account.username ||
+                                            (influencerData.username === account.username ||
                                                 (influencerData as any).instagramUsername ===
                                                 account.username) &&
                                             influencerData.socialMedia === socialMedia,
@@ -519,7 +523,7 @@ ${emailVideoContent()}
                     }),
                 );
 
-                const influencerAccounts = checkCampaign.selectInfluencers.filter(
+                const influencerAccounts = checkCampaign.addedAccounts.filter(
                     (acc) => acc.influencerId.toString() === influencer._id.toString()
                 );
 
@@ -530,18 +534,18 @@ ${emailVideoContent()}
                         );
 
                         return {
-                            pageName: acc.socialMediaUsername,
-                            reward: acc.price,
+                            pageName: acc.username,
+                            reward: `${acc.price}€`,
                             socialMedia: acc.socialMedia,
-                            contentLink: content?.videoLink || '',
+                            mainLink: content?.mainLink || '',
                             description:
-                                content?.postDescriptions.find(
-                                    (pd) => pd._id.toString() === acc.selectedContent?.postDescriptionId.toString(),
+                                content?.descriptions.find(
+                                    (pd) => pd._id.toString() === acc.selectedContent?.descriptionId.toString(),
                                 )?.description || '',
-                            storyTag: content?.storyTag,
-                            storyLink: content?.swipeUpLink,
-                            specialRequests: content?.specialWishes,
-                        };
+                            taggedUser: content?.taggedUser,
+                            taggedLink: content?.taggedLink,
+                            additionalBrief: content?.additionalBrief,
+                        } satisfies AccountObjectForCreateNewPromoRequestMessage;
                     });
 
                 if (accountDetails.length === 0) continue;
@@ -603,7 +607,8 @@ ${emailVideoContent()}
             totalFollowers: 0,
             totalLikes: 0,
             totalImpressions: 0,
-            isClosed: campaign.isCopy ?? false,
+            totalComments: 0,
+            totalShares: 0,
             isCpmAndResultHidden: campaign.isCpmAndResultHidden ?? false,
             isPriceHidden: campaign.isPriceHidden ?? false,
             hiddenColumns: campaign.hiddenColumns ?? [],
@@ -720,7 +725,7 @@ ${emailVideoContent()}
             socialMedia: p.socialMedia as SocialMediaType,
             creationDate: formatDate(p.createdAt),
             price: p.price,
-            status: "Pending" as CampaignStatusType,
+            status: CampaignStatusEnum.pending,
         }))
     }
 
@@ -1086,18 +1091,19 @@ ${emailVideoContent()}
 
         const campaignToReturn: PublicCampaignForTable = {
             campaignId: campaign._id,
-            clientId: campaign.clientId,
+            // clientId: campaign.clientId,
             campaignName: campaign.campaignName ?? 'OLD CAMPAIGN',
             price: campaign.campaignPrice ?? campaign.publicPrice ?? campaign.amount ?? 0,
             addedAccounts: [],
             campaignContent: campaign.campaignContent ?? campaign.videos ?? [],
             socialMedia: campaign.socialMedia as SocialMediaType ?? 'instagram' as SocialMediaType,
-            status: campaign.statusCampaign as CampaignStatusType,
+            status: campaign.statusCampaign,
             totalFollowers: 0,
             totalLikes: 0,
             totalImpressions: 0,
+            totalComments: 0,
+            totalShares: 0,
             creationDate: formatDate(campaign.createdAt),
-            isClosed: campaign.isCopy ?? false,
             isCpmAndResultHidden: campaign.isCpmAndResultHidden ?? false,
             isPriceHidden: campaign.isPriceHidden ?? false,
             hiddenColumns: campaign.hiddenColumns ?? [],

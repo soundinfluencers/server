@@ -3,17 +3,12 @@ import {
     Controller,
     Get,
     Patch,
-    Post,
     Query,
     Req,
     UnauthorizedException,
-    UploadedFile,
-    UseInterceptors,
 } from '@nestjs/common';
 import {PromosService} from './promos.service';
 import {ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
-import {FileInterceptor} from '@nestjs/platform-express';
-import File from 'multer';
 import {
     InfluencerCompletedPromosDto,
     InfluencerDashboardPromosDto,
