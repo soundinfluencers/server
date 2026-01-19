@@ -24,7 +24,7 @@ export class ProposalSystemService {
                     ? new mongoose.Types.ObjectId(data.clientId)
                     : new mongoose.Types.ObjectId('66f540faaf4e960d2f9bebfc'),
                 campaignName: data.campaignName.trim(),
-                addedAccounts: data.selectInfluencers.map(account => ({
+                addedAccounts: data.addedAccounts.map(account => ({
                     ...account,
                     selectedContent: {
                         campaignContentItemId: new Types.ObjectId(account.selectedContent.campaignContentItemId),
@@ -48,7 +48,7 @@ export class ProposalSystemService {
                         ? new mongoose.Types.ObjectId(data.clientId)
                         : new mongoose.Types.ObjectId('66f540faaf4e960d2f9bebfc'),
                     campaignName: data.campaignName.trim(),
-                    addedAccounts: data.selectInfluencers.map(account => ({
+                    addedAccounts: data.addedAccounts.map(account => ({
                         ...account,
                         selectedContent: {
                             campaignContentItemId: new Types.ObjectId(account.selectedContent.campaignContentItemId),

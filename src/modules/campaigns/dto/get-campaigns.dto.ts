@@ -82,9 +82,8 @@ export class ClientCampaignForTableDto implements ClientCampaignForTable {
     @ApiProperty()
     addedAccounts: any[];
 
-    // TODO: implement interface for this
-    @ApiProperty()
-    campaignContent: any[];
+    @ApiProperty({type: SafeCampaignContent, isArray: true})
+    campaignContent: SafeCampaignContent[];
 
     @ApiProperty()
     shareLink: string;
@@ -93,10 +92,13 @@ export class ClientCampaignForTableDto implements ClientCampaignForTable {
     totalFollowers: number;
 
     @ApiProperty()
+    totalImpressions: number;
+
+    @ApiProperty()
     totalLikes: number;
 
     @ApiProperty()
-    totalImpressions: number;
+    totalSaves: number;
 
     @ApiProperty()
     totalComments: number;

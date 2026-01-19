@@ -106,7 +106,7 @@ export class OffersService {
                         logo: `$${socialMedia}.logoUrl`,
                         accountId: `$${socialMedia}._id`,
                         followers: `$${socialMedia}.followers`,
-                        price: `$${socialMedia}.publicPrice`,
+                        publicPrice: `$${socialMedia}.publicPrice`,
                         countries: {
                             $cond: [
                                 { $isArray: `$${socialMedia}.countries` },
@@ -147,13 +147,13 @@ export class OffersService {
                 accountMap.set(`${influencer._id.toString()}:${influencer.accountId.toString()}`, {
                     accountId: influencer.accountId.toString(),
                     influencerId: influencer._id.toString(),
-                    username: influencer.socialMediaUsername,
+                    username: influencer.username,
                     logoUrl: influencer.logo,
                     followers: influencer.followers,
 
                     // todo: parse prices
                     prices: {
-                        'EUR': influencer.followers,
+                        'EUR': influencer.publicPrice,
                         'USD': 0,
                         'GBP': 0
                     },

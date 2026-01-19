@@ -454,9 +454,6 @@ export class MigrationsService {
         delete mapped.musicSubStyles;
         delete mapped.musicStyleOther;
 
-        // если вдруг где-то legacy оставлял followersNumber как string, а followers не было:
-        delete mapped.followers; // мы выставили заново выше
-
         return mapped;
     }
 

@@ -82,8 +82,9 @@ export interface ClientCampaignForTable {
     shareLink: string;
 
     totalFollowers: number;
-    totalLikes: number;
     totalImpressions: number;
+    totalLikes: number;
+    totalSaves: number;
     totalComments: number;
     totalShares: number;
 
