@@ -6,6 +6,7 @@ import {Auth} from "../../common/decorators/auth.decorator";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {Role} from "../../common/types/auth.types";
+import {MigrateCompletedCampaignsDto} from "./dto/migrate-completed-campaigns.dto";
 
 @ApiTags('migrations')
 @Controller('migrations')
@@ -19,5 +20,14 @@ export class MigrationsController {
     @Patch('account')
     migrateSocialAccount(@Body() data: MigrateAccountDto) {
         return this.migrationsService.migrateSocialAccountOrchestrator(data);
+    }
+
+    @Auth()
+    @Roles(Role.admin)
+    @ApiOperation({ summary: '(ADMIN) Migrate completed campaigns schema to latest format' })
+    @ApiResponseDto(undefined, { successStatusCode: 201 })
+    @Patch('completed-campaigns')
+    migrateCompletedCampaigns(@Body() data: MigrateCompletedCampaignsDto) {
+        return this.migrationsService.migrateCompletedCampaigns(data);
     }
 }

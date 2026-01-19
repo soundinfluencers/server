@@ -30,8 +30,8 @@ export class CampaignAccount {
     @Prop({type: Types.ObjectId, required: true, ref: "Influencer"})
     influencerId: Types.ObjectId;
 
-    @Prop({type: Types.ObjectId, required: true, ref: "SocialAccount"})
-    accountId: Types.ObjectId;
+    @Prop({type: Types.ObjectId, required: true, default: null, ref: "SocialAccount"})
+    accountId: Types.ObjectId | null;
 
     @Prop({required: true, enum: SocialMediaEnum})
     socialMedia: SocialMediaEnum;
@@ -134,6 +134,9 @@ export const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignCo
 export class Campaign {
     @Prop({type: Types.ObjectId, required: true})
     _id: Types.ObjectId;
+
+    @Prop({ type: Number, default: 2, index: true, required: false })
+    schemaVersion: number;
 
     @Prop({type: Types.ObjectId, ref: 'Client', required: true})
     clientId: Types.ObjectId;
