@@ -30,4 +30,13 @@ export class MigrationsController {
     migrateCompletedCampaigns(@Body() data: MigrateCompletedCampaignsDto) {
         return this.migrationsService.migrateCompletedCampaigns(data);
     }
+
+    @Auth()
+    @Roles(Role.admin)
+    @ApiOperation({ summary: '(ADMIN) Migrate influencers schema to latest format' })
+    @ApiResponseDto(undefined, { successStatusCode: 201 })
+    @Patch('influencers')
+    migrateInfluencersSocialAccountsV2(@Body() data: MigrateCompletedCampaignsDto) {
+        return this.migrationsService.migrateInfluencersSocialAccountsV2(data);
+    }
 }

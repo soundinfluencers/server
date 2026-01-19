@@ -8,7 +8,9 @@ import {Offer} from './schemas/offer.schema';
 import {SocialMediaEnum, SocialMediaType} from "../../common/types/social-media.types";
 import {allowedGenresMap} from "../../common/types/genres.types";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
-import {GetFilteredPublishedOffers} from "./dto/get-offers.dto";
+import {FilteredPublishedOffersByGenreAndSocialMedia, GetFilteredPublishedOffers} from "./dto/get-offers.dto";
+import {FoundAccountDto} from "../profile/dto/influencer/get-profile.dto";
+import {getArrayFromAccountMusicGenres} from "../../common/utils/genres";
 
 @Injectable()
 export class OffersService {
@@ -41,7 +43,7 @@ export class OffersService {
         }
     }
 
-    async getPublishedOffersByGenreAndSocialMedia(data: GetFilteredPublishedOffers): Promise<Offer[]> {
+    async getPublishedOffersByGenreAndSocialMedia(data: GetFilteredPublishedOffers): Promise<FilteredPublishedOffersByGenreAndSocialMedia[]> {
         const {socialMedia, genre} = data;
 
         const offers = await this.offersModel
@@ -69,7 +71,7 @@ export class OffersService {
             Array.from(accountIds).map((accountId) => `${influencerId}_${accountId}`),
         );
 
-        // Агрегация инфлюенсеров и извлекание только ника и логотипа для нужных аккаунтов
+        // Агрегация инфлюенсеров и извлекание нужных для FoundAccountDto полей
         const influencers = await this.influencerModel
             .aggregate([
                 {
@@ -100,21 +102,66 @@ export class OffersService {
                 {
                     $project: {
                         _id: 1,
-                        socialMediaUsername: `$${socialMedia}.instagramUsername`,
-                        logo: `$${socialMedia}.logo`,
+                        username: `$${socialMedia}.username`,
+                        logo: `$${socialMedia}.logoUrl`,
                         accountId: `$${socialMedia}._id`,
+                        followers: `$${socialMedia}.followers`,
+                        price: `$${socialMedia}.publicPrice`,
+                        countries: {
+                            $cond: [
+                                { $isArray: `$${socialMedia}.countries` },
+                                `$${socialMedia}.countries`,
+                                []
+                            ]
+                        },
+                        musicGenres: {
+                            $cond: [
+                                { $isArray: `$${socialMedia}.musicGenres` },
+                                `$${socialMedia}.musicGenres`,
+                                []
+                            ]
+                        },
+                        creatorCategories: {
+                            $cond: [
+                                { $isArray: `$${socialMedia}.creatorCategories` },
+                                `$${socialMedia}.creatorCategories`,
+                                []
+                            ]
+                        },
+                        categories: {
+                            $cond: [
+                                { $isArray: `$${socialMedia}.categories` },
+                                `$${socialMedia}.categories`,
+                                []
+                            ]
+                        }
                     },
                 },
             ])
             .exec();
 
-        // Map для быстрого доступа к socialMediaUsername и logos
-        const accountMap = new Map<string, { socialMediaUsername: string; logo: string }>();
+        // Map для быстрого доступа к полям аккаунтов
+        const accountMap = new Map<string, FoundAccountDto>();
         influencers.forEach((influencer) => {
             if (influencer.accountId) {
                 accountMap.set(`${influencer._id.toString()}:${influencer.accountId.toString()}`, {
-                    socialMediaUsername: influencer.socialMediaUsername,
-                    logo: influencer.logo,
+                    accountId: influencer.accountId.toString(),
+                    influencerId: influencer._id.toString(),
+                    username: influencer.socialMediaUsername,
+                    logoUrl: influencer.logo,
+                    followers: influencer.followers,
+
+                    // todo: parse prices
+                    prices: {
+                        'EUR': influencer.followers,
+                        'USD': 0,
+                        'GBP': 0
+                    },
+                    socialMedia: socialMedia,
+                    countries: influencer.countries?.length > 0 ? influencer.countries : null,
+                    musicGenres: influencer.musicGenres?.length > 0 ? getArrayFromAccountMusicGenres(influencer.musicGenres) : null,
+                    creatorCategories: influencer.creatorCategories?.length > 0 ? influencer.creatorCategories : null,
+                    categories: influencer.categories?.length > 0 ? influencer.categories : null,
                 });
             }
         });
@@ -122,6 +169,7 @@ export class OffersService {
         // Обновление connectedAccounts в оферах
         const updatedOffers = offers.map((offer) => ({
             ...offer,
+            _id: offer._id.toString(),
             connectedAccounts: offer.connectedAccounts
                 .map((account) => {
                     const accountData = accountMap.get(
@@ -131,9 +179,7 @@ export class OffersService {
                     if (!accountData) return null;
 
                     return {
-                        ...account,
-                        socialMediaUsername: accountData.socialMediaUsername,
-                        logo: accountData.logo,
+                        ...accountData
                     };
                 })
                 .filter((acc) => acc !== null),
@@ -605,67 +651,67 @@ export class OffersService {
     }
 
     //метод для приведения оффера к типу OfferRemake
-    async formatOfferBeforeSaving(data: any, id: Types.ObjectId): Promise<Offer> {
-        try {
-            const {title, socialMedia, connectedAccounts, price, genre, storyAndPostDetails} = data;
-
-            if (!title || !socialMedia || !connectedAccounts || !price) {
-                throw new Error('Invalid data');
-            }
-
-            const allowedSocialMedia = Object.values(SocialMediaEnum);
-
-            if (!allowedSocialMedia.includes(socialMedia as SocialMediaEnum)) {
-                throw new Error(`Invalid social media - ${socialMedia}`);
-            }
-
-            const allowedGenres = allowedGenresMap[socialMedia as SocialMediaEnum];
-
-            if (!allowedGenres) {
-                throw new Error(`No genres configured for social media - ${socialMedia}`);
-            }
-
-            if (!allowedGenres.includes(genre)) {
-                throw new Error(`Invalid genre "${genre}" for social media "${socialMedia}"`);
-            }
-
-            const offerPrice = parseInt(price);
-
-            if (typeof offerPrice !== 'number') {
-                throw new Error(`Price must be a number. At this point price is ${typeof price}`);
-            }
-
-            const results = await Promise.allSettled(
-                connectedAccounts.map((acc: any) =>
-                    this.tryParseOfferConnectedAccount(acc, socialMedia as SocialMediaType),
-                ),
-            );
-
-            const fulfilledResults = results.filter(
-                (r): r is PromiseFulfilledResult<OfferConnectedAccount | null> => r.status === 'fulfilled',
-            );
-
-            const validConnectedAccounts: OfferConnectedAccount[] = fulfilledResults
-                .map((r) => r.value)
-                .filter((acc): acc is OfferConnectedAccount => acc !== null);
-
-            return {
-                title: this.replaceFollowersInTitle(title.trim()),
-                socialMedia: socialMedia as SocialMediaType,
-                connectedAccounts: validConnectedAccounts,
-                price,
-                genre,
-                combinedFollowers: socialMedia !== 'press' ? this.getFollowersNumberPart(title) : null,
-                networksAmount: validConnectedAccounts.length || null,
-                storyAndPostDetails,
-                isPublished: false,
-                isDeleted: false,
-                _id: id,
-            };
-        } catch (err) {
-            throw new Error(err.message);
-        }
-    }
+    // async formatOfferBeforeSaving(data: any, id: Types.ObjectId): Promise<Offer> {
+    //     try {
+    //         const {title, socialMedia, connectedAccounts, price, genre, storyAndPostDetails} = data;
+    //
+    //         if (!title || !socialMedia || !connectedAccounts || !price) {
+    //             throw new Error('Invalid data');
+    //         }
+    //
+    //         const allowedSocialMedia = Object.values(SocialMediaEnum);
+    //
+    //         if (!allowedSocialMedia.includes(socialMedia as SocialMediaEnum)) {
+    //             throw new Error(`Invalid social media - ${socialMedia}`);
+    //         }
+    //
+    //         const allowedGenres = allowedGenresMap[socialMedia as SocialMediaEnum];
+    //
+    //         if (!allowedGenres) {
+    //             throw new Error(`No genres configured for social media - ${socialMedia}`);
+    //         }
+    //
+    //         if (!allowedGenres.includes(genre)) {
+    //             throw new Error(`Invalid genre "${genre}" for social media "${socialMedia}"`);
+    //         }
+    //
+    //         const offerPrice = parseInt(price);
+    //
+    //         if (typeof offerPrice !== 'number') {
+    //             throw new Error(`Price must be a number. At this point price is ${typeof price}`);
+    //         }
+    //
+    //         const results = await Promise.allSettled(
+    //             connectedAccounts.map((acc: any) =>
+    //                 this.tryParseOfferConnectedAccount(acc, socialMedia as SocialMediaType),
+    //             ),
+    //         );
+    //
+    //         const fulfilledResults = results.filter(
+    //             (r): r is PromiseFulfilledResult<OfferConnectedAccount | null> => r.status === 'fulfilled',
+    //         );
+    //
+    //         const validConnectedAccounts: OfferConnectedAccount[] = fulfilledResults
+    //             .map((r) => r.value)
+    //             .filter((acc): acc is OfferConnectedAccount => acc !== null);
+    //
+    //         return {
+    //             title: this.replaceFollowersInTitle(title.trim()),
+    //             socialMedia: socialMedia as SocialMediaType,
+    //             connectedAccounts: validConnectedAccounts,
+    //             price,
+    //             genre,
+    //             combinedFollowers: socialMedia !== 'press' ? this.getFollowersNumberPart(title) : null,
+    //             networksAmount: validConnectedAccounts.length || null,
+    //             storyAndPostDetails,
+    //             isPublished: false,
+    //             isDeleted: false,
+    //             _id: id,
+    //         };
+    //     } catch (err) {
+    //         throw new Error(err.message);
+    //     }
+    // }
 
     async tryParseOfferConnectedAccount(
         account: any,

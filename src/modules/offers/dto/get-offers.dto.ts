@@ -1,6 +1,7 @@
 import {ApiProperty} from "@nestjs/swagger";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {IsEnum} from "class-validator";
+import {FoundAccountDto} from "../../profile/dto/influencer/get-profile.dto";
 
 const allowedGenres = [
     'Techno (Melodic, Minimal)',
@@ -47,4 +48,33 @@ export class GetFilteredPublishedOffers {
     })
     @IsEnum(allowedGenres)
     genre: string;
+}
+
+export class FilteredPublishedOffersByGenreAndSocialMedia {
+    @ApiProperty()
+    _id: string;
+
+    @ApiProperty()
+    title: string;
+
+    @ApiProperty()
+    socialMedia: SocialMediaEnum;
+
+    @ApiProperty({type: () => [FoundAccountDto]})
+    connectedAccounts: FoundAccountDto[];
+
+    @ApiProperty()
+    price: number
+
+    @ApiProperty()
+    genre?: string;
+
+    @ApiProperty()
+    combinedFollowers?: string;
+
+    @ApiProperty()
+    networksAmount?: number;
+
+    @ApiProperty()
+    storyAndPostDetails?: string;
 }

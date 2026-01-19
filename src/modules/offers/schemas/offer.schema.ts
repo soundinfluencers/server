@@ -1,79 +1,79 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Types } from 'mongoose';
+import {Prop, Schema, SchemaFactory} from '@nestjs/mongoose';
+import {Types} from 'mongoose';
 import {
-  OfferConnectedAccount,
-  OfferConnectedAccountSchema,
+    OfferConnectedAccount,
+    OfferConnectedAccountSchema,
 } from '../entities/offer-connected-account.entity';
 import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
 
 @Schema({
-  timestamps: true,
+    timestamps: true,
 })
 export class Offer {
-  @Prop({ required: true })
-  title: string;
+    @Prop({type: Types.ObjectId})
+    _id: Types.ObjectId;
 
-  @Prop({
-    required: true,
-    type: String,
-    enum: SocialMediaEnum,
-  })
-  socialMedia: SocialMediaType;
+    @Prop({required: true})
+    title: string;
 
-  @Prop({
-    required: true,
-    type: [OfferConnectedAccountSchema],
-  })
-  connectedAccounts: OfferConnectedAccount[];
+    @Prop({
+        required: true,
+        type: String,
+        enum: SocialMediaEnum,
+    })
+    socialMedia: SocialMediaEnum;
 
-  @Prop({
-    required: true,
-  })
-  price: number;
+    @Prop({
+        required: true,
+        type: [OfferConnectedAccountSchema],
+    })
+    connectedAccounts: OfferConnectedAccount[];
 
-  @Prop({
-    type: String,
-    enum: [
-      'Techno (Melodic, Minimal)',
-      'Techno (Hard, Peak)',
-      'House (Tech House)',
-      'House (Melodic, Afro)',
-      'EDM',
-      'D&B',
-      'Bass',
-      'Psy, Trance',
-      'Dubstep',
-      'Garage',
-      'Dance Pop',
-    ],
-    default: null,
-    required: false,
-  })
-  genre?: string | null;
+    @Prop({
+        required: true,
+    })
+    price: number;
 
-  @Prop({ required: false, default: null })
-  combinedFollowers?: string | null;
+    @Prop({
+        type: String,
+        enum: [
+            'Techno (Melodic, Minimal)',
+            'Techno (Hard, Peak)',
+            'House (Tech House)',
+            'House (Melodic, Afro)',
+            'EDM',
+            'D&B',
+            'Bass',
+            'Psy, Trance',
+            'Dubstep',
+            'Garage',
+            'Dance Pop',
+        ],
+        default: null,
+        required: false,
+    })
+    genre?: string | null;
 
-  @Prop({ required: false, default: null })
-  networksAmount?: number | null;
+    @Prop({required: false, default: null})
+    combinedFollowers?: string | null;
 
-  @Prop({ required: false, default: null })
-  storyAndPostDetails?: string | null;
+    @Prop({required: false, default: null})
+    networksAmount?: number | null;
 
-  @Prop({ required: false, default: false })
-  isPublished: boolean;
+    @Prop({required: false, default: null})
+    storyAndPostDetails?: string | null;
 
-  @Prop({ required: false, default: false })
-  isDeleted: boolean;
+    @Prop({required: false, default: false})
+    isPublished: boolean;
 
-  @Prop({ type: Types.ObjectId })
-  _id: Types.ObjectId;
+    @Prop({required: false, default: false})
+    isDeleted: boolean;
 
-  @Prop()
-  readonly createdAt?: Date;
+    @Prop()
+    readonly createdAt?: Date;
 
-  @Prop()
-  readonly updatedAt?: Date;
+    @Prop()
+    readonly updatedAt?: Date;
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);

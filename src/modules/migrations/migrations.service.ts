@@ -340,4 +340,198 @@ export class MigrationsService {
                 'missingAccountId означает: не удалось найти accountId ни в legacy поле, ни в embedded аккаунтах Influencer (строго по username). В этом случае accountId будет null.',
         };
     }
+
+    private toNumber(v: any): number | null {
+        if (v === null || v === undefined) return null;
+        if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+        if (typeof v === 'string') {
+            const s = v.trim();
+            if (!s) return null;
+            const n = Number(s);
+            return Number.isFinite(n) ? n : null;
+        }
+        return null;
+    }
+
+    // "20€" -> 20, "USD 22" -> 22, "22" -> 22
+    private parsePrice(v: any): number | null {
+        if (v === null || v === undefined) return null;
+        if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+        if (typeof v !== 'string') return null;
+
+        const m = v.match(/-?\d+(\.\d+)?/);
+        if (!m) return null;
+        const n = Number(m[0]);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    private buildMusicGenres(acc: any) {
+        const primary = (acc?.musicStyle ?? '').toString().trim();
+
+        const raw: string[] = []
+            .concat(Array.isArray(acc?.musicSubStyles) ? acc.musicSubStyles : [])
+            .concat(Array.isArray(acc?.musicStyleOther) ? acc.musicStyleOther : [])
+            .map((x: any) => (x ?? '').toString().trim())
+            .filter(Boolean);
+
+        // genre -> subGenres[]
+        const out: { genre: string; subGenres: string[] }[] = [];
+
+        const ensure = (genre: string) => {
+            let g = out.find((x) => x.genre === genre);
+            if (!g) {
+                g = { genre, subGenres: [] };
+                out.push(g);
+            }
+            return g;
+        };
+
+        // 1) основной genre отдельной записью
+        if (primary) ensure(primary);
+
+        for (const item of raw) {
+            // --- Techno subgenres ---
+            if (item === 'Melodic, Minimal' || item === 'Hard, Peak') {
+                const g = ensure('Techno');
+                if (!g.subGenres.includes(item)) g.subGenres.push(item);
+                continue;
+            }
+
+            // --- House subgenres ---
+            if (item === 'Tech House' || item === 'Melodic' || item === 'Afro House' || item === 'Melodic, Afro') {
+                const g = ensure('House');
+                if (!g.subGenres.includes(item)) g.subGenres.push(item);
+                continue;
+            }
+
+            // --- остальные пункты из списка -> отдельные жанры без поджанров ---
+            // (Techno/House/EDM/D&B/Bass/Psy, Trance/Dubstep/Pop/Hip-hop и т.д.)
+            const g = ensure(item);
+            // subGenres не трогаем
+        }
+
+        // 2) подчистим пустые/дубликаты (на всякий)
+        for (const g of out) {
+            g.subGenres = Array.from(new Set(g.subGenres));
+        }
+
+        // 3) если primary есть, но не в списке и не встретился — он уже добавлен выше
+        return out.length ? out : undefined;
+    }
+
+    private mapLegacyAccount(acc: any) {
+        const username = (acc?.username ?? acc?.instagramUsername ?? '').toString().trim();
+        const profileLink = (acc?.profileLink ?? acc?.instagramLink ?? '').toString().trim();
+
+        const followers =
+            this.toNumber(acc?.followers) ??
+            this.toNumber(acc?.followersNumber) ??
+            0;
+
+        const logoUrl = (acc?.logoUrl ?? acc?.logo ?? '').toString().trim();
+
+        const price = this.parsePrice(acc?.price);
+        const publicPrice = this.parsePrice(acc?.publicPrice);
+
+        const mapped: any = {
+            ...acc, // сохраняем поля типа countries/categories/engagementRate/...
+            username,
+            profileLink,
+            followers,
+            logoUrl,
+            price: price ?? 0,
+            publicPrice: publicPrice ?? 0,
+            musicGenres: this.buildMusicGenres(acc) ?? acc?.musicGenres,
+        };
+
+        // выпиливаем legacy поля
+        delete mapped.instagramUsername;
+        delete mapped.instagramLink;
+        delete mapped.followersNumber;
+        delete mapped.logo;
+
+        delete mapped.musicStyle;
+        delete mapped.musicSubStyles;
+        delete mapped.musicStyleOther;
+
+        // если вдруг где-то legacy оставлял followersNumber как string, а followers не было:
+        delete mapped.followers; // мы выставили заново выше
+
+        return mapped;
+    }
+
+    async migrateInfluencersSocialAccountsV2(dto: MigrateCompletedCampaignsDto) {
+        const limit = dto.limit ?? 200;
+        const dryRun = !!dto.dryRun;
+        let lastId = this.oid(dto.startAfterId);
+
+        let scanned = 0;
+        let updated = 0;
+
+        const socials = ['instagram', 'tiktok', 'spotify', 'soundcloud', 'facebook', 'youtube', 'press'];
+
+        while (true) {
+            const filter: any = {
+                $or: [{ schemaVersion: { $exists: false } }, { schemaVersion: { $lt: 2 } }],
+            };
+            if (lastId) filter._id = { $gt: lastId };
+
+            const docs = await this.influencerModel
+                .find(filter)
+                .sort({ _id: 1 })
+                .limit(limit)
+                .lean();
+
+            if (!docs.length) break;
+
+            const bulk: any[] = [];
+
+            for (const doc of docs) {
+                scanned++;
+                lastId = doc._id as any;
+
+                const $set: any = { schemaVersion: 2, updatedAt: new Date() };
+                let touched = false;
+
+                for (const social of socials) {
+                    const arr = Array.isArray((doc as any)[social]) ? (doc as any)[social] : [];
+                    if (!arr.length) continue;
+
+                    $set[social] = arr.map((a: any) => this.mapLegacyAccount(a));
+                    touched = true;
+                }
+
+                if (!touched) {
+                    // даже если не трогали массивы — всё равно можно проставить schemaVersion
+                    // но это опционально. Я оставлю: проставляем.
+                }
+
+                const updatePipeline = [{ $set }];
+
+                if (dryRun) {
+                    this.logger.log(`[dryRun] influencer=${String(doc._id)} touched=${touched}`);
+                    continue;
+                }
+
+                bulk.push({
+                    updateOne: {
+                        filter: { _id: doc._id },
+                        update: updatePipeline, // pipeline update
+                    },
+                });
+            }
+
+            if (!dryRun && bulk.length) {
+                // ВАЖНО: через collection, чтобы не было кастинга mongoose
+                const res = await this.influencerModel.collection.bulkWrite(bulk, { ordered: false });
+                updated += res.modifiedCount ?? 0;
+
+                this.logger.log(
+                    `batch: scanned=${docs.length}, matched=${res.matchedCount}, modified=${res.modifiedCount}`,
+                );
+            }
+        }
+
+        return { ok: true, dryRun, scanned, updated };
+    }
 }

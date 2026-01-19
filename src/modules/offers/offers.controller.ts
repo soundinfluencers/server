@@ -9,7 +9,8 @@ import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiTags} from "@nestjs/swagg
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {Role} from "../../common/types/auth.types";
-import {GetFilteredPublishedOffers} from "./dto/get-offers.dto";
+import {FilteredPublishedOffersByGenreAndSocialMedia, GetFilteredPublishedOffers} from "./dto/get-offers.dto";
+import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 
 @ApiTags('offers')
 @Controller('offers')
@@ -44,8 +45,9 @@ export class OffersController {
         ],
         required: true,
     })
+    @ApiResponseDto(FilteredPublishedOffersByGenreAndSocialMedia)
     @Get('published/:socialMedia/:genre')
-    getPublishedOffersByGenreAndSocialMedia(@Param() params: GetFilteredPublishedOffers) {
+    getPublishedOffersByGenreAndSocialMedia(@Param() params: GetFilteredPublishedOffers): Promise<FilteredPublishedOffersByGenreAndSocialMedia[]> {
         return this.offersService.getPublishedOffersByGenreAndSocialMedia(params);
     }
 
@@ -89,49 +91,49 @@ export class OffersController {
         );
     }
 
-    @ApiExcludeEndpoint()
-    @Post('create/one')
-    async createNewOffer(@Body() data: any) {
-        try {
-            const formattedOffer = await this.offersService.formatOfferBeforeSaving(
-                data,
-                new Types.ObjectId(),
-            );
-            return this.offersService.createOffer(formattedOffer);
-        } catch (err) {
-            console.error(
-                new Date().toISOString(),
-                `Error creating new offer: ${data.title}`,
-                err instanceof Error ? err.stack : new Error().stack,
-            );
-            return {
-                code: 500,
-                message: err.message,
-            };
-        }
-    }
+    // @ApiExcludeEndpoint()
+    // @Post('create/one')
+    // async createNewOffer(@Body() data: any) {
+    //     try {
+    //         const formattedOffer = await this.offersService.formatOfferBeforeSaving(
+    //             data,
+    //             new Types.ObjectId(),
+    //         );
+    //         return this.offersService.createOffer(formattedOffer);
+    //     } catch (err) {
+    //         console.error(
+    //             new Date().toISOString(),
+    //             `Error creating new offer: ${data.title}`,
+    //             err instanceof Error ? err.stack : new Error().stack,
+    //         );
+    //         return {
+    //             code: 500,
+    //             message: err.message,
+    //         };
+    //     }
+    // }
 
-    @ApiExcludeEndpoint()
-    @Put('update/one/:id')
-    async updateOfferById(@Param('id') id: string, @Body() data: any) {
-        try {
-            const formattedOffer = await this.offersService.formatOfferBeforeSaving(
-                data,
-                new Types.ObjectId(id),
-            );
-            return this.offersService.findAndReplaceOffer(formattedOffer);
-        } catch (err) {
-            console.error(
-                new Date().toISOString(),
-                `Error updating offer: ${data.title}`,
-                err instanceof Error ? err.stack : new Error().stack,
-            );
-            return {
-                code: 500,
-                message: err.message,
-            };
-        }
-    }
+    // @ApiExcludeEndpoint()
+    // @Put('update/one/:id')
+    // async updateOfferById(@Param('id') id: string, @Body() data: any) {
+    //     try {
+    //         const formattedOffer = await this.offersService.formatOfferBeforeSaving(
+    //             data,
+    //             new Types.ObjectId(id),
+    //         );
+    //         return this.offersService.findAndReplaceOffer(formattedOffer);
+    //     } catch (err) {
+    //         console.error(
+    //             new Date().toISOString(),
+    //             `Error updating offer: ${data.title}`,
+    //             err instanceof Error ? err.stack : new Error().stack,
+    //         );
+    //         return {
+    //             code: 500,
+    //             message: err.message,
+    //         };
+    //     }
+    // }
 
     @ApiExcludeEndpoint()
     @Post('create/xlsx')

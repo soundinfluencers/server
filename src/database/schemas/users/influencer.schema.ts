@@ -96,86 +96,6 @@ export class SocialAccount {
 
     @Prop({type: Number, required: false})
     averageViews?: number;
-
-    // @Prop({ type: Types.ObjectId })
-    // _id: Types.ObjectId;
-    //
-    // @Prop() musicStyle: string;
-    //
-    // @Prop()
-    // profileLink: string;
-    //
-    // @Prop({ type: [String], default: [] })
-    // musicSubStyles: string[];
-    //
-    // @Prop({ type: [String], default: [] })
-    // musicStyleOther: string[];
-    //
-    // @Prop() instagramUsername: string;
-    //
-    // @Prop({ required: false})
-    // username: string;
-    //
-    // @Prop() instagramLink: string;
-    //
-    // @Prop() followersNumber: string;
-    //
-    // @Prop() logo: string;
-    //
-    // @Prop({
-    //     type: String,
-    //     enum: ['community', 'creator'],
-    //     default: 'community',
-    // })
-    // profileCategory: 'community' | 'creator';
-    //
-    // @Prop() price: string;
-    //
-    // @Prop() publicPrice: string;
-    //
-    // @Prop({ type: String, default: null })
-    // currency: string | null;
-    //
-    // @Prop({ type: Number, default: 0 })
-    // initialPrice: number;
-    //
-    // @Prop({
-    //     type: [
-    //         {
-    //             country: String,
-    //             percentage: Number,
-    //         },
-    //     ],
-    //     default: [],
-    // })
-    // countries: { country: string; percentage: number }[];
-    //
-    // @Prop({
-    //     type: [InfluencerMusicGenreSchema],
-    //     default: [],
-    // })
-    // musicGenres: InfluencerMusicGenre[];
-    //
-    // @Prop({ type: [String], default: [] })
-    // categories: string[];
-    //
-    // @Prop({ type: Number, default: null })
-    // engagementRate: number | null;
-    //
-    // @Prop({ type: Number, default: null })
-    // averageViews: number | null;
-    //
-    // @Prop({ type: [String], default: [] })
-    // creatorCategories: string[];
-    //
-    // @Prop({ default: false })
-    // isHidden: boolean;
-    //
-    // @Prop({ default: false })
-    // isDeleted: boolean;
-    //
-    // @Prop({ default: false })
-    // isVerified: boolean;
 }
 
 export const SocialAccountSchema = SchemaFactory.createForClass(SocialAccount);
@@ -193,6 +113,9 @@ SocialAccountSchema.index({
 export class Influencer extends Document {
     @Prop()
     _id: Types.ObjectId;
+
+    @Prop({ type: Number, default: 2, index: true, required: false })
+    schemaVersion: number;
 
     @Prop({required: true, type: String, enum: Role})
     role: Role;
