@@ -7,6 +7,7 @@ import {InfluencerActionsHistoryModule} from "../influencer-actions-history/infl
 import {CompletedCampaign, CompletedCampaignSchema} from "../../database/schemas/campaign/completed-campaign.schema";
 import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
 import {MongooseModule} from "@nestjs/mongoose";
+import {Campaign, CampaignSchema} from "../../database/schemas/campaign/campaign.schema";
 
 @Module({
     imports: [
@@ -15,6 +16,7 @@ import {MongooseModule} from "@nestjs/mongoose";
         InfluencerActionsHistoryModule,
         MongooseModule.forFeature([
             {name: Influencer.name, schema: InfluencerSchema},
+            {name: Campaign.name, schema: CampaignSchema},
             {name: CompletedCampaign.name, schema: CompletedCampaignSchema},
         ])
     ],

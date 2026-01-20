@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsInt, IsOptional, Min } from 'class-validator';
 
-export class MigrateCompletedCampaignsDto {
+export class MigrateCampaignsDto {
     @ApiPropertyOptional({ example: 200, description: 'Batch size' })
     @IsOptional()
     @IsInt()
