@@ -200,7 +200,7 @@ export class PromosService {
         const promos = await this.campaignRepo
             .findMany({
                 addedAccounts: {
-                    $elemMatch: {influencerId: influencerId, confirmation: 'wait'},
+                    $elemMatch: {influencerId: new Types.ObjectId(influencerId), confirmation: 'wait'},
                 },
                 $or: [{verifyPromo: 'accept'}, {verifyCampaign: 'accept'}],
             }, {lean: true});
@@ -245,33 +245,6 @@ export class PromosService {
                             userId: newObject.clientId || (newObject as any).userId,
                             clientName: "Unknown"
                         }];
-                    } else if ((acc as any).selectedVideo) {
-                        const selectedVideoObj = (item as any).videos.find(
-                            (video) => video.videoLink === (acc as any).selectedVideo,
-                        );
-
-                        return [
-                            {
-                                campaignId: newObject._id.toString(),
-                                influencerId: newObjectSocialMediaAccount.influencerId.toString(),
-                                addedAccountsId: acc._id.toString(),
-                                campaignName: newObject.campaignName,
-                                username:
-                                    newObjectSocialMediaAccount.username ??
-                                    (newObjectSocialMediaAccount as any).socialMediaUsername ??
-                                    (newObjectSocialMediaAccount as any).instagramUsername,
-                                accountSocialMedia: newObject.socialMedia as SocialMediaType,
-                                dateRequest: newObjectSocialMediaAccount.dateRequest,
-                                createdAt: formatDate(newObject.createdAt),
-                                mainLink: selectedVideoObj.videoLink,
-                                description: selectedVideoObj.postDescription,
-                                taggedUser: selectedVideoObj.storyTag,
-                                taggedLink: selectedVideoObj.swipeUpLink,
-                                additionalBrief: selectedVideoObj.specialWishes,
-                                userId: newObject.clientId || (newObject as any).userId,
-                                clientName: "Unknown",
-                            },
-                        ];
                     }
 
                     return [];
