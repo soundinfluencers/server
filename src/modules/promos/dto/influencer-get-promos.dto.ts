@@ -3,15 +3,47 @@ import {
     InfluencerCompletedPromo,
     InfluencerConfirmationStatusEnum,
     InfluencerConfirmationStatusType, InfluencerDashboardPromo,
-    InfluencerPromo, InfluencerPromoClosedStatusEnum, InfluencerPromoClosedStatusType,
-    InfluencerPromoRequest, InfluencerUpdatedPostDetails
+    InfluencerDashboardPromoStatus, InfluencerDetailedPromo, InfluencerNewPromoRequest, InfluencerPromoBase,
+    InfluencerPromoClosedStatusEnum, InfluencerPromoClosedStatusType,
+    InfluencerUpdatedPostDetails
 } from "../../../common/types/influencer/promo.types";
 import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
 import {CampaignStatusEnum} from "../../../common/types/client/campaign.types";
 import {IsInt, IsOptional, IsString, IsUrl, Min, ValidateNested} from "class-validator";
 import {Type} from "class-transformer";
 
-// TODO: add validation for each dto
+// base dto for returning promo (won't be used in any controller)
+class InfluencerPromoBaseDto implements InfluencerPromoBase {
+    @ApiProperty({type: String})
+    campaignId: string;
+
+    @ApiProperty({type: String})
+    influencerId: string;
+
+    @ApiProperty({type: String})
+    addedAccountsId: string;
+
+    @ApiPropertyOptional({type: String})
+    socialAccountId?: string;
+
+    @ApiProperty({type: String})
+    campaignName: string;
+
+    @ApiProperty({type: String})
+    username: string;
+
+    @ApiProperty({enum: SocialMediaEnum, type: String})
+    accountSocialMedia: SocialMediaType;
+
+    @ApiProperty({
+        description: 'Date when campaign was created',
+        example: 'dd.mm.yy',
+    })
+    createdAt: string;
+}
+
+
+//  --------------- REQUESTS ------------------
 
 // dto for request influencer's past promo (query)
 export class InfluencerGetPastPromoQueryDto {
@@ -25,64 +57,10 @@ export class InfluencerGetPastPromoQueryDto {
         description: '_id of needed object inside of addedAccounts array from campaign',
         example: '6612fabc999',
     })
-    selectInfluencersId: string;
+    addedAccountsId: string;
 }
 
-// dto for returning detailed new promo request
-export class InfluencerPromoRequestDto implements InfluencerPromoRequest {
-    @ApiProperty()
-    campaignId: string;
-
-    @ApiProperty()
-    influencerId: string;
-
-    @ApiProperty()
-    selectInfluencersId: string;
-
-    @ApiProperty()
-    client?: string;
-
-    @ApiProperty()
-    campaignName: string;
-
-    @ApiProperty()
-    username: string;
-
-    @ApiProperty()
-    socialMedia: SocialMediaType;
-
-    @ApiProperty({ type: String, format: 'date-time' })
-    dateRequest: string | Date;
-
-    @ApiProperty({
-        description: 'Date when campaign was created',
-        example: 'dd.mm.yy',
-    })
-    createdAt: string;
-
-    @ApiProperty()
-    mainLink: string;
-
-    @ApiProperty()
-    description: string;
-
-    @ApiProperty()
-    taggedUser?: string;
-
-    @ApiProperty()
-    taggedLink?: string;
-
-    @ApiProperty()
-    additionalBrief?: string;
-}
-
-// dto for returning an array of detailed new promos requests
-export class InfluencerGetPromoRequestsDto {
-    @ApiProperty({ type: () => [InfluencerPromoRequestDto] })
-    promos: InfluencerPromoRequest[];
-}
-
-// dto for request for updating influencer's response for new promo request
+// dto request for updating influencer's response for new promo request
 export class InfluencerUpdatePromoResponseUpdateDto {
     @ApiProperty({
         description: 'Campaign _id',
@@ -94,7 +72,7 @@ export class InfluencerUpdatePromoResponseUpdateDto {
         description: '_id of needed object inside of addedAccounts array from campaign',
         example: '6612fabc999',
     })
-    selectInfluencersId: string;
+    addedAccountsId: string;
 
     @ApiProperty({
         description: "Username of influencer's social account",
@@ -110,19 +88,7 @@ export class InfluencerUpdatePromoResponseUpdateDto {
     campaignResponse: InfluencerConfirmationStatusType;
 }
 
-// dto for returning detailed ongoing promo
-export class InfluencerGetOngoingOrPastPromoResDto extends InfluencerPromoRequestDto implements InfluencerPromo {
-    @ApiProperty({ enum: CampaignStatusEnum })
-    statusCampaign: CampaignStatusEnum;
-
-    @ApiProperty({ enum: InfluencerPromoClosedStatusEnum })
-    closedStatus: InfluencerPromoClosedStatusType;
-
-    @ApiProperty({ enum: InfluencerConfirmationStatusEnum })
-    confirmation: InfluencerConfirmationStatusType;
-}
-
-// dto with updated promo's post details
+// dto for request with updated promo's post details
 export class InfluencerUpdatedPostDetailsDto implements InfluencerUpdatedPostDetails {
     @ApiPropertyOptional({
         description: 'Link to influencer post',
@@ -183,6 +149,16 @@ export class InfluencerUpdatedPostDetailsDto implements InfluencerUpdatedPostDet
     shares?: number;
 
     @ApiPropertyOptional({
+        description: 'Post saves count',
+        example: 323,
+        minimum: 0,
+    })
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    saves?: number;
+
+    @ApiPropertyOptional({
         description: 'Internal rating for the post',
         example: 4.5,
         minimum: 0,
@@ -192,7 +168,7 @@ export class InfluencerUpdatedPostDetailsDto implements InfluencerUpdatedPostDet
     rating?: number;
 }
 
-// dto for request for closing influencer's ongoing
+// dto request for closing influencer's ongoing
 export class InfluencerUpdatePromoReqBodyDto {
     @ApiProperty({
         description: 'Campaign _id',
@@ -202,11 +178,11 @@ export class InfluencerUpdatePromoReqBodyDto {
     campaignId: string;
 
     @ApiProperty({
-        description: '_id of needed object inside selectInfluencers array from campaign',
+        description: '_id of needed object inside addedAccounts array from campaign',
         example: '6612fabc999',
     })
     @IsString()
-    selectInfluencersId: string;
+    addedAccountsId: string;
 
     @ApiProperty({
         description: "Username of influencer's social account",
@@ -226,13 +202,7 @@ export class InfluencerUpdatePromoReqBodyDto {
     influencerId?: string;
 }
 
-export enum InfluencerDashboardPromoStatus {
-    ongoing = 'ongoing',
-    close = 'close',
-    new = 'new',
-    all = 'all',
-}
-
+// dto request for getting dashboard promos
 export class InfluencerGetDashboardPromosQueryDto {
     @ApiPropertyOptional({
         description: 'Type of promos returned',
@@ -255,12 +225,13 @@ export class InfluencerGetDashboardPromosQueryDto {
     influencerId: string;
 }
 
+// dto request for getting completed promos
 export class InfluencerGetCompletedPromosQueryDto {
     @ApiPropertyOptional({
         default: 12
     })
     limit: number;
-    
+
     @ApiPropertyOptional({
         default: 1,
         description: 'Page number (starts from 1)',
@@ -270,123 +241,116 @@ export class InfluencerGetCompletedPromosQueryDto {
     influencerId: string;
 }
 
-export class InfluencerDashboardPromoDto implements InfluencerDashboardPromo {
-    @ApiProperty({
-        description: 'Campaign _id',
-        example: '65f123abc456',
-    })
-    campaignId: string;
+
+//  --------------- RESPONSES ------------------
+
+// dto for returning new promo request
+export class InfluencerNewPromoRequestDto extends InfluencerPromoBaseDto implements InfluencerNewPromoRequest {
+    @ApiProperty({type: String})
+    clientName: string;
 
     @ApiProperty({
-        description: '_id of object inside addedAccounts array from campaign',
-        example: '6612fabc999',
-    })
-    selectInfluencersId: string;
-
-    @ApiProperty({
-        description: 'Campaign name',
-        example: 'Regard & Afterlife',
-    })
-    campaignName: string;
-
-    @ApiProperty({
-        description: 'Social media of account',
-        example: 'tiktok',
-        enum: SocialMediaEnum
-    })
-    socialMedia: SocialMediaType;
-
-    @ApiProperty({
-        description: 'Status of campaign',
-        example: 'Pending',
-        enum: CampaignStatusEnum
-    })
-    statusCampaign: CampaignStatusEnum;
-
-    @ApiProperty({
-        description: 'Account closed status for promo',
-        example: 'closed',
-        enum: InfluencerPromoClosedStatusEnum
-    })
-    closedStatus: InfluencerPromoClosedStatusType;
-
-    @ApiProperty({
-        description: 'Account confirmation status for promo',
-        example: 'accept',
-        enum: InfluencerConfirmationStatusEnum
-    })
-    confirmation: InfluencerConfirmationStatusType;
-
-    @ApiProperty({
-        description: 'Date when campaign was created',
+        description: 'Promo deadline',
         example: 'dd.mm.yy',
     })
-    createdAt: string;
+    dateRequest: string;
+
+    @ApiProperty({type: String})
+    mainLink: string;
+
+    @ApiPropertyOptional({type: String})
+    description?: string;
+
+    @ApiPropertyOptional({type: String})
+    taggedUser?: string;
+
+    @ApiPropertyOptional({type: String})
+    taggedLink?: string;
+
+    @ApiPropertyOptional({type: String})
+    additionalBrief?: string;
 }
 
+// dto for returning an array of new promos requests
+export class InfluencerNewPromoRequestsDto {
+    @ApiProperty({type: () => [InfluencerNewPromoRequestDto]})
+    promos: InfluencerNewPromoRequest[];
+}
+
+// dto for returning dashboard promo
+export class InfluencerDashboardPromoDto extends InfluencerPromoBaseDto implements InfluencerDashboardPromo {
+    @ApiProperty({enum: CampaignStatusEnum, type: String})
+    statusCampaign: CampaignStatusEnum;
+
+    @ApiProperty({enum: InfluencerPromoClosedStatusEnum, type: String})
+    closedStatus: InfluencerPromoClosedStatusType;
+
+    @ApiProperty({enum: InfluencerConfirmationStatusEnum, type: String})
+    confirmation: InfluencerConfirmationStatusType;
+}
+
+// dto for returning an array of dashboard promos
 export class InfluencerDashboardPromosDto {
-    @ApiProperty({ type: () => [InfluencerDashboardPromoDto] })
+    @ApiProperty({type: () => [InfluencerDashboardPromoDto]})
     promos: InfluencerDashboardPromo[];
 }
 
-export class InfluencerCompletedPromoDto implements InfluencerCompletedPromo {
-    @ApiProperty({
-        description: 'Campaign _id',
-        example: '65f123abc456',
-    })
-    campaignId: string;
+// dto for returning completed promo
+export class InfluencerCompletedPromoDto extends InfluencerPromoBaseDto implements InfluencerCompletedPromo {
+    @ApiProperty({type: String})
+    clientName: string;
 
-    @ApiProperty({
-        description: '_id of object inside addedAccounts array from campaign',
-        example: '6612fabc999',
-    })
-    selectInfluencersId: string;
-
-    @ApiProperty({
-        description: 'Campaign name',
-        example: 'Regard & Afterlife',
-    })
-    campaignName: string;
-
-    @ApiProperty({
-        description: 'Social account username',
-        example: 'techno_tv',
-    })
-    username: string;
-
-    @ApiProperty({
-        description: 'Social media of account',
-        example: 'tiktok',
-        enum: SocialMediaEnum
-    })
-    socialMedia: SocialMediaType;
-
-    @ApiProperty({
-        description: 'Reward for influencer for completing promo',
-        example: 500,
-    })
+    @ApiProperty({type: Number})
     reward: number;
 
-    @ApiProperty({
-        description: 'Post link',
-        example: 'https://instagram.com/p/ABC123',
-    })
+    @ApiProperty({type: String})
     postLink: string;
-
-    @ApiProperty({
-        description: "Client's name or company name",
-        example: 'Music Label Inc',
-    })
-    client: string;
-
-    @ApiProperty({
-        description: 'Date when campaign was created',
-        example: 'dd.mm.yy',
-    })
-    createdAt: string;
 }
 
+// dto for returning an array of completed promos
 export class InfluencerCompletedPromosDto {
-    @ApiProperty({ type: () => [InfluencerCompletedPromoDto] })
+    @ApiProperty({type: () => [InfluencerCompletedPromoDto]})
     promos: InfluencerCompletedPromo[];
+}
+
+// dto for returning detailed ongoing promo
+export class InfluencerDetailedPromoDto extends InfluencerPromoBaseDto implements InfluencerDetailedPromo {
+    @ApiProperty({type: String})
+    clientName: string;
+
+    @ApiProperty({type: Number})
+    reward: number;
+
+    @ApiPropertyOptional({type: String})
+    postLink?: string;
+
+    @ApiProperty({
+        description: 'Promo deadline',
+        example: 'dd.mm.yy',
+    })
+    dateRequest: string;
+
+    @ApiProperty({type: String})
+    mainLink: string;
+
+    @ApiPropertyOptional({type: String})
+    description?: string;
+
+    @ApiPropertyOptional({type: String})
+    taggedUser?: string;
+
+    @ApiPropertyOptional({type: String})
+    taggedLink?: string;
+
+    @ApiPropertyOptional({type: String})
+    additionalBrief?: string;
+
+    @ApiProperty({enum: CampaignStatusEnum, type: String})
+    statusCampaign: CampaignStatusEnum;
+
+    @ApiProperty({enum: InfluencerPromoClosedStatusEnum, type: String})
+    closedStatus: InfluencerPromoClosedStatusType;
+
+    @ApiProperty({enum: InfluencerConfirmationStatusEnum, type: String})
+    confirmation: InfluencerConfirmationStatusType;
 }

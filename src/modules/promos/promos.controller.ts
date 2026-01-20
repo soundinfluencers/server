@@ -10,21 +10,21 @@ import {
 import {PromosService} from './promos.service';
 import {ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {
+    InfluencerCompletedPromoDto,
     InfluencerCompletedPromosDto,
     InfluencerDashboardPromosDto,
-    InfluencerDashboardPromoStatus,
+    InfluencerDetailedPromoDto,
     InfluencerGetCompletedPromosQueryDto,
     InfluencerGetDashboardPromosQueryDto,
-    InfluencerGetOngoingOrPastPromoResDto,
     InfluencerGetPastPromoQueryDto,
-    InfluencerGetPromoRequestsDto, InfluencerUpdatePromoReqBodyDto,
+    InfluencerNewPromoRequestsDto, InfluencerUpdatePromoReqBodyDto,
     InfluencerUpdatePromoResponseUpdateDto,
 } from "./dto/influencer-get-promos.dto";
 import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
-import {InfluencerPromo} from "../../common/types/influencer/promo.types";
 import {Roles} from "../../common/decorators/roles.decorator";
+import {InfluencerDashboardPromoStatus} from "../../common/types/influencer/promo.types";
 
 @ApiTags('promos')
 @Controller('promos')
@@ -35,35 +35,16 @@ export class PromosController {
     @Auth()
     @Roles(Role.influencer)
     @ApiOperation({summary: 'Get influencer new promos requests'})
-    @ApiResponseDto(InfluencerGetPromoRequestsDto)
+    @ApiResponseDto(InfluencerNewPromoRequestsDto)
     @Get('requests')
-    async influencerGetNewPromos(@Req() request: AuthenticatedRequest): Promise<InfluencerGetPromoRequestsDto> {
+    async influencerGetNewPromos(@Req() request: AuthenticatedRequest): Promise<InfluencerNewPromoRequestsDto> {
         const promos = await this.promosService.influencerGetNewPromos(request.user._id);
         return ({promos});
     }
 
     @Auth()
     @Roles(Role.influencer)
-    @ApiOperation({summary: `Update influencer's response to promo request`})
-    @ApiResponseDto()
-    @Patch('requests')
-    influencerUpdateResponseToPromoRequest(
-        @Body() body: InfluencerUpdatePromoResponseUpdateDto,
-        @Req() request: AuthenticatedRequest,
-    ) {
-        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
-
-        const dataToUse = {
-            ...body,
-            influencerId: request.user._id,
-        }
-
-        return this.promosService.influencerUpdateResponseNewCampaign(dataToUse);
-    }
-
-    @Auth()
-    @Roles(Role.influencer)
-    @ApiOperation({summary: `Returns influencer's ongoing, completed, new requests promos`})
+    @ApiOperation({summary: `Returns influencer's promos for dashboard`})
     @ApiResponseDto(InfluencerDashboardPromosDto)
     @ApiQuery({
         name: 'status',
@@ -80,7 +61,7 @@ export class PromosController {
         required: false,
         type: 'number',
     })
-    @Get()
+    @Get('/dashboard')
     async influencerGetDashboardPromos(@Req() request: AuthenticatedRequest, @Query() query: InfluencerGetDashboardPromosQueryDto): Promise<InfluencerDashboardPromosDto> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
@@ -112,15 +93,15 @@ export class PromosController {
 
     @Auth()
     @Roles(Role.influencer)
-    @ApiOperation({summary: "Returns influencer's ongoing promo"})
+    @ApiOperation({summary: "Returns influencer's completed promo"})
     @ApiQuery({name: 'campaignId', required: true})
     @ApiQuery({name: 'selectInfluencersId', required: true})
-    @ApiResponseDto(InfluencerGetOngoingOrPastPromoResDto)
+    @ApiResponseDto(InfluencerCompletedPromoDto)
     @Get('completed/:campaignId')
     influencerGetCompletedPromo(
         @Req() request: AuthenticatedRequest,
         @Query() query: InfluencerGetPastPromoQueryDto
-    ): Promise<InfluencerPromo> {
+    ): Promise<InfluencerCompletedPromoDto> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
         return this.promosService.influencerPastPromoOne({...query, influencerId: request.user._id});
@@ -131,7 +112,7 @@ export class PromosController {
     @ApiOperation({summary: "Returns influencer's ongoing promo"})
     @ApiQuery({name: 'campaignId', required: true})
     @ApiQuery({name: 'selectInfluencersId', required: true})
-    @ApiResponseDto(InfluencerGetOngoingOrPastPromoResDto)
+    @ApiResponseDto(InfluencerDetailedPromoDto)
     @Get('ongoing/:campaignId')
     influencerGetOngoingPromo(
         @Req() request: AuthenticatedRequest,
@@ -139,7 +120,7 @@ export class PromosController {
             campaignId: string;
             selectInfluencersId: string;
         },
-    ) {
+    ): Promise<InfluencerDetailedPromoDto> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
         return this.promosService.influencerGetOngoingPromo(
@@ -147,6 +128,25 @@ export class PromosController {
             args.campaignId,
             args.selectInfluencersId,
         );
+    }
+
+    @Auth()
+    @Roles(Role.influencer)
+    @ApiOperation({summary: `Update influencer's response to promo request`})
+    @ApiResponseDto()
+    @Patch('requests')
+    influencerUpdateResponseToPromoRequest(
+        @Body() body: InfluencerUpdatePromoResponseUpdateDto,
+        @Req() request: AuthenticatedRequest,
+    ) {
+        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
+
+        const dataToUse = {
+            ...body,
+            influencerId: request.user._id,
+        }
+
+        return this.promosService.influencerUpdateResponseNewCampaign(dataToUse);
     }
 
     @Auth()

@@ -1,34 +1,6 @@
 import { SocialMediaType } from "../social-media.types";
 import { CampaignStatusEnum } from "../client/campaign.types";
 
-export interface InfluencerPromoRequest {
-    // id of campaign
-    campaignId: string;
-
-    // id of influencer's account
-    influencerId: string;
-
-    // id of influencer's social account
-    selectInfluencersId: string;
-
-    // Client's name or company name
-    client?: string;
-    campaignName: string;
-    username: string;
-
-    // social media of social account
-    socialMedia: SocialMediaType;
-    dateRequest: string | Date;
-    createdAt: string | Date;
-
-    // promo's info
-    mainLink: string;
-    description: string;
-    taggedUser?: string;
-    taggedLink?: string;
-    additionalBrief?: string;
-}
-
 // type and enum for influencer's response to new promo request
 export type InfluencerConfirmationStatusType = 'accept' | 'reject' | 'wait';
 export enum InfluencerConfirmationStatusEnum {
@@ -44,50 +16,112 @@ export enum InfluencerPromoClosedStatusEnum {
     wait = 'wait',
 }
 
-export interface InfluencerPromo extends InfluencerPromoRequest {
-    statusCampaign: CampaignStatusEnum;
-    closedStatus: InfluencerPromoClosedStatusType;
-    confirmation: InfluencerConfirmationStatusType;
+// enum of statuses for filtering influencer dashboard promos
+export enum InfluencerDashboardPromoStatus {
+    ongoing = 'ongoing',
+    close = 'close',
+    new = 'new',
+    all = 'all',
 }
 
-export interface InfluencerDashboardPromo {
-    // _id of campaign
+// base for other promo interfaces
+export interface InfluencerPromoBase {
+    // id of campaign
     campaignId: string;
-    // _id of object inside selectInfluencers array
-    selectInfluencersId: string;
-    // name of campaign
-    campaignName: string;
-    // social media of social account
-    socialMedia: SocialMediaType;
-    // status of campaign
-    statusCampaign: CampaignStatusEnum;
-    // social account's closed status
-    closedStatus: InfluencerPromoClosedStatusType;
-    // social account's confirmation status
-    confirmation: InfluencerConfirmationStatusType;
-    // campaign creation date
-    createdAt: string;
-}
 
-export interface InfluencerCompletedPromo {
-    // _id of campaign
-    campaignId: string;
-    // _id of object inside selectInfluencers array
-    selectInfluencersId: string;
-    // name of campaign
+    // id of influencer's account
+    influencerId: string;
+
+    // id of object in addedAccounts
+    addedAccountsId: string;
+
+    // id of influencer's social account (can be undefined in case of old schema didn't contain this field)
+    socialAccountId?: string;
+
+    // campaignName
     campaignName: string;
-    // social account username
+
+    // social account's username
     username: string;
+
     // social media of social account
-    socialMedia: SocialMediaType;
-    // reward for influencer for completing promo
-    reward: number;
-    // post link
-    postLink: string;
-    // client's name or company name
-    client: string;
-    // campaign creation date
+    accountSocialMedia: SocialMediaType;
+
+    // date when promo was requested
     createdAt: string;
+
+    // Client's name or company name
+    // client?: string;
+
+    // statuses
+    // statusCampaign: CampaignStatusEnum;
+    // closedStatus: InfluencerPromoClosedStatusType;
+    // confirmation: InfluencerConfirmationStatusType;
+
+    // promo's info
+    // dateRequest: string | Date;
+    // mainLink: string;
+    // description: string;
+    // taggedUser?: string;
+    // taggedLink?: string;
+    // additionalBrief?: string;
+}
+
+// promo object for showing in new promo requests
+export interface InfluencerNewPromoRequest extends InfluencerPromoBase {
+    // Client's name or company name
+    clientName: string;
+
+    // promo's info
+    dateRequest: string;
+    mainLink: string;
+    description?: string;
+    taggedUser?: string;
+    taggedLink?: string;
+    additionalBrief?: string;
+}
+
+// promo object for showing in dashboard
+export interface InfluencerDashboardPromo extends InfluencerPromoBase {
+    // statuses
+    statusCampaign: CampaignStatusEnum;
+    closedStatus: InfluencerPromoClosedStatusType;
+    confirmation: InfluencerConfirmationStatusType;
+}
+
+// promo object for showing in completed promos list
+export interface InfluencerCompletedPromo extends InfluencerPromoBase {
+    // Client's name or company name
+    clientName: string;
+    // reward for influencer for completing promo (default price, not publicPrice)
+    reward: number;
+    // link for created post
+    postLink: string;
+}
+
+// promo object with all details
+export interface InfluencerDetailedPromo extends InfluencerPromoBase {
+    // Client's name or company name
+    clientName: string;
+
+    // reward for influencer for completing promo (default price, not publicPrice)
+    reward: number;
+
+    // link for created post (can be undefined in case of ongoing/not completed promo)
+    postLink?: string;
+
+    // promo's info
+    dateRequest: string;
+    mainLink: string;
+    description?: string;
+    taggedUser?: string;
+    taggedLink?: string;
+    additionalBrief?: string;
+
+    // statuses
+    statusCampaign: CampaignStatusEnum;
+    closedStatus: InfluencerPromoClosedStatusType;
+    confirmation: InfluencerConfirmationStatusType;
 }
 
 // interface for updating promo's post details
@@ -98,5 +132,6 @@ export interface InfluencerUpdatedPostDetails {
     like?: number;
     comments?: number;
     shares?: number;
+    saves?: number;
     rating?: number;
 }

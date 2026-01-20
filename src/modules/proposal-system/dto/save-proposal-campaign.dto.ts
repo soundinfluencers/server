@@ -42,7 +42,7 @@ export class SaveProposalCampaignDto {
   campaignName: string;
 
   @ApiProperty({ required: false })
-  selectInfluencers: selectInfluencersType[];
+  addedAccounts: selectInfluencersType[];
 
   @ApiProperty({ required: false })
   campaignContent: campaignContentItemType[];

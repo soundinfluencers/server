@@ -79,6 +79,9 @@ export class CampaignAccount {
     shares?: number;
 
     @Prop({type: Number, required: false})
+    saves?: number;
+
+    @Prop({type: Number, required: false})
     rating?: number;
 
     @Prop({type: Boolean, required: false})
