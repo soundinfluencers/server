@@ -95,7 +95,7 @@ export class PromosService {
                     'addedAccounts.influencerId': new Types.ObjectId(influencerId),
                 },
             },
-            {$unwind: 'addedAccounts'},
+            {$unwind: '$addedAccounts'},
             {
                 $match: {
                     'addedAccounts.influencerId': new Types.ObjectId(influencerId),
@@ -142,12 +142,12 @@ export class PromosService {
             $project: {
                 _id: 0,
                 campaignId: '$_id',
-                addedAccountsId: 'addedAccounts._id',
+                addedAccountsId: '$addedAccounts._id',
                 campaignName: '$campaignName',
-                socialMedia: 'addedAccounts.socialMedia',
+                socialMedia: '$addedAccounts.socialMedia',
                 statusCampaign: '$statusCampaign',
-                closedStatus: 'addedAccounts.closePromo',
-                confirmation: 'addedAccounts.confirmation',
+                closedStatus: '$addedAccounts.closePromo',
+                confirmation: '$addedAccounts.confirmation',
                 createdAt: {
                     $concat: [
                         {$dateToString: {date: '$createdAt', format: '%d.%m.'}},
