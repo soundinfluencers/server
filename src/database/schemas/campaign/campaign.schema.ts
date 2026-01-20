@@ -3,7 +3,7 @@ import {Types} from 'mongoose';
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {
     CampaignConfirmationEnum,
-    CampaignPaymentMethodEnum,
+    CampaignPaymentMethodEnum, CampaignPaymentStatusEnum,
     CampaignStatusEnum
 } from "../../../common/types/client/campaign.types";
 import {
@@ -87,8 +87,8 @@ export class CampaignAccount {
     @Prop({type: Boolean, required: false})
     adminChecked?: boolean;
 
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 
 const CampaignAccountSchema = SchemaFactory.createForClass(CampaignAccount);
@@ -162,11 +162,11 @@ export class Campaign {
     @Prop({required: true, type: String, enum: CampaignConfirmationEnum})
     verifyCampaign: CampaignConfirmationEnum;
 
-    @Prop({required: true, enum: CampaignStatusEnum, type: String})
+    @Prop({required: false, enum: CampaignStatusEnum, default: 'under_review', type: String})
     statusCampaign: CampaignStatusEnum;
 
-    @Prop({required: true, default: 'wait', enum: ['wait', 'confirmed'], type: String})
-    paymentStatus: ['wait', 'confirmed'];
+    @Prop({required: true, default: 'wait', enum: CampaignPaymentStatusEnum, type: String})
+    paymentStatus: CampaignPaymentStatusEnum;
 
     @Prop({required: true, enum: CampaignPaymentMethodEnum, type: String})
     paymentType: CampaignPaymentMethodEnum;
@@ -189,8 +189,8 @@ export class Campaign {
     @Prop({required: false, type: Boolean})
     isPriceHidden?: boolean;
 
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 
 export const CampaignSchema = SchemaFactory.createForClass(Campaign);

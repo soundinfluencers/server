@@ -9,6 +9,12 @@ export enum CampaignConfirmationEnum {
     decline = 'decline',
 }
 
+// Campaign payment status
+export enum CampaignPaymentStatusEnum {
+    wait = 'wait',
+    confirmed = 'confirmed',
+}
+
 // Campaign type enum for getting correct campaigns
 export enum CampaignTypeEnumForDevelopment {
     draft = 'draft',
@@ -21,6 +27,7 @@ export enum CampaignTypeEnumForDevelopment {
 
 // Verified campaign progress status enum
 export enum CampaignStatusEnum {
+    underReview = 'under_review',
     pending = 'pending',
     distributing = 'distributing',
     completed = 'completed',
@@ -113,6 +120,7 @@ export interface PublicCampaignForTable {
     totalFollowers: number;
     totalLikes: number;
     totalImpressions: number;
+    totalSaves: number;
     totalComments: number;
     totalShares: number;
 

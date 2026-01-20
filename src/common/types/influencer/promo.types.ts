@@ -17,11 +17,17 @@ export enum InfluencerPromoClosedStatusEnum {
 }
 
 // enum of statuses for filtering influencer dashboard promos
-export enum InfluencerDashboardPromoStatus {
+export enum InfluencerDashboardPromoStatusRequest {
     ongoing = 'ongoing',
     close = 'close',
     new = 'new',
     all = 'all',
+}
+
+// enum of statuses for filtering influencer detailed promos
+export enum InfluencerDetailedPromoStatusRequest {
+    ongoing = 'ongoing',
+    close = 'close',
 }
 
 // base for other promo interfaces
@@ -99,8 +105,8 @@ export interface InfluencerCompletedPromo extends InfluencerPromoBase {
     postLink: string;
 }
 
-// promo object with all details
-export interface InfluencerDetailedPromo extends InfluencerPromoBase {
+// promo object with all details (using as ongoing promo)
+export interface InfluencerOngoingPromo extends InfluencerPromoBase {
     // Client's name or company name
     clientName: string;
 

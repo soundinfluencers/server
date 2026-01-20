@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import mongoose, {Types} from "mongoose";
 import {
+    CampaignConfirmationEnum,
+    CampaignPaymentStatusEnum,
     CampaignStatusEnum,
     CampaignTypeEnumForDevelopment,
     ClientCampaignForTable,
@@ -33,11 +35,15 @@ import {CompletedCampaignRepository} from "../../database/repositories/campaigns
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {ProposalCampaignRepository} from "../../database/repositories/campaigns/proposal-campaign.repository";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
-import {Campaign, CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
+import {Campaign, CampaignAccount, CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
 import {Client} from "../../database/schemas/users/client.schema";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {DraftCampaignRepository} from "../../database/repositories/campaigns/draft-campaign.repository";
 import {mapToDetailedDraftCampaignDto} from "../../common/mappers/campaign.mapper";
+import {
+    InfluencerConfirmationStatusEnum,
+    InfluencerPromoClosedStatusEnum
+} from "../../common/types/influencer/promo.types";
 
 @Injectable()
 export class CampaignsService {
@@ -195,7 +201,7 @@ export class CampaignsService {
         const createdAt = new Date();
 
         const processedAccounts = await Promise.all(
-            data.addedAccounts.map(async (influencer) => {
+            data.addedAccounts.map(async (influencer): Promise<CampaignAccount> => {
                 const dateRequest = influencer.dateRequest;
 
                 const influencerData = await this.influencerRepo
@@ -233,6 +239,12 @@ export class CampaignsService {
                     return {
                         ...influencer,
                         _id: new mongoose.Types.ObjectId(),
+                        username: socialMediaAccount.username,
+                        influencerId: new Types.ObjectId(influencerId),
+                        accountId: new Types.ObjectId(influencer.socialMediaAccountId),
+                        followers: socialMediaAccount.followers,
+                        price: socialMediaAccount.price,
+                        publicPrice: socialMediaAccount.publicPrice,
                         selectedContent: {
                             campaignContentItemId: new Types.ObjectId(
                                 influencer.selectedCampaignContentItem.campaignContentItemId,
@@ -241,11 +253,8 @@ export class CampaignsService {
                                 influencer.selectedCampaignContentItem.descriptionId,
                             ),
                         },
-                        influencerId: influencerId,
-                        accountId: new Types.ObjectId(influencer.socialMediaAccountId),
-                        price: socialMediaAccount.price,
-                        publicPrice: socialMediaAccount.publicPrice,
-                        followersNumber: socialMediaAccount.followers,
+                        confirmation: InfluencerConfirmationStatusEnum.wait,
+                        closePromo: InfluencerPromoClosedStatusEnum.wait,
                         createdAt,
                         dateRequest,
                     };
@@ -282,15 +291,16 @@ export class CampaignsService {
                 _id: campaignId,
                 clientId: new Types.ObjectId(data.clientId),
                 campaignName: data.campaignName.trim(),
-                selectInfluencers: processedAccounts,
+                addedAccounts: processedAccounts,
                 paymentType: !data.paymentType ? 'payment' : data.paymentType,
-                paymentStatus: 'wait',
-                statusCampaign: 'wait',
-                verifyCampaign: 'wait',
+                paymentStatus: CampaignPaymentStatusEnum.confirmed,
+                statusCampaign: CampaignStatusEnum.underReview,
+                verifyCampaign: CampaignConfirmationEnum.wait,
                 shareLink: `${process.env.SERVER_CLIENT}/promo-share/${campaignId}/${data.socialMedia}`,
                 campaignContent: processedCampaignContent,
                 createdAt,
-            }, {session});
+                schemaVersion: 2
+            } as Campaign , {session});
 
             client = await this.clientRepo.findOne({_id: data.clientId}, {session});
 
@@ -338,7 +348,7 @@ export class CampaignsService {
                             )
                             .map(
                                 (account) =>
-                                    `<li>${account.socialMedia} username: ${account.socialMediaUsername}</li>`,
+                                    `<li>${account.socialMedia} username: ${account.username}</li>`,
                             )
                             .join('')}
           </ul>
@@ -372,7 +382,7 @@ export class CampaignsService {
                             )
                             .map(
                                 (influencer) =>
-                                    `<li>${influencer.socialMedia} username: ${influencer.socialMediaUsername}</li>`,
+                                    `<li>${influencer.socialMedia} username: ${influencer.username}</li>`,
                             )
                             .join('')}
           </ul>
@@ -407,7 +417,7 @@ export class CampaignsService {
                             )
                             .map(
                                 (influencer) =>
-                                    `<li>${influencer.socialMedia} username: ${influencer.socialMediaUsername}</li>`,
+                                    `<li>${influencer.socialMedia} username: ${influencer.username}</li>`,
                             )
                             .join('')}
           </ul>
@@ -615,7 +625,7 @@ ${emailVideoContent()}
             hiddenColumns: campaign.hiddenColumns ?? [],
         };
 
-        for (const addedAccount of campaign.selectInfluencers) {
+        for (const addedAccount of campaign.addedAccounts) {
             const normalizedUsername =
                 addedAccount?.socialMediaUsername?.trim() ||
                 addedAccount?.instagramUsername?.trim() ||
@@ -741,7 +751,7 @@ ${emailVideoContent()}
             price: data.price || 0,
             publicPrice: data.price || 0,
             socialMedia: data.socialMedia || 'multipromo',
-            selectInfluencers: [],
+            addedAccounts: [],
             campaignContent: [],
             totalFollowers: 0,
             clientId: '66f540faaf4e960d2f9bebfc',
@@ -916,7 +926,7 @@ ${emailVideoContent()}
                             result[0].musicSubStyles,
                         );
 
-                        campaign.selectInfluencers.push({
+                        campaign.addedAccounts.push({
                             ...result[0],
                             _id: new Types.ObjectId().toHexString(),
                             socialMediaUsername: page.socialMediaUsername.trim(),
@@ -1030,7 +1040,7 @@ ${emailVideoContent()}
                             result[0].musicSubStyles,
                         );
 
-                        campaign.selectInfluencers.push({
+                        campaign.addedAccounts.push({
                             ...result[0],
                             _id: new Types.ObjectId().toHexString(),
                             socialMediaUsername: page.socialMediaUsername.trim(),
@@ -1102,6 +1112,7 @@ ${emailVideoContent()}
             totalFollowers: 0,
             totalLikes: 0,
             totalImpressions: 0,
+            totalSaves: 0,
             totalComments: 0,
             totalShares: 0,
             creationDate: formatDate(campaign.createdAt),
@@ -1111,7 +1122,7 @@ ${emailVideoContent()}
             shareLink: campaign.shareLink ?? null,
         };
 
-        for (const addedAccount of campaign.selectInfluencers ?? []) {
+        for (const addedAccount of campaign.addedAccounts ?? []) {
             const normalizedUsername =
                 addedAccount?.socialMediaUsername?.trim() ||
                 addedAccount?.instagramUsername?.trim() ||

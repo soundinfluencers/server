@@ -1,9 +1,10 @@
-import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
+import {ApiProperty, ApiPropertyOptional, getSchemaPath} from '@nestjs/swagger';
 import {
     InfluencerCompletedPromo,
     InfluencerConfirmationStatusEnum,
     InfluencerConfirmationStatusType, InfluencerDashboardPromo,
-    InfluencerDashboardPromoStatus, InfluencerDetailedPromo, InfluencerNewPromoRequest, InfluencerPromoBase,
+    InfluencerDashboardPromoStatusRequest,
+    InfluencerDetailedPromoStatusRequest, InfluencerNewPromoRequest, InfluencerOngoingPromo, InfluencerPromoBase,
     InfluencerPromoClosedStatusEnum, InfluencerPromoClosedStatusType,
     InfluencerUpdatedPostDetails
 } from "../../../common/types/influencer/promo.types";
@@ -42,8 +43,12 @@ class InfluencerPromoBaseDto implements InfluencerPromoBase {
     createdAt: string;
 }
 
+// type for returning detailed promo with specific type
+export type InfluencerDetailedPromo = | InfluencerOngoingPromoDto | InfluencerCompletedPromoDto;
+
 
 //  --------------- REQUESTS ------------------
+
 
 // dto for request influencer's past promo (query)
 export class InfluencerGetPastPromoQueryDto {
@@ -206,10 +211,33 @@ export class InfluencerUpdatePromoReqBodyDto {
 export class InfluencerGetDashboardPromosQueryDto {
     @ApiPropertyOptional({
         description: 'Type of promos returned',
-        enum: InfluencerDashboardPromoStatus,
-        default: InfluencerDashboardPromoStatus.all,
+        enum: InfluencerDashboardPromoStatusRequest,
+        default: InfluencerDashboardPromoStatusRequest.all,
     })
-    status: InfluencerDashboardPromoStatus;
+    status: InfluencerDashboardPromoStatusRequest;
+
+    @ApiPropertyOptional({
+        default: 12,
+    })
+    limit: number;
+
+    @ApiPropertyOptional({
+        default: 1,
+        description: 'Page number (starts from 1)',
+    })
+    page: number;
+
+    influencerId: string;
+}
+
+// dto request for getting detailed promos of specific type
+export class InfluencerGetDetailedPromosQueryDto {
+    @ApiPropertyOptional({
+        description: 'Type of promos returned',
+        enum: InfluencerDetailedPromoStatusRequest,
+        default: InfluencerDetailedPromoStatusRequest.ongoing,
+    })
+    status: InfluencerDetailedPromoStatusRequest;
 
     @ApiPropertyOptional({
         default: 12,
@@ -243,6 +271,7 @@ export class InfluencerGetCompletedPromosQueryDto {
 
 
 //  --------------- RESPONSES ------------------
+
 
 // dto for returning new promo request
 export class InfluencerNewPromoRequestDto extends InfluencerPromoBaseDto implements InfluencerNewPromoRequest {
@@ -314,7 +343,7 @@ export class InfluencerCompletedPromosDto {
 }
 
 // dto for returning detailed ongoing promo
-export class InfluencerDetailedPromoDto extends InfluencerPromoBaseDto implements InfluencerDetailedPromo {
+export class InfluencerOngoingPromoDto extends InfluencerPromoBaseDto implements InfluencerOngoingPromo {
     @ApiProperty({type: String})
     clientName: string;
 
@@ -353,4 +382,16 @@ export class InfluencerDetailedPromoDto extends InfluencerPromoBaseDto implement
 
     @ApiProperty({enum: InfluencerConfirmationStatusEnum, type: String})
     confirmation: InfluencerConfirmationStatusType;
+}
+
+// dto for returning an array of detailed promos with specific type
+export class InfluencerDetailedPromosDto {
+    @ApiProperty({
+        oneOf: [
+            {$ref: getSchemaPath(InfluencerOngoingPromoDto)},
+            {$ref: getSchemaPath(InfluencerCompletedPromoDto)},
+        ],
+        isArray: true,
+    })
+    promos: InfluencerDetailedPromo[];
 }
