@@ -15,6 +15,7 @@ import {
     InfluencerPromoClosedStatusType
 } from "../../common/types/influencer/promo.types";
 import {CampaignConfirmationEnum, CampaignStatusEnum} from "../../common/types/client/campaign.types";
+import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 
 
 // ------------ LEGACY SCHEMAS ---------------
@@ -41,6 +42,7 @@ type LegacySelectedInfluencer = {
     followers?: number;
     price?: any;
     publicPrice?: any;
+    selectedCampaignContentItem?: string | Types.ObjectId;
     selectedContent?: string | Types.ObjectId | {
         campaignContentItemId: string | Types.ObjectId;
         postDescriptionId: string | Types.ObjectId;
@@ -84,12 +86,11 @@ export class MigrationsService {
         // models
 
         // for migrating completed campaigns
-        // @InjectModel(CompletedCampaign.name)
-        // private readonly campaignModel: Model<CompletedCampaign>,
-
+        @InjectModel(CompletedCampaign.name)
+        private readonly campaignModel: Model<CompletedCampaign>,
         // for migrating completed campaigns
-        @InjectModel(Campaign.name)
-        private readonly campaignModel: Model<Campaign>,
+        // @InjectModel(Campaign.name)
+        // private readonly campaignModel: Model<Campaign>,
         @InjectModel(Influencer.name)
         private readonly influencerModel: Model<Influencer>,
     ) {
@@ -465,20 +466,20 @@ export class MigrationsService {
 
                     if (!resolvedAccountId) missingAccountId++;
 
-                    const selected = acc.selectedContent;
+                    const selected = acc.selectedContent ?? acc.selectedCampaignContentItem;
 
                     // id of selected campaign content
                     const selectedContentItemId =
                         typeof selected === 'string' || selected instanceof Types.ObjectId
                             ? this.oid(selected)
-                            : this.oid(selected.campaignContentItemId);
+                            : this.oid(selected?.campaignContentItemId ?? undefined)
 
                     // if postDescriptions array exists take postDescriptionId as descriptionId
                     // otherwise trying to get descriptionId from new campaignContent array
                     const selectedDescriptionId =
                         typeof selected === 'string' || selected instanceof Types.ObjectId
-                            ? campaignContent.find(i => i._id === selectedContentItemId)?.descriptions[0]?._id ?? undefined
-                            : this.oid(selected.postDescriptionId);
+                            ? campaignContent.find(i => i._id.toString() === selectedContentItemId.toString())?.descriptions[0]?._id ?? null
+                            : this.oid(selected?.postDescriptionId ?? undefined);
 
                     return {
                         // _ids
@@ -523,7 +524,7 @@ export class MigrationsService {
                 });
 
                 // mapping legacy statuses
-                const { legacyStatus, legacyVerify } = this.getLegacyCampaignFields(doc);
+                const {legacyStatus, legacyVerify} = this.getLegacyCampaignFields(doc);
 
                 const verifyCampaign = this.mapCampaignVerify(legacyVerify);
                 const statusCampaign = this.mapCampaignStatus(legacyStatus, legacyVerify);
