@@ -29,6 +29,7 @@ import {SocialMediaValidationStrategyFactory} from "./strategies/social-media-va
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
+import {CampaignStatusEnum} from "../../common/types/client/campaign.types";
 
 mongoose.Promise = global.Promise;
 
@@ -319,16 +320,12 @@ export class PromosService {
                 {
                     _id: campaignId,
                     addedAccounts: {
-                        $elemMatch: {_id: new mongoose.Types.ObjectId(addedAccountsId)},
+                        $elemMatch: {_id: new Types.ObjectId(addedAccountsId)},
                     },
                 },
                 {
                     $set: {
-                        ...(isAccept
-                            ? campaign.statusCampaign
-                                ? {statusCampaign: 'work'}
-                                : {statusPromo: 'work'}
-                            : {}),
+                        ...(isAccept ? {statusCampaign: CampaignStatusEnum.distributing}: {}),
 
                         'addedAccounts.$.confirmation': campaignResponse,
                     },
