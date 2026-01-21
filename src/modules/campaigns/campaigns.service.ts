@@ -602,7 +602,6 @@ ${emailVideoContent()}
     // todo: improve
     // Returns one detailed campaign obj - used by campaign report page
     async getClientOngoingOrPastCampaign(campaignId: string, clientId: string): Promise<ClientCampaignForTable> {
-        console.log(campaignId, typeof campaignId)
         if (!campaignId || !clientId) throw new BadRequestException('Not enough arguments');
 
         const client = await this.clientRepo.findById(clientId);
@@ -632,6 +631,7 @@ ${emailVideoContent()}
             isCpmAndResultHidden: campaign.isCpmAndResultHidden ?? false,
             isPriceHidden: campaign.isPriceHidden ?? false,
             hiddenColumns: campaign.hiddenColumns ?? [],
+            cpm: null
         };
 
         for (const addedAccount of campaign.addedAccounts) {
@@ -719,6 +719,15 @@ ${emailVideoContent()}
 
             return aIndex - bIndex;
         });
+
+        try {
+            campaignToReturn.cpm =
+                campaignToReturn.totalImpressions > 0
+                    ? Math.round((campaignToReturn.price * 1000 / campaignToReturn.totalImpressions) * 1000) / 1000
+                    : null;
+        } catch (e) {
+            this.logger.warn(`Can't retrieve cpm for campaign ${campaignId}: ${e}`);
+        }
 
         return campaignToReturn;
     }

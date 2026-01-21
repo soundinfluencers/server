@@ -117,6 +117,9 @@ export class ClientCampaignForTableDto implements ClientCampaignForTable {
 
     @ApiPropertyOptional()
     hiddenColumns?: string[];
+
+    @ApiPropertyOptional()
+    cpm?: number;
 }
 
 export class DetailedDraftCampaignAccountDto {
