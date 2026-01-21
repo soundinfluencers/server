@@ -10,7 +10,18 @@ import {
 } from "../../../common/types/influencer/promo.types";
 import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
 import {CampaignStatusEnum} from "../../../common/types/client/campaign.types";
-import {IsInt, IsOptional, IsString, IsUrl, Min, ValidateNested} from "class-validator";
+import {
+    IsEnum,
+    IsInt,
+    IsMongoId,
+    IsNumber,
+    IsOptional,
+    IsString,
+    IsUrl,
+    Max,
+    Min,
+    ValidateNested
+} from "class-validator";
 import {Type} from "class-transformer";
 
 // base dto for returning promo (won't be used in any controller)
@@ -49,21 +60,6 @@ export type InfluencerDetailedPromo = | InfluencerOngoingPromoDto | InfluencerCo
 
 //  --------------- REQUESTS ------------------
 
-
-// dto for request influencer's past promo (query)
-export class InfluencerGetPastPromoQueryDto {
-    @ApiProperty({
-        description: 'Campaign _id',
-        example: '65f123abc456',
-    })
-    campaignId: string;
-
-    @ApiProperty({
-        description: '_id of needed object inside of addedAccounts array from campaign',
-        example: '6612fabc999',
-    })
-    addedAccountsId: string;
-}
 
 // dto request for updating influencer's response for new promo request
 export class InfluencerUpdatePromoResponseUpdateDto {
@@ -237,34 +233,47 @@ export class InfluencerGetDetailedPromosQueryDto {
         enum: InfluencerDetailedPromoStatusRequest,
         default: InfluencerDetailedPromoStatusRequest.ongoing,
     })
+    @IsEnum(InfluencerDetailedPromoStatusRequest)
+    @IsOptional()
     status: InfluencerDetailedPromoStatusRequest;
 
     @ApiPropertyOptional({
         default: 12,
     })
+    @IsNumber()
+    @Min(1)
+    @IsOptional()
     limit: number;
 
     @ApiPropertyOptional({
         default: 1,
         description: 'Page number (starts from 1)',
     })
+    @IsNumber()
+    @Min(0)
+    @IsOptional()
     page: number;
 
     influencerId: string;
 }
 
-// dto request for getting completed promos
-export class InfluencerGetCompletedPromosQueryDto {
-    @ApiPropertyOptional({
-        default: 12
+// dto request for getting detailed promo
+export class InfluencerGetDetailedPromoParamsDto {
+    @ApiProperty({
+        description: 'Type of promos returned',
+        enum: InfluencerDetailedPromoStatusRequest,
+        default: InfluencerDetailedPromoStatusRequest.ongoing,
     })
-    limit: number;
+    @IsEnum(InfluencerDetailedPromoStatusRequest)
+    status: InfluencerDetailedPromoStatusRequest;
 
-    @ApiPropertyOptional({
-        default: 1,
-        description: 'Page number (starts from 1)',
-    })
-    page: number;
+    @ApiProperty()
+    @IsMongoId()
+    campaignId: string;
+
+    @ApiProperty()
+    @IsMongoId()
+    addedAccountsId: string;
 
     influencerId: string;
 }
@@ -334,12 +343,6 @@ export class InfluencerCompletedPromoDto extends InfluencerPromoBaseDto implemen
 
     @ApiProperty({type: String})
     postLink: string;
-}
-
-// dto for returning an array of completed promos
-export class InfluencerCompletedPromosDto {
-    @ApiProperty({type: () => [InfluencerCompletedPromoDto]})
-    promos: InfluencerCompletedPromo[];
 }
 
 // dto for returning detailed ongoing promo

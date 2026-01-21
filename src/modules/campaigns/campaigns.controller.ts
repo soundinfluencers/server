@@ -63,7 +63,7 @@ export class CampaignsController {
     ): Promise<ClientGetCampaignsDto> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
-        const campaigns = await this.campaignsService.getClientCampaignsList({...query, clientId: request.user._id});
+        const campaigns = await this.campaignsService.getCampaignsList({...query, clientId: request.user._id});
 
         return { campaigns };
     }
@@ -174,12 +174,11 @@ export class CampaignsController {
     @Auth()
     @Roles(Role.client)
     @ApiOperation({summary: 'Get client campaign (completed or ongoing)'})
-    @ApiQuery({name: 'campaignId', required: true})
+    @ApiParam({name: 'campaignId', required: true})
     @ApiResponseDto(ClientCampaignForTableDto)
     @Get(':campaignId')
     clientGetOngoingOrPastCampaign(@Param('campaignId') campaignId: string, @Req() request: AuthenticatedRequest): Promise<ClientCampaignForTableDto> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
-        if (!campaignId) throw new BadRequestException('Not enough arguments');
 
         return this.campaignsService.getClientOngoingOrPastCampaign(campaignId, request.user._id);
     }

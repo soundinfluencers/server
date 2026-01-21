@@ -1,21 +1,18 @@
 import {
     Body,
     Controller,
-    Get,
+    Get, Param,
     Patch,
     Query,
     Req,
     UnauthorizedException,
 } from '@nestjs/common';
 import {PromosService} from './promos.service';
-import {ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
+import {ApiOperation, ApiParam, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {
     InfluencerCompletedPromoDto,
-    InfluencerCompletedPromosDto,
-    InfluencerDashboardPromosDto, InfluencerDetailedPromosDto,
-    InfluencerGetCompletedPromosQueryDto,
-    InfluencerGetDashboardPromosQueryDto, InfluencerGetDetailedPromosQueryDto,
-    InfluencerGetPastPromoQueryDto,
+    InfluencerDashboardPromosDto, InfluencerDetailedPromo, InfluencerDetailedPromosDto,
+    InfluencerGetDashboardPromosQueryDto, InfluencerGetDetailedPromoParamsDto, InfluencerGetDetailedPromosQueryDto,
     InfluencerNewPromoRequestsDto, InfluencerOngoingPromoDto, InfluencerUpdatePromoReqBodyDto,
     InfluencerUpdatePromoResponseUpdateDto,
 } from "./dto/influencer-get-promos.dto";
@@ -26,6 +23,7 @@ import {Roles} from "../../common/decorators/roles.decorator";
 import {
     InfluencerDashboardPromoStatusRequest, InfluencerDetailedPromoStatusRequest
 } from "../../common/types/influencer/promo.types";
+import {ApiResponseDtoOneOf} from "../../common/decorators/api/response/api-response-one-of.decorator";
 
 @ApiTags('promos')
 @Controller('promos')
@@ -99,41 +97,29 @@ export class PromosController {
 
     @Auth()
     @Roles(Role.influencer)
-    @ApiOperation({summary: "Returns influencer's completed promo"})
-    @ApiQuery({name: 'campaignId', required: true})
-    @ApiQuery({name: 'selectInfluencersId', required: true})
-    @ApiResponseDto(InfluencerCompletedPromoDto)
-    @Get('completed/:campaignId')
-    influencerGetCompletedPromo(
-        @Req() request: AuthenticatedRequest,
-        @Query() query: InfluencerGetPastPromoQueryDto
-    ): Promise<InfluencerCompletedPromoDto> {
+    @ApiOperation({summary: `Returns influencer's detailed promo of one type`})
+    @ApiResponseDtoOneOf([InfluencerOngoingPromoDto, InfluencerCompletedPromoDto])
+    @ApiParam({
+        name: 'status',
+        type: 'string',
+        enum: InfluencerDetailedPromoStatusRequest,
+        required: true,
+    })
+    @ApiParam({
+        name: 'campaignId',
+        type: 'string',
+        required: true,
+    })
+    @ApiParam({
+        name: 'addedAccountsId',
+        type: 'string',
+        required: true,
+    })
+    @Get('/detailed/:status/:campaignId/:addedAccountsId')
+    async getDetailedPromo(@Req() request: AuthenticatedRequest, @Param() params: InfluencerGetDetailedPromoParamsDto): Promise<InfluencerDetailedPromo> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
-        return this.promosService.getCompletedPromo({...query, influencerId: request.user._id});
-    }
-
-    @Auth()
-    @Roles(Role.influencer)
-    @ApiOperation({summary: "Returns influencer's ongoing promo"})
-    @ApiQuery({name: 'campaignId', required: true})
-    @ApiQuery({name: 'selectInfluencersId', required: true})
-    @ApiResponseDto(InfluencerOngoingPromoDto)
-    @Get('ongoing/:campaignId')
-    influencerGetOngoingPromo(
-        @Req() request: AuthenticatedRequest,
-        @Query() args: {
-            campaignId: string;
-            selectInfluencersId: string;
-        },
-    ): Promise<InfluencerOngoingPromoDto> {
-        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
-
-        return this.promosService.getOngoingPromo(
-            request.user._id,
-            args.campaignId,
-            args.selectInfluencersId,
-        );
+        return await this.promosService.getDetailedPromoByType({...params, influencerId: request.user._id});
     }
 
     @Auth()

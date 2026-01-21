@@ -86,11 +86,11 @@ export class MigrationsService {
         // models
 
         // for migrating completed campaigns
-        @InjectModel(CompletedCampaign.name)
-        private readonly campaignModel: Model<CompletedCampaign>,
+        // @InjectModel(CompletedCampaign.name)
+        // private readonly campaignModel: Model<CompletedCampaign>,
         // for migrating completed campaigns
-        // @InjectModel(Campaign.name)
-        // private readonly campaignModel: Model<Campaign>,
+        @InjectModel(Campaign.name)
+        private readonly campaignModel: Model<Campaign>,
         @InjectModel(Influencer.name)
         private readonly influencerModel: Model<Influencer>,
     ) {
@@ -110,13 +110,22 @@ export class MigrationsService {
 
     private num(v: any): number | null {
         if (v === null || v === undefined) return null;
-        if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+
+        if (typeof v === 'number') {
+            return Number.isFinite(v) ? v : null;
+        }
+
         if (typeof v === 'string') {
             const s = v.trim();
             if (!s) return null;
-            const n = Number(s);
+
+            const digitsOnly = s.replace(/\D+/g, '');
+            if (!digitsOnly) return null;
+
+            const n = Number(digitsOnly);
             return Number.isFinite(n) ? n : null;
         }
+
         return null;
     }
 
@@ -529,9 +538,17 @@ export class MigrationsService {
                 const verifyCampaign = this.mapCampaignVerify(legacyVerify);
                 const statusCampaign = this.mapCampaignStatus(legacyStatus, legacyVerify);
 
+                // client id
+                const clientId = process.env.NODE_ENV === 'development'
+                    ? this.oid('66a747a89c6e78a6cffb83b4')
+                    : doc.clientId
+                        ? this.oid(doc.clientId)
+                        : this.oid((doc as any).userId ?? undefined);
+
                 const updatePipeline = [
                     {
                         $set: {
+                            clientId,
                             addedAccounts,
                             campaignContent,
                             paymentStatus: 'confirmed',

@@ -44,6 +44,7 @@ import {
     InfluencerConfirmationStatusEnum,
     InfluencerPromoClosedStatusEnum
 } from "../../common/types/influencer/promo.types";
+import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 
 @Injectable()
 export class CampaignsService {
@@ -61,7 +62,7 @@ export class CampaignsService {
     }
 
     // Returns campaigns list for client with diff statuses
-    async getClientCampaignsList(data: ClientGetDashboardCampaignsQueryDto): Promise<ClientGetCampaignForList[]> {
+    async getCampaignsList(data: ClientGetDashboardCampaignsQueryDto): Promise<ClientGetCampaignForList[]> {
         const status: CampaignTypeEnumForDevelopment = data.status ?? CampaignTypeEnumForDevelopment.all
         const limit = Number(data.limit ?? 12);
         const page = Number(data.page ?? 1);
@@ -95,15 +96,20 @@ export class CampaignsService {
                 campaigns = await this.campaignRepo
                     .findMany({
                         clientId: new Types.ObjectId(data.clientId),
-                        statusCampaign: 'wait',
-                        verifyCampaign: 'wait'
+                        statusCampaign: CampaignStatusEnum.underReview,
+                        verifyCampaign: CampaignConfirmationEnum.wait
                     }, {lean: true, limit: limit, skip: skip})
                 break;
             case "distributing":
                 campaigns = await this.campaignRepo
                     .findMany({
                         clientId: new Types.ObjectId(data.clientId),
-                        statusCampaign: 'work',
+                        statusCampaign: {
+                            $in: [
+                                CampaignStatusEnum.pending,
+                                CampaignStatusEnum.distributing,
+                            ],
+                        },
                     }, {lean: true, limit: limit, skip: skip})
                 break;
             case "closed":
@@ -129,7 +135,6 @@ export class CampaignsService {
                         {
                             $match: {
                                 clientId: clientObjectId,
-                                statusCampaign: { $in: ['work', 'wait', 'estimate', 'po waiting'] },
                             },
                         },
                         {
@@ -139,8 +144,8 @@ export class CampaignsService {
                                     {
                                         $match: {
                                             $or: [
-                                                { clientId: clientObjectId },
-                                                { userId: clientObjectId },
+                                                {clientId: clientObjectId},
+                                                {userId: clientObjectId},
                                             ],
                                         },
                                     },
@@ -159,12 +164,12 @@ export class CampaignsService {
                                 ],
                             },
                         },
-                        { $sort: { createdAt: -1 } },
-                        { $skip: skip },
-                        { $limit: limit },
+                        {$sort: {createdAt: -1}},
+                        {$skip: skip},
+                        {$limit: limit},
                         {
                             $project: {
-                                _id: { $toString: '$_id' },
+                                _id: {$toString: '$_id'},
                                 campaignName: 1,
                                 socialMedia: 1,
                                 createdAt: 1,
@@ -300,7 +305,7 @@ export class CampaignsService {
                 campaignContent: processedCampaignContent,
                 createdAt,
                 schemaVersion: 2
-            } as Campaign , {session});
+            } as Campaign, {session});
 
             client = await this.clientRepo.findOne({_id: data.clientId}, {session});
 
@@ -313,7 +318,7 @@ export class CampaignsService {
         }
 
         const emailStartContent = () => {
-                return `
+            return `
                     <p>Hi,</p>
 <p>The Client ${client.firstName} has requested the following ${data.socialMedia === SocialMediaEnum.press ? 'article for inclusion in' : 'post for'} this list of influencers on the ${data.socialMedia}:</p>
 <p><strong>Post Details:</strong></p>
@@ -594,8 +599,12 @@ ${emailVideoContent()}
         }
     }
 
+    // todo: improve
     // Returns one detailed campaign obj - used by campaign report page
     async getClientOngoingOrPastCampaign(campaignId: string, clientId: string): Promise<ClientCampaignForTable> {
+        console.log(campaignId, typeof campaignId)
+        if (!campaignId || !clientId) throw new BadRequestException('Not enough arguments');
+
         const client = await this.clientRepo.findById(clientId);
         if (!client) throw new NotFoundException('User not found');
 
@@ -603,16 +612,16 @@ ${emailVideoContent()}
         if (!campaign) campaign = await this.completedCampaignRepo.findById(campaignId, {lean: true});
         if (!campaign) throw new NotFoundException('Campaign not found');
 
-        const campaignToReturn: ClientCampaignForTable = {
+        const campaignToReturn: any = {
             campaignId: campaignId,
             // clientId: campaign.clientId,
             campaignName: campaign.campaignName ?? 'OLD CAMPAIGN',
             socialMedia: campaign.socialMedia ?? 'instagram',
-            creationDate: campaign.createdAt ?? 0,
-            price: campaign.campaignPrice ?? campaign.price ?? campaign.amount ?? 0,
+            creationDate: formatDate(campaign.createdAt),
+            price: campaign.campaignPrice ?? (campaign as any).price ?? (campaign as any).amount ?? 0,
             status: campaign.statusCampaign,
             addedAccounts: [],
-            campaignContent: campaign.campaignContent ?? campaign.videos ?? [],
+            campaignContent: campaign.campaignContent ?? (campaign as any).videos ?? [],
             shareLink: campaign.shareLink ?? null,
             totalFollowers: 0,
             totalImpressions: 0,
@@ -626,20 +635,11 @@ ${emailVideoContent()}
         };
 
         for (const addedAccount of campaign.addedAccounts) {
-            const normalizedUsername =
-                addedAccount?.socialMediaUsername?.trim() ||
-                addedAccount?.instagramUsername?.trim() ||
-                '';
-
-            const socialMedia =
-                addedAccount?.socialMedia ||
-                (campaign.socialMedia !== 'multipromo' && campaign.socialMedia);
-
-            const selectedCampaignContentItemId =
+            const selectedCampaignContentItemId: string | Types.ObjectId =
                 addedAccount?.selectedContent?.campaignContentItemId?.toString() ??
-                addedAccount?.selectedCampaignContentItem?.toString() ??
-                (Array.isArray(campaign?.videos)
-                    ? campaign.videos.find((v) => v.videoLink === addedAccount?.selectedVideo)?._id?.toString()
+                (addedAccount as any)?.selectedCampaignContentItem?.toString() ??
+                (Array.isArray((campaign as any)?.videos)
+                    ? (campaign as any).videos?.find((v) => v.videoLink === (addedAccount as any)?.selectedVideo)?._id?.toString()
                     : null) ??
                 null;
 
@@ -653,39 +653,45 @@ ${emailVideoContent()}
                             );
                             if (!contentItem) return null;
 
-                            const postDescription =
-                                contentItem.postDescriptions?.find(
-                                    (pd) => pd._id.toString() === addedAccount.selectedContent?.postDescriptionId.toString(),
+                            let description: string;
+                            try {
+                                description = contentItem.descriptions?.find(
+                                    (pd) => pd._id.toString() === addedAccount.selectedContent?.descriptionId.toString(),
                                 )?.description ?? (contentItem as any)?.postDescription ?? '';
+                            } catch (err) {
+                                this.logger.warn(`Can't get description for addedAccounts ${addedAccount._id} in campaign ${campaign._id}`);
+                            }
 
                             return {
                                 _id: contentItem._id,
-                                videoLink: contentItem.videoLink,
-                                postDescription: postDescription || null,
-                                storyTag: contentItem.storyTag || null,
-                                storyLink: contentItem.swipeUpLink || null,
-                                specialWishes: contentItem.specialWishes,
+                                mainLink: contentItem.mainLink ?? (contentItem as any).videoLink,
+                                description: description ?? null,
+                                taggedUser: contentItem.taggedUser ?? (contentItem as any).storyTag ?? null,
+                                taggedLink: contentItem.taggedLink ?? (contentItem as any).swipeUpLink ?? null,
+                                additionalBrief: contentItem.additionalBrief ?? (contentItem as any).specialWishes ?? null,
                             };
                         })()
                         : null) ??
-                    (Array.isArray(campaign.videos)
-                        ? campaign.videos.find(
+                    (Array.isArray((campaign as any).videos)
+                        ? (campaign as any).videos.find(
                             (item) => item?._id?.toString() === selectedCampaignContentItemId?.toString(),
                         )
                         : null) ??
                     null;
             }
 
-            addedAccount.selectedCampaignContentItemId = selectedCampaignContentItemId;
+            addedAccount.selectedContent = {
+                campaignContentItemId: new Types.ObjectId(selectedCampaignContentItemId),
+                descriptionId: addedAccount.selectedContent.descriptionId ?? undefined
+            };
             addedAccount.selectedCampaignContentItem = selectedCampaignContentItem;
-            addedAccount.socialMedia = socialMedia;
-            addedAccount.socialMediaUsername = normalizedUsername;
 
-            campaignToReturn.totalFollowers += addedAccount?.followersNumber ?? 0;
-            campaignToReturn.totalLikes += parseInt(addedAccount.like?.replace(/[\s,]/g, '') || '0');
-            campaignToReturn.totalImpressions += parseInt(
-                addedAccount.impressions?.replace(/[\s,]/g, '') || '0',
-            );
+            campaignToReturn.totalFollowers += addedAccount.followers ?? 0;
+            campaignToReturn.totalLikes += addedAccount.like ?? 0;
+            campaignToReturn.totalImpressions += addedAccount.impressions ?? 0;
+            campaignToReturn.totalSaves += addedAccount.saves ?? 0;
+            campaignToReturn.totalComments = addedAccount.comments ?? 0;
+            campaignToReturn.totalShares = addedAccount.shares ?? 0;
 
             campaignToReturn.addedAccounts.push(addedAccount);
         }
@@ -693,10 +699,10 @@ ${emailVideoContent()}
         campaignToReturn.addedAccounts.sort((a, b) => {
             const aIndex = Array.isArray(campaign.campaignContent)
                 ? campaign.campaignContent.findIndex(
-                    (c) => c?._id?.toString() === a.selectedCampaignContentItemId?.toString(),
+                    (c) => c?._id?.toString() === a.selectedContent.campaignContentItemId?.toString(),
                 )
-                : Array.isArray(campaign.videos)
-                    ? campaign.videos.findIndex(
+                : Array.isArray((campaign as any).videos)
+                    ? (campaign as any).videos.findIndex(
                         (v) => v?._id?.toString() === a.selectedCampaignContentItemId?.toString(),
                     )
                     : -1;
@@ -705,8 +711,8 @@ ${emailVideoContent()}
                 ? campaign.campaignContent.findIndex(
                     (c) => c?._id?.toString() === b.selectedCampaignContentItemId?.toString(),
                 )
-                : Array.isArray(campaign.videos)
-                    ? campaign.videos.findIndex(
+                : Array.isArray((campaign as any).videos)
+                    ? (campaign as any).videos.findIndex(
                         (v) => v?._id?.toString() === b.selectedCampaignContentItemId?.toString(),
                     )
                     : -1;

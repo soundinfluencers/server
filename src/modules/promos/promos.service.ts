@@ -4,9 +4,8 @@ import {SocialMediaType} from "../../common/types/social-media.types";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {
     InfluencerDetailedPromo,
-    InfluencerGetDashboardPromosQueryDto,
+    InfluencerGetDashboardPromosQueryDto, InfluencerGetDetailedPromoParamsDto,
     InfluencerGetDetailedPromosQueryDto,
-    InfluencerGetPastPromoQueryDto,
     InfluencerUpdatePromoReqBodyDto,
     InfluencerUpdatePromoResponseUpdateDto
 } from "./dto/influencer-get-promos.dto";
@@ -75,7 +74,17 @@ export class PromosService {
     }
 
     // orchestrator for getting one detailed promo with specific type (ongoing, completed, etc.)
-    async getDetailedPromoByType(data: any) {
+    async getDetailedPromoByType(data: InfluencerGetDetailedPromoParamsDto): Promise<InfluencerDetailedPromo> {
+        const {status, campaignId, addedAccountsId, influencerId} = data;
+
+        switch (status) {
+            case InfluencerDetailedPromoStatusRequest.ongoing:
+                return await this.getOngoingPromo(influencerId, campaignId, addedAccountsId);
+            case InfluencerDetailedPromoStatusRequest.close:
+                return await this.getCompletedPromo(influencerId, campaignId, addedAccountsId);
+            default:
+                throw new Error('Unsupported promo status')
+        }
     }
 
 
@@ -244,7 +253,7 @@ export class PromosService {
                             taggedLink: selectedCampaignContentItem.taggedLink,
                             additionalBrief: selectedCampaignContentItem.additionalBrief,
                             userId: newObject.clientId || (newObject as any).userId,
-                            clientName: "Unknown"
+                            clientName: undefined,
                         }];
                     }
 
@@ -266,7 +275,7 @@ export class PromosService {
 
                 return {
                     ...item,
-                    client: clientName,
+                    clientName: clientName,
                 };
             }),
         );
@@ -275,6 +284,7 @@ export class PromosService {
             (a, b) =>
                 new Date((b as any).createdAt).getTime() - new Date((a as any).createdAt).getTime())
     };
+
 
     // [NEW REQUEST] Updates confirmation status for new promo request [UPDATE ONE]
     async updateResponseNewCampaign(
@@ -325,7 +335,7 @@ export class PromosService {
                 },
                 {
                     $set: {
-                        ...(isAccept ? {statusCampaign: CampaignStatusEnum.distributing}: {}),
+                        ...(isAccept ? {statusCampaign: CampaignStatusEnum.distributing} : {}),
 
                         'addedAccounts.$.confirmation': campaignResponse,
                     },
@@ -409,6 +419,7 @@ export class PromosService {
             throw new Error(`${data.addedAccountsId} ${data.username} response to ${data.campaignId} updated, but email failed, ${err}`);
         }
     }
+
 
     // [DASHBOARD] Returns influencer's promos for dashboard [GET MANY]
     async getDashboardPromos(
@@ -554,34 +565,29 @@ export class PromosService {
             {
                 $project: {
                     _id: 0,
-                    campaignId: { $toString: '$_id' },
+                    campaignId: {$toString: '$_id'},
 
-                    addedAccountsId: { $toString: '$addedAccounts._id' },
+                    addedAccountsId: {$toString: '$addedAccounts._id'},
 
                     campaignName: '$campaignName',
 
                     username: '$addedAccounts.username',
                     accountSocialMedia: '$addedAccounts.socialMedia',
-                    reward: { $toDouble: '$addedAccounts.price' },
+                    reward: {$toDouble: '$addedAccounts.price'},
                     postLink: '$addedAccounts.postLink',
 
                     clientName: {
-                        $ifNull: [
-                            {
-                                $cond: {
-                                    if: { $and: [ { $ne: ['$client.company', null] }, { $ne: ['$client.company', ''] } ] },
-                                    then: '$client.company',
-                                    else: '$client.firstName',
-                                },
-                            },
-                            'Unknown',
-                        ],
+                        $cond: {
+                            if: {$and: [{$ne: ['$client.company', null]}, {$ne: ['$client.company', '']}]},
+                            then: '$client.company',
+                            else: '$client.firstName',
+                        },
                     },
 
                     createdAt: {
                         $concat: [
-                            { $dateToString: { date: '$createdAt', format: '%d.%m.' } },
-                            { $substr: [{ $dateToString: { date: '$createdAt', format: '%Y' } }, 2, 2] },
+                            {$dateToString: {date: '$createdAt', format: '%d.%m.'}},
+                            {$substr: [{$dateToString: {date: '$createdAt', format: '%Y'}}, 2, 2]},
                         ],
                     },
                 },
@@ -591,11 +597,11 @@ export class PromosService {
 
 
     // [COMPLETED] Returns influencer past promo (find by id, addedAccountsId) [GET ONE]
-    async getCompletedPromo(data: InfluencerGetPastPromoQueryDto & {
-        influencerId: string
-    }): Promise<InfluencerCompletedPromo> {
-        const {influencerId, campaignId, addedAccountsId} = data;
-
+    async getCompletedPromo(
+        influencerId: string,
+        campaignId: string,
+        addedAccountsId: string,
+    ): Promise<InfluencerCompletedPromo> {
         if (!influencerId || !campaignId || !addedAccountsId) throw new BadRequestException('Not enough arguments');
 
         const influencer = await this.influencerRepo.findById(influencerId);
@@ -654,8 +660,8 @@ export class PromosService {
         return {
             campaignId: campaignId,
             influencerId: influencerId,
-            addedAccountsId: data.addedAccountsId,
-            socialAccountId: selectedAccount.accountId?.toString() ?? undefined,
+            addedAccountsId: addedAccountsId,
+            socialAccountId: selectedAccount?.accountId?.toString() ?? undefined,
             campaignName: campaign.campaignName,
             username: selectedAccount.username ?? (selectedAccount as any).socialMediaUsernamea ?? (selectedAccount as any).instagramUsername,
             createdAt: formatDate(campaign.createdAt),
@@ -697,8 +703,8 @@ export class PromosService {
         }
 
         return await this.campaignRepo.aggregate<InfluencerOngoingPromo>([
-            { $match: { 'addedAccounts.influencerId': new Types.ObjectId(influencerId) } },
-            { $unwind: '$addedAccounts' },
+            {$match: {'addedAccounts.influencerId': new Types.ObjectId(influencerId)}},
+            {$unwind: '$addedAccounts'},
             {
                 $match: {
                     'addedAccounts.influencerId': new Types.ObjectId(influencerId),
@@ -714,27 +720,28 @@ export class PromosService {
                     as: 'client',
                 },
             },
-            { $unwind: { path: '$client', preserveNullAndEmptyArrays: true } },
-            { $sort: { createdAt: -1 } },
-            { $skip: skip },
-            { $limit: limit },
+            {$unwind: {path: '$client', preserveNullAndEmptyArrays: true}},
+            {$sort: {createdAt: -1}},
+            {$skip: skip},
+            {$limit: limit},
 
             {
                 $project: {
                     _id: 0,
-                    campaignId: { $toString: '$_id' },
-                    addedAccountsId: { $toString: '$addedAccounts._id' },
+                    campaignId: {$toString: '$_id'},
+                    addedAccountsId: {$toString: '$addedAccounts._id'},
 
                     campaignName: '$campaignName',
                     username: '$addedAccounts.username',
 
                     accountSocialMedia: '$addedAccounts.socialMedia',
 
-                    reward: { $toDouble: { $ifNull: ['$addedAccounts.price', 0] } },
+                    // todo: price always 0
+                    reward: '$addedAccounts.price',
 
-                    postLink: { $ifNull: ['$addedAccounts.postLink', null] },
+                    postLink: {$ifNull: ['$addedAccounts.postLink', null]},
 
-                    dateRequest: { $ifNull: ['$addedAccounts.dateRequest', null] },
+                    dateRequest: {$ifNull: ['$addedAccounts.dateRequest', null]},
 
                     mainLink: {
                         $let: {
@@ -743,7 +750,7 @@ export class PromosService {
                                     $arrayElemAt: [
                                         {
                                             $filter: {
-                                                input: { $ifNull: ['$campaignContent', []] },
+                                                input: {$ifNull: ['$campaignContent', []]},
                                                 as: 'c',
                                                 cond: {
                                                     $eq: ['$$c._id', '$addedAccounts.selectedContent.campaignContentItemId'],
@@ -754,7 +761,7 @@ export class PromosService {
                                     ],
                                 },
                             },
-                            in: { $ifNull: ['$$contentItem.mainLink', null] },
+                            in: {$ifNull: ['$$contentItem.mainLink', null]},
                         },
                     },
 
@@ -765,7 +772,7 @@ export class PromosService {
                                     $arrayElemAt: [
                                         {
                                             $filter: {
-                                                input: { $ifNull: ['$campaignContent', []] },
+                                                input: {$ifNull: ['$campaignContent', []]},
                                                 as: 'c',
                                                 cond: {
                                                     $eq: ['$$c._id', '$addedAccounts.selectedContent.campaignContentItemId'],
@@ -783,7 +790,7 @@ export class PromosService {
                                             $arrayElemAt: [
                                                 {
                                                     $filter: {
-                                                        input: { $ifNull: ['$$contentItem.descriptions', []] },
+                                                        input: {$ifNull: ['$$contentItem.descriptions', []]},
                                                         as: 'd',
                                                         cond: {
                                                             $eq: ['$$d._id', '$addedAccounts.selectedContent.descriptionId'],
@@ -794,7 +801,7 @@ export class PromosService {
                                             ],
                                         },
                                     },
-                                    in: { $ifNull: ['$$descObj.description', null] },
+                                    in: {$ifNull: ['$$descObj.description', null]},
                                 },
                             },
                         },
@@ -807,7 +814,7 @@ export class PromosService {
                                     $arrayElemAt: [
                                         {
                                             $filter: {
-                                                input: { $ifNull: ['$campaignContent', []] },
+                                                input: {$ifNull: ['$campaignContent', []]},
                                                 as: 'c',
                                                 cond: {
                                                     $eq: ['$$c._id', '$addedAccounts.selectedContent.campaignContentItemId'],
@@ -818,7 +825,7 @@ export class PromosService {
                                     ],
                                 },
                             },
-                            in: { $ifNull: ['$$contentItem.taggedUser', null] },
+                            in: {$ifNull: ['$$contentItem.taggedUser', null]},
                         },
                     },
 
@@ -829,7 +836,7 @@ export class PromosService {
                                     $arrayElemAt: [
                                         {
                                             $filter: {
-                                                input: { $ifNull: ['$campaignContent', []] },
+                                                input: {$ifNull: ['$campaignContent', []]},
                                                 as: 'c',
                                                 cond: {
                                                     $eq: ['$$c._id', '$addedAccounts.selectedContent.campaignContentItemId'],
@@ -840,7 +847,7 @@ export class PromosService {
                                     ],
                                 },
                             },
-                            in: { $ifNull: ['$$contentItem.taggedLink', null] },
+                            in: {$ifNull: ['$$contentItem.taggedLink', null]},
                         },
                     },
 
@@ -851,7 +858,7 @@ export class PromosService {
                                     $arrayElemAt: [
                                         {
                                             $filter: {
-                                                input: { $ifNull: ['$campaignContent', []] },
+                                                input: {$ifNull: ['$campaignContent', []]},
                                                 as: 'c',
                                                 cond: {
                                                     $eq: ['$$c._id', '$addedAccounts.selectedContent.campaignContentItemId'],
@@ -862,7 +869,7 @@ export class PromosService {
                                     ],
                                 },
                             },
-                            in: { $ifNull: ['$$contentItem.additionalBrief', null] },
+                            in: {$ifNull: ['$$contentItem.additionalBrief', null]},
                         },
                     },
 
@@ -872,8 +879,8 @@ export class PromosService {
                                 $cond: {
                                     if: {
                                         $and: [
-                                            { $ne: ['$client.company', null] },
-                                            { $ne: ['$client.company', ''] },
+                                            {$ne: ['$client.company', null]},
+                                            {$ne: ['$client.company', '']},
                                         ],
                                     },
                                     then: '$client.company',
@@ -886,10 +893,10 @@ export class PromosService {
 
                     createdAt: {
                         $concat: [
-                            { $dateToString: { date: '$createdAt', format: '%d.%m.' } },
+                            {$dateToString: {date: '$createdAt', format: '%d.%m.'}},
                             {
                                 $substr: [
-                                    { $dateToString: { date: '$createdAt', format: '%Y' } },
+                                    {$dateToString: {date: '$createdAt', format: '%Y'}},
                                     2,
                                     2,
                                 ],
@@ -924,7 +931,7 @@ export class PromosService {
         }
 
         const client = await this.clientRepo.findById(
-            campaign.clientId || (campaign as any).userId,
+            campaign.clientId.toString(),
         );
         if (!client) {
             throw new NotFoundException('Client not found');
@@ -962,7 +969,8 @@ export class PromosService {
         return {
             campaignId: campaign._id.toString(),
             influencerId: selectedInfluencer.influencerId.toString(),
-            addedAccountsId: selectedInfluencer._id.toString(),
+            addedAccountsId: addedAccountsId,
+            socialAccountId: selectedInfluencer?.accountId?.toString() ?? undefined,
             campaignName: campaign.campaignName,
             username: selectedInfluencer.username,
             accountSocialMedia: selectedInfluencer.socialMedia as SocialMediaType,
