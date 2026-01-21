@@ -240,6 +240,7 @@ export class InfluencerGetDetailedPromosQueryDto {
     @ApiPropertyOptional({
         default: 12,
     })
+    @Type(() => Number)
     @IsNumber()
     @Min(1)
     @IsOptional()
@@ -249,6 +250,7 @@ export class InfluencerGetDetailedPromosQueryDto {
         default: 1,
         description: 'Page number (starts from 1)',
     })
+    @Type(() => Number)
     @IsNumber()
     @Min(0)
     @IsOptional()
