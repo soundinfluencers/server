@@ -4,7 +4,8 @@ import {SocialMediaType} from "../../common/types/social-media.types";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {
     InfluencerDetailedPromo,
-    InfluencerGetDashboardPromosQueryDto, InfluencerGetDetailedPromoParamsDto,
+    InfluencerGetDashboardPromosQueryDto,
+    InfluencerGetDetailedPromoParamsDto,
     InfluencerGetDetailedPromosQueryDto,
     InfluencerUpdatePromoReqBodyDto,
     InfluencerUpdatePromoResponseUpdateDto
@@ -51,7 +52,9 @@ export class PromosService {
     async getDetailedPromosByType(data: InfluencerGetDetailedPromosQueryDto): Promise<InfluencerDetailedPromo[]> {
         let promos: InfluencerDetailedPromo[];
 
-        switch (data.status) {
+        const status = data.status ?? InfluencerDetailedPromoStatusRequest.ongoing;
+
+        switch (status) {
             case InfluencerDetailedPromoStatusRequest.ongoing:
                 promos = await this.getOngoingPromos({
                     limit: data.limit,
@@ -607,13 +610,9 @@ export class PromosService {
         const influencer = await this.influencerRepo.findById(influencerId);
         if (!influencer) throw new NotFoundException('Influencer not found')
 
-        let campaign = await this.completedCampaignRepo.findOne({_id: campaignId}, {lean: true});
+        let campaign = await this.completedCampaignRepo.findOne({_id: new Types.ObjectId(campaignId)}, {lean: true});
 
-        if (!campaign) {
-            campaign = (await this.campaignRepo.findOne({_id: campaignId}, {lean: true})) as any;
-
-            if (!campaign) throw new NotFoundException('Campaign not found');
-        }
+        if (!campaign) throw new NotFoundException('Campaign not found');
 
         const client = await this.clientRepo.findById(campaign.clientId || (campaign as any).userId);
 
