@@ -307,7 +307,7 @@ export class CampaignsService {
                 schemaVersion: 2
             } as Campaign, {session});
 
-            client = await this.clientRepo.findOne({_id: data.clientId}, {session});
+            client = await this.clientRepo.findById(data.clientId, {session});
 
             await session.commitTransaction();
         } catch (err) {
@@ -317,28 +317,29 @@ export class CampaignsService {
             await session.endSession();
         }
 
-        const emailStartContent = () => {
-            return `
+        try {
+            const emailStartContent = () => {
+                return `
                     <p>Hi,</p>
-<p>The Client ${client.firstName} has requested the following ${data.socialMedia === SocialMediaEnum.press ? 'article for inclusion in' : 'post for'} this list of influencers on the ${data.socialMedia}:</p>
+<p>The Client ${client.firstName ?? 'Unknown'} has requested the following ${data.socialMedia === SocialMediaEnum.press ? 'article for inclusion in' : 'post for'} this list of influencers on the ${data.socialMedia}:</p>
 <p><strong>Post Details:</strong></p>
 <p><strong>Campaign Name: ${data.campaignName}</strong></p>
                     `;
-        };
+            };
 
-        const emailVideoContent = () => {
-            if (data.socialMedia === 'spotify' || data.socialMedia === 'soundcloud') {
-                return processedCampaignContent
-                    .map(
-                        (campaignContentItem, index) => `
+            const emailVideoContent = () => {
+                if (data.socialMedia === 'spotify' || data.socialMedia === 'soundcloud') {
+                    return processedCampaignContent
+                        .map(
+                            (campaignContentItem, index) => `
           <p><strong>Song/Playlist ${index + 1}:</strong></p>
           <ul>
               <li><strong>Track/Playlist Link:</strong> ${campaignContentItem.mainLink}</li>
               <li><strong>Track/Playlist Titles:</strong>
                 <ul>
                   ${campaignContentItem.descriptions
-                            .map((pd, i) => `<li>${i + 1}. ${pd.description}</li>`)
-                            .join('')}
+                                .map((pd, i) => `<li>${i + 1}. ${pd.description}</li>`)
+                                .join('')}
                 </ul>
               </li>
               <li><strong>Special Wishes:</strong> ${campaignContentItem.additionalBrief}</li>
@@ -346,32 +347,32 @@ export class CampaignsService {
           <p><strong>Selected Influencers:</strong></p>
           <ul>
               ${processedAccounts
-                            .filter(
-                                (account) =>
-                                    account.selectedContent?.campaignContentItemId.toString() ===
-                                    campaignContentItem._id.toString(),
-                            )
-                            .map(
-                                (account) =>
-                                    `<li>${account.socialMedia} username: ${account.username}</li>`,
-                            )
-                            .join('')}
+                                .filter(
+                                    (account) =>
+                                        account.selectedContent?.campaignContentItemId.toString() ===
+                                        campaignContentItem._id.toString(),
+                                )
+                                .map(
+                                    (account) =>
+                                        `<li>${account.socialMedia} username: ${account.username}</li>`,
+                                )
+                                .join('')}
           </ul>
         `,
-                    )
-                    .join('');
-            } else if (data.socialMedia === 'press') {
-                return processedCampaignContent
-                    .map(
-                        (campaignContentItem, index) => `
+                        )
+                        .join('');
+                } else if (data.socialMedia === 'press') {
+                    return processedCampaignContent
+                        .map(
+                            (campaignContentItem, index) => `
           <p><strong>Article ${index + 1}:</strong></p>
           <ul>
               <li><strong>Link to Music/Events/News:</strong> ${campaignContentItem.mainLink}</li>
               <li><strong>Descriptions:</strong>
                 <ul>
                   ${campaignContentItem.descriptions
-                            .map((pd, i) => `<li>${i + 1}. ${pd.description}</li>`)
-                            .join('')}
+                                .map((pd, i) => `<li>${i + 1}. ${pd.description}</li>`)
+                                .join('')}
                 </ul>
               </li>
               <li><strong>Link To Press Release:</strong> ${campaignContentItem.taggedUser}</li>
@@ -380,32 +381,32 @@ export class CampaignsService {
           <p><strong>Selected Influencers:</strong></p>
           <ul>
               ${processedAccounts
-                            .filter(
-                                (influencer) =>
-                                    influencer.selectedContent?.campaignContentItemId.toString() ===
-                                    campaignContentItem._id.toString(),
-                            )
-                            .map(
-                                (influencer) =>
-                                    `<li>${influencer.socialMedia} username: ${influencer.username}</li>`,
-                            )
-                            .join('')}
+                                .filter(
+                                    (influencer) =>
+                                        influencer.selectedContent?.campaignContentItemId.toString() ===
+                                        campaignContentItem._id.toString(),
+                                )
+                                .map(
+                                    (influencer) =>
+                                        `<li>${influencer.socialMedia} username: ${influencer.username}</li>`,
+                                )
+                                .join('')}
           </ul>
         `,
-                    )
-                    .join('');
-            } else {
-                return processedCampaignContent
-                    .map(
-                        (campaignContentItem, index) => `
+                        )
+                        .join('');
+                } else {
+                    return processedCampaignContent
+                        .map(
+                            (campaignContentItem, index) => `
           <p><strong>Post Content ${index + 1}:</strong></p>
           <ul>
               <li><strong>Link:</strong> ${campaignContentItem.mainLink}</li>
               <li><strong>Post Descriptions:</strong>
                 <ul>
                   ${campaignContentItem.descriptions
-                            .map((pd, i) => `<li>${i + 1}. ${pd.description}</li>`)
-                            .join('')}
+                                .map((pd, i) => `<li>${i + 1}. ${pd.description}</li>`)
+                                .join('')}
                 </ul>
               </li>
               <li><strong>Story Tag:</strong> ${campaignContentItem.taggedUser}</li>
@@ -415,24 +416,24 @@ export class CampaignsService {
           <p><strong>Selected Influencers:</strong></p>
           <ul>
               ${processedAccounts
-                            .filter(
-                                (influencer) =>
-                                    influencer.selectedContent?.campaignContentItemId.toString() ===
-                                    campaignContentItem._id.toString(),
-                            )
-                            .map(
-                                (influencer) =>
-                                    `<li>${influencer.socialMedia} username: ${influencer.username}</li>`,
-                            )
-                            .join('')}
+                                .filter(
+                                    (influencer) =>
+                                        influencer.selectedContent?.campaignContentItemId.toString() ===
+                                        campaignContentItem._id.toString(),
+                                )
+                                .map(
+                                    (influencer) =>
+                                        `<li>${influencer.socialMedia} username: ${influencer.username}</li>`,
+                                )
+                                .join('')}
           </ul>
         `,
-                    )
-                    .join('');
-            }
-        };
+                        )
+                        .join('');
+                }
+            };
 
-        const emailContent = `
+            const emailContent = `
 ${emailStartContent()}
 ${emailVideoContent()}
 <p>Payment Method Used: ${createdCampaign.paymentType}</p>
@@ -445,12 +446,15 @@ ${emailVideoContent()}
     </a>
 </p>`;
 
-        await sendMail(
-            process.env.EMAIL_USER,
-            'SoundInfluencers',
-            emailContent,
-            'html',
-        );
+            await sendMail(
+                process.env.EMAIL_USER,
+                'SoundInfluencers',
+                emailContent,
+                'html',
+            );
+        } catch (err) {
+            this.logger.warn(`Campaign ${data.campaignName} created, but email failed`, err);
+        }
     }
 
     // Returns detailed draft
