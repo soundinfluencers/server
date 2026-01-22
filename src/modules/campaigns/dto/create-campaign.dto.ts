@@ -16,7 +16,7 @@ export class SelectedCampaignContentItemDto {
 export class SelectInfluencerDto {
     @ApiProperty({required: true})
     @IsMongoId()
-    socialMediaAccountId: string;
+    socialAccountId: string;
 
     @ApiProperty({required: true})
     @IsMongoId()
@@ -28,7 +28,7 @@ export class SelectInfluencerDto {
 
     @ApiProperty({required: true})
     @IsString()
-    socialMediaUsername: string;
+    username: string;
 
     @ApiProperty({type: () => SelectedCampaignContentItemDto, required: true})
     @Type(() => SelectedCampaignContentItemDto)
@@ -100,9 +100,9 @@ export class CreateCampaignDto {
     @IsString()
     campaignName: string;
 
-    @ApiProperty({required: true, enum: SocialMediaEnum})
-    @IsEnum(SocialMediaEnum)
-    socialMedia: SocialMediaEnum;
+    @ApiProperty({required: true, enum: [...Object.values(SocialMediaEnum), 'multipromo']})
+    @IsEnum([...Object.values(SocialMediaEnum), 'multipromo'])
+    socialMedia: SocialMediaEnum | 'multipromo';
 
     @ApiProperty({required: true})
     @IsNumber()
@@ -135,7 +135,11 @@ export class DraftCampaignAccountDto {
 
     @ApiProperty({example: '6659bd485bc4317ed7c73556'})
     @IsMongoId()
-    accountId: string;
+    socialAccountId: string;
+
+    @ApiProperty({required: true, enum: SocialMediaEnum})
+    @IsEnum(SocialMediaEnum)
+    socialMedia: SocialMediaEnum;
 
     @ApiProperty({description: 'Selected content configuration', type: SelectedCampaignContentItemDto})
     @ValidateNested()

@@ -50,8 +50,8 @@ export class DraftCampaign {
     @Prop({type: String, required: true, enum: [...Object.values(SocialMediaEnum), 'multipromo']})
     socialMedia: SocialMediaEnum | 'multipromo';
 
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 
 export const DraftCampaignSchema = SchemaFactory.createForClass(DraftCampaign);

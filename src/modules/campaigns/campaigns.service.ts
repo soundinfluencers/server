@@ -18,7 +18,7 @@ import {
 } from "../../common/types/client/campaign.types";
 import {SocialMediaEnum, SocialMediaType} from "../../common/types/social-media.types";
 import {formatClientCampaignStatus, formatDate} from "../../common/utils/formatters";
-import {CreateCampaignDto, CreateDraftCampaignDto} from "./dto/create-campaign.dto";
+import {CampaignContentItemDto, CreateCampaignDto, CreateDraftCampaignDto} from "./dto/create-campaign.dto";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
 import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
 import sendMail from "../../integrations/nodemailer/nodemailer";
@@ -45,6 +45,7 @@ import {
     InfluencerPromoClosedStatusEnum
 } from "../../common/types/influencer/promo.types";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
+import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
 
 @Injectable()
 export class CampaignsService {
@@ -214,21 +215,21 @@ export class CampaignsService {
                         $or: [
                             {
                                 [`${influencer.socialMedia}._id`]: new mongoose.Types.ObjectId(
-                                    influencer.socialMediaAccountId,
+                                    influencer.socialAccountId,
                                 )
                             },
                             {
                                 _id: new Types.ObjectId(influencer.influencerId)
                             },
                             {
-                                [`${influencer.socialMedia}.username`]: influencer.socialMediaUsername
+                                [`${influencer.socialMedia}.username`]: influencer.username
                             }
                         ]
                     }, {lean: true});
 
                 if (!influencerData) {
                     this.logger.log(
-                        `Did not find any influencer with influencerId: ${influencer.influencerId} or social accountId: ${influencer.socialMediaAccountId} while creating campaign ${data.campaignName}`,
+                        `Did not find any influencer with influencerId: ${influencer.influencerId} or social accountId: ${influencer.socialAccountId} while creating campaign ${data.campaignName}`,
                     )
                     return null;
                 }
@@ -237,7 +238,7 @@ export class CampaignsService {
 
                 const socialMediaAccount = influencerData[influencer.socialMedia].find(
                     (account) =>
-                        account.username === influencer.socialMediaUsername
+                        account.username === influencer.username
                 );
 
                 if (socialMediaAccount) {
@@ -246,7 +247,7 @@ export class CampaignsService {
                         _id: new mongoose.Types.ObjectId(),
                         username: socialMediaAccount.username,
                         influencerId: new Types.ObjectId(influencerId),
-                        accountId: new Types.ObjectId(influencer.socialMediaAccountId),
+                        accountId: new Types.ObjectId(influencer.socialAccountId),
                         followers: socialMediaAccount.followers,
                         price: socialMediaAccount.price,
                         publicPrice: socialMediaAccount.publicPrice,
@@ -474,18 +475,32 @@ ${emailVideoContent()}
 
     // Creates new campaign draft
     async createDraftCampaign(data: CreateDraftCampaignDto): Promise<void> {
-        await this.draftCampaignRepo.create({
+        await this.draftCampaignRepo.create<DraftCampaign>({
             ...data,
             _id: new Types.ObjectId(),
             clientId: new Types.ObjectId(data.clientId),
             addedAccounts: data.addedAccounts.map((acc) => ({
                 _id: new Types.ObjectId(),
                 influencerId: new Types.ObjectId(acc.influencerId),
-                accountId: new Types.ObjectId(acc.accountId),
+                accountId: new Types.ObjectId(acc.socialAccountId),
+                socialMedia: acc.socialMedia,
                 selectedContent: {
                     campaignContentItemId: new Types.ObjectId(acc.selectedContent.campaignContentItemId),
                     postDescriptionId: new Types.ObjectId(acc.selectedContent.descriptionId)
                 },
+            })),
+            campaignContent: data.campaignContent.map((c: CampaignContentItemDto): CampaignContentItem => ({
+                _id: new Types.ObjectId(c._id),
+                socialMedia: c.socialMedia,
+                socialMediaGroup: c.socialMediaGroup,
+                mainLink: c.mainLink,
+                descriptions: c?.descriptions?.map((d) => ({
+                    _id: new Types.ObjectId(d._id),
+                    description: d.description
+                })) ?? undefined,
+                taggedUser: c.taggedUser ?? undefined,
+                taggedLink: c.taggedLink ?? undefined,
+                additionalBrief: c.additionalBrief ?? undefined
             }))
         });
     }
