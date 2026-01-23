@@ -83,3 +83,72 @@ export class ProposalCampaignsListDto {
     @ApiProperty({ type: () => [ProposalCampaignsListItemDto] })
     campaigns: ProposalCampaignsListItemDto[];
 }
+
+interface campaignContentItemType {
+    _id: string;
+    videoLink: string;
+    postDescriptions: {
+        _id: string;
+        description: string;
+    }[];
+    storyTag: string;
+    swipeUpLink: string;
+    specialWishes: string;
+    socialMedia: string;
+    socialMediaGroup: string;
+}
+
+interface selectInfluencersType {
+    _id: string;
+    influencerId: string;
+    socialMediaUsername: string;
+    price: string;
+    publicPrice: string;
+    selectedContent: {
+        campaignContentItemId: string;
+        postDescriptionId: string;
+    };
+    dateRequest: string;
+    followersNumber: number;
+    socialMedia: string;
+    genres: string[] | undefined;
+    countries: object[] | undefined;
+}
+
+export class UpdateProposalCampaignDto {
+    @ApiProperty({ required: true })
+    campaignId: string;
+
+    @ApiProperty({ required: false })
+    clientId: string;
+
+    @ApiProperty({ required: true })
+    campaignName: string;
+
+    @ApiProperty({ required: false })
+    addedAccounts: selectInfluencersType[];
+
+    @ApiProperty({ required: false })
+    campaignContent: campaignContentItemType[];
+
+    @ApiProperty({ required: false, default: 0 })
+    publicPrice: number;
+
+    @ApiProperty({ required: false, default: 0 })
+    price: number;
+
+    @ApiProperty({ required: false, default: 0 })
+    totalFollowers: number;
+
+    @ApiProperty({ required: true })
+    socialMedia: string;
+
+    @ApiProperty({ required: false, default: [] })
+    hiddenColumns: string[];
+}
+
+// dto for returning just created proposal campaign
+export class CreatedProposalCampaignIdDto {
+    @ApiProperty({example: '6659bd485bc4317ed7c73555'})
+    campaignId: string;
+}

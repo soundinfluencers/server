@@ -151,7 +151,7 @@ export class SocialAccountDetailsDto implements SocialAccountDetails {
     @ApiProperty({example: 'EUR', nullable: true})
     currency: string | null;
 
-    @ApiProperty({example: ['Techno', 'Hardstyle'], isArray: true})
+    @ApiProperty({isArray: true})
     musicGenres: InfluencerMusicGenre[];
 
     @ApiProperty({example: ['DJ', 'Producer'], isArray: true})

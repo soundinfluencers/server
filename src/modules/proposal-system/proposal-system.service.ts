@@ -1,52 +1,187 @@
-import {BadRequestException, Injectable} from '@nestjs/common';
+import {BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException} from '@nestjs/common';
 import mongoose, {Types} from 'mongoose';
-import {SaveProposalCampaignDto} from './dto/save-proposal-campaign.dto';
 import {ProposalCampaignRepository} from "../../database/repositories/campaigns/proposal-campaign.repository";
 import {ProposalCampaignsListItem} from "./types/proposal-system.types";
+import {ClientRepository} from "../../database/repositories/users/client.repository";
+import {AdminRepository} from "../../database/repositories/users/admin.repository";
+import {CampaignContentItemDto, CreateCampaignDto, SelectInfluencerDto} from "../campaigns/dto/create-campaign.dto";
+import {Role} from "../../common/types/auth.types";
+import {CampaignAccountForProposal, ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
+import {CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
+import {
+    InfluencerConfirmationStatusEnum,
+    InfluencerPromoClosedStatusEnum
+} from "../../common/types/influencer/promo.types";
+import {SocialMediaEnum} from "../../common/types/social-media.types";
+import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
+import {getArrayFromAccountMusicGenres} from "../../common/utils/genres";
+import {CreatedProposalCampaignIdDto, UpdateProposalCampaignDto} from "./dto/proposal-campaigns.dto";
 
 @Injectable()
 export class ProposalSystemService {
+    private readonly logger = new Logger();
+
     constructor(
+        private readonly clientRepo: ClientRepository,
+        private readonly influencerRepo: InfluencerRepository,
+        private readonly adminRepo: AdminRepository,
         private readonly proposalCampaignRepo: ProposalCampaignRepository,
     ) {
     }
 
-    async saveProposalCampaign(data: SaveProposalCampaignDto) {
+    // Create new proposal campaign
+    async createProposalCampaign(data: CreateCampaignDto, creatorInfo: {creatorId: string, creatorRole: Role}): Promise<CreatedProposalCampaignIdDto> {
+        const {creatorId, creatorRole} = creatorInfo;
+
+        if (!creatorId || !creatorRole) throw new BadRequestException("Not enough arguments");
+
+        // check if creator exists
+        switch (creatorRole) {
+            case 'admin': {
+                const exists = await this.adminRepo.findById(creatorId);
+                if (!exists) throw new NotFoundException('User not found');
+                break;
+            }
+            case 'client': {
+                const exists = await this.clientRepo.findById(creatorId);
+
+                // todo: only proposal clients can create proposal campaigns, so need to ask Eric
+
+                if (!exists) throw new NotFoundException('User not found');
+                break;
+            }
+            default:
+                throw new ForbiddenException('Not enough access');
+        }
+
+        // Price that only we can see. Users will see public price
+        let privateCampaignPrice = 0;
+
+        // processing added accounts for proposal campaign
+        const processedAccounts: CampaignAccountForProposal[] = await Promise.all(
+            data.addedAccounts.map(async (account: SelectInfluencerDto): Promise<CampaignAccountForProposal> => {
+                const dateRequest = account.dateRequest;
+
+                // find account's owner
+                const influencerData = await this.influencerRepo
+                    .findOne({
+                        $or: [
+                            {
+                                [`${account.socialMedia}._id`]: new mongoose.Types.ObjectId(
+                                    account.socialAccountId,
+                                )
+                            },
+                            {
+                                _id: new Types.ObjectId(account.influencerId)
+                            },
+                            {
+                                [`${account.socialMedia}.username`]: account.username
+                            }
+                        ]
+                    }, {lean: true});
+
+                if (!influencerData) {
+                    this.logger.log(
+                        `Did not find any influencer with influencerId: ${account.influencerId} or social accountId: ${account.socialAccountId} while creating proposal campaign ${data.campaignName}`,
+                    )
+                    return null;
+                }
+
+                const influencerId = influencerData._id.toString();
+
+                const socialMediaAccount = influencerData[account.socialMedia].find(
+                    (account) =>
+                        account.username === account.username
+                );
+
+                if (socialMediaAccount) {
+                    privateCampaignPrice += socialMediaAccount.price;
+
+                    return {
+                        ...account,
+                        _id: new mongoose.Types.ObjectId(),
+                        username: socialMediaAccount.username,
+                        influencerId: new Types.ObjectId(influencerId),
+                        accountId: new Types.ObjectId(account.socialAccountId),
+                        followers: socialMediaAccount.followers,
+                        price: socialMediaAccount.price,
+                        publicPrice: socialMediaAccount.publicPrice,
+                        selectedContent: {
+                            campaignContentItemId: new Types.ObjectId(
+                                account.selectedCampaignContentItem.campaignContentItemId,
+                            ),
+                            descriptionId: new Types.ObjectId(
+                                account.selectedCampaignContentItem.descriptionId,
+                            ),
+                        },
+                        confirmation: InfluencerConfirmationStatusEnum.wait,
+                        closePromo: InfluencerPromoClosedStatusEnum.wait,
+                        countries: socialMediaAccount.countries ?? undefined,
+                        genres: socialMediaAccount.musicGenres ? getArrayFromAccountMusicGenres(socialMediaAccount.musicGenres) : undefined,
+                        createdAt: new Date(),
+                        dateRequest,
+                    } satisfies CampaignAccountForProposal;
+                }
+
+                return null
+            }).filter(Boolean),
+        );
+
+        // processing campaign content items
+        const processedCampaignContent: CampaignContentItem[] = await Promise.all(
+            data.campaignContent.map(async (campaignContentItem: CampaignContentItemDto): Promise<CampaignContentItem> => ({
+                _id: new mongoose.Types.ObjectId(campaignContentItem._id),
+                mainLink: campaignContentItem.mainLink.trim(),
+                socialMedia: campaignContentItem.socialMedia as SocialMediaEnum,
+                socialMediaGroup: campaignContentItem.socialMediaGroup,
+                descriptions: campaignContentItem?.descriptions.map((pd) => ({
+                    _id: new mongoose.Types.ObjectId(pd._id),
+                    description: pd.description.trim(),
+                })) ?? undefined,
+                taggedUser: campaignContentItem.taggedUser?.trim() ?? undefined,
+                taggedLink: campaignContentItem.taggedLink?.trim() ?? undefined,
+                additionalBrief: campaignContentItem.additionalBrief?.trim() ?? undefined,
+            } satisfies CampaignContentItem)),
+        );
+
+        // building campaign with ProposalCampaign type
+        const campaignId = new Types.ObjectId();
+        const readyToGoCampaign: ProposalCampaign = {
+            _id: campaignId,
+            schemaVersion: 2,
+            creatorId: new Types.ObjectId(creatorId),
+            creatorRole: creatorRole,
+            socialMedia: data.socialMedia,
+            campaignName: data.campaignName.trim(),
+            publicCampaignPrice: data.campaignPrice,
+            privateCampaignPrice: data.campaignPrice,
+            addedAccounts: processedAccounts,
+            campaignContent: processedCampaignContent,
+        }
+
+        const campaign = await this.proposalCampaignRepo.create<ProposalCampaign>(readyToGoCampaign);
+        return {campaignId: campaign._id.toString()};
+    }
+
+    // Update proposal campaign
+    async updateProposalCampaign(data: UpdateProposalCampaignDto) {
         if (!data.campaignName) throw new BadRequestException("Not enough arguments");
 
         let proposalCampaign = await this.proposalCampaignRepo.findOne({
-            _id: new mongoose.Types.ObjectId(data.campaignId),
+            _id: new Types.ObjectId(data.campaignId),
         });
 
         if (!proposalCampaign) {
-            await this.proposalCampaignRepo.create({
-                clientId: data.clientId
-                    ? new mongoose.Types.ObjectId(data.clientId)
-                    : new mongoose.Types.ObjectId('66f540faaf4e960d2f9bebfc'),
-                campaignName: data.campaignName.trim(),
-                addedAccounts: data.addedAccounts.map(account => ({
-                    ...account,
-                    selectedContent: {
-                        campaignContentItemId: new Types.ObjectId(account.selectedContent.campaignContentItemId),
-                        postDescriptionId: new Types.ObjectId(account.selectedContent.postDescriptionId)
-                    }
-                })),
-                campaignContent: data.campaignContent,
-                price: data.price,
-                publicPrice: data.publicPrice,
-                totalFollowers: data.totalFollowers,
-                socialMedia: data.socialMedia,
-                hiddenColumns: data.hiddenColumns,
-            });
+            throw new NotFoundException('Campaign not found');
         } else {
             await this.proposalCampaignRepo.updateOne(
                 {
-                    _id: new mongoose.Types.ObjectId(data.campaignId),
+                    _id: new Types.ObjectId(data.campaignId),
                 },
                 {
                     clientId: data.clientId
-                        ? new mongoose.Types.ObjectId(data.clientId)
-                        : new mongoose.Types.ObjectId('66f540faaf4e960d2f9bebfc'),
+                        ? new Types.ObjectId(data.clientId)
+                        : new Types.ObjectId('66f540faaf4e960d2f9bebfc'),
                     campaignName: data.campaignName.trim(),
                     addedAccounts: data.addedAccounts.map(account => ({
                         ...account,

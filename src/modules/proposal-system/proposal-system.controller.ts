@@ -1,11 +1,17 @@
-import {Body, Controller, Get, Patch, Query} from '@nestjs/common';
+import {Body, Controller, Get, Patch, Post, Query, Req} from '@nestjs/common';
 import {ProposalSystemService} from './proposal-system.service';
-import {SaveProposalCampaignDto} from './dto/save-proposal-campaign.dto';
-import {ApiQuery, ApiTags} from "@nestjs/swagger";
+import {ApiOperation, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
-import {Role} from "../../common/types/auth.types";
-import {GetProposalCampaignsQueryDto, ProposalCampaignsListDto} from "./dto/get-proposal-campaigns.dto";
+import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
+import {
+    CreatedProposalCampaignIdDto,
+    GetProposalCampaignsQueryDto,
+    ProposalCampaignsListDto,
+    UpdateProposalCampaignDto
+} from "./dto/proposal-campaigns.dto";
+import {CreateCampaignDto} from "../campaigns/dto/create-campaign.dto";
+import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 
 @ApiTags('proposal-system')
 @Controller('proposal-system')
@@ -15,9 +21,18 @@ export class ProposalSystemController {
 
     @Auth()
     @Roles(Role.client, Role.admin)
-    @Patch('save')
-    saveProposalCampaign(@Body() data: SaveProposalCampaignDto) {
-        return this.proposalSystemService.saveProposalCampaign(data);
+    @ApiOperation({summary: 'Create a proposal campaign'})
+    @ApiResponseDto(CreatedProposalCampaignIdDto, {successStatusCode: 201})
+    @Post()
+    createProposalCampaign(@Req() req: AuthenticatedRequest, @Body() data: CreateCampaignDto): Promise<CreatedProposalCampaignIdDto> {
+        return this.proposalSystemService.createProposalCampaign(data, {creatorId: req.user._id, creatorRole: req.user.role});
+    }
+
+    @Auth()
+    @Roles(Role.client, Role.admin)
+    @Patch()
+    updateProposalCampaign(@Body() data: UpdateProposalCampaignDto) {
+        return this.proposalSystemService.updateProposalCampaign(data);
     }
 
     @Auth()

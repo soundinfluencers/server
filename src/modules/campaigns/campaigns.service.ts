@@ -44,7 +44,6 @@ import {
     InfluencerConfirmationStatusEnum,
     InfluencerPromoClosedStatusEnum
 } from "../../common/types/influencer/promo.types";
-import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
 
 @Injectable()
@@ -758,7 +757,12 @@ ${emailVideoContent()}
 
         if (!client.isProposalClient) throw new ForbiddenException('Client need to be proposal client')
 
-        const proposalPromos = await this.proposalCampaignRepo.findMany({clientId});
+        const proposalPromos = await this.proposalCampaignRepo.findMany({
+            $or: [
+                {creatorId: new Types.ObjectId(clientId)},
+                {clientId: new Types.ObjectId(clientId)},
+            ]
+        });
 
         if (proposalPromos.length === 0) {
             return [];
@@ -769,8 +773,8 @@ ${emailVideoContent()}
             campaignName: p.campaignName,
             socialMedia: p.socialMedia as SocialMediaType,
             creationDate: formatDate(p.createdAt),
-            price: p.price,
-            status: CampaignStatusEnum.pending,
+            price: p.publicCampaignPrice,
+            status: CampaignStatusEnum.underReview,
         }))
     }
 
