@@ -46,28 +46,30 @@ export const getArrayFromAccountMusicGenres = (musicGenres: InfluencerMusicGenre
 };
 
 // Parses string[] to InfluencerMusicGenre[]
-export const normalizeStringToMusicGenres = (musicGenres: string[]): InfluencerMusicGenre[] => {
-    return musicGenres.map((item) => {
+export const normalizeStringToMusicGenres = (items: string[]): InfluencerMusicGenre[] => {
+    const map = new Map<string, Set<string>>();
+
+    for (const raw of items) {
+        const item = raw.trim();
         const match = item.match(/^(.+?)\s*\((.+)\)$/);
 
         if (match) {
             const genre = match[1].trim();
-            const subGenres = match[2]
-                .split(',')
-                .map(s => s.trim());
-
-            return {
-                genre,
-                subGenres,
-            };
+            const sub = match[2].trim();
+            if (!map.has(genre)) map.set(genre, new Set());
+            map.get(genre)!.add(sub);
+        } else {
+            const genre = item;
+            if (!map.has(genre)) map.set(genre, new Set());
         }
+    }
 
-        return {
-            genre: item.trim(),
-            subGenres: [],
-        };
-    });
+    return [...map.entries()].map(([genre, subs]) => ({
+        genre,
+        subGenres: [...subs],
+    }));
 };
+
 
 // Parses MusicGenreDto[] to InfluencerMusicGenre[]
 export const normalizeDtoToMusicGenres = (

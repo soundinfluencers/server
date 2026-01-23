@@ -18,7 +18,7 @@ import {
 import * as process from 'node:process';
 import {AppGateway} from '../websocket/app.gateway';
 import sendMail from "../../integrations/nodemailer/nodemailer";
-import {Influencer, SocialAccount} from "../../database/schemas/users/influencer.schema";
+import {Influencer, InfluencerMusicGenre, SocialAccount} from "../../database/schemas/users/influencer.schema";
 import {MigrateAccountDto} from "../migrations/dto/migrate-account.dto";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
@@ -26,7 +26,11 @@ import {ClientRepository} from "../../database/repositories/users/client.reposit
 import {Role} from "../../common/types/auth.types";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {CreateSocialAccountDto} from "../auth/dto/create-influencer.dto";
-import {getArrayFromMusicGenreDto, normalizeDtoToMusicGenres} from "../../common/utils/genres";
+import {
+    getArrayFromMusicGenreDto,
+    normalizeDtoToMusicGenres,
+    normalizeStringToMusicGenres
+} from "../../common/utils/genres";
 import {InfluencerAccountDetails, SocialAccountDetails} from "../../common/types/influencer/influencer.types";
 import {mapInfluencerToAccountDetailsDto, mapToSocialAccountDetailsDto} from "../../common/mappers/influencer.mapper";
 import {ClientAccountDetails} from "../../common/types/client/client.types";
@@ -883,8 +887,8 @@ export class ProfileService {
         // Базовые фильтры аккаунта
         pipeline.push({
             $match: {
-                'allAccounts.isDeleted': false,
-                'allAccounts.isHidden': false,
+                'allAccounts.isDeleted': { $ne: true },
+                'allAccounts.isHidden': { $ne: true },
                 'allAccounts.isVerified': true,
             }
         });
@@ -902,7 +906,7 @@ export class ProfileService {
         if (filters.budget) {
             pipeline.push({
                 $match: {
-                    'allAccounts.price': { $lte: filters.budget }
+                    'allAccounts.publicPrice': { $lte: filters.budget }
                 }
             });
         }
@@ -915,20 +919,36 @@ export class ProfileService {
             });
         }
 
+        console.log('RAW filters.musicGenres:', filters.musicGenres);
+        console.log('RAW filters.musicGenresFilterMethod:', filters.musicGenresFilterMethod);
+
         // musicGenres (and / or)
         if (filters.musicGenres?.length) {
+            const normalizedGenres: InfluencerMusicGenre[] = normalizeStringToMusicGenres(filters.musicGenres);
+            console.log('normalizedGenres:', normalizedGenres);
+
             if (filters.musicGenresFilterMethod === 'and') {
-                filters.musicGenres.forEach(genre => {
-                    pipeline.push({
-                        $match: {
-                            'allAccounts.musicGenres.genre': genre
-                        }
-                    });
+                pipeline.push({
+                    $match: {
+                        $and: normalizedGenres.flatMap(g =>
+                            (g.subGenres.length ? g.subGenres : [null]).map(sub =>
+                                sub
+                                    ? { 'allAccounts.musicGenres': { $elemMatch: { genre: g.genre, subGenres: sub } } }
+                                    : { 'allAccounts.musicGenres': { $elemMatch: { genre: g.genre } } }
+                            )
+                        )
+                    }
                 });
             } else {
                 pipeline.push({
                     $match: {
-                        'allAccounts.musicGenres.genre': { $in: filters.musicGenres }
+                        $or: normalizedGenres.flatMap(g =>
+                            (g.subGenres.length ? g.subGenres : [null]).map(sub =>
+                                sub
+                                    ? { 'allAccounts.musicGenres': { $elemMatch: { genre: g.genre, subGenres: sub } } }
+                                    : { 'allAccounts.musicGenres': { $elemMatch: { genre: g.genre } } }
+                            )
+                        )
                     }
                 });
             }
@@ -1004,10 +1024,27 @@ export class ProfileService {
                     }
                 },
                 musicGenres: {
-                    $map: {
+                    $reduce: {
                         input: { $ifNull: ['$allAccounts.musicGenres', []] },
-                        as: 'm',
-                        in: '$$m.genre'
+                        initialValue: [],
+                        in: {
+                            $concatArrays: [
+                                '$$value',
+                                {
+                                    $cond: [
+                                        { $gt: [{ $size: { $ifNull: ['$$this.subGenres', []] } }, 0] },
+                                        {
+                                            $map: {
+                                                input: '$$this.subGenres',
+                                                as: 'sg',
+                                                in: { $concat: ['$$this.genre', ' (', '$$sg', ')'] }
+                                            }
+                                        },
+                                        ['$$this.genre']
+                                    ]
+                                }
+                            ]
+                        }
                     }
                 },
                 creatorCategories: { $ifNull: ['$allAccounts.creatorCategories', []] },
