@@ -6,7 +6,7 @@ import {
     UnauthorizedException
 } from '@nestjs/common';
 import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from './dto/client/update-client.dto';
-import {ClientSession, Types} from 'mongoose';
+import {ClientSession, PipelineStage, Types} from 'mongoose';
 import {UpdateUserPasswordDto} from './dto/update-password.dto';
 import {
     AddSocialMediasDto,
@@ -46,11 +46,14 @@ import {
     InfluencerAccountDetailsDto
 } from "./dto/influencer/get-profile.dto";
 import {SocialAccountSearchFiltersDto} from "./dto/client/search-social-accounts.dto";
+import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
 
 const bcrypt = require('bcryptjs');
 
 @Injectable()
 export class ProfileService {
+    private readonly logger = new Logger('ProfileService');
+
     constructor(
         private readonly webSocketService: AppGateway,
         private readonly clientRepo: ClientRepository,
@@ -58,7 +61,17 @@ export class ProfileService {
     ) {
     }
 
-    private readonly logger = new Logger('ProfileService');
+    // ------------ UTILS ---------------
+
+
+    private capitalize = (s: string): string => {
+        if (!s) return s;
+        return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+
+    // ------------- SERVICES -------------
+
 
     // Returns client's account details
     async getClientAccountDetails(clientId: string): Promise<ClientAccountDetails> {
@@ -204,7 +217,7 @@ export class ProfileService {
 
         const accountAggregation = await this.influencerRepo.aggregate([
             {
-                $match: { _id: new Types.ObjectId(influencerId) }
+                $match: {_id: new Types.ObjectId(influencerId)}
             },
             {
                 $project: {
@@ -215,10 +228,10 @@ export class ProfileService {
                 $unwind: '$accounts'
             },
             {
-                $match: { 'accounts._id': new Types.ObjectId(accountId) }
+                $match: {'accounts._id': new Types.ObjectId(accountId)}
             },
             {
-                $replaceRoot: { newRoot: '$accounts' }
+                $replaceRoot: {newRoot: '$accounts'}
             }
         ]);
 
@@ -296,144 +309,6 @@ export class ProfileService {
             acc._id.equals(socialAccountId),
         ));
     }
-
-//     // TODO: UPDATE
-//     async sendMailAboutChangingPrice(data: SendMailPriceChangeDto) {
-//         if (!data) {
-//             return {
-//                 code: 400,
-//                 message: 'Not enough arguments',
-//             };
-//         }
-//
-//         const influencer = await this.influencerModel.findOne({_id: data.influencerId});
-//
-//         if (!influencer) {
-//             return {
-//                 code: 404,
-//                 message: 'User not found',
-//             };
-//         }
-//
-//         const socialMediaAccounts = influencer[data.typeOfSocialMedia];
-//
-//         if (!socialMediaAccounts || socialMediaAccounts.length === 0) {
-//             return {
-//                 code: 404,
-//                 message: `No accounts found for type: ${data.typeOfSocialMedia}`,
-//             };
-//         }
-//
-//         const accountIndex = socialMediaAccounts.findIndex(
-//             (account) => account._id.toString() === data.accountId,
-//         );
-//
-//         if (accountIndex === -1) {
-//             return {
-//                 code: 404,
-//                 message: 'Account not found',
-//             };
-//         }
-//
-//         const account = socialMediaAccounts[accountIndex];
-//
-//         let emailContent = `
-//             <p>Hi,</p>
-//             <p>The influencer <strong>${influencer.firstName}</strong> has requested to update the price for their ${data.typeOfSocialMedia} account <strong>${account.instagramUsername}</strong> from €${account.price} to €${data.newPrice}.</p>
-// <a href="${process.env.SERVER}/profile/influencer/verify-new-social-media-price?influencerId=${data.influencerId}&socialMedia=${data.typeOfSocialMedia}&networkUsername=${encodeURIComponent(account.instagramUsername)}&isPriceGoodToGo=${true}&newPrice=${data.newPrice}">ACCEPT</a>
-// <a href="${process.env.SERVER}/profile/influencer/verify-new-social-media-price?influencerId=${data.influencerId}&socialMedia=${data.typeOfSocialMedia}&networkUsername=${encodeURIComponent(account.instagramUsername)}&isPriceGoodToGo=${false}&newPrice=${data.newPrice}">DECLINE</a>
-//         `;
-//
-//         await sendMail(
-//             // "nazarkozynets030606@zohomail.eu",
-//             'admin@soundinfluencers.com',
-//             'soundinfluencers',
-//             emailContent,
-//             'html',
-//         );
-//
-//         await sendMail(
-//             influencer.email,
-//             'soundinfluencers',
-//             `
-//                 <p>Hi ${influencer.firstName}</p>
-//                 <br>
-//                 <p>We've received your price change request and we will come back to you ASAP.</p>
-//                 <br>
-//                 <p>Thanks for your patience</p>
-//                 <p>SoundInfluencers Team</p>
-//             `,
-//         );
-//
-//         return {
-//             code: 200,
-//             message: 'Email sent successfully',
-//         };
-//     }
-//
-//     // TODO: UPDATE
-//     async changeSocialMediaPrice(
-//         influencerId: string,
-//         socialMedia: string,
-//         networkUsername: string,
-//         isPriceGoodToGo: boolean,
-//         newPrice: string,
-//     ) {
-//         if (!influencerId || !socialMedia || !networkUsername || isPriceGoodToGo === undefined) {
-//             return {
-//                 code: 400,
-//                 message: 'Not enough arguments',
-//             };
-//         }
-//
-//         if (isPriceGoodToGo) {
-//             const influencer = await this.influencerModel.findOne({_id: influencerId});
-//
-//             if (!influencer) {
-//                 return {
-//                     code: 404,
-//                     message: 'User not found',
-//                 };
-//             }
-//
-//             const socialMediaAccounts = influencer[socialMedia];
-//
-//             if (!socialMediaAccounts || socialMediaAccounts.length === 0) {
-//                 return {
-//                     code: 404,
-//                     message: `No accounts found for type: ${socialMedia}`,
-//                 };
-//             }
-//
-//             const accountIndex = socialMediaAccounts.findIndex(
-//                 (account) => account.instagramUsername === networkUsername,
-//             );
-//
-//             if (accountIndex === -1) {
-//                 return {
-//                     code: 404,
-//                     message: 'Account not found',
-//                 };
-//             }
-//
-//             socialMediaAccounts[accountIndex].price = newPrice;
-//             socialMediaAccounts[accountIndex].publicPrice = (parseFloat(newPrice) * 2).toString();
-//
-//             influencer[socialMedia] = socialMediaAccounts;
-//             await influencer.save();
-//
-//             return {
-//                 code: 200,
-//                 message: 'Social media account updated successfully',
-//             };
-//         } else {
-//             return {
-//                 code: 200,
-//                 message: 'Price change request declined',
-//             };
-//         }
-//     }
-//
 
     // Deletes influencer's social account
     async deleteSocialAccount(data: DeleteSocialAccountDto) {
@@ -675,7 +550,7 @@ export class ProfileService {
         session.startTransaction();
 
         try {
-            await influencer.save({ session, validateBeforeSave: false });
+            await influencer.save({session, validateBeforeSave: false});
             await session.commitTransaction();
         } catch (err) {
             await session.abortTransaction();
@@ -844,6 +719,374 @@ export class ProfileService {
         };
     }
 
+    // Returns filters for getting filtered social accounts (currently using at create campaign page)
+    async getFilterOptions(): Promise<GetFilterOptionsDataDto> {
+        // ----------------------------
+        // 0) Константы/утилиты (внутри метода, как просил)
+        // ----------------------------
+        const CANONICAL_ALLOWED_GENRES = [
+            'Techno (Melodic, Minimal)',
+            'Techno (Hard, Peak)',
+            'House (Tech House)',
+            'House (Melodic, Afro)',
+            'EDM',
+            'D&B',
+            'Bass',
+            'Psy, Trance',
+            'Dubstep',
+            'Garage',
+            'Dance Pop',
+        ] as const;
+
+        const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+        const allowedKeys = CANONICAL_ALLOWED_GENRES.map(norm);
+        const canonicalByKey = new Map<string, string>(
+            CANONICAL_ALLOWED_GENRES.map(v => [norm(v), v]),
+        );
+
+        const cap = (s: string) => {
+            if (!s) return s;
+            return s.charAt(0).toUpperCase() + s.slice(1);
+        };
+
+        // ----------------------------
+        // 1) Собираем allAccounts из всех соцсетей
+        // ----------------------------
+        const socialFields = Object.values(SocialMediaEnum);
+        const socialFieldEntries = socialFields.map(f => ({k: f, v: `$${f}`}));
+
+        // ----------------------------
+        // 2) BASE агрегация: platforms/profileTypes/countries/categories/creatorCategories
+        // ----------------------------
+        const basePipeline: PipelineStage[] = [
+            {
+                $project: {
+                    allAccounts: {
+                        $reduce: {
+                            input: socialFieldEntries,
+                            initialValue: [],
+                            in: {
+                                $concatArrays: [
+                                    '$$value',
+                                    {
+                                        $map: {
+                                            input: {$ifNull: ['$$this.v', []]},
+                                            as: 'acc',
+                                            in: {$mergeObjects: ['$$acc', {socialMedia: '$$this.k'}]},
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+            {$unwind: '$allAccounts'},
+            {
+                $match: {
+                    'allAccounts.isVerified': true,
+                    'allAccounts.isDeleted': {$ne: true},
+                    'allAccounts.isHidden': {$ne: true},
+                },
+            },
+            {
+                $facet: {
+                    platforms: [
+                        {$group: {_id: '$allAccounts.socialMedia', count: {$sum: 1}}},
+                        {$project: {_id: 0, id: '$_id', count: 1}},
+                        {$sort: {count: -1, id: 1}},
+                    ],
+
+                    profileTypes: [
+                        {$match: {'allAccounts.profileCategory': {$type: 'string', $ne: ''}}},
+                        {$group: {_id: '$allAccounts.profileCategory', count: {$sum: 1}}},
+                        {$project: {_id: 0, id: '$_id', count: 1}},
+                        {$sort: {count: -1, id: 1}},
+                    ],
+
+                    countries: [
+                        {$unwind: {path: '$allAccounts.countries', preserveNullAndEmptyArrays: false}},
+                        {$match: {'allAccounts.countries.country': {$type: 'string', $ne: ''}}},
+                        {$group: {_id: '$allAccounts.countries.country', count: {$sum: 1}}},
+                        {$project: {_id: 0, id: '$_id', count: 1}},
+                        {$sort: {count: -1, id: 1}},
+                    ],
+
+                    // 4) categories counts (allAccounts.categories)  -> additional topics
+                    categories: [
+                        {$unwind: {path: '$allAccounts.categories', preserveNullAndEmptyArrays: false}},
+                        {
+                            $project: {
+                                cat: {
+                                    $toLower: {
+                                        $trim: {input: '$allAccounts.categories'},
+                                    },
+                                },
+                            },
+                        },
+                        {
+                            $match: {
+                                cat: {$type: 'string', $ne: ''},
+                            },
+                        },
+                        {$group: {_id: '$cat', count: {$sum: 1}}},
+                        {$project: {_id: 0, id: '$_id', count: 1}},
+                        {$sort: {count: -1, id: 1}},
+                    ],
+
+                    // music categories = creatorCategories
+                    creatorCategories: [
+                        {$unwind: {path: '$allAccounts.creatorCategories', preserveNullAndEmptyArrays: false}},
+                        {$match: {'allAccounts.creatorCategories': {$type: 'string', $ne: ''}}},
+                        {$group: {_id: '$allAccounts.creatorCategories', count: {$sum: 1}}},
+                        {$project: {_id: 0, id: '$_id', count: 1}},
+                        {$sort: {count: -1, id: 1}},
+                    ],
+                },
+            },
+        ];
+
+        const [aggBase] = await this.influencerRepo.aggregate<{
+            platforms: { id: string; count: number }[];
+            profileTypes: { id: string; count: number }[];
+            countries: { id: string; count: number }[];
+            categories: { id: string; count: number }[];
+            creatorCategories: { id: string; count: number }[];
+        }>(basePipeline).exec();
+
+        // ----------------------------
+        // 3) GENRES агрегация: flatten + normalize + whitelist
+        // ----------------------------
+        const genresPipeline: PipelineStage[] = [
+            {
+                $project: {
+                    allAccounts: {
+                        $reduce: {
+                            input: socialFieldEntries,
+                            initialValue: [],
+                            in: {
+                                $concatArrays: [
+                                    '$$value',
+                                    {
+                                        $map: {
+                                            input: {$ifNull: ['$$this.v', []]},
+                                            as: 'acc',
+                                            in: {$mergeObjects: ['$$acc', {socialMedia: '$$this.k'}]},
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+            {$unwind: '$allAccounts'},
+            {
+                $match: {
+                    'allAccounts.isVerified': true,
+                    'allAccounts.isDeleted': {$ne: true},
+                    'allAccounts.isHidden': {$ne: true},
+                },
+            },
+            {$unwind: {path: '$allAccounts.musicGenres', preserveNullAndEmptyArrays: false}},
+            {
+                $project: {
+                    genre: '$allAccounts.musicGenres.genre',
+                    subGenres: {$ifNull: ['$allAccounts.musicGenres.subGenres', []]},
+                },
+            },
+            {$match: {genre: {$type: 'string', $ne: ''}}},
+
+            // normalize genre + subs in mongo (lower + trim + collapse spaces "  ")
+            {
+                $project: {
+                    genreNorm: {
+                        $toLower: {
+                            $replaceAll: {
+                                input: {$trim: {input: '$genre'}},
+                                find: '  ',
+                                replacement: ' ',
+                            },
+                        },
+                    },
+                    subNorms: {
+                        $map: {
+                            input: '$subGenres',
+                            as: 's',
+                            in: {
+                                $toLower: {
+                                    $replaceAll: {
+                                        input: {$trim: {input: '$$s'}},
+                                        find: '  ',
+                                        replacement: ' ',
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+
+            // flatten: ["techno (hard, peak)"] or ["edm"]
+            {
+                $project: {
+                    flat: {
+                        $cond: [
+                            {$gt: [{$size: '$subNorms'}, 0]},
+                            {
+                                $map: {
+                                    input: '$subNorms',
+                                    as: 'sub',
+                                    in: {$concat: ['$genreNorm', ' (', '$$sub', ')']},
+                                },
+                            },
+                            ['$genreNorm'],
+                        ],
+                    },
+                },
+            },
+            {$unwind: '$flat'},
+
+            // whitelist only
+            {$match: {flat: {$in: allowedKeys}}},
+
+            {$group: {_id: '$flat', count: {$sum: 1}}},
+            {$project: {_id: 0, key: '$_id', count: 1}},
+            {$sort: {count: -1, key: 1}},
+        ];
+
+        const flatGenreCounts = await this.influencerRepo.aggregate<{
+            key: string;
+            count: number
+        }>(genresPipeline).exec();
+
+        // ----------------------------
+        // 4) Собираем music-genre block: parent + children (строго из canonical)
+        // ----------------------------
+        const byGenre = new Map<string, { total: number; subs: Map<string, number> }>();
+
+        for (const row of flatGenreCounts) {
+            const canonical = canonicalByKey.get(row.key);
+            if (!canonical) continue;
+
+            const m = canonical.match(/^(.+?)\s*\((.+)\)$/);
+            if (m) {
+                const parent = m[1].trim();
+                const sub = m[2].trim();
+
+                if (!byGenre.has(parent)) byGenre.set(parent, {total: 0, subs: new Map()});
+                const obj = byGenre.get(parent)!;
+
+                obj.total += row.count;
+                obj.subs.set(sub, (obj.subs.get(sub) ?? 0) + row.count);
+            } else {
+                const parent = canonical.trim();
+                if (!byGenre.has(parent)) byGenre.set(parent, {total: 0, subs: new Map()});
+                byGenre.get(parent)!.total += row.count;
+            }
+        }
+
+        const musicGenreFilters = Array.from(byGenre.entries())
+            .sort((a, b) => b[1].total - a[1].total || a[0].localeCompare(b[0]))
+            .map(([parent, data]) => {
+                const children = Array.from(data.subs.entries())
+                    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+                    .map(([sub, count]) => ({
+                        id: `(${sub})`,
+                        filterName: sub,
+                        count,
+                        group: 'genres',
+                    }));
+
+                return {
+                    id: parent,
+                    filterName: parent,
+                    count: data.total,
+                    group: 'genres',
+                    ...(children.length ? {children} : {}),
+                };
+            });
+
+        // ----------------------------
+        // 5) Build blocks for frontend
+        // ----------------------------
+        const platformsBlock = {
+            id: 'social-platforms-1',
+            title: 'Social Media Platforms',
+            filters: (aggBase?.platforms ?? []).map(p => ({
+                id: p.id,
+                group: 'socialMedia',
+                filterName: cap(p.id),
+                count: p.count,
+            })),
+        };
+
+        const musicGenreBlock = {
+            id: 'music-genre',
+            title: 'Music Genre',
+            AndOrFlag: [{method: 'And'}, {method: 'Or'}],
+            filters: musicGenreFilters,
+        };
+
+        const profileTypeBlock = {
+            id: 'profile-type',
+            title: 'Profile Type',
+            filters: (aggBase?.profileTypes ?? []).map(p => ({
+                id: cap(p.id), // UI label
+                group: 'profileType',
+                filterName: cap(p.id),
+                count: p.count,
+            })),
+        };
+
+        const musicCategoriesBlock = {
+            id: 'music-categories',
+            title: 'Music Categories',
+            filters: (aggBase?.creatorCategories ?? []).map(x => ({
+                id: x.id,
+                group: 'musicCategories',
+                filterName: x.id,
+                count: x.count,
+            })),
+        };
+
+        const countriesBlock = {
+            id: 'countries',
+            title: 'Countries of Following',
+            filters: (aggBase?.countries ?? []).map(c => ({
+                id: c.id,
+                group: 'countries',
+                filterName: c.id,
+                count: c.count,
+            })),
+        };
+
+        const additionalTopicsBlock = {
+            id: 'additional-topics',
+            title: 'Additional Topics',
+            filters: (aggBase.categories ?? []).map((x: any) => ({
+                id: x.id,
+                group: 'addTopics',
+                filterName: this.capitalize(x.id),
+                count: x.count,
+            })),
+        };
+
+        // ----------------------------
+        // 6) Final response
+        // ----------------------------
+        return {
+            filterArr: [
+                platformsBlock,
+                musicGenreBlock,
+                profileTypeBlock,
+                musicCategoriesBlock,
+                countriesBlock,
+                additionalTopicsBlock,
+            ],
+        };
+    }
+
     // Returns filtered social accounts (currently using at create campaign page)
     async findAccountsByFilter(
         filters: SocialAccountSearchFiltersDto & {
@@ -887,12 +1130,12 @@ export class ProfileService {
                                 '$$value',
                                 {
                                     $map: {
-                                        input: { $ifNull: ['$$this.v', []] },
+                                        input: {$ifNull: ['$$this.v', []]},
                                         as: 'acc',
                                         in: {
                                             $mergeObjects: [
                                                 '$$acc',
-                                                { socialMedia: '$$this.k' }
+                                                {socialMedia: '$$this.k'}
                                             ]
                                         }
                                     }
@@ -905,13 +1148,13 @@ export class ProfileService {
         });
 
         // Разворачиваем аккаунты
-        pipeline.push({ $unwind: '$allAccounts' });
+        pipeline.push({$unwind: '$allAccounts'});
 
         // Базовые фильтры аккаунта
         pipeline.push({
             $match: {
-                'allAccounts.isDeleted': { $ne: true },
-                'allAccounts.isHidden': { $ne: true },
+                'allAccounts.isDeleted': {$ne: true},
+                'allAccounts.isHidden': {$ne: true},
                 'allAccounts.isVerified': true,
             }
         });
@@ -920,7 +1163,7 @@ export class ProfileService {
         if (filters.profileTypes?.length) {
             pipeline.push({
                 $match: {
-                    'allAccounts.profileCategory': { $in: filters.profileTypes }
+                    'allAccounts.profileCategory': {$in: filters.profileTypes}
                 }
             });
         }
@@ -929,7 +1172,7 @@ export class ProfileService {
         if (filters.budget) {
             pipeline.push({
                 $match: {
-                    'allAccounts.publicPrice': { $lte: filters.budget }
+                    'allAccounts.publicPrice': {$lte: filters.budget}
                 }
             });
         }
@@ -952,8 +1195,8 @@ export class ProfileService {
                         $and: normalizedGenres.flatMap(g =>
                             (g.subGenres.length ? g.subGenres : [null]).map(sub =>
                                 sub
-                                    ? { 'allAccounts.musicGenres': { $elemMatch: { genre: g.genre, subGenres: sub } } }
-                                    : { 'allAccounts.musicGenres': { $elemMatch: { genre: g.genre } } }
+                                    ? {'allAccounts.musicGenres': {$elemMatch: {genre: g.genre, subGenres: sub}}}
+                                    : {'allAccounts.musicGenres': {$elemMatch: {genre: g.genre}}}
                             )
                         )
                     }
@@ -964,8 +1207,8 @@ export class ProfileService {
                         $or: normalizedGenres.flatMap(g =>
                             (g.subGenres.length ? g.subGenres : [null]).map(sub =>
                                 sub
-                                    ? { 'allAccounts.musicGenres': { $elemMatch: { genre: g.genre, subGenres: sub } } }
-                                    : { 'allAccounts.musicGenres': { $elemMatch: { genre: g.genre } } }
+                                    ? {'allAccounts.musicGenres': {$elemMatch: {genre: g.genre, subGenres: sub}}}
+                                    : {'allAccounts.musicGenres': {$elemMatch: {genre: g.genre}}}
                             )
                         )
                     }
@@ -977,7 +1220,7 @@ export class ProfileService {
         if (filters.countries?.length) {
             pipeline.push({
                 $match: {
-                    'allAccounts.countries.country': { $in: filters.countries }
+                    'allAccounts.countries.country': {$in: filters.countries}
                 }
             });
         }
@@ -992,7 +1235,7 @@ export class ProfileService {
         if (categories.length) {
             pipeline.push({
                 $match: {
-                    'allAccounts.categories': { $in: categories }
+                    'allAccounts.categories': {$in: categories}
                 }
             });
         }
@@ -1003,7 +1246,7 @@ export class ProfileService {
                 $addFields: {
                     score: {
                         $cond: [
-                            { $gt: ['$allAccounts.followers', 0] },
+                            {$gt: ['$allAccounts.followers', 0]},
                             {
                                 $divide: [
                                     '$allAccounts.publicPrice',
@@ -1027,36 +1270,36 @@ export class ProfileService {
                 logoUrl: '$allAccounts.logoUrl',
                 followers: '$allAccounts.followers',
                 prices: {
-                    EUR: { $ifNull: ['$allAccounts.publicPrice', 0] },
-                    USD: { $multiply: [{ $ifNull: ['$allAccounts.publicPrice', 0] }, 1.08] },
-                    GBP: { $multiply: [{ $ifNull: ['$allAccounts.publicPrice', 0] }, 0.92] }
+                    EUR: {$ifNull: ['$allAccounts.publicPrice', 0]},
+                    USD: {$multiply: [{$ifNull: ['$allAccounts.publicPrice', 0]}, 1.08]},
+                    GBP: {$multiply: [{$ifNull: ['$allAccounts.publicPrice', 0]}, 0.92]}
                 },
                 socialMedia: '$allAccounts.socialMedia',
                 countries: {
                     $map: {
-                        input: { $ifNull: ['$allAccounts.countries', []] },
+                        input: {$ifNull: ['$allAccounts.countries', []]},
                         as: 'c',
                         in: {
                             country: '$$c.country',
-                            percentage: { $ifNull: ['$$c.percentage', 0] }
+                            percentage: {$ifNull: ['$$c.percentage', 0]}
                         }
                     }
                 },
                 musicGenres: {
                     $reduce: {
-                        input: { $ifNull: ['$allAccounts.musicGenres', []] },
+                        input: {$ifNull: ['$allAccounts.musicGenres', []]},
                         initialValue: [],
                         in: {
                             $concatArrays: [
                                 '$$value',
                                 {
                                     $cond: [
-                                        { $gt: [{ $size: { $ifNull: ['$$this.subGenres', []] } }, 0] },
+                                        {$gt: [{$size: {$ifNull: ['$$this.subGenres', []]}}, 0]},
                                         {
                                             $map: {
                                                 input: '$$this.subGenres',
                                                 as: 'sg',
-                                                in: { $concat: ['$$this.genre', ' (', '$$sg', ')'] }
+                                                in: {$concat: ['$$this.genre', ' (', '$$sg', ')']}
                                             }
                                         },
                                         ['$$this.genre']
@@ -1066,8 +1309,8 @@ export class ProfileService {
                         }
                     }
                 },
-                creatorCategories: { $ifNull: ['$allAccounts.creatorCategories', []] },
-                categories: { $ifNull: ['$allAccounts.categories', []] }
+                creatorCategories: {$ifNull: ['$allAccounts.creatorCategories', []]},
+                categories: {$ifNull: ['$allAccounts.categories', []]}
             }
         });
 
@@ -1093,17 +1336,17 @@ export class ProfileService {
                 sortStage['followers'] = -1;
                 break;
         }
-        pipeline.push({ $sort: sortStage });
+        pipeline.push({$sort: sortStage});
 
         // Пагинация
         pipeline.push({
             $facet: {
                 data: [
-                    { $skip: skip },
-                    { $limit: limit }
+                    {$skip: skip},
+                    {$limit: limit}
                 ],
                 total: [
-                    { $count: 'count' }
+                    {$count: 'count'}
                 ]
             }
         });
@@ -1314,4 +1557,139 @@ export class ProfileService {
     //         };
     //     }
     // }
+//     async sendMailAboutChangingPrice(data: SendMailPriceChangeDto) {
+//         if (!data) {
+//             return {
+//                 code: 400,
+//                 message: 'Not enough arguments',
+//             };
+//         }
+//
+//         const influencer = await this.influencerModel.findOne({_id: data.influencerId});
+//
+//         if (!influencer) {
+//             return {
+//                 code: 404,
+//                 message: 'User not found',
+//             };
+//         }
+//
+//         const socialMediaAccounts = influencer[data.typeOfSocialMedia];
+//
+//         if (!socialMediaAccounts || socialMediaAccounts.length === 0) {
+//             return {
+//                 code: 404,
+//                 message: `No accounts found for type: ${data.typeOfSocialMedia}`,
+//             };
+//         }
+//
+//         const accountIndex = socialMediaAccounts.findIndex(
+//             (account) => account._id.toString() === data.accountId,
+//         );
+//
+//         if (accountIndex === -1) {
+//             return {
+//                 code: 404,
+//                 message: 'Account not found',
+//             };
+//         }
+//
+//         const account = socialMediaAccounts[accountIndex];
+//
+//         let emailContent = `
+//             <p>Hi,</p>
+//             <p>The influencer <strong>${influencer.firstName}</strong> has requested to update the price for their ${data.typeOfSocialMedia} account <strong>${account.instagramUsername}</strong> from €${account.price} to €${data.newPrice}.</p>
+// <a href="${process.env.SERVER}/profile/influencer/verify-new-social-media-price?influencerId=${data.influencerId}&socialMedia=${data.typeOfSocialMedia}&networkUsername=${encodeURIComponent(account.instagramUsername)}&isPriceGoodToGo=${true}&newPrice=${data.newPrice}">ACCEPT</a>
+// <a href="${process.env.SERVER}/profile/influencer/verify-new-social-media-price?influencerId=${data.influencerId}&socialMedia=${data.typeOfSocialMedia}&networkUsername=${encodeURIComponent(account.instagramUsername)}&isPriceGoodToGo=${false}&newPrice=${data.newPrice}">DECLINE</a>
+//         `;
+//
+//         await sendMail(
+//             // "nazarkozynets030606@zohomail.eu",
+//             'admin@soundinfluencers.com',
+//             'soundinfluencers',
+//             emailContent,
+//             'html',
+//         );
+//
+//         await sendMail(
+//             influencer.email,
+//             'soundinfluencers',
+//             `
+//                 <p>Hi ${influencer.firstName}</p>
+//                 <br>
+//                 <p>We've received your price change request and we will come back to you ASAP.</p>
+//                 <br>
+//                 <p>Thanks for your patience</p>
+//                 <p>SoundInfluencers Team</p>
+//             `,
+//         );
+//
+//         return {
+//             code: 200,
+//             message: 'Email sent successfully',
+//         };
+//     }
+//
+//     async changeSocialMediaPrice(
+//         influencerId: string,
+//         socialMedia: string,
+//         networkUsername: string,
+//         isPriceGoodToGo: boolean,
+//         newPrice: string,
+//     ) {
+//         if (!influencerId || !socialMedia || !networkUsername || isPriceGoodToGo === undefined) {
+//             return {
+//                 code: 400,
+//                 message: 'Not enough arguments',
+//             };
+//         }
+//
+//         if (isPriceGoodToGo) {
+//             const influencer = await this.influencerModel.findOne({_id: influencerId});
+//
+//             if (!influencer) {
+//                 return {
+//                     code: 404,
+//                     message: 'User not found',
+//                 };
+//             }
+//
+//             const socialMediaAccounts = influencer[socialMedia];
+//
+//             if (!socialMediaAccounts || socialMediaAccounts.length === 0) {
+//                 return {
+//                     code: 404,
+//                     message: `No accounts found for type: ${socialMedia}`,
+//                 };
+//             }
+//
+//             const accountIndex = socialMediaAccounts.findIndex(
+//                 (account) => account.instagramUsername === networkUsername,
+//             );
+//
+//             if (accountIndex === -1) {
+//                 return {
+//                     code: 404,
+//                     message: 'Account not found',
+//                 };
+//             }
+//
+//             socialMediaAccounts[accountIndex].price = newPrice;
+//             socialMediaAccounts[accountIndex].publicPrice = (parseFloat(newPrice) * 2).toString();
+//
+//             influencer[socialMedia] = socialMediaAccounts;
+//             await influencer.save();
+//
+//             return {
+//                 code: 200,
+//                 message: 'Social media account updated successfully',
+//             };
+//         } else {
+//             return {
+//                 code: 200,
+//                 message: 'Price change request declined',
+//             };
+//         }
+//     }
+//
 }

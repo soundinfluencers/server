@@ -23,6 +23,7 @@ import {
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {SocialAccountFilterQueryDto, SocialAccountSearchFiltersDto} from "./dto/client/search-social-accounts.dto";
 import {SocialAccountSortByEnum} from "../../common/types/influencer/influencer.types";
+import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
 
 @ApiTags('profile')
 @Controller('profile')
@@ -146,6 +147,15 @@ export class ProfileController {
             query.accounts,
             query.isVerified,
         );
+    }
+
+    @Auth()
+    @Roles(Role.client)
+    @ApiResponseDto(GetFilterOptionsDataDto)
+    @ApiOperation({summary: "Gets filters for getting social accounts"})
+    @Get('filters')
+    async getFilters(): Promise<GetFilterOptionsDataDto> {
+        return this.profileService.getFilterOptions();
     }
 
     @Auth()
