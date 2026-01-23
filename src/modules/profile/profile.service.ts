@@ -18,7 +18,12 @@ import {
 import * as process from 'node:process';
 import {AppGateway} from '../websocket/app.gateway';
 import sendMail from "../../integrations/nodemailer/nodemailer";
-import {Influencer, InfluencerMusicGenre, SocialAccount} from "../../database/schemas/users/influencer.schema";
+import {
+    Influencer,
+    InfluencerCountryStats,
+    InfluencerMusicGenre,
+    SocialAccount
+} from "../../database/schemas/users/influencer.schema";
 import {MigrateAccountDto} from "../migrations/dto/migrate-account.dto";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
@@ -111,7 +116,7 @@ export class ProfileService {
 
     // Updates influencer's personal information (firstName, email, phone)
     async updatePersonalInfluencer(data: UpdateInfluencerPersonalDetailsDto): Promise<InfluencerUpdatedPersonalDetailsDto> {
-        const {_id, firstName, email, phone} = data;
+        const {influencerId, firstName, email, phone} = data;
 
         const updateData: Partial<{
             firstName: string;
@@ -124,7 +129,7 @@ export class ProfileService {
         if (phone) updateData.phone = phone.trim();
 
         const updatedUser = await this.influencerRepo.findOneAndUpdate(
-            {_id: new Types.ObjectId(_id)},
+            {_id: new Types.ObjectId(influencerId)},
             {$set: updateData},
             {new: true}
         );
@@ -236,7 +241,7 @@ export class ProfileService {
         const socialMediaAccounts = influencer[data.socialMedia];
         if (!socialMediaAccounts || socialMediaAccounts.length === 0) throw new NotFoundException(`No accounts found for type: ${data.socialMedia}`);
 
-        const socialAccountId = new Types.ObjectId(data.socialAccountId);
+        const socialAccountId = new Types.ObjectId(data.accountId);
 
         const accountIndex = socialMediaAccounts.findIndex(
             (account) => account._id.equals(socialAccountId),
@@ -441,7 +446,7 @@ export class ProfileService {
         if (!socialMediaAccounts || socialMediaAccounts.length === 0) throw new NotFoundException(`Influencer (${influencer.email}) - No social accounts found for type: ${data.socialMedia}`)
 
         const accountIndex = socialMediaAccounts.findIndex(
-            (account) => account._id.toString() === data.socialAccountId,
+            (account) => account._id.toString() === data.accountId,
         );
 
         if (accountIndex === -1) throw new NotFoundException(`Social account not found`);
@@ -456,6 +461,15 @@ export class ProfileService {
                 {session}
             );
 
+            await session.commitTransaction();
+        } catch (err) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            await session.endSession();
+        }
+
+        try {
             const socialMediaAccountName = socialMediaAccounts[accountIndex].username;
 
             const emailContent = `
@@ -471,13 +485,8 @@ export class ProfileService {
                 emailContent,
                 'html',
             );
-
-            await session.commitTransaction();
         } catch (err) {
-            await session.abortTransaction();
-            throw err;
-        } finally {
-            await session.endSession();
+            this.logger.warn(`${data.socialMedia} ${socialMediaAccounts[accountIndex].username} deleted status updated but email failed`, err);
         }
     }
 
@@ -611,6 +620,20 @@ export class ProfileService {
             try {
                 for (const account of accounts) {
                     const formattedMusicGenres = normalizeDtoToMusicGenres(account.musicGenres) ?? [];
+                    const formattedCountries: InfluencerCountryStats[] =
+                        Array.isArray(account.countries)
+                            ? account.countries
+                                .filter(
+                                    (c): c is InfluencerCountryStats =>
+                                        typeof c?.country === 'string' &&
+                                        c.country.trim().length > 0 &&
+                                        typeof c.percentage === 'number'
+                                )
+                                .map((c) => ({
+                                    country: c.country,
+                                    percentage: c.percentage,
+                                }))
+                            : [];
 
                     // todo: parsing initial price
                     const accountId = new Types.ObjectId();
@@ -628,7 +651,7 @@ export class ProfileService {
                         initialPrice: account.price,
                         publicPrice: account.price * 2,
                         musicGenres: formattedMusicGenres,
-                        countries: account.countries,
+                        countries: formattedCountries,
                         categories: account.categories,
                         engagementRate: null,
                         averageViews: null,
@@ -636,7 +659,7 @@ export class ProfileService {
                         isHidden: false,
                         isDeleted: false,
                         isVerified: false
-                    });
+                    } satisfies SocialAccount);
 
                     influencer[network] = socialMediaAccounts;
 
@@ -652,7 +675,7 @@ export class ProfileService {
         session.startTransaction();
 
         try {
-            await influencer.save({session});
+            await influencer.save({ session, validateBeforeSave: false });
             await session.commitTransaction();
         } catch (err) {
             await session.abortTransaction();
@@ -919,13 +942,9 @@ export class ProfileService {
             });
         }
 
-        console.log('RAW filters.musicGenres:', filters.musicGenres);
-        console.log('RAW filters.musicGenresFilterMethod:', filters.musicGenresFilterMethod);
-
         // musicGenres (and / or)
         if (filters.musicGenres?.length) {
             const normalizedGenres: InfluencerMusicGenre[] = normalizeStringToMusicGenres(filters.musicGenres);
-            console.log('normalizedGenres:', normalizedGenres);
 
             if (filters.musicGenresFilterMethod === 'and') {
                 pipeline.push({

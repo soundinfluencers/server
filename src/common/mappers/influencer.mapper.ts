@@ -32,7 +32,7 @@ export const mapInfluencerToAccountDetailsDto = (influencer: Influencer): Influe
 // Maps social account doc to social account details dto
 export const mapToSocialAccountDetailsDto = (account: SocialAccount): SocialAccountDetailsDto => {
     return {
-        _id: account._id.toString(),
+        accountId: account._id.toString(),
         username: account.username,
         profileLink: account.profileLink,
         followers: account.followers,

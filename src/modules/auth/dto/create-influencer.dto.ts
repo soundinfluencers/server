@@ -62,9 +62,10 @@ export class CreateSocialAccountDto {
     countries: CountryStatsDto[];
 
     @ApiProperty({ type: [MusicGenreDto], required: false })
-    @Type(() => MusicGenreDto)
-    @IsArray()
     @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => MusicGenreDto)
     musicGenres?: MusicGenreDto[];
 
     @ApiProperty({ type: [String], required: false, default: [] })

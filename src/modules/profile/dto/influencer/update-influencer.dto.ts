@@ -8,7 +8,7 @@ import {InfluencerProfileCategory} from "../../../../common/types/influencer/inf
 
 // DTO for updating personal details
 export class UpdateInfluencerPersonalDetailsDto {
-    _id: string;
+    influencerId: string;
 
     @ApiPropertyOptional({description: "Influencer's updated first name", example: "Eric"})
     @IsOptional()
@@ -104,7 +104,7 @@ export class UpdateSocialMediaAccountDto {
 
     @ApiPropertyOptional({ description: "Social account ID", example: "66a747a89c6e78a6cfb83g5" })
     @IsString()
-    socialAccountId: string;
+    accountId: string;
 
     @ApiPropertyOptional({ description: "Social media type", example: "instagram", enum: SocialMediaEnum })
     @IsEnum(SocialMediaEnum)
@@ -150,11 +150,11 @@ export class UpdateSocialMediaAccountDto {
     @IsNumber()
     averageViews?: number;
 
-    @ApiPropertyOptional({ type: MusicGenreDto, isArray: true, required: false })
-    @Type(() => MusicGenreDto)
-    @IsArray()
-    @IsString({ each: true })
+    @ApiPropertyOptional({ type: MusicGenreDto, isArray: true })
     @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => MusicGenreDto)
     musicGenres?: MusicGenreDto[];
 
     @ApiPropertyOptional({ type: [String], description: "Creator categories" })
@@ -203,7 +203,7 @@ export class DeleteSocialAccountDto {
 
     @ApiPropertyOptional({ description: "Social account ID", example: "66a747a89c6e78a6cfb83g5" })
     @IsString()
-    socialAccountId: string;
+    accountId: string;
 
     @ApiPropertyOptional({ description: "Social media type", example: "instagram", enum: SocialMediaEnum })
     @IsEnum(SocialMediaEnum)

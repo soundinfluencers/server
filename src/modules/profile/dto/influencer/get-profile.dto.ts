@@ -128,7 +128,7 @@ export class GetSocialAccountDetailsParamsDto {
 // dto for getting detailed social account
 export class SocialAccountDetailsDto implements SocialAccountDetails {
     @ApiProperty({example: '66a747a89c6e78a6cfb83g5'})
-    _id: string;
+    accountId: string;
 
     @ApiProperty({example: 'Techno TV'})
     username: string;

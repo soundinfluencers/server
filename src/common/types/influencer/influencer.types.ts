@@ -30,7 +30,7 @@ export interface InfluencerAccountDetails {
 }
 
 export interface SocialAccountDetails {
-    _id: string;
+    accountId: string;
     username: string;
     profileLink: string;
     followers: number;

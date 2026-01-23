@@ -69,7 +69,7 @@ export class ProfileController {
     updatePersonalInfluencer(@Req() request: AuthenticatedRequest, @Body() data: UpdateInfluencerPersonalDetailsDto): Promise<InfluencerUpdatedPersonalDetailsDto> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
-        return this.profileService.updatePersonalInfluencer({...data, _id: request.user._id});
+        return this.profileService.updatePersonalInfluencer({...data, influencerId: request.user._id});
     }
 
     @Auth()
