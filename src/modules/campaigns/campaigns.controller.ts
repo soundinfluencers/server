@@ -2,7 +2,7 @@ import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {
     BadRequestException,
     Body,
-    Controller,
+    Controller, Delete,
     Get,
     Param,
     Post,
@@ -105,6 +105,17 @@ export class CampaignsController {
         return this.campaignsService.createDraftCampaign({...data, clientId: req.user._id});
     }
 
+    @Auth()
+    @Roles(Role.client, Role.admin)
+    @ApiOperation({summary: 'Delete draft by id'})
+    @ApiResponseDto(DetailedDraftCampaignDto)
+    @Delete('draft/:draftId')
+    deleteDraftCampaign(@Req() request: AuthenticatedRequest, @Param('draftId') draftId: string) {
+        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
+
+        return this.campaignsService.deleteDraftCampaign(draftId, request.user._id);
+    }
+
     @Public()
     @ApiOperation({summary: 'Verify campaign (For email)'})
     @Get('verify')
@@ -181,20 +192,6 @@ export class CampaignsController {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
         return this.campaignsService.getClientOngoingOrPastCampaign(campaignId, request.user._id);
-    }
-
-    // TODO: DELETE (INSTEAD OF THIS - CREATE LOGIC IN client/get/list)
-    @Auth()
-    @Roles(Role.client)
-    @Get('proposals')
-    @ApiOperation({summary: `Gets client's proposal campaigns (Will be deleted)`})
-    @ApiResponseDto(ClientGetCampaignsDto)
-    async getClientProposalPromos(@Req() request: AuthenticatedRequest): Promise<ClientGetCampaignsDto> {
-        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
-
-        const campaigns = await this.campaignsService.getClientProposalCampaigns(request.user._id);
-
-        return { campaigns }
     }
 
     @Public()

@@ -504,6 +504,18 @@ ${emailVideoContent()}
         });
     }
 
+    // Deletes draft campaign (by id)
+    async deleteDraftCampaign(draftId: string, clientId: string): Promise<void> {
+        if (!draftId) throw new BadRequestException('Invalid draftId');
+
+        // make sure creator tries to delete his own draft
+        const draftExists = await this.campaignRepo.exists({_id: new Types.ObjectId(draftId), clientId: new Types.ObjectId(clientId)});
+        if (!draftExists) throw new NotFoundException('Draft not found');
+
+        // delete draft
+        await this.campaignRepo.deleteById(draftId);
+    }
+
     // TODO: update and test
     async verifyCampaign(campaignId: string, status: string) {
         if (!campaignId || !status) throw new BadRequestException('Not enough arguments')
