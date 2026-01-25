@@ -8,6 +8,7 @@ import {
     SafeSelectedContent
 } from "../../../common/types/client/campaign.types";
 import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
+import {FoundAccountDto} from "../../profile/dto/influencer/get-profile.dto";
 
 export class ClientGetDashboardCampaignsQueryDto {
     @ApiPropertyOptional({
@@ -149,8 +150,8 @@ export class DetailedDraftCampaignDto {
     @ApiProperty({enum: [...Object.values(SocialMediaEnum), 'multipromo']})
     socialMedia: SocialMediaType | 'multipromo';
 
-    @ApiProperty({type: DetailedDraftCampaignAccountDto, isArray: true})
-    addedAccounts: DetailedDraftCampaignAccountDto[];
+    @ApiProperty({type: FoundAccountDto, isArray: true})
+    addedAccounts: FoundAccountDto[];
 
     @ApiProperty({type: SafeCampaignContent, isArray: true})
     campaignContent: SafeCampaignContent[];
