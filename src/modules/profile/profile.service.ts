@@ -45,7 +45,7 @@ import {
     GetSocialAccountDetailsParamsDto,
     InfluencerAccountDetailsDto
 } from "./dto/influencer/get-profile.dto";
-import {SocialAccountSearchFiltersDto} from "./dto/client/search-social-accounts.dto";
+import {GetFilteredAccountsBodyDto, SearchSocialAccountsDto} from "./dto/client/search-social-accounts.dto";
 import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
 
 const bcrypt = require('bcryptjs');
@@ -67,6 +67,10 @@ export class ProfileService {
     private capitalize = (s: string): string => {
         if (!s) return s;
         return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    private escapeRegex = (input: string): string => {
+        return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
 
@@ -1089,7 +1093,7 @@ export class ProfileService {
 
     // Returns filtered social accounts (currently using at create campaign page)
     async findAccountsByFilter(
-        filters: SocialAccountSearchFiltersDto & {
+        filters: GetFilteredAccountsBodyDto & {
             page?: number;
             limit?: number;
             sortBy?: string;
@@ -1356,340 +1360,85 @@ export class ProfileService {
         return result[0]?.data || [];
     }
 
-    // // TODO: UPDATE
-    // async getInfluencersWithSocialMedia(socialMedia: string) {
-    //     try {
-    //         const getInfluencersAll = await this.influencerRepo.findMany(
-    //             {statusVerify: 'accept'},
-    //             {
-    //                 lean: true,
-    //                 select: ['-password', '-balance', '-phone', '-email'],
-    //             }
-    //         );
-    //
-    //         const influencersList = getInfluencersAll.map((item) => {
-    //             const socialMediaAccounts = item[socialMedia];
-    //
-    //             if (Array.isArray(socialMediaAccounts)) {
-    //                 return socialMediaAccounts
-    //                     .filter(
-    //                         (account) =>
-    //                             account.isHidden !== true &&
-    //                             account.isDeleted !== true &&
-    //                             account.isVerified === true,
-    //                     )
-    //                     .map((account) => ({
-    //                         ...account,
-    //                         _id: item._id,
-    //                     }));
-    //             }
-    //
-    //             return [];
-    //         });
-    //
-    //         return {
-    //             code: 200,
-    //             influencers: influencersList.flat(),
-    //         };
-    //     } catch (err) {
-    //         console.log(err);
-    //         return {
-    //             code: 500,
-    //             message: err.message || 'An error occurred while fetching influencers.',
-    //         };
-    //     }
-    // }
-    //
-    // // TODO: UPDATE
-    // async getInfluencersWithoutSocialMedia() {
-    //     try {
-    //         const influencers = await this.influencerRepo
-    //             .findMany({statusVerify: 'accept'}, {
-    //                 lean: true,
-    //                 select: ['-password', '-balance', '-phone', '-email'],
-    //             });
-    //
-    //         const allAccounts = influencers.map((influencer) => {
-    //             const socialMediaKeys = [
-    //                 'instagram',
-    //                 'tiktok',
-    //                 'spotify',
-    //                 'soundcloud',
-    //                 'facebook',
-    //                 'youtube',
-    //                 'press',
-    //             ];
-    //
-    //             const accounts = socialMediaKeys.flatMap((socialMedia) => {
-    //                 const socialMediaAccounts = influencer[socialMedia];
-    //                 if (Array.isArray(socialMediaAccounts)) {
-    //                     return socialMediaAccounts
-    //                         .filter((account) => account.isHidden !== true)
-    //                         .map((account) => ({
-    //                             ...account,
-    //                             socialMedia,
-    //                             _id: influencer._id,
-    //                             firstName: influencer.firstName,
-    //                         }));
-    //                 }
-    //                 return [];
-    //             });
-    //
-    //             return accounts;
-    //         });
-    //
-    //         return {
-    //             code: 200,
-    //             influencers: allAccounts.flat(),
-    //         };
-    //     } catch (err) {
-    //         console.error(err);
-    //         return {
-    //             code: 500,
-    //             message: err.message || 'An error occurred while fetching all influencer accounts.',
-    //         };
-    //     }
-    // }
-    //
-    // // TODO: UPDATE
-    // async getClients() {
-    //     try {
-    //         const getClientsAll = await this.clientRepo
-    //             .findMany({statusVerify: 'accept'}, {
-    //                 lean: true,
-    //                 select: ['-password']
-    //             });
-    //
-    //         return {
-    //             code: 200,
-    //             clients: getClientsAll,
-    //         };
-    //     } catch (err) {
-    //         console.log(err);
-    //         return {
-    //             code: 500,
-    //             message: err,
-    //         };
-    //     }
-    // }
-    //
-    // // TODO: UPDATE
-    // async getInfluencerById(id: string) {
-    //     try {
-    //         const getInfluencer = await this.influencerRepo.findOne({_id: new mongoose.Types.ObjectId(id)})
-    //
-    //         return {
-    //             code: 200,
-    //             influencer: getInfluencer,
-    //         };
-    //     } catch (err) {
-    //         console.log(err);
-    //         return {
-    //             code: 500,
-    //             message: err,
-    //         };
-    //     }
-    // }
-    //
-    // // TODO: UPDATE
-    // async getOneSocialNetworkAccount(
-    //     influencerId: string,
-    //     socialMedia: string,
-    //     networkUsername: string,
-    // ) {
-    //     if (!influencerId || !socialMedia || !networkUsername) {
-    //         return {
-    //             code: 400,
-    //             message: 'Not enough arguments',
-    //         };
-    //     }
-    //
-    //     const influencer = await this.influencerRepo.findOne({
-    //         _id: new mongoose.Types.ObjectId(influencerId),
-    //     });
-    //     if (!influencer) {
-    //         return {
-    //             code: 404,
-    //             message: 'Influencer not found',
-    //         };
-    //     }
-    //
-    //     const socialMediaAccounts = influencer[socialMedia];
-    //
-    //     if (!socialMediaAccounts) {
-    //         return {
-    //             code: 404,
-    //             message: 'Social media not found',
-    //         };
-    //     }
-    //
-    //     const account = socialMediaAccounts.find((item) => item.instagramUsername === networkUsername);
-    //
-    //     if (!account) {
-    //         return {
-    //             code: 404,
-    //             message: 'Account not found',
-    //         };
-    //     }
-    //
-    //     return {
-    //         code: 200,
-    //         account,
-    //     };
-    // }
-    //
-    // // TODO: UPDATE
-    // async getClientById(id: string) {
-    //     try {
-    //         const objectId = new Types.ObjectId(id);
-    //
-    //         const getClient = await this.clientRepo.findOne({_id: objectId});
-    //
-    //         return {
-    //             code: 200,
-    //             client: getClient,
-    //         };
-    //     } catch (err) {
-    //         console.log(err);
-    //         return {
-    //             code: 500,
-    //             message: err,
-    //         };
-    //     }
-    // }
-//     async sendMailAboutChangingPrice(data: SendMailPriceChangeDto) {
-//         if (!data) {
-//             return {
-//                 code: 400,
-//                 message: 'Not enough arguments',
-//             };
-//         }
-//
-//         const influencer = await this.influencerModel.findOne({_id: data.influencerId});
-//
-//         if (!influencer) {
-//             return {
-//                 code: 404,
-//                 message: 'User not found',
-//             };
-//         }
-//
-//         const socialMediaAccounts = influencer[data.typeOfSocialMedia];
-//
-//         if (!socialMediaAccounts || socialMediaAccounts.length === 0) {
-//             return {
-//                 code: 404,
-//                 message: `No accounts found for type: ${data.typeOfSocialMedia}`,
-//             };
-//         }
-//
-//         const accountIndex = socialMediaAccounts.findIndex(
-//             (account) => account._id.toString() === data.accountId,
-//         );
-//
-//         if (accountIndex === -1) {
-//             return {
-//                 code: 404,
-//                 message: 'Account not found',
-//             };
-//         }
-//
-//         const account = socialMediaAccounts[accountIndex];
-//
-//         let emailContent = `
-//             <p>Hi,</p>
-//             <p>The influencer <strong>${influencer.firstName}</strong> has requested to update the price for their ${data.typeOfSocialMedia} account <strong>${account.instagramUsername}</strong> from €${account.price} to €${data.newPrice}.</p>
-// <a href="${process.env.SERVER}/profile/influencer/verify-new-social-media-price?influencerId=${data.influencerId}&socialMedia=${data.typeOfSocialMedia}&networkUsername=${encodeURIComponent(account.instagramUsername)}&isPriceGoodToGo=${true}&newPrice=${data.newPrice}">ACCEPT</a>
-// <a href="${process.env.SERVER}/profile/influencer/verify-new-social-media-price?influencerId=${data.influencerId}&socialMedia=${data.typeOfSocialMedia}&networkUsername=${encodeURIComponent(account.instagramUsername)}&isPriceGoodToGo=${false}&newPrice=${data.newPrice}">DECLINE</a>
-//         `;
-//
-//         await sendMail(
-//             // "nazarkozynets030606@zohomail.eu",
-//             'admin@soundinfluencers.com',
-//             'soundinfluencers',
-//             emailContent,
-//             'html',
-//         );
-//
-//         await sendMail(
-//             influencer.email,
-//             'soundinfluencers',
-//             `
-//                 <p>Hi ${influencer.firstName}</p>
-//                 <br>
-//                 <p>We've received your price change request and we will come back to you ASAP.</p>
-//                 <br>
-//                 <p>Thanks for your patience</p>
-//                 <p>SoundInfluencers Team</p>
-//             `,
-//         );
-//
-//         return {
-//             code: 200,
-//             message: 'Email sent successfully',
-//         };
-//     }
-//
-//     async changeSocialMediaPrice(
-//         influencerId: string,
-//         socialMedia: string,
-//         networkUsername: string,
-//         isPriceGoodToGo: boolean,
-//         newPrice: string,
-//     ) {
-//         if (!influencerId || !socialMedia || !networkUsername || isPriceGoodToGo === undefined) {
-//             return {
-//                 code: 400,
-//                 message: 'Not enough arguments',
-//             };
-//         }
-//
-//         if (isPriceGoodToGo) {
-//             const influencer = await this.influencerModel.findOne({_id: influencerId});
-//
-//             if (!influencer) {
-//                 return {
-//                     code: 404,
-//                     message: 'User not found',
-//                 };
-//             }
-//
-//             const socialMediaAccounts = influencer[socialMedia];
-//
-//             if (!socialMediaAccounts || socialMediaAccounts.length === 0) {
-//                 return {
-//                     code: 404,
-//                     message: `No accounts found for type: ${socialMedia}`,
-//                 };
-//             }
-//
-//             const accountIndex = socialMediaAccounts.findIndex(
-//                 (account) => account.instagramUsername === networkUsername,
-//             );
-//
-//             if (accountIndex === -1) {
-//                 return {
-//                     code: 404,
-//                     message: 'Account not found',
-//                 };
-//             }
-//
-//             socialMediaAccounts[accountIndex].price = newPrice;
-//             socialMediaAccounts[accountIndex].publicPrice = (parseFloat(newPrice) * 2).toString();
-//
-//             influencer[socialMedia] = socialMediaAccounts;
-//             await influencer.save();
-//
-//             return {
-//                 code: 200,
-//                 message: 'Social media account updated successfully',
-//             };
-//         } else {
-//             return {
-//                 code: 200,
-//                 message: 'Price change request declined',
-//             };
-//         }
-//     }
-//
+    // Searching social accounts
+    async searchSocialAccounts(dto: SearchSocialAccountsDto): Promise<FoundAccountDto[]> {
+        const queryRaw = (dto.query ?? '').trim();
+        if (!queryRaw) throw new BadRequestException('query is required');
+
+        const socialMedias = dto.socialMedias ?? [];
+        if (!socialMedias.length) throw new BadRequestException('socialMedias is required');
+
+        const page = Math.max(1, Number(dto.page ?? 1));
+        const limit = Math.min(50, Math.max(1, Number(dto.limit ?? 20)));
+        const skip = (page - 1) * limit;
+
+        const q = this.escapeRegex(queryRaw);
+        const usernameRegex = new RegExp(`^${q}`, 'i');
+
+        const concatParts = socialMedias.map((sm) => ({
+            $map: {
+                input: `$${sm}`,
+                as: 'a',
+                in: {
+                    $mergeObjects: ['$$a', { socialMedia: sm }],
+                },
+            },
+        }));
+
+        const matchAcc = {
+            'acc.isVerified': true,
+            'acc.isHidden': { $ne: true },
+            'acc.isDeleted': { $ne: true },
+        };
+
+        const pipeline: any[] = [
+            {
+                $project: {
+                    influencerId: '$_id',
+                    accAll: { $concatArrays: concatParts },
+                },
+            },
+            { $unwind: '$accAll' },
+            { $set: { acc: '$accAll' } },
+
+            { $match: matchAcc },
+
+            { $match: { 'acc.username': usernameRegex } },
+
+            { $skip: skip },
+            { $limit: limit },
+
+            {
+                $project: {
+                    _id: 0,
+                    accountId: { $toString: '$acc._id' },
+                    influencerId: { $toString: '$influencerId' },
+                    username: '$acc.username',
+                    logoUrl: '$acc.logoUrl',
+                    followers: '$acc.followers',
+                    socialMedia: '$acc.socialMedia',
+                    countries: { $ifNull: ['$acc.countries', []] },
+
+                    musicGenres: {
+                        $cond: [
+                            { $isArray: '$acc.musicGenres' },
+                            { $map: { input: '$acc.musicGenres', as: 'g', in: '$$g.genre' } },
+                            '$$REMOVE',
+                        ],
+                    },
+                    creatorCategories: { $ifNull: ['$acc.creatorCategories', '$$REMOVE'] },
+                    categories: { $ifNull: ['$acc.categories', '$$REMOVE'] },
+
+                    // todo: currency conversion
+                    prices: {
+                        EUR: { $ifNull: ['$acc.publicPrice', { $literal: 0 }] },
+                        USD: { $literal: 0 },
+                        GBP: { $literal: 0 },
+                    },
+                },
+            },
+        ];
+
+        return this.influencerRepo.aggregate<FoundAccountDto>(pipeline).allowDiskUse(true);
+    }
 }

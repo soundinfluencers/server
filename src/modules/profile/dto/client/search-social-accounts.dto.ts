@@ -1,27 +1,41 @@
-import { ApiPropertyOptional } from "@nestjs/swagger";
+import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
 import { SocialMediaEnum } from "../../../../common/types/social-media.types";
-import {IsArray, IsEnum, IsInt, IsNumber, IsOptional, IsString, Min} from "class-validator";
+import {
+    ArrayMinSize,
+    IsArray,
+    IsBoolean,
+    IsEnum,
+    IsInt,
+    IsNumber,
+    IsOptional,
+    IsString,
+    Max,
+    Min
+} from "class-validator";
 import {InfluencerProfileCategory, SocialAccountSortByEnum} from "../../../../common/types/influencer/influencer.types";
 import {Type} from "class-transformer";
 
-export class SocialAccountFilterQueryDto {
+export class GetFilteredAccountsQueryDto {
+    @ApiProperty()
     @Type(() => Number)
     @IsInt({ message: 'page must be an integer' })
     @Min(1, { message: 'page must be >= 1' })
     page: number;
 
+    @ApiProperty()
     @Type(() => Number)
     @IsInt({ message: 'limit must be an integer' })
     @Min(1, { message: 'limit must be >= 1' })
     limit: number;
 
+    @ApiProperty()
     @IsEnum(SocialAccountSortByEnum, {
         message: 'sortBy has invalid value'
     })
     sortBy: SocialAccountSortByEnum;
 }
 
-export class SocialAccountSearchFiltersDto {
+export class GetFilteredAccountsBodyDto {
     @ApiPropertyOptional({
         name: 'socialMedias',
         isArray: true,
@@ -128,4 +142,34 @@ export class SocialAccountSearchFiltersDto {
     @IsOptional()
     @IsArray({ message: 'entertainmentCategories must be an array of strings' })
     entertainmentCategories?: string[];
+}
+
+// for searching social accounts
+export class SearchSocialAccountsDto {
+    @ApiProperty({ description: 'Username query (partial match by default)' })
+    @IsString()
+    query: string;
+
+    @ApiProperty({
+        description: 'Which social medias to search in',
+        isArray: true,
+        enum: SocialMediaEnum,
+    })
+    @IsArray()
+    @ArrayMinSize(1)
+    @IsEnum(SocialMediaEnum, { each: true })
+    socialMedias: SocialMediaEnum[];
+
+    @ApiPropertyOptional({ description: 'Page number (starts from 1)', default: 1 })
+    @IsOptional()
+    @IsInt()
+    @Min(1)
+    page?: number = 1;
+
+    @ApiPropertyOptional({ description: 'Items per page', default: 20, maximum: 50 })
+    @IsOptional()
+    @IsInt()
+    @Min(1)
+    @Max(50)
+    limit?: number = 20;
 }

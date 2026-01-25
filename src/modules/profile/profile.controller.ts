@@ -21,7 +21,11 @@ import {
     SocialAccountDetailsDto
 } from "./dto/influencer/get-profile.dto";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
-import {SocialAccountFilterQueryDto, SocialAccountSearchFiltersDto} from "./dto/client/search-social-accounts.dto";
+import {
+    GetFilteredAccountsBodyDto,
+    GetFilteredAccountsQueryDto,
+    SearchSocialAccountsDto
+} from "./dto/client/search-social-accounts.dto";
 import {SocialAccountSortByEnum} from "../../common/types/influencer/influencer.types";
 import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
 
@@ -179,9 +183,18 @@ export class ProfileController {
         required: true
     })
     @Post('social-account/filter')
-    async findAccountsByFilter(@Query() query: SocialAccountFilterQueryDto,@Body() filters: SocialAccountSearchFiltersDto): Promise<FoundAccountsDto> {
+    async findAccountsByFilter(@Query() query: GetFilteredAccountsQueryDto,@Body() filters: GetFilteredAccountsBodyDto): Promise<FoundAccountsDto> {
         const accounts = await this.profileService.findAccountsByFilter({...filters, page: query.page, limit: query.limit, sortBy: query.sortBy});
         return ({accounts});
+    }
+
+    @Auth()
+    @Roles(Role.client, Role.admin)
+    @ApiOperation({ summary: 'Searching social accounts by username match and social medias' })
+    @Post('social-account/search')
+    async searchSocialAccounts(@Body() dto: SearchSocialAccountsDto): Promise<FoundAccountsDto> {
+        const accounts = await this.profileService.searchSocialAccounts(dto);
+        return { accounts };
     }
 
     // // TODO: UPDATE

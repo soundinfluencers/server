@@ -164,7 +164,7 @@ export class SocialAccountDetailsDto implements SocialAccountDetails {
     categories: string[];
 }
 
-// dto for returning found social accounts with filter (creating campaign page)
+// dto for returning found social accounts
 export class FoundAccountDto {
     @ApiProperty({example: '66a747a89c6e78a6cfb83g5'})
     accountId: string;
