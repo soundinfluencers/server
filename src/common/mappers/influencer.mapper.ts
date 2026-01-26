@@ -12,21 +12,35 @@ export const mapSocialAccountToAccountDetailsDto = (account: SocialAccount): Soc
     }
 };
 
+// Filters deleted accounts
+const filterSocialAccounts = (
+    accounts?: SocialAccount[],
+): SocialAccountForAccountDetailsDto[] => {
+    return (
+        accounts
+            ?.filter(acc => !acc.isDeleted)
+            .map(mapSocialAccountToAccountDetailsDto)
+        ?? []
+    );
+};
+
 // Maps influencer doc to influencer account details dto
-export const mapInfluencerToAccountDetailsDto = (influencer: Influencer): InfluencerAccountDetailsDto => {
+export const mapInfluencerToAccountDetailsDto = (
+    influencer: Influencer,
+): InfluencerAccountDetailsDto => {
     return {
         firstName: influencer.firstName,
         email: influencer.email,
         phone: influencer.phone,
 
-        instagram: influencer?.instagram.map((acc: SocialAccount): SocialAccountForAccountDetailsDto => mapSocialAccountToAccountDetailsDto(acc)) ?? [],
-        tiktok: influencer?.tiktok.map((acc: SocialAccount): SocialAccountForAccountDetailsDto => mapSocialAccountToAccountDetailsDto(acc)) ?? [],
-        spotify: influencer?.spotify.map((acc: SocialAccount): SocialAccountForAccountDetailsDto => mapSocialAccountToAccountDetailsDto(acc)) ?? [],
-        youtube: influencer?.youtube.map((acc: SocialAccount): SocialAccountForAccountDetailsDto => mapSocialAccountToAccountDetailsDto(acc)) ?? [],
-        facebook: influencer?.facebook.map((acc: SocialAccount): SocialAccountForAccountDetailsDto => mapSocialAccountToAccountDetailsDto(acc)) ?? [],
-        soundcloud: influencer?.soundcloud.map((acc: SocialAccount): SocialAccountForAccountDetailsDto => mapSocialAccountToAccountDetailsDto(acc)) ?? [],
-        press: influencer?.press.map((acc: SocialAccount): SocialAccountForAccountDetailsDto => mapSocialAccountToAccountDetailsDto(acc)) ?? [],
-    }
+        instagram: filterSocialAccounts(influencer.instagram),
+        tiktok: filterSocialAccounts(influencer.tiktok),
+        spotify: filterSocialAccounts(influencer.spotify),
+        youtube: filterSocialAccounts(influencer.youtube),
+        facebook: filterSocialAccounts(influencer.facebook),
+        soundcloud: filterSocialAccounts(influencer.soundcloud),
+        press: filterSocialAccounts(influencer.press),
+    };
 };
 
 // Maps social account doc to social account details dto
