@@ -157,6 +157,7 @@ export class PromosService {
                 addedAccountsId: '$addedAccounts._id',
                 campaignName: '$campaignName',
                 socialMedia: '$addedAccounts.socialMedia',
+                reward: '$addedAccounts.price',
                 statusCampaign: '$statusCampaign',
                 closedStatus: '$addedAccounts.closePromo',
                 confirmation: '$addedAccounts.confirmation',

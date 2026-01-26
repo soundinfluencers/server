@@ -89,6 +89,8 @@ export interface InfluencerNewPromoRequest extends InfluencerPromoBase {
 
 // promo object for showing in dashboard
 export interface InfluencerDashboardPromo extends InfluencerPromoBase {
+    // reward for influencer for completing promo (default price, not publicPrice)
+    reward: number;
     // statuses
     statusCampaign: CampaignStatusEnum;
     closedStatus: InfluencerPromoClosedStatusType;

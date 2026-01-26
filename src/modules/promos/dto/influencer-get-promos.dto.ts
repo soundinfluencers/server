@@ -319,6 +319,9 @@ export class InfluencerNewPromoRequestsDto {
 
 // dto for returning dashboard promo
 export class InfluencerDashboardPromoDto extends InfluencerPromoBaseDto implements InfluencerDashboardPromo {
+    @ApiProperty({type: Number})
+    reward: number;
+
     @ApiProperty({enum: CampaignStatusEnum, type: String})
     statusCampaign: CampaignStatusEnum;
 
