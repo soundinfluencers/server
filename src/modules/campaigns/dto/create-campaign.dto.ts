@@ -109,9 +109,9 @@ export class CreateCampaignDto {
     @Type(() => Number)
     campaignPrice: number;
 
-    @ApiProperty({required: true})
+    @ApiPropertyOptional({required: false})
     @IsString()
-    paymentType: string;
+    paymentType?: string;
 
     @ApiProperty({type: () => [SelectInfluencerDto]})
     @Type(() => SelectInfluencerDto)
