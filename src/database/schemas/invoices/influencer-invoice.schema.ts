@@ -1,102 +1,131 @@
-import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
-import {Types} from "mongoose";
+import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
+import {
+    InvoicePaymentMethodEnum,
+    InvoiceStatusEnum,
+} from '../../../common/types/influencer/invoice.types';
+
+// ------------- SUB SCHEMAS -------------
+
+
+@Schema({ _id: false })
+export class UKBankTransferDetails {
+    @Prop({ required: true, type: String })
+    beneficiary: string;
+
+    @Prop({ required: true, type: String })
+    beneficiaryAddress: string;
+
+    @Prop({ required: true, type: String })
+    sortCode: string;
+
+    @Prop({ required: true, type: String })
+    accountNumber: string;
+}
+
+export const UKBankTransferDetailsSchema =
+    SchemaFactory.createForClass(UKBankTransferDetails);
+
+@Schema({ _id: false })
+export class InternationalBankTransferDetails {
+    @Prop({ required: true, type: String })
+    beneficiary: string;
+
+    @Prop({ required: true, type: String })
+    beneficiaryAddress: string;
+
+    @Prop({ required: true, type: String })
+    iban: string;
+
+    @Prop({ required: true, type: String })
+    bankName: string;
+
+    @Prop({ required: true, type: String })
+    bankCountry: string;
+
+    @Prop({ required: true, type: String })
+    bankAccountCurrency: string;
+
+    @Prop({ required: true, type: String })
+    swiftBicCode: string;
+}
+
+export const InternationalBankTransferDetailsSchema =
+    SchemaFactory.createForClass(InternationalBankTransferDetails);
+
+@Schema({ _id: false })
+export class PayPalDetails {
+    @Prop({ required: false, type: String })
+    paypalEmail?: string;
+}
+
+export const PayPalDetailsSchema = SchemaFactory.createForClass(PayPalDetails);
+
+
+// ------------- MAIN SCHEMA -------------
+
 
 @Schema({
     timestamps: true,
 })
 export class InfluencerInvoice {
-    @Prop({type: Types.ObjectId, required: true})
+    @Prop({ type: Types.ObjectId, required: true })
     _id: Types.ObjectId;
 
-    @Prop({type: Types.ObjectId, required: true, ref: "Influencer"})
+    @Prop({ type: Number, default: 2, index: true, required: false })
+    schemaVersion: number;
+
+    @Prop({ type: Types.ObjectId, required: true, ref: 'Influencer' })
     influencerId: Types.ObjectId;
 
-    @Prop()
-    status: string;
+    @Prop({
+        required: true,
+        type: String,
+        enum: InvoiceStatusEnum,
+        default: InvoiceStatusEnum.submitted,
+    })
+    status: InvoiceStatusEnum;
 
-    @Prop()
-    payee: string;
+    @Prop({ required: true, type: String })
+    firstName: string;
 
-    @Prop()
-    bankName: string;
+    @Prop({ required: true, type: String })
+    lastName: string;
 
-    @Prop()
-    beneficiary: string;
+    @Prop({ required: true, type: String })
+    address: string;
 
-    @Prop()
-    beneficiaryAddress: string;
-
-    @Prop()
-    iban: string;
-
-    @Prop()
-    bankCountry: string;
-
-    @Prop()
-    bankAccountCurrency: string;
-
-    @Prop()
-    sortCode: string;
-
-    @Prop()
-    accountNumber: string;
-
-    @Prop()
-    swiftOrBic: string;
-
-    @Prop()
-    contactName: string;
-
-    @Prop()
-    contactLastName: string;
-
-    @Prop()
-    contactPhone: string;
-
-    @Prop()
-    contactEmail: string;
-
-    @Prop()
-    paypalEmail: string;
-
-    @Prop()
-    companyName: string;
-
-    @Prop()
-    companyId: string;
-
-    @Prop()
-    street: string;
-
-    @Prop()
-    city: string;
-
-    @Prop()
-    state: string;
-
-    @Prop()
-    postcode: string;
-
-    @Prop()
+    @Prop({ required: true, type: String })
     country: string;
 
-    @Prop()
-    notes: string;
-
-    @Prop()
-    vat: string;
-
-    @Prop()
-    description: string;
-
-    @Prop()
+    @Prop({ required: true, type: Number })
     amount: number;
 
-    @Prop({default: ''})
-    fileUrl: string;
+    @Prop({
+        required: true,
+        type: String,
+        enum: InvoicePaymentMethodEnum,
+    })
+    selectedPaymentMethod: InvoicePaymentMethodEnum;
 
-    @Prop()
-    selectedPaymentMethod: string;
+    @Prop({ required: false, type: UKBankTransferDetailsSchema})
+    ukBankTransfer?: UKBankTransferDetails;
+
+    @Prop({
+        required: false,
+        type: InternationalBankTransferDetailsSchema,
+    })
+    internationalBankTransfer?: InternationalBankTransferDetails;
+
+    @Prop({ required: false, type: PayPalDetailsSchema})
+    paypal?: PayPalDetails;
+
+    @Prop({ required: false, type: String, default: null })
+    company?: string | null;
+
+    @Prop({ required: false, type: String, default: null })
+    vatNumber?: string | null;
 }
 
-export const InfluencerInvoiceSchema = SchemaFactory.createForClass(InfluencerInvoice);
+export const InfluencerInvoiceSchema =
+    SchemaFactory.createForClass(InfluencerInvoice);

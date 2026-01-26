@@ -8,7 +8,7 @@ import {InfluencerActionsHistoryService} from "../influencer-actions-history/inf
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {InfluencerInvoiceRepository} from "../../database/repositories/invoices/influencer-invoice.repository";
 import {GetInvoicesQueryDto} from "./dto/invoice.dto";
-import {InvoiceForDashboard} from "../../common/types/influencer/invoice.types";
+import {InvoiceForDashboard, InvoiceStatusEnum} from "../../common/types/influencer/invoice.types";
 
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
@@ -118,8 +118,8 @@ export class InvoiceService {
             data.description = 'Payment Due: 7 days (subject to approval)';
             const result: InfluencerInvoice = await this.influencerInvoiceRepository.create({
                 ...data,
-                status: 'Submitted',
-            });
+                status: InvoiceStatusEnum.submitted,
+            } satisfies InfluencerInvoice);
 
             // Updating balance
             const newBalance = +influencer.balance - data.amount;
@@ -166,7 +166,7 @@ export class InvoiceService {
             await this.createPDF(result, data)
                 .then(async (pdfPath) => {
                     await sendMail(
-                        // "nazarkozynets030606@zohomail.eu",
+                        "nazarkozynets030606@zohomail.eu",
                         // 'admin@soundinfluencers.com',
                         process.env.EMAIL_USER,
                         `${influencer.email}`,

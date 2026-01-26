@@ -16,7 +16,8 @@ const sendMail = async (to = '', title = '', text = '', type = '', path = '') =>
         if (type === 'pdf') {
             return {
                 from: process.env.EMAIL_USER,
-                to: process.env.NODE_ENV === 'development' ? 'process.env.EMAIL_USER' : to,
+                // to: process.env.NODE_ENV === 'development' ? 'process.env.EMAIL_USER' : to,
+                to,
                 subject: title,
                 html: text,
                 attachments: [

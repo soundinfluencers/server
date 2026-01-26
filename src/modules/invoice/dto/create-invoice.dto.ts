@@ -1,4 +1,4 @@
-import {ApiProperty} from '@nestjs/swagger';
+import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {
     IsString,
     IsNotEmpty,
@@ -9,141 +9,136 @@ import {
     IsPositive,
     IsIn,
     IsUUID,
-    Length,
+    Length, IsEnum, ValidateIf, ValidateNested,
 } from 'class-validator';
+import {InvoicePaymentMethodEnum} from "../../../common/types/influencer/invoice.types";
+import {Type} from "class-transformer";
 
+// dto for UK Bank Transfer payment method
+export class UKBankTransferDto {
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    beneficiary: string;
+
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    beneficiaryAddress: string;
+
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    sortCode: string;
+
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    accountNumber: string;
+}
+
+// dto for International Bank Transfer payment method
+export class InternationalBankTransferDto {
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    beneficiary: string;
+
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    beneficiaryAddress: string;
+
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    iban: string;
+
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    bankName: string;
+
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    bankCountry: string;
+
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    bankAccountCurrency: string;
+
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    swiftBicCode: string;
+}
+
+// dto for PayPal payment method
+export class PayPalDto {
+    @ApiProperty()
+    @IsEmail()
+    paypalEmail: string;
+}
+
+// dto for creating new influencer's invoice
 export class CreateInvoiceDto {
     influencerId: string;
 
-    @ApiProperty({required: true, default: 'pending'})
-    @IsString()
-        // TODO: check invoices statuses
-        // @IsIn(['pending', 'paid', 'cancelled'])
-    status: string;
-
-    @ApiProperty({required: true})
+    @ApiProperty()
     @IsString()
     @IsNotEmpty()
-    contactName: string;
+    firstName: string;
 
-    @ApiProperty({required: true})
+    @ApiProperty()
     @IsString()
     @IsNotEmpty()
-    contactLastName: string;
+    lastName: string;
 
-    @ApiProperty({required: true})
-    @IsPhoneNumber(null)
-    contactPhone: string;
-
-    @ApiProperty({required: true})
-    @IsEmail()
-    contactEmail: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
+    @ApiProperty()
     @IsString()
-    payee?: string;
+    @IsNotEmpty()
+    address: string;
 
-    @ApiProperty({required: false})
-    @IsOptional()
+    @ApiProperty()
     @IsString()
-    bankName?: string;
+    @IsNotEmpty()
+    country: string;
 
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    bankBranchName?: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    bankCountry?: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    @Length(3, 3)
-    bankAccountCurrency?: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    sortCode?: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    accountNumber?: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    swiftOrBic?: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    companyName?: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    companyId?: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    street?: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    city?: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    state?: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    postcode?: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    country?: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    notes?: string;
-
-    @ApiProperty({required: false})
-    @IsOptional()
+    @ApiProperty()
     @IsNumber()
-    @IsPositive()
-    amount?: number;
+    amount: number;
 
-    @ApiProperty({required: false})
+    @ApiPropertyOptional()
     @IsOptional()
     @IsString()
-    vat?: string;
+    company?: string;
 
-    @ApiProperty({required: false})
+    @ApiPropertyOptional()
     @IsOptional()
     @IsString()
-    description?: string;
+    vatNumber?: string;
 
-    @ApiProperty({required: true})
-    @IsString()
-        // TODO: check payment methods
-        // @IsIn(['bank_transfer', 'paypal', 'crypto'])
-    selectedPaymentMethod: string;
+    @ApiProperty()
+    @IsEnum(InvoicePaymentMethodEnum)
+    selectedPaymentMethod: InvoicePaymentMethodEnum;
 
-    @ApiProperty({required: false})
-    @IsOptional()
-    @IsString()
-    poNumber?: string;
+    @ApiPropertyOptional({ type: () => UKBankTransferDto })
+    @ValidateIf(o => o.selectedPaymentMethod === InvoicePaymentMethodEnum.ukBankTransfer)
+    @ValidateNested()
+    @Type(() => UKBankTransferDto)
+    ukBankTransfer?: UKBankTransferDto;
+
+    @ApiPropertyOptional({ type: () => InternationalBankTransferDto })
+    @ValidateIf(o => o.selectedPaymentMethod === InvoicePaymentMethodEnum.internationalBankTransfer)
+    @ValidateNested()
+    @Type(() => InternationalBankTransferDto)
+    internationalBankTransfer?: InternationalBankTransferDto;
+
+    @ApiPropertyOptional({ type: () => PayPalDto })
+    @ValidateIf(o => o.selectedPaymentMethod === InvoicePaymentMethodEnum.paypal)
+    @ValidateNested()
+    @Type(() => PayPalDto)
+    paypal?: PayPalDto;
 }
