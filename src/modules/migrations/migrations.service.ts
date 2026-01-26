@@ -657,6 +657,17 @@ export class MigrationsService {
                     touched = true;
                 }
 
+                const parsedBalance = this.parsePrice((doc as any).balance);
+
+                if (parsedBalance !== null) {
+                    $set.balance = parsedBalance;
+                    touched = true;
+                } else if ((doc as any).balance !== undefined) {
+                    this.logger.warn(
+                        `balance NOT converted influencer=${String(doc._id)} value=${JSON.stringify((doc as any).balance)}`,
+                    );
+                }
+
                 if (!touched) {
                     // даже если не трогали массивы — всё равно можно проставить schemaVersion
                     // но это опционально. Я оставлю: проставляем.

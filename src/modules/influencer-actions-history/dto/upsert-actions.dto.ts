@@ -1,6 +1,7 @@
-import {ValidateNested, IsString, IsNumber, IsOptional, IsMongoId} from 'class-validator';
+import {ValidateNested, IsString, IsNumber, IsOptional, IsMongoId, IsEnum} from 'class-validator';
 import { Type } from 'class-transformer';
 import {Types} from "mongoose";
+import {InvoicePaymentMethodEnum} from "../../../common/types/influencer/invoice.types";
 
 export class NewCampaignActionDto {
     socialAccountId: Types.ObjectId;
@@ -38,14 +39,14 @@ export class UpsertCampaignActionDto {
 
 // request body for upserting new invoice action into influencer's history
 export class UpsertInvoiceActionDto {
-    @IsString()
+    @IsMongoId()
     influencerId: string;
 
-    @IsString()
+    @IsMongoId()
     invoiceId: string;
 
-    @IsString()
-    paymentMethod: string;
+    @IsEnum(InvoicePaymentMethodEnum)
+    paymentMethod: InvoicePaymentMethodEnum;
 
     @IsNumber()
     currentBalance: number;

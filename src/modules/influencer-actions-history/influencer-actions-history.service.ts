@@ -8,11 +8,9 @@ import {
     ProcessedInfluencerHistory
 } from "./types/influencer-history.types";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
-import {CompletedCampaignRepository} from "../../database/repositories/campaigns/completed-campaign.repository";
-import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
 import {
     CampaignAction,
-    InfluencerActionsHistory
+    InfluencerActionsHistory, InvoiceAction
 } from "../../database/schemas/histories/influencer-actions-history.schema";
 import {
     GetAllHistoriesQueryDto,
@@ -32,8 +30,6 @@ export class InfluencerActionsHistoryService {
 
     constructor(
         private readonly influencerRepo: InfluencerRepository,
-        private readonly campaignRepository: CampaignRepository,
-        private readonly completedCampaignRepo: CompletedCampaignRepository,
         private readonly influencerHistoryRepo: InfluencerHistoryRepository,
     ) {
     }
@@ -104,43 +100,55 @@ export class InfluencerActionsHistoryService {
     }
 
     // Upserts new invoice action to influencer's history
-    async upsertInfluencerInvoiceHistory(data: UpsertInvoiceActionDto): Promise<void> {
-        const {influencerId, invoiceId, paymentMethod, currentBalance, amount} = data;
+    async upsertInfluencerInvoiceHistory(
+        data: UpsertInvoiceActionDto,
+        session?: ClientSession,
+    ): Promise<void> {
+        const { influencerId, invoiceId, paymentMethod, currentBalance, amount } = data;
 
-        if (!influencerId || !amount || !paymentMethod || !invoiceId) throw new BadRequestException("Not enough arguments");
+        if (!influencerId || !invoiceId || !paymentMethod || amount === undefined || amount === null) {
+            throw new BadRequestException('Not enough arguments');
+        }
 
-        let influencerActionsHistory = await this.influencerHistoryRepo.findOne({
-            influencerId: new mongoose.Types.ObjectId(influencerId),
-        });
+        const action: InvoiceAction = {
+            invoiceId: new Types.ObjectId(invoiceId),
+            amount,
+            paymentMethod,
+            currentBalance,
+            date: new Date(),
+        };
 
-        if (!influencerActionsHistory) {
-            const {email} = await this.influencerRepo.findById(influencerId).select('email');
+        const updateResult = await this.influencerHistoryRepo.findOneAndUpdate(
+            { influencerId: new mongoose.Types.ObjectId(influencerId) },
+            { $push: { invoices: action } },
+            { new: true, session: session ?? undefined },
+        );
 
-            if (!email) throw new NotFoundException(`Influencer ${influencerId} not found`);
+        if (!updateResult) {
+            const influencer = await this.influencerRepo
+                .findById(influencerId)
+                .select('email')
+                .lean();
 
-            await this.influencerHistoryRepo.create({
-                influencerId: new mongoose.Types.ObjectId(influencerId),
-                influencerEmail: email,
-                invoices: [
-                    {
-                        invoiceId: invoiceId,
-                        amount: amount,
-                        paymentMethod: paymentMethod,
-                        currentBalance: currentBalance,
-                        date: new Date(),
+            if (!influencer?.email) {
+                throw new NotFoundException(`Influencer ${influencerId} not found`);
+            }
+
+            await this.influencerHistoryRepo.findOneAndUpdate(
+                { influencerId: new mongoose.Types.ObjectId(influencerId) },
+                {
+                    $setOnInsert: {
+                        influencerEmail: influencer.email,
+                        influencerId: new mongoose.Types.ObjectId(influencerId),
                     },
-                ],
-            });
-        } else {
-            influencerActionsHistory.invoices.push({
-                invoiceId: new Types.ObjectId(invoiceId),
-                amount,
-                paymentMethod,
-                currentBalance,
-                date: new Date(),
-            });
-
-            await influencerActionsHistory.save();
+                    $push: { invoices: action },
+                },
+                {
+                    new: true,
+                    upsert: true,
+                    session: session ?? undefined,
+                },
+            );
         }
     }
 

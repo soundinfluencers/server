@@ -11,7 +11,6 @@ export class FileController {
     constructor(private readonly fileService: FileService) {
     }
 
-    @Auth()
     @ApiOperation({ summary: 'Uploads photo' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({
@@ -32,7 +31,6 @@ export class FileController {
         return this.fileService.uploadDropBox(file);
     }
 
-    @Auth()
     @ApiOperation({summary: 'Checks if photo uploaded'})
     @ApiQuery({
         name: 'fileName',

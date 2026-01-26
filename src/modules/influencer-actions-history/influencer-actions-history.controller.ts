@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import {InfluencerActionsHistoryService} from "./influencer-actions-history.service";
 import {CheckIfInCampaignDto} from "./dto/check-if-in-campaign.dto";
-import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
+import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
@@ -47,6 +47,7 @@ export class InfluencerActionsHistoryController {
         return ({history});
     }
 
+    @ApiExcludeEndpoint()
     @Auth()
     @Roles(Role.admin)
     @ApiResponseDto(AllHistoriesResponseDto)
@@ -66,6 +67,7 @@ export class InfluencerActionsHistoryController {
         return this.influencerActionsHistoryService.getAllHistories(query);
     }
 
+    @ApiExcludeEndpoint()
     @Auth()
     @Roles(Role.admin)
     @ApiResponseDto(OneHistoryResponseDto)
