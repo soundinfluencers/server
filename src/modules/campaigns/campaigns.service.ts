@@ -198,7 +198,7 @@ export class CampaignsService {
                     socialMedia: item.socialMedia as SocialMediaType,
                     creationDate: formatDate(item.createdAt),
                     price: item.campaignPrice ?? undefined,
-                    status: formatClientCampaignStatus(item.statusCampaign) as CampaignStatusEnum ?? undefined,
+                    status: status === CampaignTypeEnumForDevelopment.draft ? 'draft' : formatClientCampaignStatus(item.statusCampaign) as CampaignStatusEnum ?? undefined,
                 };
             }),
         );

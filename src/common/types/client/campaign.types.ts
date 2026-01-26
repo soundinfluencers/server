@@ -31,6 +31,7 @@ export enum CampaignStatusEnum {
     pending = 'pending',
     distributing = 'distributing',
     completed = 'completed',
+    draft = 'draft'
 }
 
 // Enum for selected payment method
@@ -50,7 +51,7 @@ export interface ClientGetCampaignForList {
     socialMedia: SocialMediaType | 'multipromo';
     creationDate: string;
     price?: number;
-    status?: CampaignStatusEnum;
+    status?: CampaignStatusEnum | 'draft';
 }
 
 export class SafeSelectedContent {
