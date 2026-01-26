@@ -2,10 +2,10 @@ import { SocialMediaType } from "../social-media.types";
 import { CampaignStatusEnum } from "../client/campaign.types";
 
 // type and enum for influencer's response to new promo request
-export type InfluencerConfirmationStatusType = 'accept' | 'reject' | 'wait';
+export type InfluencerConfirmationStatusType = 'accept' | 'decline' | 'wait';
 export enum InfluencerConfirmationStatusEnum {
     accept = 'accept',
-    reject = 'reject',
+    decline = 'decline',
     wait = 'wait',
 }
 

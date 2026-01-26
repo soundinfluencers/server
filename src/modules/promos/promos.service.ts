@@ -29,7 +29,7 @@ import {SocialMediaValidationStrategyFactory} from "./strategies/social-media-va
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
-import {CampaignStatusEnum} from "../../common/types/client/campaign.types";
+import {CampaignConfirmationEnum, CampaignStatusEnum} from "../../common/types/client/campaign.types";
 
 mongoose.Promise = global.Promise;
 
@@ -215,7 +215,7 @@ export class PromosService {
                 addedAccounts: {
                     $elemMatch: {influencerId: new Types.ObjectId(influencerId), confirmation: 'wait'},
                 },
-                $or: [{verifyPromo: 'accept'}, {verifyCampaign: 'accept'}],
+                verifyCampaign: CampaignConfirmationEnum.accept,
             }, {lean: true});
 
         if (!promos) return [];
@@ -329,9 +329,9 @@ export class PromosService {
                 session,
             );
 
-            await this.campaignRepo.findOneAndUpdate(
+            const updated = await this.campaignRepo.findOneAndUpdate(
                 {
-                    _id: campaignId,
+                    _id: new Types.ObjectId(campaignId),
                     addedAccounts: {
                         $elemMatch: {_id: new Types.ObjectId(addedAccountsId)},
                     },
@@ -350,8 +350,12 @@ export class PromosService {
                             },
                         }),
                 },
-                {session},
+                {session, new: true},
             );
+
+            if (!updated) {
+                throw new NotFoundException('Campaign or account not found');
+            }
 
             await session.commitTransaction();
         } catch (err) {
@@ -403,7 +407,7 @@ export class PromosService {
                     break;
                 }
 
-                case InfluencerConfirmationStatusEnum.reject: {
+                case InfluencerConfirmationStatusEnum.decline: {
                     await sendMail(
                         'admin@soundinfluencers.com',
                         'SoundInfluencers',
