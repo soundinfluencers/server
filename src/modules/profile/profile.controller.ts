@@ -3,7 +3,7 @@ import {ProfileService} from './profile.service';
 import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from './dto/client/update-client.dto';
 import {UpdateUserPasswordDto} from './dto/update-password.dto';
 import {
-    AddSocialMediasDto,
+    AddSocialAccountDto,
     DeleteSocialAccountDto,
     InfluencerUpdatedPersonalDetailsDto,
     UpdateInfluencerPersonalDetailsDto,
@@ -132,13 +132,13 @@ export class ProfileController {
 
     @Auth()
     @Roles(Role.influencer, Role.admin)
-    @ApiOperation({summary: "Adds new social accounts and returns updated influencer"})
+    @ApiOperation({summary: "Adds new social account and returns updated influencer"})
     @ApiResponseDto(InfluencerAccountDetailsDto, {successStatusCode: 201})
     @Post('social-account')
-    async addSocialMediaAccounts(@Req() request: AuthenticatedRequest, @Body() data: AddSocialMediasDto): Promise<InfluencerAccountDetailsDto> {
+    async addSocialAccount(@Req() request: AuthenticatedRequest, @Body() data: AddSocialAccountDto): Promise<InfluencerAccountDetailsDto> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
-        return await this.profileService.addSocialMediaAccounts({...data, influencerId: request.user._id});
+        return await this.profileService.addSocialAccount({...data, influencerId: request.user._id});
     }
 
     @ApiExcludeEndpoint()

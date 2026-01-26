@@ -9,7 +9,7 @@ import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from '.
 import {ClientSession, PipelineStage, Types} from 'mongoose';
 import {UpdateUserPasswordDto} from './dto/update-password.dto';
 import {
-    AddSocialMediasDto,
+    AddSocialAccountDto,
     DeleteSocialAccountDto,
     InfluencerUpdatedPersonalDetailsDto,
     UpdateInfluencerPersonalDetailsDto,
@@ -370,186 +370,90 @@ export class ProfileService {
     }
 
     // Creates new social accounts and return updated influencer
-    async addSocialMediaAccounts(data: AddSocialMediasDto): Promise<InfluencerAccountDetails> {
-        const {influencerId} = data;
-        if (!influencerId) throw new BadRequestException('Influencer id is missing');
+    async addSocialAccount(
+        data: AddSocialAccountDto,
+    ): Promise<InfluencerAccountDetailsDto> {
+        const {influencerId, socialMedia, payload} = data;
 
-        let errors = [];
+        if (!influencerId) {
+            throw new BadRequestException('Influencer id is missing');
+        }
 
         const influencer = await this.influencerRepo.findById(influencerId);
-
-        if (!influencer) throw new NotFoundException(`Influencer not found`);
-
-        const socialMedias = Object.values(SocialMediaEnum);
-
-        let dataToSendWithEmail = {
-            influencerId: influencerId,
-            accounts: [],
-        };
-
-        // usernames map for check duplicates
-        const usernameMap = new Map<string, string[]>();
-
-        for (const network of socialMedias) {
-            const accounts = data[network] ?? [];
-
-            for (const acc of accounts) {
-                if (!acc?.username) continue;
-
-                const key = acc.username;
-
-                if (!usernameMap.has(key)) {
-                    usernameMap.set(key, []);
-                }
-
-                usernameMap.get(key)!.push(network);
-            }
+        if (!influencer) {
+            throw new NotFoundException('Influencer not found');
         }
 
-        // creating request
-        const or: any[] = [];
-
-        for (const [username, networks] of usernameMap.entries()) {
-            for (const network of networks) {
-                or.push(
-                    {[`${network}.username`]: username}
-                );
-            }
+        // ---- DUPLICATE CHECK ----
+        if (!payload?.username) {
+            throw new BadRequestException('Username is required');
         }
 
-        // Getting influencers with the same social account names
-        const influencers = await this.influencerRepo.findMany(
-            {$or: or},
-            socialMedias.reduce((acc, n) => {
-                acc[n] = 1;
-                return acc;
-            }, {} as any),
-        );
+        const duplicate = await this.influencerRepo.findOne({
+            [`${socialMedia}.username`]: payload.username,
+        });
 
-        const conflicts: { network: string; username: string }[] = [];
-
-        // Pushing info about duplicates
-        for (const influencer of influencers) {
-            for (const network of socialMedias) {
-                const accounts = influencer[network] ?? [];
-
-                for (const acc of accounts) {
-                    if (usernameMap.has(acc.username) || usernameMap.has((acc as any).instagramUsername)) {
-                        conflicts.push({
-                            network,
-                            username: acc.username,
-                        });
-                    }
-                }
-            }
-        }
-
-        // throwing conflict error
-        if (conflicts.length) {
+        if (duplicate) {
             throw new ConflictException({
-                message: 'Some usernames already exist',
-                conflicts,
+                message: 'Username already exists',
+                network: socialMedia,
+                username: payload.username,
             });
         }
 
-        // func for creating mail
-        // todo: parsing initial price
-        const emailContent = (socialMedia: SocialMediaEnum, item: CreateSocialAccountDto) => {
-            if (socialMedia === 'spotify' || socialMedia === 'soundcloud') {
-                return `
-                    <ul>
-            <li><strong>${socialMedia === 'spotify' ? 'Spotify playlist name' : 'SoundCloud account name'}: ${item.username}</strong></li>
-            <li><strong>${socialMedia === 'spotify' ? 'Spotify playlist link' : 'SoundCloud link'}: ${item.profileLink}</strong></li>
-            <li><strong>Followers: ${item.followers}</strong></li>
-            <li><strong>Logo: ${item.logoUrl}</strong></li>
-            <li><strong>Price: ${item.price}€</strong></li>
-            <li><strong>Initial Price: ${item.price}</strong></li>
-</ul>
-                `;
-            } else if (socialMedia === 'press') {
-                return `
-                    <ul>
-            <li><strong>Brand account name: ${item.username}</strong></li>
-            <li><strong>Website link: ${item.profileLink}</strong></li>
-            <li><strong>Website link: ${item.followers}</strong></li>
-            <li><strong>Logo: ${item.logoUrl}</strong></li>
-            <li><strong>Music Genres: ${getArrayFromMusicGenreDto(item.musicGenres)}</strong></li>
-            <li><strong>Price: ${item.price}€</strong></li>
-            <li><strong>Initial Price: ${item.price}</strong></li>
-            `;
-            } else {
-                return `
-                    <ul>
-            <li><strong>Username: ${item.username}</strong></li>
-            <li><strong>Link: ${item.profileLink}</strong></li>
-            <li><strong>Followers: ${item.followers}</strong></li>
-            <li><strong>Logo: ${item.logoUrl}</strong></li>
-            <li><strong>Music Genres: ${getArrayFromMusicGenreDto(item.musicGenres)}</strong></li>
-            <li><strong>Price: ${item.price}€</strong></li>
-            <li><strong>Initial Price: ${item.price}</strong></li>
-</ul>
-                `;
-            }
+        // ---- NORMALIZE DATA ----
+        const musicGenres = Array.isArray(payload.musicGenres)
+            ? payload.musicGenres.filter(Boolean)
+            : [];
+
+        const countries =
+            Array.isArray(payload.countries)
+                ? payload.countries
+                    .filter(
+                        (c): c is InfluencerCountryStats =>
+                            typeof c?.country === 'string' &&
+                            c.country.trim().length > 0 &&
+                            typeof c.percentage === 'number',
+                    )
+                    .map((c) => ({
+                        country: c.country,
+                        percentage: c.percentage,
+                    }))
+                : [];
+
+        // ---- CREATE ACCOUNT ----
+        const accountId = new Types.ObjectId();
+
+        const newAccount: SocialAccount = {
+            ...(payload.profileCategory === 'creator' && {
+                creatorCategories: payload.creatorCategories ?? [],
+            }),
+            _id: accountId,
+            username: payload.username,
+            profileLink: payload.profileLink,
+            followers: payload.followers,
+            logoUrl: payload.logoUrl,
+            profileCategory: payload.profileCategory,
+            price: payload.price,
+            initialPrice: payload.price,
+            publicPrice: payload.price * 2,
+            musicGenres,
+            countries,
+            categories: payload.categories,
+            engagementRate: null,
+            averageViews: null,
+            currency: payload.currency,
+            isHidden: false,
+            isDeleted: false,
+            isVerified: false,
         };
 
-        for (const network of socialMedias) {
-            const accounts: CreateSocialAccountDto[] = data[network] || [];
-            const socialMediaAccounts: SocialAccount[] = influencer[network] || [];
+        influencer[socialMedia] = [
+            ...(influencer[socialMedia] ?? []),
+            newAccount,
+        ];
 
-            try {
-                for (const account of accounts) {
-                    const formattedMusicGenres = normalizeDtoToMusicGenres(account.musicGenres) ?? [];
-                    const formattedCountries: InfluencerCountryStats[] =
-                        Array.isArray(account.countries)
-                            ? account.countries
-                                .filter(
-                                    (c): c is InfluencerCountryStats =>
-                                        typeof c?.country === 'string' &&
-                                        c.country.trim().length > 0 &&
-                                        typeof c.percentage === 'number'
-                                )
-                                .map((c) => ({
-                                    country: c.country,
-                                    percentage: c.percentage,
-                                }))
-                            : [];
-
-                    // todo: parsing initial price
-                    const accountId = new Types.ObjectId();
-                    socialMediaAccounts.push({
-                        ...(account.profileCategory === "creator" && {
-                            creatorCategories: account.creatorCategories ?? [],
-                        }),
-                        _id: accountId,
-                        username: account.username,
-                        profileLink: account.profileLink,
-                        followers: account.followers,
-                        logoUrl: account.logoUrl,
-                        profileCategory: account.profileCategory,
-                        price: account.price,
-                        initialPrice: account.price,
-                        publicPrice: account.price * 2,
-                        musicGenres: formattedMusicGenres,
-                        countries: formattedCountries,
-                        categories: account.categories,
-                        engagementRate: null,
-                        averageViews: null,
-                        currency: account.currency,
-                        isHidden: false,
-                        isDeleted: false,
-                        isVerified: false
-                    } satisfies SocialAccount);
-
-                    influencer[network] = socialMediaAccounts;
-
-                    dataToSendWithEmail.accounts.push(accountId);
-                }
-            } catch (err) {
-                console.error('Error adding social media account:', err);
-                errors.push(`Error adding ${network} account. ${err}`);
-            }
-        }
-
+        // ---- TRANSACTION ----
         const session = await this.influencerRepo.startSession();
         session.startTransaction();
 
@@ -563,43 +467,77 @@ export class ProfileService {
             await session.endSession();
         }
 
+        // ---- EMAIL ----
         try {
+            let emailHtml = '';
+
+            if (socialMedia === 'spotify' || socialMedia === 'soundcloud') {
+                emailHtml = `
+<ul>
+    <li><strong>${socialMedia === 'spotify' ? 'Spotify playlist name' : 'SoundCloud account name'}:</strong> ${payload.username}</li>
+    <li><strong>Link:</strong> ${payload.profileLink}</li>
+    <li><strong>Followers:</strong> ${payload.followers}</li>
+    <li><strong>Logo:</strong> ${payload.logoUrl}</li>
+    <li><strong>Price:</strong> ${payload.price}€</li>
+    <li><strong>Initial price:</strong> ${payload.price}€</li>
+</ul>`;
+            } else if (socialMedia === 'press') {
+                emailHtml = `
+<ul>
+    <li><strong>Brand name:</strong> ${payload.username}</li>
+    <li><strong>Website:</strong> ${payload.profileLink}</li>
+    <li><strong>Visitors:</strong> ${payload.followers}</li>
+    <li><strong>Logo:</strong> ${payload.logoUrl}</li>
+    <li><strong>Music genres:</strong> ${musicGenres.join(', ')}</li>
+    <li><strong>Price:</strong> ${payload.price}€</li>
+    <li><strong>Initial price:</strong> ${payload.price}€</li>
+</ul>`;
+            } else {
+                emailHtml = `
+<ul>
+    <li><strong>Username:</strong> ${payload.username}</li>
+    <li><strong>Link:</strong> ${payload.profileLink}</li>
+    <li><strong>Followers:</strong> ${payload.followers}</li>
+    <li><strong>Logo:</strong> ${payload.logoUrl}</li>
+    <li><strong>Music genres:</strong> ${musicGenres.join(', ')}</li>
+    <li><strong>Price:</strong> ${payload.price}€</li>
+    <li><strong>Initial price:</strong> ${payload.price}€</li>
+</ul>`;
+            }
+
             await sendMail(
                 process.env.EMAIL_USER,
                 'soundinfluencers',
-                `<p>Request from ${influencer.firstName} (${influencer.email}) to add a new Brand</p>
-            <b>Details:</b><br/>
-            ${socialMedias
-                    .map((network) =>
-                        data[network]
-                            ?.map(
-                                (item, index) => `
-                <p><strong>Network: ${network} (${index + 1} account)</strong></p>
+                `
+<p>Request from ${influencer.firstName} (${influencer.email})</p>
 
-                ${emailContent(network, item)}
-            `,
-                            )
-                            .join(''),
-                    )
-                    .join('')}
+<p><strong>Network:</strong> ${socialMedia}</p>
 
-            <h2>Do you want to verify these accounts?</h2>
-<a href="${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${dataToSendWithEmail.influencerId}&accounts=${encodeURIComponent(JSON.stringify(dataToSendWithEmail.accounts))}&isVerified=${true}">ACCEPT</a>
-        <a href="${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${dataToSendWithEmail.influencerId}&accounts=${encodeURIComponent(JSON.stringify(dataToSendWithEmail.accounts))}&isVerified=${false}">DECLINE</a>
+${emailHtml}
+
+<h2>Do you want to verify this account?</h2>
+
+<a href="${process.env.SERVER}/profile/influencer/verify-new-accounts
+?influencerId=${influencerId}
+&accounts=${encodeURIComponent(JSON.stringify([accountId]))}
+&isVerified=true">ACCEPT</a>
+
+<a href="${process.env.SERVER}/profile/influencer/verify-new-accounts
+?influencerId=${influencerId}
+&accounts=${encodeURIComponent(JSON.stringify([accountId]))}
+&isVerified=false">DECLINE</a>
 `,
                 'html',
             );
         } catch (err) {
-            this.logger.warn(`New social accounts for influencer ${influencerId} were added but email failed`, err);
+            this.logger.warn(
+                `Account ${accountId.toString()} added but email failed`,
+                err,
+            );
         }
 
-        let result: InfluencerAccountDetailsDto = null;
-        try {
-            result = mapInfluencerToAccountDetailsDto(influencer);
-        } catch (err) {
-            this.logger.warn(`Error mapping influencer ${influencerId} to AccountDetailsDto: ${err.message}`);
-        }
-        return result;
+        // ---- RESPONSE ----
+        return mapInfluencerToAccountDetailsDto(influencer);
     }
 
     // Verifies new social accounts
@@ -1380,60 +1318,60 @@ export class ProfileService {
                 input: `$${sm}`,
                 as: 'a',
                 in: {
-                    $mergeObjects: ['$$a', { socialMedia: sm }],
+                    $mergeObjects: ['$$a', {socialMedia: sm}],
                 },
             },
         }));
 
         const matchAcc = {
             'acc.isVerified': true,
-            'acc.isHidden': { $ne: true },
-            'acc.isDeleted': { $ne: true },
+            'acc.isHidden': {$ne: true},
+            'acc.isDeleted': {$ne: true},
         };
 
         const pipeline: any[] = [
             {
                 $project: {
                     influencerId: '$_id',
-                    accAll: { $concatArrays: concatParts },
+                    accAll: {$concatArrays: concatParts},
                 },
             },
-            { $unwind: '$accAll' },
-            { $set: { acc: '$accAll' } },
+            {$unwind: '$accAll'},
+            {$set: {acc: '$accAll'}},
 
-            { $match: matchAcc },
+            {$match: matchAcc},
 
-            { $match: { 'acc.username': usernameRegex } },
+            {$match: {'acc.username': usernameRegex}},
 
-            { $skip: skip },
-            { $limit: limit },
+            {$skip: skip},
+            {$limit: limit},
 
             {
                 $project: {
                     _id: 0,
-                    accountId: { $toString: '$acc._id' },
-                    influencerId: { $toString: '$influencerId' },
+                    accountId: {$toString: '$acc._id'},
+                    influencerId: {$toString: '$influencerId'},
                     username: '$acc.username',
                     logoUrl: '$acc.logoUrl',
                     followers: '$acc.followers',
                     socialMedia: '$acc.socialMedia',
-                    countries: { $ifNull: ['$acc.countries', []] },
+                    countries: {$ifNull: ['$acc.countries', []]},
 
                     musicGenres: {
                         $cond: [
-                            { $isArray: '$acc.musicGenres' },
-                            { $map: { input: '$acc.musicGenres', as: 'g', in: '$$g.genre' } },
+                            {$isArray: '$acc.musicGenres'},
+                            {$map: {input: '$acc.musicGenres', as: 'g', in: '$$g.genre'}},
                             '$$REMOVE',
                         ],
                     },
-                    creatorCategories: { $ifNull: ['$acc.creatorCategories', '$$REMOVE'] },
-                    categories: { $ifNull: ['$acc.categories', '$$REMOVE'] },
+                    creatorCategories: {$ifNull: ['$acc.creatorCategories', '$$REMOVE']},
+                    categories: {$ifNull: ['$acc.categories', '$$REMOVE']},
 
                     // todo: currency conversion
                     prices: {
-                        EUR: { $ifNull: ['$acc.publicPrice', { $literal: 0 }] },
-                        USD: { $literal: 0 },
-                        GBP: { $literal: 0 },
+                        EUR: {$ifNull: ['$acc.publicPrice', {$literal: 0}]},
+                        USD: {$literal: 0},
+                        GBP: {$literal: 0},
                     },
                 },
             },

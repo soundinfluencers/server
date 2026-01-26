@@ -45,57 +45,17 @@ export class InfluencerUpdatedPersonalDetailsDto {
 }
 
 // DTO for adding new social accounts
-export class AddSocialMediasDto {
+export class AddSocialAccountDto {
     influencerId: string;
 
-    @ApiProperty({type: [CreateSocialAccountDto], required: false})
-    @IsArray()
-    @ValidateNested({each: true})
-    @Type(() => CreateSocialAccountDto)
-    @IsOptional()
-    instagram?: CreateSocialAccountDto[];
+    @ApiProperty({type: String, required: true, enum: SocialMediaEnum})
+    @IsEnum(SocialMediaEnum)
+    socialMedia: SocialMediaEnum;
 
-    @ApiProperty({type: [CreateSocialAccountDto], required: false})
-    @IsArray()
-    @ValidateNested({each: true})
+    @ApiProperty({ type: () => CreateSocialAccountDto, required: true })
+    @ValidateNested()
     @Type(() => CreateSocialAccountDto)
-    @IsOptional()
-    tiktok?: CreateSocialAccountDto[];
-
-    @ApiProperty({type: [CreateSocialAccountDto], required: false})
-    @IsArray()
-    @ValidateNested({each: true})
-    @Type(() => CreateSocialAccountDto)
-    @IsOptional()
-    spotify?: CreateSocialAccountDto[];
-
-    @ApiProperty({type: [CreateSocialAccountDto], required: false})
-    @IsArray()
-    @ValidateNested({each: true})
-    @Type(() => CreateSocialAccountDto)
-    @IsOptional()
-    soundcloud?: CreateSocialAccountDto[];
-
-    @ApiProperty({type: [CreateSocialAccountDto], required: false})
-    @IsArray()
-    @ValidateNested({each: true})
-    @Type(() => CreateSocialAccountDto)
-    @IsOptional()
-    facebook?: CreateSocialAccountDto[];
-
-    @ApiProperty({type: [CreateSocialAccountDto], required: false})
-    @IsArray()
-    @ValidateNested({each: true})
-    @Type(() => CreateSocialAccountDto)
-    @IsOptional()
-    youtube?: CreateSocialAccountDto[];
-
-    @ApiProperty({type: [CreateSocialAccountDto], required: false})
-    @IsArray()
-    @ValidateNested({each: true})
-    @Type(() => CreateSocialAccountDto)
-    @IsOptional()
-    press?: CreateSocialAccountDto[];
+    payload: CreateSocialAccountDto;
 }
 
 // DTO for updating one social account
