@@ -1,6 +1,5 @@
 import {
     BadRequestException,
-    ForbiddenException,
     Injectable,
     InternalServerErrorException,
     Logger,
@@ -50,7 +49,6 @@ import {
 } from "../../common/types/influencer/promo.types";
 import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
 import {FoundAccountDto} from "../profile/dto/influencer/get-profile.dto";
-import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 
 @Injectable()
 export class CampaignsService {
@@ -97,6 +95,7 @@ export class CampaignsService {
                     .findMany({
                         clientId: new Types.ObjectId(data.clientId),
                     }, {lean: true, limit: limit, skip: skip})
+                campaigns = campaigns.map(c => ({ ...c, clientStatus: 'draft' as const }));
                 break;
             case "under_review":
                 campaigns = await this.campaignRepo
@@ -105,6 +104,7 @@ export class CampaignsService {
                         statusCampaign: CampaignStatusEnum.underReview,
                         verifyCampaign: CampaignConfirmationEnum.wait
                     }, {lean: true, limit: limit, skip: skip})
+                campaigns = campaigns.map(c => ({ ...c, clientStatus: 'under_review' as const }));
                 break;
             case "distributing":
                 campaigns = await this.campaignRepo
@@ -117,6 +117,7 @@ export class CampaignsService {
                             ],
                         },
                     }, {lean: true, limit: limit, skip: skip})
+                campaigns = campaigns.map(c => ({ ...c, clientStatus: 'distributing' as const }));
                 break;
             case "closed":
                 campaigns = await this.completedCampaignRepo
@@ -126,83 +127,109 @@ export class CampaignsService {
                             {userId: new Types.ObjectId(data.clientId)},
                         ],
                     }, {lean: true, limit: limit, skip: skip})
+                campaigns = campaigns.map(c => ({ ...c, clientStatus: 'closed' as const }));
                 break;
             case "proposal":
-                campaigns = await this.proposalCampaignRepo
-                    .findMany({
-                        clientId: new Types.ObjectId(data.clientId)
-                    }, {lean: true, limit: limit, skip: skip})
+                campaigns = await this.proposalCampaignRepo.findMany(
+                    { $or: [{ creatorId: new Types.ObjectId(data.clientId) }, { clientId: new Types.ObjectId(data.clientId) }] },
+                    { lean: true, limit, skip }
+                );
+
+                campaigns = campaigns.map(c => ({
+                    ...c,
+                    clientStatus: 'proposal' as const,
+                    campaignPrice: c.publicPrice ?? c.price,
+                }));
                 break;
             case "all":
-                const clientObjectId = new Types.ObjectId(data.clientId);
+                const oid = new Types.ObjectId(data.clientId);
 
-                campaigns = await this.campaignRepo
-                    .aggregate<ClientGetCampaignForList>([
-                        {
-                            $match: {
-                                clientId: clientObjectId,
-                            },
-                        },
-                        {
-                            $unionWith: {
-                                coll: 'completedcampaigns',
-                                pipeline: [
-                                    {
-                                        $match: {
-                                            $or: [
-                                                {clientId: clientObjectId},
-                                                {userId: clientObjectId},
-                                            ],
+                campaigns = await this.campaignRepo.aggregate([
+                    { $match: { clientId: oid } },
+                    {
+                        $addFields: {
+                            clientStatus: {
+                                $switch: {
+                                    branches: [
+                                        {
+                                            case: { $and: [
+                                                    { $eq: ['$statusCampaign', CampaignStatusEnum.underReview] },
+                                                    { $eq: ['$verifyCampaign', CampaignConfirmationEnum.wait] },
+                                                ]},
+                                            then: 'under_review',
                                         },
-                                    },
-                                ],
-                            },
-                        },
-                        {
-                            $unionWith: {
-                                coll: 'proposalcampaigns',
-                                pipeline: [
-                                    {
-                                        $match: {
-                                            clientId: clientObjectId,
+                                        {
+                                            case: { $eq: ['$statusCampaign', CampaignStatusEnum.pending] },
+                                            then: 'pending',
                                         },
+                                        {
+                                            case: { $eq: ['$statusCampaign', CampaignStatusEnum.distributing] },
+                                            then: 'distributing',
+                                        },
+                                    ],
+                                    default: 'pending',
+                                },
+                            },
+                        },
+                    },
+
+                    {
+                        $unionWith: {
+                            coll: 'completedcampaigns',
+                            pipeline: [
+                                { $match: { $or: [{ clientId: oid }, { userId: oid }] } },
+                                { $addFields: { clientStatus: 'closed' } },
+                            ],
+                        },
+                    },
+
+                    {
+                        $unionWith: {
+                            coll: 'proposalcampaigns',
+                            pipeline: [
+                                { $match: { $or: [{ creatorId: oid }, { clientId: oid }] } },
+
+                                {
+                                    $addFields: {
+                                        campaignPrice: '$publicPrice',
+                                        clientStatus: 'proposal',
                                     },
-                                ],
-                            },
+                                },
+                                { $project: { publicPrice: 0 } },
+                            ],
                         },
-                        {$sort: {createdAt: -1}},
-                        {$skip: skip},
-                        {$limit: limit},
-                        {
-                            $project: {
-                                _id: {$toString: '$_id'},
-                                campaignName: 1,
-                                socialMedia: 1,
-                                createdAt: 1,
-                                campaignPrice: 1,
-                                statusCampaign: 1,
-                            },
+                    },
+
+                    { $sort: { createdAt: -1 } },
+                    { $skip: skip },
+                    { $limit: limit },
+
+                    {
+                        $project: {
+                            _id: { $toString: '$_id' },
+                            campaignName: 1,
+                            socialMedia: 1,
+                            createdAt: 1,
+                            campaignPrice: 1,
+                            clientStatus: 1,
                         },
-                    ])
-                    .exec();
+                    },
+                ]).exec();
                 break;
             default:
                 throw new BadRequestException("Bad request. Not enough arguments (missing campaign status)");
         }
 
+        console.log(campaigns[0], campaigns[campaigns.length - 1]);
 
-        return await Promise.all(
-            campaigns.map(async (item): Promise<ClientGetCampaignForList> => {
-                return {
-                    _id: item._id.toString(),
-                    campaignName: item.campaignName,
-                    socialMedia: item.socialMedia as SocialMediaType,
-                    creationDate: formatDate(item.createdAt),
-                    price: item.campaignPrice ?? undefined,
-                    status: status === CampaignTypeEnumForDevelopment.draft ? 'draft' : formatClientCampaignStatus(item.statusCampaign) as CampaignStatusEnum ?? undefined,
-                };
-            }),
-        );
+        return campaigns.map((item): ClientGetCampaignForList => ({
+            _id: item._id.toString(),
+            campaignName: item.campaignName,
+            socialMedia: item.socialMedia as SocialMediaType,
+            creationDate: formatDate(item.createdAt),
+            price: item.campaignPrice ?? item.publicPrice ?? item.price ?? undefined,
+            status: item.clientStatus ?? formatClientCampaignStatus(item.statusCampaign),
+        }));
     }
 
     // Creates new campaign (NOT DRAFT)

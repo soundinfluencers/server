@@ -51,7 +51,7 @@ export interface ClientGetCampaignForList {
     socialMedia: SocialMediaType | 'multipromo';
     creationDate: string;
     price?: number;
-    status?: CampaignStatusEnum | 'draft';
+    status?: CampaignStatusEnum | 'draft' | 'proposal';
 }
 
 export class SafeSelectedContent {

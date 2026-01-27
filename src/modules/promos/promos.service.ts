@@ -1045,8 +1045,6 @@ export class PromosService {
         const validationStrategy = this.validationStrategyFactory.get(socialAccount.socialMedia);
         validationStrategy.validate(postDetails);
 
-        console.log(validationStrategy, 'validation strategy')
-
         // transaction
         const session = await this.campaignRepo.startSession();
         session.startTransaction();
@@ -1062,8 +1060,6 @@ export class PromosService {
                 }).map(([key, value]) => [`addedAccounts.$.${key}`, value]),
             );
 
-            console.log(updatePayload, 'updatePayload')
-
             const updateResult = await this.campaignRepo.updateOne(
                 {
                     _id: new Types.ObjectId(campaignId),
@@ -1077,8 +1073,6 @@ export class PromosService {
                 { $set: updatePayload },
                 { session },
             );
-
-            console.log(updateResult)
 
             // promo already closed by another request
             if (updateResult.modifiedCount === 0) {
