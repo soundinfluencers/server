@@ -184,7 +184,7 @@ export class CampaignsController {
 
     @Auth()
     @Roles(Role.client)
-    @ApiOperation({summary: 'Get client campaign (completed or ongoing)'})
+    @ApiOperation({summary: 'Get client campaign (completed, ongoing, proposal)'})
     @ApiParam({name: 'campaignId', required: true})
     @ApiResponseDto(ClientCampaignForTableDto)
     @Get(':campaignId')

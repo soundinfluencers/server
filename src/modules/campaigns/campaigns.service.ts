@@ -138,7 +138,7 @@ export class CampaignsService {
                 campaigns = campaigns.map(c => ({
                     ...c,
                     clientStatus: 'proposal' as const,
-                    campaignPrice: c.publicPrice ?? c.price,
+                    campaignPrice: c.publicCampaignPrice ?? c.privateCampaignPrice,
                 }));
                 break;
             case "all":
@@ -191,7 +191,7 @@ export class CampaignsService {
 
                                 {
                                     $addFields: {
-                                        campaignPrice: '$publicPrice',
+                                        campaignPrice: '$publicCampaignPrice',
                                         clientStatus: 'proposal',
                                     },
                                 },
@@ -219,8 +219,6 @@ export class CampaignsService {
             default:
                 throw new BadRequestException("Bad request. Not enough arguments (missing campaign status)");
         }
-
-        console.log(campaigns[0], campaigns[campaigns.length - 1]);
 
         return campaigns.map((item): ClientGetCampaignForList => ({
             _id: item._id.toString(),
@@ -792,7 +790,7 @@ ${emailVideoContent()}
         }
     }
 
-    // todo: improve
+    // todo: создать окестратор и разбить на три части (completed, ongoing, proposal)
     // Returns one detailed campaign obj - used by campaign report page
     async getClientOngoingOrPastCampaign(campaignId: string, clientId: string): Promise<ClientCampaignForTable> {
         if (!campaignId || !clientId) throw new BadRequestException('Not enough arguments');
@@ -802,6 +800,7 @@ ${emailVideoContent()}
 
         let campaign: any = await this.campaignRepo.findById(campaignId, {lean: true});
         if (!campaign) campaign = await this.completedCampaignRepo.findById(campaignId, {lean: true});
+        if (!campaign) campaign = await this.proposalCampaignRepo.findById(campaignId, {lean: true});
         if (!campaign) throw new NotFoundException('Campaign not found');
 
         const campaignToReturn: any = {
@@ -810,8 +809,8 @@ ${emailVideoContent()}
             campaignName: campaign.campaignName ?? 'OLD CAMPAIGN',
             socialMedia: campaign.socialMedia ?? 'instagram',
             creationDate: formatDate(campaign.createdAt),
-            price: campaign.campaignPrice ?? (campaign as any).price ?? (campaign as any).amount ?? 0,
-            status: campaign.statusCampaign,
+            price: campaign.campaignPrice ?? (campaign as any).price ?? (campaign as any).publicCampaignPrice ?? (campaign as any).amount ?? 0,
+            status: campaign.creatorId ? 'proposal' : campaign.statusCampaign,
             addedAccounts: [],
             campaignContent: campaign.campaignContent ?? (campaign as any).videos ?? [],
             shareLink: campaign.shareLink ?? null,
