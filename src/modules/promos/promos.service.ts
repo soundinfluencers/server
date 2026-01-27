@@ -1,4 +1,10 @@
-import {BadRequestException, Injectable, InternalServerErrorException, NotFoundException,} from '@nestjs/common';
+import {
+    BadRequestException,
+    ConflictException,
+    Injectable,
+    InternalServerErrorException,
+    NotFoundException,
+} from '@nestjs/common';
 import mongoose, {ClientSession, PipelineStage, Types} from 'mongoose';
 import {SocialMediaType} from "../../common/types/social-media.types";
 import sendMail from "../../integrations/nodemailer/nodemailer";
@@ -1012,15 +1018,11 @@ export class PromosService {
 
         const campaign = await this.campaignRepo
             .findOne({
-                _id: campaignId,
+                _id: new Types.ObjectId(campaignId),
                 addedAccounts: {
                     $elemMatch: {
-                        influencerId,
-                        $or: [
-                            {username: username},
-                            {socialMediaUsername: username},
-                            {instagramUsername: username},
-                        ],
+                        influencerId: new Types.ObjectId(influencerId),
+                        _id: new Types.ObjectId(addedAccountsId),
                     },
                 },
             }, {lean: true});
@@ -1043,34 +1045,44 @@ export class PromosService {
         const validationStrategy = this.validationStrategyFactory.get(socialAccount.socialMedia);
         validationStrategy.validate(postDetails);
 
+        console.log(validationStrategy, 'validation strategy')
+
         // transaction
         const session = await this.campaignRepo.startSession();
+        session.startTransaction();
 
         try {
-            session.startTransaction();
 
             // closing promo for influencer
             const updatePayload = Object.fromEntries(
                 Object.entries({
                     ...postDetails,
                     closePromo: 'close',
+                    screenshot: postDetails?.screenshotUrl ?? null
                 }).map(([key, value]) => [`addedAccounts.$.${key}`, value]),
             );
 
+            console.log(updatePayload, 'updatePayload')
+
             const updateResult = await this.campaignRepo.updateOne(
                 {
-                    _id: campaignId,
-                    'addedAccounts._id': new mongoose.Types.ObjectId(addedAccountsId),
-                    'addedAccounts.closePromo': {$ne: 'close'},
+                    _id: new Types.ObjectId(campaignId),
+                    addedAccounts: {
+                        $elemMatch: {
+                            _id: new Types.ObjectId(addedAccountsId),
+                            closePromo: { $ne: 'close' },
+                        },
+                    },
                 },
-                {$set: updatePayload},
-                {session}
+                { $set: updatePayload },
+                { session },
             );
+
+            console.log(updateResult)
 
             // promo already closed by another request
             if (updateResult.modifiedCount === 0) {
-                await session.abortTransaction();
-                return;
+                throw new ConflictException('Promo was closed by another request')
             }
 
             // pay influencer
@@ -1080,11 +1092,15 @@ export class PromosService {
                 throw new InternalServerErrorException('Invalid influencer reward in database');
             }
 
-            await this.influencerRepo.updateOne(
-                {_id: influencerId},
+            const updatedInfluencer = await this.influencerRepo.updateOne(
+                {_id: new Types.ObjectId(influencerId)},
                 {$inc: {balance: reward}},
                 {session},
             );
+
+            if (updatedInfluencer.modifiedCount === 0) {
+                throw new InternalServerErrorException(`Can't update influencer's balance`)
+            }
 
             // upserting new campaign action
             await this.influencerActionsHistoryService.upsertInfluencerCampaignActionsHistory({
