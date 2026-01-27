@@ -133,15 +133,17 @@ export class ProfileService {
 
     // Updates influencer's personal information (firstName, email, phone)
     async updatePersonalInfluencer(data: UpdateInfluencerPersonalDetailsDto): Promise<InfluencerUpdatedPersonalDetailsDto> {
-        const {influencerId, firstName, email, phone} = data;
+        const {influencerId, firstName, lastName, email, phone} = data;
 
         const updateData: Partial<{
             firstName: string;
+            lastName: string;
             email: string;
             phone: string;
         }> = {};
 
         if (firstName) updateData.firstName = firstName.trim();
+        if (lastName) updateData.lastName = lastName.trim();
         if (email) updateData.email = email.trim().toLowerCase();
         if (phone) updateData.phone = phone.trim();
 
@@ -157,6 +159,7 @@ export class ProfileService {
 
         return {
             firstName: updatedUser.firstName,
+            lastName: updatedUser?.lastName,
             email: updatedUser.email,
             phone: updatedUser.phone,
         };
