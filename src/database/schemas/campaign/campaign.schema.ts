@@ -61,6 +61,9 @@ export class CampaignAccount {
     dateRequest?: string;
 
     @Prop({type: String, required: false})
+    datePost?: string;
+
+    @Prop({type: String, required: false})
     postLink?: string;
 
     @Prop({type: String, required: false})

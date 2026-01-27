@@ -13,7 +13,7 @@ import {CampaignStatusEnum} from "../../../common/types/client/campaign.types";
 import {
     IsEnum,
     IsInt,
-    IsMongoId,
+    IsMongoId, IsNotEmpty, isNotEmpty,
     IsNumber,
     IsOptional,
     IsString,
@@ -167,6 +167,14 @@ export class InfluencerUpdatedPostDetailsDto implements InfluencerUpdatedPostDet
     @IsOptional()
     @Min(0)
     rating?: number;
+
+    @ApiPropertyOptional({
+        description: 'Post creation date',
+    })
+    @IsString()
+    @IsNotEmpty()
+    @IsOptional()
+    datePost?: string;
 }
 
 // dto request for closing influencer's ongoing
