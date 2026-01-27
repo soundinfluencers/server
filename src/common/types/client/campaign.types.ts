@@ -129,5 +129,5 @@ export interface PublicCampaignForTable {
     isPriceHidden: boolean;
 
     hiddenColumns?: string[];
-    cpm?: number;
+    cpm?: number | null;
 }

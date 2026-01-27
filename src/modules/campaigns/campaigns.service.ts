@@ -50,6 +50,7 @@ import {
 } from "../../common/types/influencer/promo.types";
 import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
 import {FoundAccountDto} from "../profile/dto/influencer/get-profile.dto";
+import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 
 @Injectable()
 export class CampaignsService {
@@ -829,7 +830,7 @@ ${emailVideoContent()}
 
                             return {
                                 _id: contentItem._id,
-                                mainLink: contentItem.mainLink ?? (contentItem as any).videoLink,
+                                mainLink: contentItem.mainLink ?? (contentItem as any).videoLink ?? null,
                                 description: description ?? null,
                                 taggedUser: contentItem.taggedUser ?? (contentItem as any).storyTag ?? null,
                                 taggedLink: contentItem.taggedLink ?? (contentItem as any).swipeUpLink ?? null,
@@ -895,34 +896,6 @@ ${emailVideoContent()}
         }
 
         return campaignToReturn;
-    }
-
-    // Returns client's proposal campaigns
-    async getClientProposalCampaigns(clientId: string): Promise<ClientGetCampaignForList[]> {
-        const client = await this.clientRepo.findById(clientId);
-        if (!client) throw new NotFoundException('Client not found');
-
-        if (!client.isProposalClient) throw new ForbiddenException('Client need to be proposal client')
-
-        const proposalPromos = await this.proposalCampaignRepo.findMany({
-            $or: [
-                {creatorId: new Types.ObjectId(clientId)},
-                {clientId: new Types.ObjectId(clientId)},
-            ]
-        });
-
-        if (proposalPromos.length === 0) {
-            return [];
-        }
-
-        return proposalPromos.map((p) => ({
-            _id: p._id.toString(),
-            campaignName: p.campaignName,
-            socialMedia: p.socialMedia as SocialMediaType,
-            creationDate: formatDate(p.createdAt),
-            price: p.publicCampaignPrice,
-            status: CampaignStatusEnum.underReview,
-        }))
     }
 
     async saveXLSXCampaign(data: SaveXlsxCampaignDto) {
@@ -1279,20 +1252,18 @@ ${emailVideoContent()}
     async getCampaignByPublicShareLink(campaignId: string): Promise<PublicCampaignForTable> {
         if (!campaignId) throw new BadRequestException('Not enough arguments')
 
-        if (!mongoose.Types.ObjectId.isValid(campaignId)) throw new BadRequestException('Invalid campaignId format')
-
         let campaign: any = await this.campaignRepo.findById(campaignId, {lean: true});
         if (!campaign) campaign = await this.completedCampaignRepo.findById(campaignId, {lean: true});
         if (!campaign) throw new NotFoundException('Campaign not found')
 
-        const campaignToReturn: PublicCampaignForTable = {
-            campaignId: campaign._id,
+        const campaignToReturn = {
+            campaignId: campaign._id.toString(),
             // clientId: campaign.clientId,
             campaignName: campaign.campaignName ?? 'OLD CAMPAIGN',
-            price: campaign.campaignPrice ?? campaign.publicPrice ?? campaign.amount ?? 0,
+            price: campaign.campaignPrice ?? (campaign as any).publicPrice ?? (campaign as any).amount ?? 0,
             addedAccounts: [],
-            campaignContent: campaign.campaignContent ?? campaign.videos ?? [],
-            socialMedia: campaign.socialMedia as SocialMediaType ?? 'instagram' as SocialMediaType,
+            campaignContent: campaign.campaignContent ?? (campaign as any).videos ?? [],
+            socialMedia: campaign.socialMedia as SocialMediaType,
             status: campaign.statusCampaign,
             totalFollowers: 0,
             totalLikes: 0,
@@ -1305,23 +1276,25 @@ ${emailVideoContent()}
             isPriceHidden: campaign.isPriceHidden ?? false,
             hiddenColumns: campaign.hiddenColumns ?? [],
             shareLink: campaign.shareLink ?? null,
+            cpm: null
         };
 
         for (const addedAccount of campaign.addedAccounts ?? []) {
             const normalizedUsername =
-                addedAccount?.socialMediaUsername?.trim() ||
-                addedAccount?.instagramUsername?.trim() ||
+                addedAccount?.username?.trim() ||
+                (addedAccount as any)?.socialMediaUsername?.trim() ||
+                (addedAccount as any)?.instagramUsername?.trim() ||
                 '';
 
             const socialMedia =
                 addedAccount?.socialMedia ||
                 (campaign.socialMedia !== 'multipromo' && campaign.socialMedia);
 
-            const selectedCampaignContentItemId =
+            const selectedCampaignContentItemId: string | Types.ObjectId =
                 addedAccount?.selectedContent?.campaignContentItemId?.toString() ??
-                addedAccount?.selectedCampaignContentItem?.toString() ??
-                (Array.isArray(campaign?.videos)
-                    ? campaign.videos.find((v) => v.videoLink === addedAccount?.selectedVideo)?._id?.toString()
+                (addedAccount as any)?.selectedCampaignContentItem?.toString() ??
+                (Array.isArray((campaign as any)?.videos)
+                    ? (campaign as any).videos?.find((v) => v.videoLink === (addedAccount as any)?.selectedVideo)?._id?.toString()
                     : null) ??
                 null;
 
@@ -1335,43 +1308,47 @@ ${emailVideoContent()}
                             );
                             if (!contentItem) return null;
 
-                            const postDescription =
-                                contentItem.postDescriptions?.find(
-                                    (pd) =>
-                                        pd._id.toString() ===
-                                        addedAccount.selectedContent?.postDescriptionId?.toString(),
-                                )?.description ??
-                                (contentItem as any)?.postDescription ??
-                                '';
+                            let description: string;
+                            try {
+                                description = contentItem.descriptions?.find(
+                                    (pd) => pd._id.toString() === addedAccount.selectedContent?.descriptionId.toString(),
+                                )?.description ?? (contentItem as any)?.postDescription ?? '';
+                            } catch (err) {
+                                this.logger.warn(`Can't get description for addedAccounts ${addedAccount._id} in campaign ${campaign._id}`);
+                            }
 
                             return {
                                 _id: contentItem._id,
-                                videoLink: contentItem.videoLink,
-                                postDescription: postDescription || null,
-                                storyTag: contentItem.storyTag || null,
-                                storyLink: contentItem.swipeUpLink || null,
-                                specialWishes: contentItem.specialWishes,
+                                mainLink: contentItem.mainLink ?? (contentItem as any).videoLink ?? null,
+                                description: description ?? null,
+                                taggedUser: contentItem.taggedUser ?? (contentItem as any).storyTag ?? null,
+                                taggedLink: contentItem.taggedLink ?? (contentItem as any).swipeUpLink ?? null,
+                                additionalBrief: contentItem.additionalBrief ?? (contentItem as any).specialWishes ?? null,
                             };
                         })()
                         : null) ??
-                    (Array.isArray(campaign.videos)
-                        ? campaign.videos.find(
+                    (Array.isArray((campaign as any).videos)
+                        ? (campaign as any).videos.find(
                             (item) => item?._id?.toString() === selectedCampaignContentItemId?.toString(),
                         )
                         : null) ??
                     null;
             }
 
-            addedAccount.selectedCampaignContentItemId = selectedCampaignContentItemId;
-            addedAccount.selectedCampaignContentItem = selectedCampaignContentItem;
+            addedAccount.username = normalizedUsername;
             addedAccount.socialMedia = socialMedia;
-            addedAccount.socialMediaUsername = normalizedUsername;
+            addedAccount.selectedContent = {
+                campaignContentItemId: selectedCampaignContentItemId ? new Types.ObjectId(selectedCampaignContentItemId) : null,
+                descriptionId: addedAccount.selectedContent.descriptionId ?? undefined
+            };
+            addedAccount.selectedCampaignContentItem = selectedCampaignContentItem;
 
-            campaignToReturn.totalFollowers += addedAccount?.followersNumber ?? 0;
-            campaignToReturn.totalLikes += parseInt(addedAccount.like?.replace(/[\s,]/g, '') || '0');
-            campaignToReturn.totalImpressions += parseInt(
-                addedAccount.impressions?.replace(/[\s,]/g, '') || '0',
-            );
+            campaignToReturn.totalFollowers += addedAccount.followers ?? 0;
+            campaignToReturn.totalLikes += addedAccount.like ?? 0;
+            campaignToReturn.totalImpressions += addedAccount.impressions ?? 0;
+            campaignToReturn.totalSaves += addedAccount.saves ?? 0;
+            campaignToReturn.totalComments = addedAccount.comments ?? 0;
+            campaignToReturn.totalShares = addedAccount.shares ?? 0;
 
             campaignToReturn.addedAccounts.push(addedAccount);
         }
@@ -1382,8 +1359,8 @@ ${emailVideoContent()}
                 ? campaign.campaignContent.findIndex(
                     (c) => c?._id?.toString() === a.selectedCampaignContentItemId?.toString(),
                 )
-                : Array.isArray(campaign.videos)
-                    ? campaign.videos.findIndex(
+                : Array.isArray((campaign as any).videos)
+                    ? (campaign as any).videos.findIndex(
                         (v) => v?._id?.toString() === a.selectedCampaignContentItemId?.toString(),
                     )
                     : -1;
@@ -1392,14 +1369,23 @@ ${emailVideoContent()}
                 ? campaign.campaignContent.findIndex(
                     (c) => c?._id?.toString() === b.selectedCampaignContentItemId?.toString(),
                 )
-                : Array.isArray(campaign.videos)
-                    ? campaign.videos.findIndex(
+                : Array.isArray((campaign as any).videos)
+                    ? (campaign as any).videos.findIndex(
                         (v) => v?._id?.toString() === b.selectedCampaignContentItemId?.toString(),
                     )
                     : -1;
 
             return aIndex - bIndex;
         });
+
+        try {
+            campaignToReturn.cpm =
+                campaignToReturn.totalImpressions > 0
+                    ? Math.round((campaignToReturn.price * 1000 / campaignToReturn.totalImpressions) * 1000) / 1000
+                    : null;
+        } catch (e) {
+            this.logger.warn(`Can't retrieve cpm for campaign ${campaignId}: ${e}`);
+        }
 
         return campaignToReturn;
     }

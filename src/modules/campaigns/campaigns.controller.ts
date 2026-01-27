@@ -215,10 +215,10 @@ export class CampaignsController {
 
     @Public()
     @ApiOperation({summary: `Get campaign by public share link`})
-    @ApiQuery({name: 'campaignId', required: true})
+    @ApiParam({name: 'campaignId', required: true})
     @ApiResponseDto(ClientCampaignForTableDto)
     @Get(':campaignId/share')
-    getCampaignByPublicShareLink(@Param() campaignId: string): Promise<PublicCampaignForTable> {
+    getCampaignByPublicShareLink(@Param('campaignId') campaignId: string): Promise<PublicCampaignForTable> {
         return this.campaignsService.getCampaignByPublicShareLink(campaignId);
     }
 }
