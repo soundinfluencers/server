@@ -1062,7 +1062,7 @@ export class PromosService {
             const updateResult = await this.campaignRepo.updateOne(
                 {
                     _id: new Types.ObjectId(campaignId),
-                    addedAccounts: {_id: new Types.ObjectId(addedAccountsId)},
+                    "addedAccounts._id": new Types.ObjectId(addedAccountsId),
                 },
                 { $set: updatePayload },
                 { session },
