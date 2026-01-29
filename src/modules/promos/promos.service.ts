@@ -1050,7 +1050,6 @@ export class PromosService {
         session.startTransaction();
 
         try {
-
             // closing promo for influencer
             const updatePayload = Object.fromEntries(
                 Object.entries({
@@ -1063,12 +1062,7 @@ export class PromosService {
             const updateResult = await this.campaignRepo.updateOne(
                 {
                     _id: new Types.ObjectId(campaignId),
-                    addedAccounts: {
-                        $elemMatch: {
-                            _id: new Types.ObjectId(addedAccountsId),
-                            closePromo: { $ne: 'close' },
-                        },
-                    },
+                    addedAccounts: {_id: new Types.ObjectId(addedAccountsId)},
                 },
                 { $set: updatePayload },
                 { session },
