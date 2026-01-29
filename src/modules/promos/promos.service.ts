@@ -1003,21 +1003,15 @@ export class PromosService {
     // [ONGOING] Closing influencer's promo [UPDATE ONE]
     async updateOngoingCampaign(
         data: InfluencerUpdatePromoReqBodyDto,
-    ): Promise<void> {
-        const {
-            influencerId,
-            campaignId,
-            username,
-            addedAccountsId,
-            data: postDetails,
-        } = data;
+    ): Promise<{ balance: number }> {
+        const { influencerId, campaignId, username, addedAccountsId, data: postDetails } = data;
 
         if (!influencerId || !campaignId || !username || !addedAccountsId) {
-            throw new BadRequestException('Not enough arguments');
+            throw new BadRequestException("Not enough arguments");
         }
 
-        const campaign = await this.campaignRepo
-            .findOne({
+        const campaign = await this.campaignRepo.findOne(
+            {
                 _id: new Types.ObjectId(campaignId),
                 addedAccounts: {
                     $elemMatch: {
@@ -1025,10 +1019,12 @@ export class PromosService {
                         _id: new Types.ObjectId(addedAccountsId),
                     },
                 },
-            }, {lean: true});
+            },
+            { lean: true },
+        );
 
         if (!campaign) {
-            throw new NotFoundException('Campaign not found');
+            throw new NotFoundException("Campaign not found");
         }
 
         const socialAccount = campaign.addedAccounts.find(
@@ -1041,21 +1037,18 @@ export class PromosService {
             );
         }
 
-        // validation by strategy
         const validationStrategy = this.validationStrategyFactory.get(socialAccount.socialMedia);
         validationStrategy.validate(postDetails);
 
-        // transaction
         const session = await this.campaignRepo.startSession();
         session.startTransaction();
 
         try {
-            // closing promo for influencer
             const updatePayload = Object.fromEntries(
                 Object.entries({
                     ...postDetails,
-                    closePromo: 'close',
-                    screenshot: postDetails?.screenshotUrl ?? null
+                    closePromo: "close",
+                    screenshot: postDetails?.screenshotUrl ?? null,
                 }).map(([key, value]) => [`addedAccounts.$.${key}`, value]),
             );
 
@@ -1068,43 +1061,44 @@ export class PromosService {
                 { session },
             );
 
-            // promo already closed by another request
             if (updateResult.modifiedCount === 0) {
-                throw new ConflictException('Promo was closed by another request')
+                throw new ConflictException("Promo was closed by another request");
             }
 
-            // pay influencer
             const reward = socialAccount.price;
-
             if (!reward || Number.isNaN(reward)) {
-                throw new InternalServerErrorException('Invalid influencer reward in database');
+                throw new InternalServerErrorException("Invalid influencer reward in database");
             }
 
-            const updatedInfluencer = await this.influencerRepo.updateOne(
-                {_id: new Types.ObjectId(influencerId)},
-                {$inc: {balance: reward}},
-                {session},
+            const updatedInfluencer = await this.influencerRepo.findOneAndUpdate(
+                { _id: new Types.ObjectId(influencerId) },
+                { $inc: { balance: reward } },
+                { session, new: true },
             );
 
-            if (updatedInfluencer.modifiedCount === 0) {
-                throw new InternalServerErrorException(`Can't update influencer's balance`)
+            if (!updatedInfluencer) {
+                throw new InternalServerErrorException("Can't update influencer's balance");
             }
 
-            // upserting new campaign action
-            await this.influencerActionsHistoryService.upsertInfluencerCampaignActionsHistory({
-                influencerId: influencerId,
-                campaignId: campaignId,
-                campaignName: campaign.campaignName,
-                updatedCampaignAction: {
-                    socialAccountId: socialAccount._id,
-                    actionNumber: 2,
-                    networkUsername: username,
-                    rewardForInfluencer: socialAccount.price,
-                    socialMedia: socialAccount.socialMedia
-                }
-            }, session)
+            await this.influencerActionsHistoryService.upsertInfluencerCampaignActionsHistory(
+                {
+                    influencerId,
+                    campaignId,
+                    campaignName: campaign.campaignName,
+                    updatedCampaignAction: {
+                        socialAccountId: socialAccount._id,
+                        actionNumber: 2,
+                        networkUsername: username,
+                        rewardForInfluencer: socialAccount.price,
+                        socialMedia: socialAccount.socialMedia,
+                    },
+                },
+                session,
+            );
 
             await session.commitTransaction();
+
+            return { balance: updatedInfluencer.balance };
         } catch (e) {
             await session.abortTransaction();
             throw e;

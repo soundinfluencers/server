@@ -7,8 +7,17 @@ import {ResponseTransformInterceptor} from "./common/interceptors/response-trans
 import {AllExceptionsFilter} from "./common/filters/exceptions.filter";
 import {ValidationPipe} from "@nestjs/common";
 
+function parseOrigins(env?: string): string[] {
+    return (env ?? '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+}
+
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
+
+    const allowedOrigins = parseOrigins(process.env.CORS_ORIGINS);
 
     app.use(cookieParser());
     app.use(bodyParser.json({limit: '50mb'}));
@@ -22,19 +31,17 @@ async function bootstrap() {
         }),
     );
     app.enableCors({
-        origin: [
-            'http://localhost:3000',
-            'http://localhost:5173',
-            'http://localhost:3001',
-            'http://192.168.0.105:5173',
-            'http://192.168.0.105:3000',
-            'http://192.168.0.105:3001',
-            'https://nazar.soundinfluencers.com',
-            'https://go.soundinfluencers.com',
-        ],
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+        origin: (origin, callback) => {
+            if (!origin) return callback(null, true);
+
+            if (allowedOrigins.includes(origin)) return callback(null, true);
+
+            return callback(new Error(`CORS blocked for origin: ${origin}`), false);
+        },
         credentials: true,
-        allowedHeaders: 'Content-Type, Authorization',
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+        allowedHeaders: 'Content-Type, Authorization, Cookie',
+        exposedHeaders: 'Set-Cookie',
     });
 
     app.use((req, res, next) => {

@@ -372,7 +372,7 @@ export class AuthService {
         return jwt.sign(
             {_id: user._id, role: user.role},
             this.accessKey,
-            {expiresIn: '15m'},
+            {expiresIn: '1m'},
         );
     }
 

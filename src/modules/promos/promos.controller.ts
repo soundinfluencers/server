@@ -149,7 +149,7 @@ export class PromosController {
     influencerUpdateOngoingCampaign(
         @Req() request: AuthenticatedRequest,
         @Body() body: InfluencerUpdatePromoReqBodyDto,
-    ) {
+    ): Promise<{balance: number}> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
         return this.promosService.updateOngoingCampaign({...body, influencerId: request.user._id});
