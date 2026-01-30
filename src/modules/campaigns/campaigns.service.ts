@@ -490,11 +490,11 @@ ${emailVideoContent()}
 
     // Returns detailed draft
     async getDraftCampaign(draftId: string): Promise<DetailedDraftCampaignDto> {
-        if (!draftId || !Types.ObjectId.isValid(draftId)) {
+        if (!draftId) {
             throw new BadRequestException('Invalid draftId');
         }
 
-        const draft = await this.draftCampaignRepo.findById(draftId).lean();
+        const draft = await this.draftCampaignRepo.findOne({_id: new Types.ObjectId(draftId)}, {lean: true});
         if (!draft) throw new NotFoundException('Draft not found');
 
         try {
