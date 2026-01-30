@@ -85,6 +85,7 @@ export class PromosService {
     // orchestrator for getting one detailed promo with specific type (ongoing, completed, etc.)
     async getDetailedPromoByType(data: InfluencerGetDetailedPromoParamsDto): Promise<InfluencerDetailedPromo> {
         const {status, campaignId, addedAccountsId, influencerId} = data;
+        console.log(data, 'data')
 
         switch (status) {
             case InfluencerDetailedPromoStatusRequest.ongoing:
@@ -621,7 +622,8 @@ export class PromosService {
         const influencer = await this.influencerRepo.findById(influencerId);
         if (!influencer) throw new NotFoundException('Influencer not found')
 
-        let campaign = await this.completedCampaignRepo.findOne({_id: new Types.ObjectId(campaignId)}, {lean: true});
+        let campaign = await this.campaignRepo.findOne({_id: new Types.ObjectId(campaignId)}, {lean: true});
+        if (!campaign) campaign = await this.completedCampaignRepo.findOne({_id: new Types.ObjectId(campaignId)}, {lean: true});
 
         if (!campaign) throw new NotFoundException('Campaign not found');
 
