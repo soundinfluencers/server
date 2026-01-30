@@ -670,11 +670,11 @@ ${emailVideoContent()}
         if (!draftId) throw new BadRequestException('Invalid draftId');
 
         // make sure creator tries to delete his own draft
-        const draftExists = await this.campaignRepo.exists({_id: new Types.ObjectId(draftId), clientId: new Types.ObjectId(clientId)});
+        const draftExists = await this.draftCampaignRepo.exists({_id: new Types.ObjectId(draftId), clientId: new Types.ObjectId(clientId)});
         if (!draftExists) throw new NotFoundException('Draft not found');
 
         // delete draft
-        await this.campaignRepo.deleteById(draftId);
+        await this.draftCampaignRepo.deleteById(draftId);
     }
 
     // TODO: update and test
