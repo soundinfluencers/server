@@ -2,13 +2,14 @@ import {
     BadRequestException,
     ConflictException,
     ForbiddenException,
-    Injectable, Logger, NotFoundException,
+    Injectable,
+    Logger,
+    NotFoundException,
     UnauthorizedException
 } from '@nestjs/common';
 import {CreateClientDto} from './dto/create-client.dto';
 import {CreateInfluencerDto, CreateSocialAccountDto} from './dto/create-influencer.dto';
-import {ClientSession} from 'mongoose';
-import {Types} from 'mongoose';
+import {ClientSession, Types} from 'mongoose';
 import {Response} from "express";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
@@ -346,25 +347,34 @@ export class AuthService {
     }
 
     // Logout
-    async logout(refreshToken: string, res: Response) {
-        if (refreshToken) {
-            await this.clientRepo.updateOne(
-                {refreshToken},
-                {$unset: {refreshToken: ''}},
-            );
-
-            await this.influencerRepo.updateOne(
-                {refreshToken},
-                {$unset: {refreshToken: ''}},
-            );
-
-            await this.adminRepo.updateOne(
-                {refreshToken},
-                {$unset: {refreshToken: ''}},
-            );
+    async logout(refreshToken: string, userRole: Role, res: Response) {
+        if (refreshToken && userRole) {
+            switch (userRole) {
+                case Role.client:
+                    await this.clientRepo.updateOne(
+                        {refreshToken},
+                        {$unset: {refreshToken: ''}},
+                    );
+                    break;
+                case Role.influencer:
+                    await this.influencerRepo.updateOne(
+                        {refreshToken},
+                        {$unset: {refreshToken: ''}},
+                    );
+                    break;
+                case Role.admin:
+                    await this.adminRepo.updateOne(
+                        {refreshToken},
+                        {$unset: {refreshToken: ''}},
+                    );
+                    break;
+                default:
+                    throw new BadRequestException('Unsupported role');
+            }
+            res.clearCookie('refreshToken', {path: '/auth/refresh'});
+        } else {
+            throw new UnauthorizedException('Invalid refresh token');
         }
-
-        res.clearCookie('refreshToken', {path: '/auth/refresh'});
     }
 
     // Generates access token
@@ -372,7 +382,7 @@ export class AuthService {
         return jwt.sign(
             {_id: user._id, role: user.role},
             this.accessKey,
-            {expiresIn: '1m'},
+            {expiresIn: '15m'},
         );
     }
 

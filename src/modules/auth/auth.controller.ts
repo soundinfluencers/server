@@ -16,6 +16,7 @@ import { Request, Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
+import {AuthenticatedRequest} from "../../common/types/auth.types";
 
 @ApiTags('auth')
 @Controller('auth')
@@ -64,12 +65,12 @@ export class AuthController {
     @Auth()
     @ApiOperation({ summary: 'Logout user' })
     @ApiResponseDto()
-    @Patch('logout')
+    @Post('logout')
     async logout(
         @Req() req,
         @Res({ passthrough: true }) res: Response,
     ): Promise<void> {
-        return this.authService.logout(req.cookies.refreshToken, res);
+        return this.authService.logout(req.cookies.refreshToken, req?.user?.role, res);
     }
 
     @ApiOperation({ summary: 'Verify influencer by admin' })
