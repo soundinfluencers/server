@@ -129,6 +129,9 @@ export class Influencer extends Document {
     @Prop({type: String, required: false})
     lastName?: string;
 
+    @Prop({required: false, type: String})
+    logoUrl?: string;
+
     @Prop({lowercase: true})
     email: string;
 

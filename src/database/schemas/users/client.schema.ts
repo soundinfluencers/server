@@ -15,6 +15,9 @@ export class Client {
     @Prop()
     firstName: string;
 
+    @Prop({required: false, type: String})
+    logoUrl?: string;
+
     @Prop()
     balance: number;
 

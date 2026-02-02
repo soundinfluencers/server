@@ -99,16 +99,18 @@ export class ProfileService {
 
     // Updates client's personal information (firstName, company, email, phone)
     async updatePersonalClient(data: UpdateClientPersonalDetailsDto): Promise<ClientUpdatedPersonalDetailsDto> {
-        const {_id, firstName, company, email, phone} = data;
+        const {_id, firstName, logoUrl, company, email, phone} = data;
 
         const updateData: Partial<{
             firstName: string;
+            logoUrl: string;
             company: string;
             email: string;
             phone: string;
         }> = {};
 
         if (firstName) updateData.firstName = firstName.trim();
+        if (logoUrl) updateData.logoUrl = logoUrl.trim();
         if (company) updateData.company = company.trim();
         if (email) updateData.email = email.trim().toLowerCase();
         if (phone) updateData.phone = phone.trim();
@@ -125,6 +127,7 @@ export class ProfileService {
 
         return {
             firstName: updatedUser.firstName,
+            logoUrl: updateData?.logoUrl,
             company: updatedUser.company,
             email: updatedUser.email,
             phone: updatedUser.phone,
@@ -133,17 +136,19 @@ export class ProfileService {
 
     // Updates influencer's personal information (firstName, email, phone)
     async updatePersonalInfluencer(data: UpdateInfluencerPersonalDetailsDto): Promise<InfluencerUpdatedPersonalDetailsDto> {
-        const {influencerId, firstName, lastName, email, phone} = data;
+        const {influencerId, firstName, logoUrl, lastName, email, phone} = data;
 
         const updateData: Partial<{
             firstName: string;
             lastName: string;
+            logoUrl: string;
             email: string;
             phone: string;
         }> = {};
 
         if (firstName) updateData.firstName = firstName.trim();
         if (lastName) updateData.lastName = lastName.trim();
+        if (logoUrl) updateData.logoUrl = logoUrl.trim();
         if (email) updateData.email = email.trim().toLowerCase();
         if (phone) updateData.phone = phone.trim();
 
@@ -160,6 +165,7 @@ export class ProfileService {
         return {
             firstName: updatedUser.firstName,
             lastName: updatedUser?.lastName,
+            logoUrl: updateData?.logoUrl,
             email: updatedUser.email,
             phone: updatedUser.phone,
         };

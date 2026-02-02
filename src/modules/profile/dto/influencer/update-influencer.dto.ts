@@ -15,6 +15,11 @@ export class UpdateInfluencerPersonalDetailsDto {
     @IsString()
     firstName: string;
 
+    @ApiPropertyOptional({description: "Influencer's updated logo url"})
+    @IsOptional()
+    @IsString()
+    logoUrl: string;
+
     @ApiPropertyOptional({description: "Influencer's updated last name", example: "Ericovich"})
     @IsOptional()
     @IsString()
@@ -42,6 +47,11 @@ export class InfluencerUpdatedPersonalDetailsDto {
     @IsOptional()
     @IsString()
     lastName: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    logoUrl: string;
 
     @ApiPropertyOptional()
     @IsOptional()

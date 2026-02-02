@@ -9,6 +9,11 @@ export class UpdateClientPersonalDetailsDto {
     @IsString()
     firstName?: string;
 
+    @ApiPropertyOptional({ description: "Client's updated logo url" })
+    @IsOptional()
+    @IsString()
+    logoUrl?: string;
+
     @ApiPropertyOptional({ description: "Client's updated company name", example: "NapoleonPR" })
     @IsOptional()
     @IsString()
@@ -31,6 +36,11 @@ export class ClientUpdatedPersonalDetailsDto {
         example: "Eric"
     })
     firstName: string;
+
+    @ApiPropertyOptional({
+        description: "Client's updated logo url",
+    })
+    logoUrl: string;
 
     @ApiPropertyOptional({
         description: "Client's updated company name",
