@@ -490,11 +490,11 @@ ${emailVideoContent()}
 
     // Returns detailed draft
     async getDraftCampaign(draftId: string): Promise<DetailedDraftCampaignDto> {
-        if (!draftId || !Types.ObjectId.isValid(draftId)) {
+        if (!draftId) {
             throw new BadRequestException('Invalid draftId');
         }
 
-        const draft = await this.draftCampaignRepo.findById(draftId).lean();
+        const draft = await this.draftCampaignRepo.findOne({_id: new Types.ObjectId(draftId)}, {lean: true});
         if (!draft) throw new NotFoundException('Draft not found');
 
         try {
@@ -670,11 +670,11 @@ ${emailVideoContent()}
         if (!draftId) throw new BadRequestException('Invalid draftId');
 
         // make sure creator tries to delete his own draft
-        const draftExists = await this.campaignRepo.exists({_id: new Types.ObjectId(draftId), clientId: new Types.ObjectId(clientId)});
+        const draftExists = await this.draftCampaignRepo.exists({_id: new Types.ObjectId(draftId), clientId: new Types.ObjectId(clientId)});
         if (!draftExists) throw new NotFoundException('Draft not found');
 
         // delete draft
-        await this.campaignRepo.deleteById(draftId);
+        await this.draftCampaignRepo.findOneAndDelete({_id: new Types.ObjectId(draftId)});
     }
 
     // TODO: update and test
