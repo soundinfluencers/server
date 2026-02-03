@@ -1,10 +1,10 @@
-import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
+import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {
     BadRequestException,
     Body,
     Controller, Delete,
     Get,
-    Param,
+    Param, Patch,
     Post,
     Query,
     Req,
@@ -220,5 +220,23 @@ export class CampaignsController {
     @Get(':campaignId/share')
     getCampaignByPublicShareLink(@Param('campaignId') campaignId: string): Promise<PublicCampaignForTable> {
         return this.campaignsService.getCampaignByPublicShareLink(campaignId);
+    }
+
+    @Auth()
+    @Roles(Role.client)
+    @ApiOperation({summary: `Sending email about campaign edit request`})
+    @ApiParam({name: 'campaignId', required: true})
+    @ApiResponseDto()
+    @Post(':campaignId/request-edit')
+    sendEditRequestEmail(@Req() request: AuthenticatedRequest, @Param('campaignId') campaignId: string) {
+        return this.campaignsService.requestCampaignEdit(campaignId, request.user._id);
+    }
+
+    // todo: in future improve logic for accepting/declining from email (а вообще-то нужно сделать возможным только через админку. потому что для этого админка и пишется)
+    @Public()
+    @ApiExcludeEndpoint()
+    @Get(':campaignId/request-edit/:response')
+    updateCampaignEditRequest(@Param('campaignId') campaignId: string, @Param('response') response: string) {
+        return this.campaignsService.updateCampaignEditRequest(campaignId, response);
     }
 }

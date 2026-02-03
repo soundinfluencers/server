@@ -1,5 +1,5 @@
 import {
-    BadRequestException,
+    BadRequestException, ForbiddenException,
     Injectable,
     InternalServerErrorException,
     Logger,
@@ -49,6 +49,8 @@ import {
 } from "../../common/types/influencer/promo.types";
 import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
 import {FoundAccountDto} from "../profile/dto/influencer/get-profile.dto";
+import {EmailService} from "../email/email.service";
+import {BuildCampaignEmailDto} from "../email/dto/campaign-email.dto";
 
 @Injectable()
 export class CampaignsService {
@@ -57,11 +59,12 @@ export class CampaignsService {
     constructor(
         private readonly clientRepo: ClientRepository,
         private readonly influencerRepo: InfluencerRepository,
-        private readonly influencerActionsHistoryService: InfluencerActionsHistoryService,
         private readonly campaignRepo: CampaignRepository,
         private readonly draftCampaignRepo: DraftCampaignRepository,
         private readonly completedCampaignRepo: CompletedCampaignRepository,
         private readonly proposalCampaignRepo: ProposalCampaignRepository,
+        private readonly influencerActionsHistoryService: InfluencerActionsHistoryService,
+        private readonly emailService: EmailService,
     ) {
     }
 
@@ -95,7 +98,7 @@ export class CampaignsService {
                     .findMany({
                         clientId: new Types.ObjectId(data.clientId),
                     }, {lean: true, limit: limit, skip: skip})
-                campaigns = campaigns.map(c => ({ ...c, clientStatus: 'draft' as const }));
+                campaigns = campaigns.map(c => ({...c, clientStatus: 'draft' as const}));
                 break;
             case "under_review":
                 campaigns = await this.campaignRepo
@@ -104,7 +107,7 @@ export class CampaignsService {
                         statusCampaign: CampaignStatusEnum.underReview,
                         verifyCampaign: CampaignConfirmationEnum.wait
                     }, {lean: true, limit: limit, skip: skip})
-                campaigns = campaigns.map(c => ({ ...c, clientStatus: 'under_review' as const }));
+                campaigns = campaigns.map(c => ({...c, clientStatus: 'under_review' as const}));
                 break;
             case "distributing":
                 campaigns = await this.campaignRepo
@@ -117,7 +120,7 @@ export class CampaignsService {
                             ],
                         },
                     }, {lean: true, limit: limit, skip: skip})
-                campaigns = campaigns.map(c => ({ ...c, clientStatus: 'distributing' as const }));
+                campaigns = campaigns.map(c => ({...c, clientStatus: 'distributing' as const}));
                 break;
             case "closed":
                 campaigns = await this.completedCampaignRepo
@@ -127,12 +130,12 @@ export class CampaignsService {
                             {userId: new Types.ObjectId(data.clientId)},
                         ],
                     }, {lean: true, limit: limit, skip: skip})
-                campaigns = campaigns.map(c => ({ ...c, clientStatus: 'closed' as const }));
+                campaigns = campaigns.map(c => ({...c, clientStatus: 'closed' as const}));
                 break;
             case "proposal":
                 campaigns = await this.proposalCampaignRepo.findMany(
-                    { $or: [{ creatorId: new Types.ObjectId(data.clientId) }, { clientId: new Types.ObjectId(data.clientId) }] },
-                    { lean: true, limit, skip }
+                    {$or: [{creatorId: new Types.ObjectId(data.clientId)}, {clientId: new Types.ObjectId(data.clientId)}]},
+                    {lean: true, limit, skip}
                 );
 
                 campaigns = campaigns.map(c => ({
@@ -145,25 +148,27 @@ export class CampaignsService {
                 const oid = new Types.ObjectId(data.clientId);
 
                 campaigns = await this.campaignRepo.aggregate([
-                    { $match: { clientId: oid } },
+                    {$match: {clientId: oid}},
                     {
                         $addFields: {
                             clientStatus: {
                                 $switch: {
                                     branches: [
                                         {
-                                            case: { $and: [
-                                                    { $eq: ['$statusCampaign', CampaignStatusEnum.underReview] },
-                                                    { $eq: ['$verifyCampaign', CampaignConfirmationEnum.wait] },
-                                                ]},
+                                            case: {
+                                                $and: [
+                                                    {$eq: ['$statusCampaign', CampaignStatusEnum.underReview]},
+                                                    {$eq: ['$verifyCampaign', CampaignConfirmationEnum.wait]},
+                                                ]
+                                            },
                                             then: 'under_review',
                                         },
                                         {
-                                            case: { $eq: ['$statusCampaign', CampaignStatusEnum.pending] },
+                                            case: {$eq: ['$statusCampaign', CampaignStatusEnum.pending]},
                                             then: 'pending',
                                         },
                                         {
-                                            case: { $eq: ['$statusCampaign', CampaignStatusEnum.distributing] },
+                                            case: {$eq: ['$statusCampaign', CampaignStatusEnum.distributing]},
                                             then: 'distributing',
                                         },
                                     ],
@@ -177,8 +182,8 @@ export class CampaignsService {
                         $unionWith: {
                             coll: 'completedcampaigns',
                             pipeline: [
-                                { $match: { $or: [{ clientId: oid }, { userId: oid }] } },
-                                { $addFields: { clientStatus: 'closed' } },
+                                {$match: {$or: [{clientId: oid}, {userId: oid}]}},
+                                {$addFields: {clientStatus: 'closed'}},
                             ],
                         },
                     },
@@ -187,7 +192,7 @@ export class CampaignsService {
                         $unionWith: {
                             coll: 'proposalcampaigns',
                             pipeline: [
-                                { $match: { $or: [{ creatorId: oid }, { clientId: oid }] } },
+                                {$match: {$or: [{creatorId: oid}, {clientId: oid}]}},
 
                                 {
                                     $addFields: {
@@ -195,18 +200,18 @@ export class CampaignsService {
                                         clientStatus: 'proposal',
                                     },
                                 },
-                                { $project: { publicPrice: 0 } },
+                                {$project: {publicPrice: 0}},
                             ],
                         },
                     },
 
-                    { $sort: { createdAt: -1 } },
-                    { $skip: skip },
-                    { $limit: limit },
+                    {$sort: {createdAt: -1}},
+                    {$skip: skip},
+                    {$limit: limit},
 
                     {
                         $project: {
-                            _id: { $toString: '$_id' },
+                            _id: {$toString: '$_id'},
                             campaignName: 1,
                             socialMedia: 1,
                             createdAt: 1,
@@ -539,49 +544,49 @@ ${emailVideoContent()}
                 $map: {
                     input: `$${sm}`,
                     as: 'a',
-                    in: { $mergeObjects: ['$$a', { socialMedia: sm }] },
+                    in: {$mergeObjects: ['$$a', {socialMedia: sm}]},
                 },
             }));
 
             const pipeline: any[] = [
-                { $match: { _id: { $in: influencerIds } } },
+                {$match: {_id: {$in: influencerIds}}},
                 {
                     $project: {
                         influencerId: '$_id',
-                        accAll: { $concatArrays: concatParts },
+                        accAll: {$concatArrays: concatParts},
                     },
                 },
-                { $unwind: '$accAll' },
-                { $set: { acc: '$accAll' } },
-                { $match: { 'acc.isHidden': { $ne: true }, 'acc.isDeleted': { $ne: true } } },
-                { $match: { 'acc._id': { $in: accountIds } } },
+                {$unwind: '$accAll'},
+                {$set: {acc: '$accAll'}},
+                {$match: {'acc.isHidden': {$ne: true}, 'acc.isDeleted': {$ne: true}}},
+                {$match: {'acc._id': {$in: accountIds}}},
 
                 {
                     $project: {
                         _id: 0,
-                        accountId: { $toString: '$acc._id' },
-                        influencerId: { $toString: '$influencerId' },
+                        accountId: {$toString: '$acc._id'},
+                        influencerId: {$toString: '$influencerId'},
                         username: '$acc.username',
                         logoUrl: '$acc.logoUrl',
                         followers: '$acc.followers',
                         socialMedia: '$acc.socialMedia',
-                        countries: { $ifNull: ['$acc.countries', []] },
+                        countries: {$ifNull: ['$acc.countries', []]},
 
                         musicGenres: {
                             $cond: [
-                                { $isArray: '$acc.musicGenres' },
-                                { $map: { input: '$acc.musicGenres', as: 'g', in: '$$g.genre' } },
+                                {$isArray: '$acc.musicGenres'},
+                                {$map: {input: '$acc.musicGenres', as: 'g', in: '$$g.genre'}},
                                 '$$REMOVE',
                             ],
                         },
-                        creatorCategories: { $ifNull: ['$acc.creatorCategories', '$$REMOVE'] },
-                        categories: { $ifNull: ['$acc.categories', '$$REMOVE'] },
+                        creatorCategories: {$ifNull: ['$acc.creatorCategories', '$$REMOVE']},
+                        categories: {$ifNull: ['$acc.categories', '$$REMOVE']},
 
                         // todo: convert price
                         prices: {
-                            EUR: { $ifNull: ['$acc.publicPrice', { $literal: 0 }] },
-                            USD: { $literal: 0 },
-                            GBP: { $literal: 0 },
+                            EUR: {$ifNull: ['$acc.publicPrice', {$literal: 0}]},
+                            USD: {$literal: 0},
+                            GBP: {$literal: 0},
                         },
                     },
                 },
@@ -605,7 +610,7 @@ ${emailVideoContent()}
                         username: '[not found]',
                         logoUrl: '',
                         followers: 0,
-                        prices: { EUR: 0, USD: 0, GBP: 0 },
+                        prices: {EUR: 0, USD: 0, GBP: 0},
                         socialMedia: a.socialMedia,
                         countries: [],
                         selectedContent: a.selectedContent,
@@ -670,7 +675,10 @@ ${emailVideoContent()}
         if (!draftId) throw new BadRequestException('Invalid draftId');
 
         // make sure creator tries to delete his own draft
-        const draftExists = await this.campaignRepo.exists({_id: new Types.ObjectId(draftId), clientId: new Types.ObjectId(clientId)});
+        const draftExists = await this.campaignRepo.exists({
+            _id: new Types.ObjectId(draftId),
+            clientId: new Types.ObjectId(clientId)
+        });
         if (!draftExists) throw new NotFoundException('Draft not found');
 
         // delete draft
@@ -790,7 +798,7 @@ ${emailVideoContent()}
         }
     }
 
-    // todo: создать окестратор и разбить на три части (completed, ongoing, proposal)
+    // todo: создать оркестратор и разбить на три части (completed, ongoing, proposal)
     // Returns one detailed campaign obj - used by campaign report page
     async getClientOngoingOrPastCampaign(campaignId: string, clientId: string): Promise<ClientCampaignForTable> {
         if (!campaignId || !clientId) throw new BadRequestException('Not enough arguments');
@@ -822,6 +830,7 @@ ${emailVideoContent()}
             totalShares: 0,
             isCpmAndResultHidden: campaign.isCpmAndResultHidden ?? false,
             isPriceHidden: campaign.isPriceHidden ?? false,
+            canEdit: campaign.canEdit ?? false,
             hiddenColumns: campaign.hiddenColumns ?? [],
             cpm: null
         };
@@ -1417,5 +1426,69 @@ ${emailVideoContent()}
     }
 
     // Send email about client's request about editting campaign
+    async requestCampaignEdit(campaignId: string, clientId: string) {
+        if (!campaignId || !clientId) {
+            throw new BadRequestException('Not enough arguments');
+        }
 
+        const client = await this.clientRepo.findOne({_id: new Types.ObjectId(clientId)}, {
+            select: ['firstName', 'email'],
+            lean: true
+        });
+
+        if (!client) {
+            throw new NotFoundException(`Client not found`)
+        }
+
+        const campaign = await this.campaignRepo.findOne({
+            _id: new Types.ObjectId(campaignId),
+        }, {
+            select: ['campaignName', 'clientId'],
+            lean: true
+        })
+
+        if (!campaign) {
+            throw new NotFoundException(`Campaign not found`);
+        }
+
+        if (campaign.clientId.toString() !== clientId) {
+            throw new ForbiddenException('You can only edit campaigns you created');
+        }
+
+        const dataForEmail: BuildCampaignEmailDto = {
+            campaignId: campaignId,
+            clientId: clientId,
+            campaignName: campaign.campaignName,
+            clientEmail: client.email,
+            clientName: client.firstName,
+            acceptLink: `${process.env.SERVER}/campaigns/${campaignId}/request-edit/accept`,
+            declineLink: `${process.env.SERVER}/campaigns/${campaignId}/request-edit/decline`
+        }
+
+        await this.emailService.sendNewEditRequestEmail(dataForEmail);
+    }
+
+    // todo: in future remove to admin module
+    // Update admin's response to campaign edit request
+    async updateCampaignEditRequest(
+        campaignId: string,
+        response: string
+    ): Promise<void> {
+        if (!campaignId || !response) {
+            throw new BadRequestException('Not enough arguments');
+        }
+
+        const canEdit = response === 'accept';
+
+        const updateResult = await this.campaignRepo.updateOne(
+            { _id: new Types.ObjectId(campaignId) },
+            {
+                $set: { canEdit }
+            }
+        );
+
+        if (updateResult.matchedCount === 0) {
+            throw new NotFoundException('Campaign not found');
+        }
+    }
 }

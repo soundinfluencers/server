@@ -11,8 +11,13 @@ export class BaseRepository<T> {
         return applyQueryOptions(query, options);
     }
 
-    async findOne(filter: any, options?: RepoOptions) {
-        const query = this.model.findOne(filter);
+    async findOne(filter: any, options?: RepoOptions & { select?: string[] }) {
+        let query = this.model.findOne(filter);
+
+        if (options?.select?.length) {
+            query = query.select(options.select.join(' '));
+        }
+
         return applyQueryOptions(query, options);
     }
 

@@ -8,10 +8,11 @@ import {CompletedCampaignSchema, CompletedCampaign} from "../../database/schemas
 import {Campaign, CampaignSchema} from "../../database/schemas/campaign/campaign.schema";
 import {ProposalCampaign, ProposalCampaignSchema} from "../../database/schemas/campaign/proposal-campaign.schema";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
+import {EmailService} from "../email/email.service";
 
 @Module({
     controllers: [CampaignsController],
-    providers: [CampaignsService, InfluencerActionsHistoryService],
+    providers: [CampaignsService, InfluencerActionsHistoryService, EmailService],
     exports: [CampaignsService],
 })
 export class CampaignsModule {}

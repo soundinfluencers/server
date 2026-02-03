@@ -11,52 +11,37 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+// todo: сделать так чтобы sendMail принимал один обьект + создать утилиту которая будет билдить этот обьект
 const sendMail = async (to = '', title = '', text = '', type = '', path = '') => {
     const mailOptions = (() => {
         if (type === 'pdf') {
             return {
                 from: process.env.EMAIL_USER,
-                // to: process.env.NODE_ENV === 'development' ? 'process.env.EMAIL_USER' : to,
                 to,
                 subject: title,
                 html: text,
-                attachments: [
-                    {
-                        filename: 'invoice.pdf',
-                        path,
-                    },
-                ],
+                attachments: [{ filename: 'invoice.pdf', path }],
             };
-        } else if (type === 'html') {
+        }
+
+        if (type === 'html') {
             return {
                 from: process.env.EMAIL_USER,
-                to: process.env.NODE_ENV === 'development' ? 'process.env.EMAIL_USER' : to,
+                to: process.env.NODE_ENV === 'development' ? process.env.EMAIL_USER : to,
                 subject: title,
                 html: text,
             };
-        } else {
-            return {
-                from: process.env.EMAIL_USER,
-                to: process.env.NODE_ENV === 'development' ? 'process.env.EMAIL_USER' : to,
-                subject: title,
-                text: text,
-            };
         }
+
+        return {
+            from: process.env.EMAIL_USER,
+            to: process.env.NODE_ENV === 'development' ? process.env.EMAIL_USER : to,
+            subject: title,
+            text,
+        };
     })();
 
-    transporter.sendMail(mailOptions, (error, info) => {
-        const timestamp = new Date().toLocaleString();
-        if (error) {
-            console.error(
-                'Ошибка при отправке письма на почту ' + mailOptions.to + ' ',
-                error,
-                timestamp,
-            );
-        } else {
-            console.log('Письмо успешно отправлено на почту ' + mailOptions.to + ' ');
-            console.log('ID сообщения:', info.messageId, timestamp);
-        }
-    });
+    return transporter.sendMail(mailOptions);
 };
 
 export default sendMail;
