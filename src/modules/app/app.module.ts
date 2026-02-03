@@ -22,6 +22,7 @@ import {HealthController} from "../health/health.controller";
 import {DatabaseModule} from "../../database/database.module";
 import {CampaignsModule} from "../campaigns/campaigns.module";
 import {MigrationsModule} from "../migrations/migrations.module";
+import {EmailModule} from "../email/email.module";
 
 @Module({
     imports: [
@@ -44,6 +45,7 @@ import {MigrationsModule} from "../migrations/migrations.module";
         ScrapersModule,
         ReportsSizesModule,
         MigrationsModule,
+        EmailModule,
         DatabaseModule,
         ServeStaticModule.forRoot({
             rootPath: join(__dirname, '..', 'uploads'),

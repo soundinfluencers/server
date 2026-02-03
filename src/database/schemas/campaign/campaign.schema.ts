@@ -192,6 +192,9 @@ export class Campaign {
     @Prop({required: false, type: Boolean})
     isPriceHidden?: boolean;
 
+    @Prop({required: false, type: Boolean})
+    canEdit?: boolean;
+
     createdAt?: Date;
     updatedAt?: Date;
 }
