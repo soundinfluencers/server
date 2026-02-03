@@ -2,6 +2,8 @@ import {Injectable, InternalServerErrorException, Logger, ServiceUnavailableExce
 import {buildRequestEditEmail} from "./templates/campaign-email.template";
 import {BuildCampaignEmailDto} from "./dto/campaign-email.dto";
 import sendMail from "../../integrations/nodemailer/nodemailer";
+import {BuildInvoiceEmailDto} from "./dto/invoice-email.dto";
+import {buildInfluencerInvoiceEmail, buildInfluencerInvoiceResponseEmail} from "./templates/invoice-email.template";
 
 @Injectable()
 export class EmailService {
@@ -37,5 +39,28 @@ export class EmailService {
             email,
             'html',
             );
-    }
+    };
+
+    // Sends emails about new influencer invoice
+    async sendNewInfluencerInvoiceEmail(data: BuildInvoiceEmailDto, pdfPath: string) {
+        const emailToUs = buildInfluencerInvoiceEmail(data);
+        const emailToInfluencer = buildInfluencerInvoiceResponseEmail();
+
+        await this.safeSend(
+            'nazarkozynets030606@gmail.com',
+            `Invoice from ${data.influencerEmail}`,
+            emailToUs,
+            'pdf',
+            pdfPath
+        );
+
+        this.safeSend(
+            'nazarkozynets030606@gmail.com',
+            `SoundInfluencers`,
+            emailToInfluencer,
+            'html',
+        ).catch(err => {
+            this.logger.warn('Influencer new invoice response email failed', err);
+        });
+    };
 }

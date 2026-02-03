@@ -86,12 +86,6 @@ export class InfluencerAccountDetailsDto implements InfluencerAccountDetails {
         example: '@techno_tv',
     })
     telegramUsername?: string;
-
-    @ApiPropertyOptional({
-        description: "Influencer's profile picture URL",
-        example: 'https://cdn.example.com/avatar.jpg',
-    })
-    profilePhotoUrl?: string;
 }
 
 // dto for getting client's profile details

@@ -14,6 +14,8 @@ import {
     InvoiceStatusEnum
 } from "../../common/types/influencer/invoice.types";
 import {formatDate} from "../../common/utils/formatters";
+import {ClientRepository} from "../../database/repositories/users/client.repository";
+import {EmailService} from "../email/email.service";
 
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
@@ -22,12 +24,14 @@ const PDFDocument = require('pdfkit');
 export class InvoiceService {
     constructor(
         private readonly influencerRepo: InfluencerRepository,
+        private readonly clientRepo: ClientRepository,
         private readonly influencerInvoiceRepository: InfluencerInvoiceRepository,
-        private readonly influencerHistoryService: InfluencerActionsHistoryService
+        private readonly influencerHistoryService: InfluencerActionsHistoryService,
+        private readonly emailService: EmailService
     ) {
     }
 
-    async createPDF(result: InfluencerInvoice) {
+    private async createPDF(result: InfluencerInvoice) {
         let beneficiary, beneficiaryAddress, paymentMethodDetails;
 
         switch (result.selectedPaymentMethod) {
@@ -131,10 +135,10 @@ export class InvoiceService {
             const updatedInfluencer = await this.influencerRepo.findOneAndUpdate(
                 {
                     _id: new Types.ObjectId(data.influencerId),
-                    balance: { $gte: amount },
+                    balance: {$gte: amount},
                 },
-                { $inc: { balance: -amount } },
-                { new: true, session }
+                {$inc: {balance: -amount}},
+                {new: true, session}
             );
 
             if (!updatedInfluencer) {
@@ -156,11 +160,11 @@ export class InvoiceService {
                 amount: data.amount,
                 selectedPaymentMethod: data.selectedPaymentMethod,
 
-                ...(data.ukBankTransfer ? { ukBankTransfer: data.ukBankTransfer } : {}),
-                ...(data.internationalBankTransfer ? { internationalBankTransfer: data.internationalBankTransfer } : {}),
-                ...(data.paypal ? { paypal: data.paypal } : {}),
-                ...(data.company ? { company: data.company } : {}),
-                ...(data.vatNumber ? { vatNumber: data.vatNumber } : {}),
+                ...(data.ukBankTransfer ? {ukBankTransfer: data.ukBankTransfer} : {}),
+                ...(data.internationalBankTransfer ? {internationalBankTransfer: data.internationalBankTransfer} : {}),
+                ...(data.paypal ? {paypal: data.paypal} : {}),
+                ...(data.company ? {company: data.company} : {}),
+                ...(data.vatNumber ? {vatNumber: data.vatNumber} : {}),
             } satisfies InfluencerInvoice, {session});
 
             // Updating influencer's actions history
@@ -199,41 +203,18 @@ export class InvoiceService {
                 .join('');
 
             // Creating and sending email
-            await this.createPDF(invoice)
-                .then(async (pdfPath) => {
-                    await sendMail(
-                        "nazarkozynets030606@zohomail.eu",
-                        // 'admin@soundinfluencers.com',
-                        // process.env.EMAIL_USER,
-                        `${influencer.email}`,
-                        `<p>Invoice from ${influencer.email}</p>
-                    <p><b>ID:</b> ${invoice?._id}</p>
-                    <p><b>Instagram Accounts:</b> ${instagramAccounts || '0 accounts'}</p>
-                    <p><b>TikTok Accounts:</b> ${tiktokAccounts || '0 accounts'}</p>
-                    <p><b>Spotify Accounts:</b> ${spotifyAccounts || '0 accounts'}</p>
-                    <p><b>SoundCloud Accounts:</b> ${soundcloudAccounts || '0 accounts'}</p>
-                    <p><b>Facebook Accounts:</b> ${facebookAccounts || '0 accounts'}</p>
-                    <p><b>YouTube Accounts:</b> ${youtubeAccounts || '0 accounts'}</p>
-                    <p><b>Press Accounts:</b> ${pressAccounts || '0 accounts'}</p>
-                    <p><b>Selected Payment Method:</b> ${data.selectedPaymentMethod}</p>`,
-                        'pdf',
-                        pdfPath as string,
-                    );
-
-                    await sendMail(
-                        influencer.email,
-                        'soundinfluencers',
-                        `<p>Hello</p>
-                    <p>We acknowledge the receipt of your invoice. If everything is in order, we will process the payment to your details within the next 7 days.</p></br></br>
-                    <p>Bests</br>Sound Influencers Team</p>`,
-
-                        'html',
-                    );
-                })
-                .catch((error) => {
-                    console.error('Error creating PDF:', error);
-                    throw error;
-                });
+            const pdfInvoice = await this.createPDF(invoice)
+            await this.emailService.sendNewInfluencerInvoiceEmail({
+                influencerEmail: influencer.email,
+                instagramAccounts,
+                tiktokAccounts,
+                spotifyAccounts,
+                soundcloudAccounts,
+                facebookAccounts,
+                youtubeAccounts,
+                pressAccounts,
+                selectedPaymentMethod: data.selectedPaymentMethod
+            }, pdfInvoice);
 
             await session.commitTransaction();
         } catch (err) {

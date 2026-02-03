@@ -1,6 +1,6 @@
 import { BuildCampaignEmailDto } from "../dto/campaign-email.dto";
 
-const escapeHtml = (v: string) =>
+export const escapeHtml = (v: string) =>
     v
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
