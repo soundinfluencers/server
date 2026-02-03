@@ -27,6 +27,8 @@ import {ReportSizes, ReportSizesSchema} from "./schemas/report-size/reports-size
 import {ReportSizeRepository} from "./repositories/report-size/report-size.repository";
 import {DraftCampaign, DraftCampaignSchema} from "./schemas/campaign/draft-campaign.schema";
 import {DraftCampaignRepository} from "./repositories/campaigns/draft-campaign.repository";
+import {InvoiceDetails, InvoiceDetailsSchema} from "./schemas/invoices/invoice-details.schema";
+import {InvoiceDetailsRepository} from "./repositories/invoices/invoice-details.repository";
 
 @Global()
 @Module({
@@ -43,6 +45,7 @@ import {DraftCampaignRepository} from "./repositories/campaigns/draft-campaign.r
             { name: CompletedCampaign.name, schema: CompletedCampaignSchema },
             { name: ProposalCampaign.name, schema: ProposalCampaignSchema },
             { name: InfluencerInvoice.name, schema: InfluencerInvoiceSchema },
+            { name: InvoiceDetails.name, schema: InvoiceDetailsSchema },
             { name: ReportSizes.name, schema: ReportSizesSchema },
         ]),
     ],
@@ -58,6 +61,7 @@ import {DraftCampaignRepository} from "./repositories/campaigns/draft-campaign.r
         CompletedCampaignRepository,
         ProposalCampaignRepository,
         InfluencerInvoiceRepository,
+        InvoiceDetailsRepository,
         ReportSizeRepository,
     ],
     exports: [
@@ -72,6 +76,7 @@ import {DraftCampaignRepository} from "./repositories/campaigns/draft-campaign.r
         CompletedCampaignRepository,
         ProposalCampaignRepository,
         InfluencerInvoiceRepository,
+        InvoiceDetailsRepository,
         ReportSizeRepository,
     ],
 })

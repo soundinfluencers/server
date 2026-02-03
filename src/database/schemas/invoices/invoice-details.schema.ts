@@ -1,32 +1,37 @@
-import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
+import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
+import {Types} from "mongoose";
+import {Role} from "../../../common/types/auth.types";
 
 @Schema({
-  timestamps: true,
+    timestamps: true,
 })
 export class InvoiceDetails {
-  @Prop()
-  id: string;
+    @Prop({type: Types.ObjectId})
+    _id: Types.ObjectId;
 
-  @Prop()
-  userId: string;
+    @Prop({type: Types.ObjectId, required: true})
+    userId: Types.ObjectId;
 
-  @Prop()
-  firstName: string;
+    @Prop({type: String, required: true, enum: Role})
+    userRole: Role
 
-  @Prop()
-  lastName: string;
+    @Prop({type: String, required: true})
+    firstName: string;
 
-  @Prop()
-  address: string;
+    @Prop({type: String, required: true})
+    lastName: string;
 
-  @Prop()
-  country: string;
+    @Prop({type: String, required: true})
+    address: string;
 
-  @Prop()
-  vatNumber: string;
+    @Prop({type: String, required: true})
+    country: string;
 
-  @Prop()
-  company: string;
+    @Prop({type: String, required: false})
+    company: string;
+
+    @Prop({type: String, required: false})
+    vatNumber: string;
 }
 
 export const InvoiceDetailsSchema = SchemaFactory.createForClass(InvoiceDetails);
