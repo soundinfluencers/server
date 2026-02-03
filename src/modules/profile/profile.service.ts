@@ -47,6 +47,10 @@ import {
 } from "./dto/influencer/get-profile.dto";
 import {GetFilteredAccountsBodyDto, SearchSocialAccountsDto} from "./dto/client/search-social-accounts.dto";
 import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
+import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details";
+import {InvoiceDetailsRepository} from "../../database/repositories/invoices/invoice-details.repository";
+import {mapToInvoiceDetailsDto} from "../../common/mappers/invoice.mapper";
+import {InvoiceDetails} from "../../database/schemas/invoices/invoice-details.schema";
 
 const bcrypt = require('bcryptjs');
 
@@ -58,6 +62,7 @@ export class ProfileService {
         private readonly webSocketService: AppGateway,
         private readonly clientRepo: ClientRepository,
         private readonly influencerRepo: InfluencerRepository,
+        private readonly invoiceDetailsRepo: InvoiceDetailsRepository,
     ) {
     }
 
@@ -97,7 +102,7 @@ export class ProfileService {
         return mapInfluencerToAccountDetailsDto(influencer);
     }
 
-    // Updates client's personal information (firstName, company, email, phone)
+    // Updates client's personal information
     async updatePersonalClient(data: UpdateClientPersonalDetailsDto): Promise<ClientUpdatedPersonalDetailsDto> {
         const {_id, firstName, logoUrl, company, email, phone} = data;
 
@@ -134,7 +139,7 @@ export class ProfileService {
         };
     }
 
-    // Updates influencer's personal information (firstName, email, phone)
+    // Updates influencer's personal information
     async updatePersonalInfluencer(data: UpdateInfluencerPersonalDetailsDto): Promise<InfluencerUpdatedPersonalDetailsDto> {
         const {influencerId, firstName, logoUrl, lastName, email, phone} = data;
 
@@ -169,6 +174,56 @@ export class ProfileService {
             email: updatedUser.email,
             phone: updatedUser.phone,
         };
+    }
+
+    // Returns current user invoice details
+    async getInvoiceDetails(userId: string, userRole: Role): Promise<InvoiceDetailsDto> {
+        const invoiceDetails = await this.invoiceDetailsRepo.findOne({
+            userId: new Types.ObjectId(userId),
+            userRole: userRole,
+        });
+
+        if (!invoiceDetails) {
+            throw new NotFoundException("Invoice details not found");
+        }
+
+        return mapToInvoiceDetailsDto(invoiceDetails);
+    }
+    
+    // Updates user's invoice details {
+    async updateInvoiceDetails(data: UpdateInvoiceDetailsDto): Promise<InvoiceDetailsDto> {
+        const {userId, userRole, firstName, lastName, address, country, company, vatNumber} = data;
+
+        const updateData: Partial<{
+            firstName: string;
+            lastName: string;
+            address: string;
+            country: string;
+            company: string;
+            vatNumber: string;
+        }> = {};
+
+        if (firstName) updateData.firstName = firstName.trim();
+        if (lastName) updateData.lastName = lastName.trim();
+        if (address) updateData.address = address.trim();
+        if (country) updateData.country = country.trim();
+        if (company) updateData.company = company.trim();
+        if (vatNumber) updateData.vatNumber = vatNumber.trim();
+
+        const updatedInvoiceDetails = await this.invoiceDetailsRepo.findOneAndUpdate(
+            {
+                userId: new Types.ObjectId(userId),
+                userRole: userRole,
+            },
+            {$set: updateData},
+            {new: true, upsert: true}
+        );
+
+        if (!updatedInvoiceDetails) {
+            throw new InternalServerErrorException("Something went wrong");
+        }
+
+        return mapToInvoiceDetailsDto(updatedInvoiceDetails);
     }
 
     // Updates user's password

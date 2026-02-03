@@ -28,6 +28,7 @@ import {
 } from "./dto/client/search-social-accounts.dto";
 import {SocialAccountSortByEnum} from "../../common/types/influencer/influencer.types";
 import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
+import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details";
 
 @ApiTags('profile')
 @Controller('profile')
@@ -75,6 +76,24 @@ export class ProfileController {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
         return this.profileService.updatePersonalInfluencer({...data, influencerId: request.user._id});
+    }
+
+    @Auth()
+    @Roles(Role.client, Role.influencer)
+    @ApiOperation({summary: "Returns user's invoice details"})
+    @ApiResponseDto(InvoiceDetailsDto)
+    @Get('/invoice-details')
+    getInvoiceDetails(@Req() request: AuthenticatedRequest): Promise<InvoiceDetailsDto> {
+        return this.profileService.getInvoiceDetails(request.user._id, request.user.role);
+    }
+
+    @Auth()
+    @Roles(Role.client, Role.influencer)
+    @ApiOperation({summary: "Updates user's invoice details"})
+    @ApiResponseDto(InvoiceDetailsDto)
+    @Patch('/invoice-details')
+    updateInvoiceDetails(@Req() request: AuthenticatedRequest, @Body() data: UpdateInvoiceDetailsDto): Promise<InvoiceDetailsDto> {
+        return this.profileService.updateInvoiceDetails({...data, userId: request.user._id, userRole: request.user.role});
     }
 
     @Auth()
@@ -183,18 +202,23 @@ export class ProfileController {
         required: true
     })
     @Post('social-account/filter')
-    async findAccountsByFilter(@Query() query: GetFilteredAccountsQueryDto,@Body() filters: GetFilteredAccountsBodyDto): Promise<FoundAccountsDto> {
-        const accounts = await this.profileService.findAccountsByFilter({...filters, page: query.page, limit: query.limit, sortBy: query.sortBy});
+    async findAccountsByFilter(@Query() query: GetFilteredAccountsQueryDto, @Body() filters: GetFilteredAccountsBodyDto): Promise<FoundAccountsDto> {
+        const accounts = await this.profileService.findAccountsByFilter({
+            ...filters,
+            page: query.page,
+            limit: query.limit,
+            sortBy: query.sortBy
+        });
         return ({accounts});
     }
 
     @Auth()
     @Roles(Role.client, Role.admin)
-    @ApiOperation({ summary: 'Searching social accounts by username match and social medias' })
+    @ApiOperation({summary: 'Searching social accounts by username match and social medias'})
     @Post('social-account/search')
     async searchSocialAccounts(@Body() dto: SearchSocialAccountsDto): Promise<FoundAccountsDto> {
         const accounts = await this.profileService.searchSocialAccounts(dto);
-        return { accounts };
+        return {accounts};
     }
 
     // // TODO: UPDATE
