@@ -59,4 +59,13 @@ export class InvoiceController {
     downloadInvoice(@Query() args: { invoiceId: string }, @Res() res: Response) {
         return this.invoiceService.downloadInvoice(args.invoiceId, res);
     }
+
+    @Auth()
+    @Roles(Role.influencer)
+    @ApiOperation({summary: "Returns influencer's invoice draft values"})
+    @ApiResponseDto(CreateInvoiceDto)
+    @Get('draft')
+    getDraft(@Req() req: AuthenticatedRequest) {
+        return this.invoiceService.getInvoiceDraft(req.user._id);
+    }
 }

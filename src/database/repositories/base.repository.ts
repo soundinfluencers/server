@@ -6,8 +6,13 @@ import {applyAggregateOptions} from "../utils/apply-aggregate-options.util";
 export class BaseRepository<T> {
     constructor(protected readonly model: Model<T>) {}
 
-    findById(id: string, options?: RepoOptions) {
-        const query = this.model.findById(new Types.ObjectId(id));
+    findById(id: string, options?: RepoOptions & { select?: string[] }) {
+        let query = this.model.findById(new Types.ObjectId(id));
+
+        if (options?.select?.length) {
+            query = query.select(options.select.join(' '));
+        }
+
         return applyQueryOptions(query, options);
     }
 

@@ -1,7 +1,8 @@
-import { ApiProperty } from '@nestjs/swagger';
+import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {IsNumber, IsPositive, IsString} from "class-validator";
 import {Type} from "class-transformer";
 import {InvoiceForDashboard} from "../../../common/types/influencer/invoice.types";
+import {InvoiceDetailsDto} from "../../profile/dto/invoice-details";
 
 export class GetInvoicesQueryDto {
     @ApiProperty({ required: true, example: 10 })
@@ -45,3 +46,24 @@ export class InvoicesForDashboardDto {
     })
     invoices: InvoiceForDashboardDto[];
 }
+
+// // dto for returning draft values for new influencer's invoice (invoice details + latest invoice)
+// export class InvoiceDraft extends InvoiceDetailsDto {
+//     @ApiPropertyOptional({type: String})
+//     firstName?: string;
+//
+//     @ApiPropertyOptional({type: String})
+//     lastName?: string;
+//
+//     @ApiPropertyOptional({type: String})
+//     address?: string;
+//
+//     @ApiPropertyOptional({type: String})
+//     country?: string;
+//
+//     @ApiPropertyOptional({type: String})
+//     company?: string;
+//
+//     @ApiPropertyOptional({type: String})
+//     vatNumber?: string;
+// }

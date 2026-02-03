@@ -5,6 +5,7 @@ export interface RepoOptions {
     session?: ClientSession;
     limit?: number;
     skip?: number;
+    sort?: Record<string, 1 | -1>;
 
     // TODO: add other options
     // populate?: PopulateOptions | PopulateOptions[];

@@ -40,17 +40,17 @@ export class UpdateInvoiceDetailsDto {
 
 // dto response of updating invoice details
 export class InvoiceDetailsDto {
-    @ApiProperty({type: String})
-    firstName: string;
+    @ApiPropertyOptional({type: String})
+    firstName?: string;
 
-    @ApiProperty({type: String})
-    lastName: string;
+    @ApiPropertyOptional({type: String})
+    lastName?: string;
 
-    @ApiProperty({type: String})
-    address: string;
+    @ApiPropertyOptional({type: String})
+    address?: string;
 
-    @ApiProperty({type: String})
-    country: string;
+    @ApiPropertyOptional({type: String})
+    country?: string;
 
     @ApiPropertyOptional({type: String})
     company?: string;

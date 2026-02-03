@@ -1,7 +1,7 @@
 import {PipelineStage, Types} from 'mongoose';
 import {CreateInvoiceDto} from './dto/create-invoice.dto';
 import {InfluencerInvoice} from '../../database/schemas/invoices/influencer-invoice.schema';
-import {BadRequestException, Injectable, NotFoundException} from '@nestjs/common';
+import {BadRequestException, ForbiddenException, Injectable, NotFoundException} from '@nestjs/common';
 import {Response} from 'express';
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
@@ -16,6 +16,8 @@ import {
 import {formatDate} from "../../common/utils/formatters";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {EmailService} from "../email/email.service";
+import {InvoiceDetailsRepository} from "../../database/repositories/invoices/invoice-details.repository";
+import {Role} from "../../common/types/auth.types";
 
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
@@ -26,6 +28,7 @@ export class InvoiceService {
         private readonly influencerRepo: InfluencerRepository,
         private readonly clientRepo: ClientRepository,
         private readonly influencerInvoiceRepository: InfluencerInvoiceRepository,
+        private readonly invoiceDetailsRepo: InvoiceDetailsRepository,
         private readonly influencerHistoryService: InfluencerActionsHistoryService,
         private readonly emailService: EmailService
     ) {
@@ -295,5 +298,44 @@ export class InvoiceService {
         //     console.error('Error while generating or sending invoice:', error);
         //     res.status(500).send('An error occurred while downloading the invoice');
         // }
+    }
+
+    async getInvoiceDraft(influencerId: string): Promise<CreateInvoiceDto> {
+        const influencerBalance = await this.influencerRepo.findById(influencerId, {select: ['balance']});
+
+        if (!influencerBalance) {
+            throw new NotFoundException('Influencer not found');
+        }
+        if (influencerBalance.balance <= 0) {
+            throw new ForbiddenException('Balance must be greater than 0');
+        }
+
+        const invoiceDetails = await this.invoiceDetailsRepo.findOne({
+            userId: new Types.ObjectId(influencerId),
+            userRole: Role.influencer
+        }, {
+            lean: true
+        });
+
+        const latestInvoice = await this.influencerInvoiceRepository.findOne({
+            influencerId: new Types.ObjectId(influencerId)
+        }, {
+            lean: true,
+            sort: ({ createdAt: -1 })
+        })
+
+        return {
+            firstName: invoiceDetails.firstName ?? latestInvoice.firstName ?? null,
+            lastName: invoiceDetails.lastName ?? latestInvoice.lastName ?? null,
+            address: invoiceDetails.address ?? latestInvoice.address ?? null,
+            country: invoiceDetails.country ?? latestInvoice.country ?? null,
+            company: invoiceDetails.company ?? latestInvoice.company ?? null,
+            vatNumber: invoiceDetails.vatNumber ?? latestInvoice.vatNumber ?? null,
+            amount: influencerBalance.balance,
+            selectedPaymentMethod: latestInvoice.selectedPaymentMethod ?? null,
+            ukBankTransfer: latestInvoice.ukBankTransfer ?? null,
+            internationalBankTransfer: latestInvoice.internationalBankTransfer ?? null,
+            paypal: latestInvoice.paypal ?? null
+        }
     }
 }

@@ -79,12 +79,12 @@ export class InternationalBankTransferDto {
 export class PayPalDto {
     @ApiProperty()
     @IsEmail()
-    paypalEmail: string;
+    paypalEmail?: string;
 }
 
 // dto for creating new influencer's invoice
 export class CreateInvoiceDto {
-    influencerId: string;
+    influencerId?: string;
 
     @ApiProperty()
     @IsString()

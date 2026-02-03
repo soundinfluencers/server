@@ -2,7 +2,7 @@ export interface QueryLike {
     lean?(value?: boolean): this;
     session?(session: any): this;
     populate?(path: any): this;
-
+    sort?(value: any): this;
     // TODO: add other options
 }
 
@@ -15,6 +15,7 @@ const optionAppliers: Record<string, QueryOptionApplier> = {
     lean: (query, value) => (value ? query.lean() : query),
     session: (query, value) => query.session(value),
     populate: (q, v) => q.populate(v),
+    sort: (query, value) => query.sort(value),
 
     // TODO: add other options
 };
