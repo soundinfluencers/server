@@ -30,6 +30,9 @@ export class InfluencerAccountDetailsDto implements InfluencerAccountDetails {
     @ApiPropertyOptional({example: 'Doe'})
     lastName?: string;
 
+    @ApiPropertyOptional({type: String})
+    logoUrl?: string;
+
     @ApiProperty({example: 'john.doe@gmail.com'})
     email: string;
 
@@ -98,6 +101,9 @@ export class ClientAccountDetailsDto implements ClientAccountDetails {
 
     @ApiPropertyOptional({example: 'Doe'})
     lastName?: string;
+
+    @ApiPropertyOptional({type: String})
+    logoUrl?: string;
 
     @ApiProperty({example: 'Techno TV Company'})
     companyName: string;

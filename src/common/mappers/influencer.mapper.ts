@@ -31,6 +31,7 @@ export const mapInfluencerToAccountDetailsDto = (
     return {
         firstName: influencer.firstName,
         lastName: influencer.lastName ?? null,
+        logoUrl: influencer.logoUrl ?? null,
         email: influencer.email,
         phone: influencer.phone,
 

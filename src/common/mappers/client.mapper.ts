@@ -5,6 +5,7 @@ import {ClientAccountDetailsDto} from "../../modules/profile/dto/influencer/get-
 export const mapClientToAccountDetailsDto = (client: Client): ClientAccountDetailsDto => {
     return {
         firstName: client.firstName,
+        logoUrl: client.logoUrl ?? null,
         companyName: client.company,
         email: client.email,
         phone: client.phone,
