@@ -10,13 +10,15 @@ import {
 import { AuthService } from './auth.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { CreateInfluencerDto } from './dto/create-influencer.dto';
-import {LoginDto, LoginResponseDto} from './dto/login.dto';
+import {GetMeResponseDto, LoginDto, LoginResponseDto} from './dto/login.dto';
 import {ApiOperation, ApiCookieAuth, ApiQuery, ApiTags} from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
-import {AuthenticatedRequest} from "../../common/types/auth.types";
+import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
+import {Roles} from "../../common/decorators/roles.decorator";
+import {ClientAccountDetailsDto} from "../profile/dto/influencer/get-profile.dto";
 
 @ApiTags('auth')
 @Controller('auth')
@@ -87,5 +89,14 @@ export class AuthController {
     @Get('verify/client')
     verifyAdminClient(@Query() args: { verifyId: string; responseVerify: string }) {
         return this.authService.verifyAdminClient(args.verifyId, args.responseVerify);
+    }
+
+    @Auth()
+    @Roles(Role.client, Role.influencer)
+    @ApiOperation({summary: "Returns current user base info (for home page)"})
+    @ApiResponseDto(GetMeResponseDto)
+    @Get('/me')
+    getClientProfileDetails(@Req() req: AuthenticatedRequest): Promise<GetMeResponseDto> {
+        return this.authService.getMe(req.user._id, req.user.role);
     }
 }

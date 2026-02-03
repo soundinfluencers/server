@@ -1,4 +1,4 @@
-import {ApiProperty} from '@nestjs/swagger';
+import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {Role} from "../../../common/types/auth.types";
 import {IsEmail, IsEnum, IsString} from "class-validator";
 
@@ -26,16 +26,23 @@ export class LoginDto {
     role: Role;
 }
 
-export class LoginResponseDto {
-    @ApiProperty()
-    accessToken: string;
-
+// dto for get/me response (base user info for home page)
+export class GetMeResponseDto {
     @ApiProperty()
     firstName: string;
 
     @ApiProperty()
     role: Role;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
     balance?: number;
+
+    @ApiPropertyOptional()
+    logoUrl?: string;
+}
+
+// dto for login response (adds accessToken to get/me)
+export class LoginResponseDto extends GetMeResponseDto {
+    @ApiProperty()
+    accessToken: string;
 }

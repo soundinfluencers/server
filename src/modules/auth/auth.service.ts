@@ -17,12 +17,13 @@ import {ClientRepository} from "../../database/repositories/users/client.reposit
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {VerifyClientRepository} from "../../database/repositories/verify-users/verify-client.repository";
 import {VerifyInfluencerRepository} from "../../database/repositories/verify-users/verify-influencer.repository";
-import {LoginDto, LoginResponseDto} from "./dto/login.dto";
-import {SocialAccount} from "../../database/schemas/users/influencer.schema";
+import {GetMeResponseDto, LoginDto, LoginResponseDto} from "./dto/login.dto";
+import {Influencer, SocialAccount} from "../../database/schemas/users/influencer.schema";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {getArrayFromMusicGenreDto, normalizeDtoToMusicGenres} from "../../common/utils/genres";
 import {AdminRepository} from "../../database/repositories/users/admin.repository";
 import {Role} from "../../common/types/auth.types";
+import {Client} from "../../database/schemas/users/client.schema";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -312,7 +313,8 @@ export class AuthService {
             accessToken: accessToken,
             firstName: user.firstName,
             role: user.role as Role,
-            balance: (user as any).balance ?? undefined
+            balance: (user as any).balance ?? undefined,
+            logoUrl: (user as any).logoUrl ?? undefined,
         };
     }
 
@@ -552,5 +554,31 @@ export class AuthService {
         } else {
             throw new BadRequestException("Response can be 'accept' or 'cancel'");
         }
+    }
+
+    // Returns current user info (same with login response but without accessToken)
+    async getMe(userId: string, userRole: Role): Promise<GetMeResponseDto> {
+        let user: Client | Influencer;
+        switch (userRole) {
+            case Role.client:
+                user = await this.clientRepo.findById(userId)
+                break;
+            case Role.influencer:
+                user = await this.influencerRepo.findById(userId);
+                break;
+            default:
+                throw new BadRequestException('Unsupported role');
+        }
+
+        if (!user) throw new UnauthorizedException('User not found');
+
+        if (user.statusVerify === 'wait') throw new ForbiddenException('Account not verified');
+
+        return {
+            firstName: user.firstName,
+            role: user.role as Role,
+            balance: (user as any).balance ?? undefined,
+            logoUrl: (user as any).logoUrl ?? undefined,
+        };
     }
 }
