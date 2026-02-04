@@ -1,14 +1,13 @@
-import {Body, Controller, Get, Patch, Post, Query, Req} from '@nestjs/common';
+import {Body, Controller, Get, Param, Patch, Post, Query, Req} from '@nestjs/common';
 import {ProposalSystemService} from './proposal-system.service';
 import {ApiOperation, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
 import {
-    CreatedProposalCampaignIdDto,
+    CreatedProposalCampaignIdDto, GetProposalCampaignDto,
     GetProposalCampaignsQueryDto,
-    ProposalCampaignsListDto,
-    UpdateProposalCampaignDto
+    ProposalCampaignsListDto, ProposalCampaignWithOptionDto,
 } from "./dto/proposal-campaigns.dto";
 import {CreateCampaignDto} from "../campaigns/dto/create-campaign.dto";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
@@ -28,12 +27,12 @@ export class ProposalSystemController {
         return this.proposalSystemService.createProposalCampaign(data, {creatorId: req.user._id, creatorRole: req.user.role});
     }
 
-    @Auth()
-    @Roles(Role.client, Role.admin)
-    @Patch()
-    updateProposalCampaign(@Body() data: UpdateProposalCampaignDto) {
-        return this.proposalSystemService.updateProposalCampaign(data);
-    }
+    // @Auth()
+    // @Roles(Role.client, Role.admin)
+    // @Patch()
+    // updateProposalCampaign(@Body() data: UpdateProposalCampaignDto) {
+    //     return this.proposalSystemService.updateProposalCampaign(data);
+    // }
 
     @Auth()
     @Roles(Role.admin)
@@ -51,6 +50,29 @@ export class ProposalSystemController {
     async getAllProposalCampaigns(@Query() query: GetProposalCampaignsQueryDto): Promise<ProposalCampaignsListDto> {
         const campaigns = await this.proposalSystemService.getAllProposalCampaigns(query.limit, query.page);
         return ({campaigns});
+    }
+
+    @Auth()
+    @Roles(Role.client, Role.admin)
+    @ApiOperation({summary: 'Returns proposal campaign with one selected option'})
+    @ApiResponseDto(ProposalCampaignWithOptionDto)
+    @ApiQuery({
+        name: 'optionIndex',
+        type: 'number',
+        required: true,
+    })
+    @Get(':campaignId')
+    async getProposalCampaign(
+        @Req() request: AuthenticatedRequest,
+        @Query('optionIndex') optionIndex: number,
+        @Param('campaignId') campaignId: string,
+        ): Promise<ProposalCampaignWithOptionDto> {
+        return this.proposalSystemService.getProposalCampaign({
+            userId: request.user._id,
+            userRole: request.user.role,
+            campaignId: campaignId,
+            optionIndex: optionIndex,
+        });
     }
 
     // // TODO

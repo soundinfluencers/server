@@ -47,7 +47,7 @@ import {
 } from "./dto/influencer/get-profile.dto";
 import {GetFilteredAccountsBodyDto, SearchSocialAccountsDto} from "./dto/client/search-social-accounts.dto";
 import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
-import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details";
+import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details.dto";
 import {InvoiceDetailsRepository} from "../../database/repositories/invoices/invoice-details.repository";
 import {mapToInvoiceDetailsDto} from "../../common/mappers/invoice.mapper";
 import {InvoiceDetails} from "../../database/schemas/invoices/invoice-details.schema";

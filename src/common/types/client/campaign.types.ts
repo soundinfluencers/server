@@ -96,6 +96,8 @@ export class SafeCampaignAccount {
     shares?: number;
     saves?: number;
     rating?: number;
+    genres?: string[];
+    countries?: object[];
 }
 
 // Used by campaign report page

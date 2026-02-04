@@ -1,6 +1,7 @@
 import {Prop, Schema, SchemaFactory} from "@nestjs/mongoose";
 import {CampaignAccount, CampaignContentItem, CampaignContentItemSchema} from "./campaign.schema";
 import {Types} from "mongoose";
+import {Role} from "../../../common/types/auth.types";
 
 @Schema()
 export class ProposalCampaignAccount extends CampaignAccount {
@@ -24,6 +25,12 @@ export class ProposalCampaignOption {
         required: true
     })
     proposalCampaignId: Types.ObjectId;
+
+    @Prop({ required: true, type: Types.ObjectId })
+    creatorId: Types.ObjectId;
+
+    @Prop({ required: true, enum: Role, type: String })
+    creatorRole: Role;
 
     @Prop({ type: Number, default: 1, index: true, required: false })
     schemaVersion: number;
@@ -53,4 +60,6 @@ export const ProposalCampaignOptionSchema = SchemaFactory.createForClass(Proposa
 
 ProposalCampaignOptionSchema.index({ proposalCampaignId: 1 });
 ProposalCampaignOptionSchema.index({ proposalCampaignId: 1, createdAt: -1 });
+ProposalCampaignOptionSchema.index({ proposalCampaignId: 1, createdAt: 1 });
 ProposalCampaignOptionSchema.index({ proposalCampaignId: 1, updatedAt: -1 });
+ProposalCampaignOptionSchema.index({ proposalCampaignId: 1, updatedAt: 1 });

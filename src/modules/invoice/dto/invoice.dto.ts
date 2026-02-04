@@ -2,7 +2,7 @@ import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {IsNumber, IsPositive, IsString} from "class-validator";
 import {Type} from "class-transformer";
 import {InvoiceForDashboard} from "../../../common/types/influencer/invoice.types";
-import {InvoiceDetailsDto} from "../../profile/dto/invoice-details";
+import {InvoiceDetailsDto} from "../../profile/dto/invoice-details.dto";
 
 export class GetInvoicesQueryDto {
     @ApiProperty({ required: true, example: 10 })

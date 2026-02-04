@@ -28,7 +28,7 @@ import {
 } from "./dto/client/search-social-accounts.dto";
 import {SocialAccountSortByEnum} from "../../common/types/influencer/influencer.types";
 import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
-import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details";
+import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details.dto";
 
 @ApiTags('profile')
 @Controller('profile')

@@ -1,4 +1,4 @@
-import {InvoiceDetailsDto} from "../../modules/profile/dto/invoice-details";
+import {InvoiceDetailsDto} from "../../modules/profile/dto/invoice-details.dto";
 import {InvoiceDetails} from "../../database/schemas/invoices/invoice-details.schema";
 
 export const mapToInvoiceDetailsDto = (data: InvoiceDetails): InvoiceDetailsDto => {

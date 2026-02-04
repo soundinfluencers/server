@@ -141,7 +141,7 @@ export class CampaignsService {
                 campaigns = campaigns.map(c => ({
                     ...c,
                     clientStatus: 'proposal' as const,
-                    campaignPrice: c.publicCampaignPrice ?? c.privateCampaignPrice,
+                    campaignPrice: null,
                 }));
                 break;
             case "all":
@@ -808,7 +808,6 @@ ${emailVideoContent()}
 
         let campaign: any = await this.campaignRepo.findById(campaignId, {lean: true});
         if (!campaign) campaign = await this.completedCampaignRepo.findById(campaignId, {lean: true});
-        if (!campaign) campaign = await this.proposalCampaignRepo.findById(campaignId, {lean: true});
         if (!campaign) throw new NotFoundException('Campaign not found');
 
         const campaignToReturn: any = {

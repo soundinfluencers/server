@@ -23,9 +23,10 @@ import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {getArrayFromAccountMusicGenres} from "../../common/utils/genres";
 import {
+    BaseProposalCampaignOptionDto,
     CreatedProposalCampaignIdDto,
-    GetProposalCampaignQueryDto, ProposalCampaignWithOptionDto,
-    UpdateProposalCampaignDto
+    ProposalCampaignWithOptionDto,
+    GetProposalCampaignDto
 } from "./dto/proposal-campaigns.dto";
 import {
     ProposalCampaignOptionRepository
@@ -34,6 +35,7 @@ import {
     ProposalCampaignAccount,
     ProposalCampaignOption
 } from "../../database/schemas/campaign/proposal-campaign-option.schema";
+import {mapToSafeCampaignAccount} from "../../common/mappers/campaign.mapper";
 
 @Injectable()
 export class ProposalSystemService {
@@ -49,7 +51,10 @@ export class ProposalSystemService {
     }
 
     // Create new proposal campaign
-    async createProposalCampaign(data: CreateCampaignDto, creatorInfo: {creatorId: string, creatorRole: Role}): Promise<CreatedProposalCampaignIdDto> {
+    async createProposalCampaign(data: CreateCampaignDto, creatorInfo: {
+        creatorId: string,
+        creatorRole: Role
+    }): Promise<CreatedProposalCampaignIdDto> {
         const {creatorId, creatorRole} = creatorInfo;
 
         if (!creatorId || !creatorRole) throw new BadRequestException("Not enough arguments");
@@ -181,6 +186,8 @@ export class ProposalSystemService {
         // building campaign option with ProposalCampaign type
         const proposalCampaignOptionDto: ProposalCampaignOption = {
             _id: campaignOptionId,
+            creatorId: new Types.ObjectId(creatorId),
+            creatorRole: creatorRole,
             proposalCampaignId: campaignId,
             schemaVersion: 1,
             publicCampaignPrice: data.campaignPrice,
@@ -208,58 +215,95 @@ export class ProposalSystemService {
     }
 
     // Update proposal campaign
-    async updateProposalCampaign(data: UpdateProposalCampaignDto) {
-        if (!data.campaignName) throw new BadRequestException("Not enough arguments");
+    // async updateProposalCampaign(data: UpdateProposalCampaignDto) {
+    //     if (!data.campaignName) throw new BadRequestException("Not enough arguments");
+    //
+    //     let proposalCampaign = await this.proposalCampaignRepo.findOne({
+    //         _id: new Types.ObjectId(data.campaignId),
+    //     });
+    //
+    //     if (!proposalCampaign) {
+    //         throw new NotFoundException('Campaign not found');
+    //     } else {
+    //         await this.proposalCampaignRepo.updateOne(
+    //             {
+    //                 _id: new Types.ObjectId(data.campaignId),
+    //             },
+    //             {
+    //                 clientId: data.clientId
+    //                     ? new Types.ObjectId(data.clientId)
+    //                     : new Types.ObjectId('66f540faaf4e960d2f9bebfc'),
+    //                 campaignName: data.campaignName.trim(),
+    //                 addedAccounts: data.addedAccounts.map(account => ({
+    //                     ...account,
+    //                     selectedContent: {
+    //                         campaignContentItemId: new Types.ObjectId(account.selectedContent.campaignContentItemId),
+    //                         postDescriptionId: new Types.ObjectId(account.selectedContent.postDescriptionId)
+    //                     }
+    //                 })),
+    //                 campaignContent: data.campaignContent,
+    //                 price: data.price,
+    //                 publicPrice: data.publicPrice,
+    //                 totalFollowers: data.totalFollowers,
+    //                 socialMedia: data.socialMedia,
+    //                 hiddenColumns: data.hiddenColumns,
+    //             },
+    //         );
+    //     }
+    // }
 
-        let proposalCampaign = await this.proposalCampaignRepo.findOne({
-            _id: new Types.ObjectId(data.campaignId),
-        });
+    // Returns proposal campaign option
+    async getProposalCampaignOption(data: GetProposalCampaignDto): Promise<BaseProposalCampaignOptionDto> {
+        const {campaignId} = data;
+        const optionIndex = data.optionIndex ?? 0;
 
-        if (!proposalCampaign) {
-            throw new NotFoundException('Campaign not found');
-        } else {
-            await this.proposalCampaignRepo.updateOne(
-                {
-                    _id: new Types.ObjectId(data.campaignId),
-                },
-                {
-                    clientId: data.clientId
-                        ? new Types.ObjectId(data.clientId)
-                        : new Types.ObjectId('66f540faaf4e960d2f9bebfc'),
-                    campaignName: data.campaignName.trim(),
-                    addedAccounts: data.addedAccounts.map(account => ({
-                        ...account,
-                        selectedContent: {
-                            campaignContentItemId: new Types.ObjectId(account.selectedContent.campaignContentItemId),
-                            postDescriptionId: new Types.ObjectId(account.selectedContent.postDescriptionId)
-                        }
-                    })),
-                    campaignContent: data.campaignContent,
-                    price: data.price,
-                    publicPrice: data.publicPrice,
-                    totalFollowers: data.totalFollowers,
-                    socialMedia: data.socialMedia,
-                    hiddenColumns: data.hiddenColumns,
-                },
-            );
+        if (!campaignId) throw new BadRequestException("Invalid campaign id");
+
+        const proposalCampaignOption = await this.proposalCampaignOptionRepo.findOneByIndex({
+            campaignId: new Types.ObjectId(campaignId),
+            optionIndex: optionIndex
+        }, {lean: true});
+
+        if (!proposalCampaignOption) throw new NotFoundException("Selected proposal campaign option not found");
+
+        try {
+            return {
+                optionIndex: optionIndex,
+                price: proposalCampaignOption.publicCampaignPrice,
+                addedAccounts: proposalCampaignOption.addedAccounts.map((account) => mapToSafeCampaignAccount(account)),
+                campaignContent: proposalCampaignOption.campaignContent
+            }
+        } catch (err) {
+            this.logger.error('Proposal campaign option found but formatting failed', err);
+            throw new InternalServerErrorException('Proposal campaign option found but formatting failed');
         }
     }
 
     // Returns one proposal campaign (with 1 selected option)
-    async getProposalCampaign(data: GetProposalCampaignQueryDto): Promise<ProposalCampaignWithOptionDto> {
+    async getProposalCampaign(data: GetProposalCampaignDto): Promise<ProposalCampaignWithOptionDto> {
         const {userId, userRole, campaignId} = data;
-        const optionNumber = data.optionNumber ?? 1;
 
         if (!campaignId) throw new BadRequestException("Invalid campaign id");
-        let proposalCampaign: ProposalCampaign;
 
-        switch (userRole) {
-            case Role.client:
-                proposalCampaign:
-                break;
-        }
+        let proposalCampaign: ProposalCampaign = await this.proposalCampaignRepo.findAccessibleById({
+            campaignId: new Types.ObjectId(campaignId),
+            userId: new Types.ObjectId(userId),
+            userRole: userRole
+        })
 
-        return undefined;
+        if (!proposalCampaign) throw new NotFoundException('Proposal campaign not found');
+
+        const proposalCampaignOption = await this.getProposalCampaignOption(data);
+
+        if (!proposalCampaignOption) throw new InternalServerErrorException("Can't get selected proposal campaign option");
+
+        return {
+            campaignId: campaignId,
+            campaignName: proposalCampaign.campaignName,
+            socialMedia: proposalCampaign.socialMedia as SocialMediaEnum,
+            existingOptions: proposalCampaign.optionsIds.map((option: Types.ObjectId, index: number) => index),
+            selectedOption: proposalCampaignOption,
+        };
     }
 
     // TODO: finish

@@ -15,7 +15,7 @@ export class ProposalCampaign {
     @Prop({ type: Number, default: 2, index: true, required: false })
     schemaVersion: number;
 
-    @Prop({ required: false, type: Types.ObjectId })
+    @Prop({ required: true, type: Types.ObjectId })
     creatorId: Types.ObjectId;
 
     @Prop({ required: true, enum: Role, type: String })

@@ -19,44 +19,23 @@ import {SafeCampaignAccount, SafeCampaignContent} from "../../../common/types/cl
 // ------------ BASE TYPES --------------
 
 
-// interface for addedAccounts
-export class ProposalCampaignAccountDto extends SafeCampaignAccount {
-    @ApiPropertyOptional({ type: String, isArray: true, description: 'Optional list of genres' })
-    @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    @ArrayNotEmpty()
-    genres?: string[];
-
-    @ApiPropertyOptional({
-        type: Object,
-        isArray: true,
-        description: 'Optional list of countries (objects). Consider making a CountryDto for strict validation.',
-    })
-    @IsOptional()
-    @IsArray()
-    @IsObject({ each: true })
-    @ArrayNotEmpty()
-    countries?: object[];
-}
-
 // base proposal campaign option dto
-class BaseProposalCampaignOptionDto {
+export class BaseProposalCampaignOptionDto {
     @ApiProperty({type: Number})
     @Type(() => Number)
     @IsNumber()
-    optionNumber: number;
+    optionIndex: number;
 
     @ApiProperty({type: Number})
     @Type(() => Number)
     @IsNumber()
     price: number;
 
-    @ApiProperty({type: ProposalCampaignAccountDto || SafeCampaignAccount, isArray: true})
+    @ApiProperty({type: SafeCampaignAccount, isArray: true})
     @IsArray()
     @IsNotEmpty()
     @ValidateNested()
-    addedAccounts: ProposalCampaignAccountDto[] | SafeCampaignAccount[];
+    addedAccounts: SafeCampaignAccount[];
 
     @ApiProperty({type: SafeCampaignContent, isArray: true})
     @IsArray()
@@ -92,7 +71,7 @@ class BaseProposalCampaignDto {
 
 
 // dto for requesting one proposal campaign (with 1 selected option)
-export class GetProposalCampaignQueryDto {
+export class GetProposalCampaignDto {
     @ApiProperty({required: true})
     @IsString()
     campaignId: string;
@@ -101,7 +80,7 @@ export class GetProposalCampaignQueryDto {
     @Type(() => Number)
     @IsNumber()
     @IsOptional()
-    optionNumber: number;
+    optionIndex: number;
 
     userId: string;
     userRole: Role;
