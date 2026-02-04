@@ -7,16 +7,6 @@ import {
 } from "./campaign.schema";
 import {Role} from "../../../common/types/auth.types";
 
-@Schema()
-export class CampaignAccountForProposal extends CampaignAccount {
-    @Prop({ default: [] })
-    genres: string[];
-
-    @Prop({ default: [] })
-    countries: object[];
-}
-export const SelectInfluencersForProposalSchema = SchemaFactory.createForClass(CampaignAccountForProposal);
-
 @Schema({ timestamps: true })
 export class ProposalCampaign {
     @Prop({type: Types.ObjectId, required: true})
@@ -37,37 +27,17 @@ export class ProposalCampaign {
     @Prop({ required: true })
     campaignName: string;
 
-    @Prop({ required: true, type: Number })
-    publicCampaignPrice: number; // show users
-
-    @Prop({required: true, type: Number})
-    privateCampaignPrice: number; // for us
-
-    @Prop({
-        required: false,
-        type: [SelectInfluencersForProposalSchema],
-        default: [],
-    })
-    addedAccounts: CampaignAccountForProposal[];
-
-    @Prop({
-        required: false,
-        type: [CampaignContentItemSchema],
-        default: [],
-    })
-    campaignContent: CampaignContentItem[];
+    @Prop({ required: true, type: [Types.ObjectId] })
+    optionsIds: Types.ObjectId[];
 
     @Prop({ required: false, type: [String] })
     hiddenColumns?: string[];
-
-    @Prop({ required: false, type: Boolean })
-    isCpmAndResultHidden?: boolean;
-
-    @Prop({ required: false, type: Boolean })
-    isPriceHidden?: boolean;
 
     readonly createdAt?: Date;
     readonly updatedAt?: Date;
 }
 
 export const ProposalCampaignSchema = SchemaFactory.createForClass(ProposalCampaign);
+
+ProposalCampaignSchema.index({ optionsIds: 1 });
+ProposalCampaignSchema.index({ socialMedia: 1, createdAt: -1 });
