@@ -1,4 +1,11 @@
-import {BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException} from '@nestjs/common';
+import {
+    BadRequestException,
+    ForbiddenException,
+    Injectable,
+    InternalServerErrorException,
+    Logger,
+    NotFoundException
+} from '@nestjs/common';
 import mongoose, {Types} from 'mongoose';
 import {ProposalCampaignRepository} from "../../database/repositories/campaigns/proposal-campaign.repository";
 import {ProposalCampaignsListItem} from "./types/proposal-system.types";
@@ -6,7 +13,7 @@ import {ClientRepository} from "../../database/repositories/users/client.reposit
 import {AdminRepository} from "../../database/repositories/users/admin.repository";
 import {CampaignContentItemDto, CreateCampaignDto, SelectInfluencerDto} from "../campaigns/dto/create-campaign.dto";
 import {Role} from "../../common/types/auth.types";
-import {CampaignAccountForProposal, ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
+import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
 import {CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
 import {
     InfluencerConfirmationStatusEnum,
@@ -15,7 +22,18 @@ import {
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {getArrayFromAccountMusicGenres} from "../../common/utils/genres";
-import {CreatedProposalCampaignIdDto, UpdateProposalCampaignDto} from "./dto/proposal-campaigns.dto";
+import {
+    CreatedProposalCampaignIdDto,
+    GetProposalCampaignQueryDto, ProposalCampaignWithOptionDto,
+    UpdateProposalCampaignDto
+} from "./dto/proposal-campaigns.dto";
+import {
+    ProposalCampaignOptionRepository
+} from "../../database/repositories/campaigns/proposal-campaign-option.repository";
+import {
+    ProposalCampaignAccount,
+    ProposalCampaignOption
+} from "../../database/schemas/campaign/proposal-campaign-option.schema";
 
 @Injectable()
 export class ProposalSystemService {
@@ -26,6 +44,7 @@ export class ProposalSystemService {
         private readonly influencerRepo: InfluencerRepository,
         private readonly adminRepo: AdminRepository,
         private readonly proposalCampaignRepo: ProposalCampaignRepository,
+        private readonly proposalCampaignOptionRepo: ProposalCampaignOptionRepository,
     ) {
     }
 
@@ -39,15 +58,16 @@ export class ProposalSystemService {
         switch (creatorRole) {
             case 'admin': {
                 const exists = await this.adminRepo.findById(creatorId);
-                if (!exists) throw new NotFoundException('User not found');
+                if (!exists) throw new NotFoundException('Admin not found');
                 break;
             }
             case 'client': {
-                const exists = await this.clientRepo.findById(creatorId);
+                const exists = await this.clientRepo.exists({
+                    _id: new Types.ObjectId(creatorId),
+                    isProposalClient: true
+                });
 
-                // todo: only proposal clients can create proposal campaigns, so need to ask Eric
-
-                if (!exists) throw new NotFoundException('User not found');
+                if (!exists) throw new NotFoundException('Client not found');
                 break;
             }
             default:
@@ -58,8 +78,8 @@ export class ProposalSystemService {
         let privateCampaignPrice = 0;
 
         // processing added accounts for proposal campaign
-        const processedAccounts: CampaignAccountForProposal[] = await Promise.all(
-            data.addedAccounts.map(async (account: SelectInfluencerDto): Promise<CampaignAccountForProposal> => {
+        const processedAccounts: ProposalCampaignAccount[] = await Promise.all(
+            data.addedAccounts.map(async (account: SelectInfluencerDto): Promise<ProposalCampaignAccount> => {
                 const dateRequest = account.dateRequest;
 
                 // find account's owner
@@ -120,7 +140,7 @@ export class ProposalSystemService {
                         genres: socialMediaAccount.musicGenres ? getArrayFromAccountMusicGenres(socialMediaAccount.musicGenres) : undefined,
                         createdAt: new Date(),
                         dateRequest,
-                    } satisfies CampaignAccountForProposal;
+                    } satisfies ProposalCampaignAccount;
                 }
 
                 return null
@@ -144,23 +164,47 @@ export class ProposalSystemService {
             } satisfies CampaignContentItem)),
         );
 
-        // building campaign with ProposalCampaign type
         const campaignId = new Types.ObjectId();
-        const readyToGoCampaign: ProposalCampaign = {
+        const campaignOptionId = new Types.ObjectId();
+
+        // building campaign with ProposalCampaign type
+        const proposalCampaignDto: ProposalCampaign = {
             _id: campaignId,
             schemaVersion: 2,
             creatorId: new Types.ObjectId(creatorId),
             creatorRole: creatorRole,
             socialMedia: data.socialMedia,
             campaignName: data.campaignName.trim(),
+            optionsIds: [campaignOptionId]
+        }
+
+        // building campaign option with ProposalCampaign type
+        const proposalCampaignOptionDto: ProposalCampaignOption = {
+            _id: campaignOptionId,
+            proposalCampaignId: campaignId,
+            schemaVersion: 1,
             publicCampaignPrice: data.campaignPrice,
             privateCampaignPrice: data.campaignPrice,
             addedAccounts: processedAccounts,
             campaignContent: processedCampaignContent,
         }
 
-        const campaign = await this.proposalCampaignRepo.create<ProposalCampaign>(readyToGoCampaign);
-        return {campaignId: campaign._id.toString()};
+        const session = await this.proposalCampaignRepo.startSession();
+        session.startTransaction();
+
+        try {
+            await this.proposalCampaignRepo.create<ProposalCampaign>(proposalCampaignDto, {session});
+            await this.proposalCampaignOptionRepo.create<ProposalCampaignOption>(proposalCampaignOptionDto, {session});
+
+            await session.commitTransaction();
+
+            return {campaignId: campaignId.toString()};
+        } catch (err) {
+            await session.abortTransaction();
+            throw new InternalServerErrorException('Error creating proposal campaign');
+        } finally {
+            await session.endSession();
+        }
     }
 
     // Update proposal campaign
@@ -199,6 +243,23 @@ export class ProposalSystemService {
                 },
             );
         }
+    }
+
+    // Returns one proposal campaign (with 1 selected option)
+    async getProposalCampaign(data: GetProposalCampaignQueryDto): Promise<ProposalCampaignWithOptionDto> {
+        const {userId, userRole, campaignId} = data;
+        const optionNumber = data.optionNumber ?? 1;
+
+        if (!campaignId) throw new BadRequestException("Invalid campaign id");
+        let proposalCampaign: ProposalCampaign;
+
+        switch (userRole) {
+            case Role.client:
+                proposalCampaign:
+                break;
+        }
+
+        return undefined;
     }
 
     // TODO: finish

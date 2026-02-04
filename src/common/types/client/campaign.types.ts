@@ -1,6 +1,7 @@
 import {SocialMediaEnum, SocialMediaType} from "../social-media.types";
 import {ApiProperty} from "@nestjs/swagger";
 import {Types} from "mongoose";
+import {InfluencerConfirmationStatusEnum, InfluencerPromoClosedStatusEnum} from "../influencer/promo.types";
 
 // Campaign verify status
 export enum CampaignConfirmationEnum {
@@ -71,6 +72,30 @@ export class SafeCampaignContent {
     taggedUser?: string;
     taggedLink?: string;
     additionalBrief?: string;
+}
+
+export class SafeCampaignAccount {
+    addedAccountsId: string | Types.ObjectId;
+    socialAccountId: string | Types.ObjectId;
+    influencerId: string | Types.ObjectId;
+    socialMedia: SocialMediaEnum;
+    username: string;
+    // price: number
+    publicPrice: number;
+    followers: number;
+    selectedContent: SafeSelectedContent;
+    confirmation: InfluencerConfirmationStatusEnum;
+    closePromo: InfluencerPromoClosedStatusEnum;
+    dateRequest?: string;
+    datePost?: string;
+    postLink?: string;
+    screenshot?: string;
+    impressions?: number;
+    like?: number;
+    comments?: number;
+    shares?: number;
+    saves?: number;
+    rating?: number;
 }
 
 // Used by campaign report page
