@@ -1,7 +1,6 @@
+import {CampaignPaymentLabels, CampaignPaymentMethodEnum, CampaignStatusEnum} from "../types/client/campaign.types";
+
 // Из типа Date в string 'DD.MM.YY'
-
-import {CampaignStatusEnum} from "../types/client/campaign.types";
-
 export const formatDate = (date: Date): string => {
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -14,6 +13,8 @@ export const formatClientCampaignStatus = (status: string): CampaignStatusEnum =
     switch (status) {
         case 'wait':
             return CampaignStatusEnum.pending;
+        case 'under_review':
+            return CampaignStatusEnum.underReview;
         case 'pending':
             return CampaignStatusEnum.pending;
         case 'work':
@@ -28,3 +29,6 @@ export const formatClientCampaignStatus = (status: string): CampaignStatusEnum =
             return CampaignStatusEnum.pending;
     }
 }
+
+// format for emails, messages
+export const formatCampaignPaymentType = (type: CampaignPaymentMethodEnum) => CampaignPaymentLabels[type];

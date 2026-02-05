@@ -17,7 +17,12 @@ import {
 } from "../../common/types/client/campaign.types";
 import {SocialMediaEnum, SocialMediaType} from "../../common/types/social-media.types";
 import {formatClientCampaignStatus, formatDate} from "../../common/utils/formatters";
-import {CampaignContentItemDto, CreateCampaignDto, CreateDraftCampaignDto} from "./dto/create-campaign.dto";
+import {
+    CampaignContentItemDto,
+    CreateCampaignDto,
+    CreateDraftCampaignDto,
+    SelectInfluencerDto
+} from "./dto/create-campaign.dto";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
 import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
 import sendMail from "../../integrations/nodemailer/nodemailer";
@@ -50,7 +55,28 @@ import {
 import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
 import {FoundAccountDto} from "../profile/dto/influencer/get-profile.dto";
 import {EmailService} from "../email/email.service";
-import {BuildCampaignEmailDto} from "../email/dto/campaign-email.dto";
+import {Role, UserPayload} from "../../common/types/auth.types";
+import {UpdateCampaignDto} from "./dto/update-campaign.dto";
+import {mapContentItemDtoToModel} from "../../common/mappers/campaign.mapper";
+import {uniq} from "../../common/utils/base.util";
+import {ObjId, toObjIdSafe} from "../../common/types/base.types";
+import {BuildRequestEditTemplateDto} from "../email/dto/campaign-email.dto";
+
+// -------------- PRIVATE TYPES -----------------
+
+type MinimalInfluencer = {
+    _id: ObjId;
+    instagram?: any[];
+    tiktok?: any[];
+    spotify?: any[];
+    soundcloud?: any[];
+    facebook?: any[];
+    youtube?: any[];
+    press?: any[];
+};
+
+type AccountKey = `${SocialMediaEnum}:${string}`; // sm:accountIdString
+type UsernameKey = `${SocialMediaEnum}:${string}`; // sm:username
 
 @Injectable()
 export class CampaignsService {
@@ -67,6 +93,211 @@ export class CampaignsService {
         private readonly emailService: EmailService,
     ) {
     }
+
+    // -------------- HELPERS -----------------
+
+
+    // builds object with CampaignAccount type from SelectInfluencerDto (dto which using for creating and updating campaigns)
+    private async buildCampaignAccountsBatch(
+        addedAccountsData: SelectInfluencerDto[],
+    ): Promise<CampaignAccount[]> {
+        if (!addedAccountsData?.length) return [];
+
+        // 1) get only using social medias
+        const usedSocialMedia = uniq(
+            addedAccountsData.map(a => a.socialMedia).filter(Boolean)
+        );
+
+        // 2) get keys
+        const influencerIdStrs = uniq(
+            addedAccountsData.map(a => a.influencerId).filter(Boolean)
+        );
+
+        const influencerIds = influencerIdStrs
+            .map(toObjIdSafe)
+            .filter((x): x is ObjId => Boolean(x));
+
+        const socialAccountIdStrs = uniq(
+            addedAccountsData.map(a => a.socialAccountId).filter(Boolean)
+        );
+        const socialAccountIds = socialAccountIdStrs
+            .map(toObjIdSafe)
+            .filter((x): x is ObjId => Boolean(x));
+
+        // usernames as fallback
+        const usernamesByMedia = new Map<SocialMediaEnum, string[]>();
+        for (const a of addedAccountsData) {
+            if (!a.username) continue;
+            const arr = usernamesByMedia.get(a.socialMedia) ?? [];
+            arr.push(a.username);
+            usernamesByMedia.set(a.socialMedia, arr);
+        }
+        for (const [sm, arr] of usernamesByMedia) {
+            usernamesByMedia.set(sm, uniq(arr));
+        }
+
+        // 3) Projection: get only asked social medias + ids
+        const projection: Record<string, 1> = {_id: 1};
+        for (const sm of usedSocialMedia) projection[sm] = 1;
+
+        // 4) Request №1: by influencerIds
+        const influencers: MinimalInfluencer[] = influencerIds.length
+            ? await this.influencerRepo.findMany(
+                {_id: {$in: influencerIds}},
+                {lean: true, select: Object.keys(projection)} as any,
+            )
+            : [];
+
+        // 5) For elements without influencerId — request by accountId/username
+        const hasMissingInfluencerId = addedAccountsData.some(a => !a.influencerId);
+        if (hasMissingInfluencerId) {
+            const or: any[] = [];
+
+            if (socialAccountIds.length) {
+                for (const sm of usedSocialMedia) {
+                    or.push({[`${sm}._id`]: {$in: socialAccountIds}});
+                }
+            }
+
+            for (const [sm, names] of usernamesByMedia) {
+                if (names.length) or.push({[`${sm}.username`]: {$in: names}});
+            }
+
+            if (or.length) {
+                const extra: MinimalInfluencer[] = await this.influencerRepo.findMany(
+                    {$or: or},
+                    {lean: true, select: Object.keys(projection)} as any,
+                );
+
+                // merge unique by influencer _id
+                const seen = new Set(influencers.map(i => i._id.toString()));
+                for (const inf of extra) {
+                    const id = inf._id.toString();
+                    if (!seen.has(id)) {
+                        influencers.push(inf);
+                        seen.add(id);
+                    }
+                }
+            }
+        }
+
+        if (!influencers.length) return [];
+
+        // 6) Indexes in memory for O(1) matching
+        const byInfluencerId = new Map<string, MinimalInfluencer>();
+        const byAccountId = new Map<AccountKey, { influencerId: ObjId; acc: any }>();
+        const byUsername = new Map<UsernameKey, { influencerId: ObjId; acc: any }>();
+
+        for (const inf of influencers) {
+            byInfluencerId.set(inf._id.toString(), inf);
+
+            for (const sm of usedSocialMedia) {
+                const arr = (inf as any)[sm] as any[] | undefined;
+                if (!Array.isArray(arr) || !arr.length) continue;
+
+                for (const acc of arr) {
+                    if (!acc?._id) continue;
+
+                    const accIdStr = acc._id.toString();
+                    byAccountId.set(`${sm}:${accIdStr}`, {influencerId: inf._id, acc});
+
+                    const u = acc.username;
+                    if (u) byUsername.set(`${sm}:${u}`, {influencerId: inf._id, acc});
+                }
+            }
+        }
+
+        // 7) Building CampaignAccount for each DTO item
+        const result: CampaignAccount[] = [];
+        const invalid: Array<{ index: number; reason: string }> = [];
+
+        for (let idx = 0; idx < addedAccountsData.length; idx++) {
+            const dto = addedAccountsData[idx];
+
+            const dtoInfluencerId = toObjIdSafe(dto.influencerId);
+            const dtoAccountId = toObjIdSafe(dto.socialAccountId);
+            const dtoUsername = dto.username;
+
+            let matched: { influencerId: ObjId; acc: any } | null = null;
+
+            if (dtoAccountId) {
+                matched = byAccountId.get(`${dto.socialMedia}:${dtoAccountId.toString()}`) ?? null;
+            } else if (dtoUsername) {
+                matched = byUsername.get(`${dto.socialMedia}:${dtoUsername}`) ?? null;
+            }
+
+            if (!matched) {
+                invalid.push({index: idx, reason: "Account not found for provided identifiers"});
+                continue;
+            }
+
+            if (dtoInfluencerId && matched.influencerId.toString() !== dtoInfluencerId.toString()) {
+                invalid.push({index: idx, reason: "InfluencerId does not match the resolved account"});
+                continue;
+            }
+
+            const acc = matched.acc;
+
+            // meta validation
+            if (!acc.isVerified) {
+                invalid.push({index: idx, reason: "Account is not verified"});
+                continue;
+            }
+            if (acc.isDeleted) {
+                invalid.push({index: idx, reason: "Account is deleted"});
+                continue;
+            }
+            if (acc.isHidden) {
+                invalid.push({index: idx, reason: "Account is hidden"});
+                continue;
+            }
+
+            // price validation
+            if (typeof acc.price !== "number" || acc.price < 0 || typeof acc.publicPrice !== "number" || acc.publicPrice < 0) {
+                invalid.push({index: idx, reason: "Invalid price/publicPrice"});
+                continue;
+            }
+
+            // selectedContent validation
+            if (!dto.selectedCampaignContentItem?.campaignContentItemId) {
+                invalid.push({index: idx, reason: "selectedCampaignContentItem.campaignContentItemId is required"});
+                continue;
+            }
+
+            result.push({
+                ...dto,
+                _id: new Types.ObjectId(),
+                username: acc.username,
+                influencerId: matched.influencerId,
+                accountId: acc._id,
+                followers: acc.followers,
+                price: acc.price,
+                publicPrice: acc.publicPrice,
+                selectedContent: {
+                    campaignContentItemId: new Types.ObjectId(dto.selectedCampaignContentItem.campaignContentItemId),
+                    descriptionId: dto.selectedCampaignContentItem.descriptionId
+                        ? new Types.ObjectId(dto.selectedCampaignContentItem.descriptionId)
+                        : undefined,
+                },
+                confirmation: InfluencerConfirmationStatusEnum.wait,
+                closePromo: InfluencerPromoClosedStatusEnum.wait,
+                dateRequest: dto.dateRequest ?? null,
+            } satisfies CampaignAccount);
+        }
+
+        // if (invalid.length) {
+        //     throw new BadRequestException({
+        //         message: "Some addedAccounts items are invalid",
+        //         invalid,
+        //     });
+        // }
+
+        return result;
+    }
+
+
+    // -------------- SERVICES -----------------
+
 
     // Returns campaigns list for client with diff statuses
     async getCampaignsList(data: ClientGetDashboardCampaignsQueryDto): Promise<ClientGetCampaignForList[]> {
@@ -241,83 +472,18 @@ export class CampaignsService {
 
         const createdAt = new Date();
 
-        const processedAccounts = await Promise.all(
-            data.addedAccounts.map(async (influencer): Promise<CampaignAccount> => {
-                const dateRequest = influencer.dateRequest;
+        const processedAccounts: CampaignAccount[] =
+            await this.buildCampaignAccountsBatch(data.addedAccounts);
 
-                const influencerData = await this.influencerRepo
-                    .findOne({
-                        $or: [
-                            {
-                                [`${influencer.socialMedia}._id`]: new mongoose.Types.ObjectId(
-                                    influencer.socialAccountId,
-                                )
-                            },
-                            {
-                                _id: new Types.ObjectId(influencer.influencerId)
-                            },
-                            {
-                                [`${influencer.socialMedia}.username`]: influencer.username
-                            }
-                        ]
-                    }, {lean: true});
+        if (processedAccounts.length === 0) {
+            throw new BadRequestException('No valid influencers provided');
+        }
 
-                if (!influencerData) {
-                    this.logger.log(
-                        `Did not find any influencer with influencerId: ${influencer.influencerId} or social accountId: ${influencer.socialAccountId} while creating campaign ${data.campaignName}`,
-                    )
-                    return null;
-                }
-
-                const influencerId = influencerData._id.toString();
-
-                const socialMediaAccount = influencerData[influencer.socialMedia].find(
-                    (account) =>
-                        account.username === influencer.username
-                );
-
-                if (socialMediaAccount) {
-                    return {
-                        ...influencer,
-                        _id: new mongoose.Types.ObjectId(),
-                        username: socialMediaAccount.username,
-                        influencerId: new Types.ObjectId(influencerId),
-                        accountId: new Types.ObjectId(influencer.socialAccountId),
-                        followers: socialMediaAccount.followers,
-                        price: socialMediaAccount.price,
-                        publicPrice: socialMediaAccount.publicPrice,
-                        selectedContent: {
-                            campaignContentItemId: new Types.ObjectId(
-                                influencer.selectedCampaignContentItem.campaignContentItemId,
-                            ),
-                            descriptionId: new Types.ObjectId(
-                                influencer.selectedCampaignContentItem.descriptionId,
-                            ),
-                        },
-                        confirmation: InfluencerConfirmationStatusEnum.wait,
-                        closePromo: InfluencerPromoClosedStatusEnum.wait,
-                        createdAt,
-                        dateRequest,
-                    };
-                }
-            }),
+        const processedCampaignContent: CampaignContentItem[] = data.campaignContent.map(
+            (campaignContentItem) => mapContentItemDtoToModel(campaignContentItem)
         );
 
-        const processedCampaignContent = await Promise.all(
-            data.campaignContent.map(async (campaignContentItem) => ({
-                _id: new mongoose.Types.ObjectId(campaignContentItem._id),
-                mainLink: campaignContentItem.mainLink.trim(),
-                socialMedia: campaignContentItem.socialMedia as SocialMediaEnum,
-                socialMediaGroup: campaignContentItem.socialMediaGroup,
-                descriptions: campaignContentItem?.descriptions.map((pd) => ({
-                    _id: new mongoose.Types.ObjectId(pd._id),
-                    description: pd.description.trim(),
-                })) ?? undefined,
-                taggedUser: campaignContentItem.taggedUser?.trim() ?? undefined,
-                taggedLink: campaignContentItem.taggedLink?.trim() ?? undefined,
-                additionalBrief: campaignContentItem.additionalBrief?.trim() ?? undefined,
-            } satisfies CampaignContentItem)),
-        );
+        if (processedCampaignContent.length === 0) throw new BadRequestException('No valid campaign content provided')
 
         const session = await this.campaignRepo.startSession();
         session.startTransaction();
@@ -325,12 +491,12 @@ export class CampaignsService {
         let createdCampaign: Campaign;
         let client: Client;
 
+        const campaignId: ObjId = new ObjId();
         try {
-            const campaignId = new mongoose.Types.ObjectId();
             createdCampaign = await this.campaignRepo.create({
                 ...data,
                 _id: campaignId,
-                clientId: new Types.ObjectId(data.clientId),
+                clientId: new ObjId(data.clientId),
                 campaignName: data.campaignName.trim(),
                 addedAccounts: processedAccounts,
                 paymentType: !data.paymentType ? 'payment' : data.paymentType,
@@ -353,144 +519,17 @@ export class CampaignsService {
             await session.endSession();
         }
 
-        try {
-            const emailStartContent = () => {
-                return `
-                    <p>Hi,</p>
-<p>The Client ${client.firstName ?? 'Unknown'} has requested the following ${data.socialMedia === SocialMediaEnum.press ? 'article for inclusion in' : 'post for'} this list of influencers on the ${data.socialMedia}:</p>
-<p><strong>Post Details:</strong></p>
-<p><strong>Campaign Name: ${data.campaignName}</strong></p>
-                    `;
-            };
-
-            const emailVideoContent = () => {
-                if (data.socialMedia === 'spotify' || data.socialMedia === 'soundcloud') {
-                    return processedCampaignContent
-                        .map(
-                            (campaignContentItem, index) => `
-          <p><strong>Song/Playlist ${index + 1}:</strong></p>
-          <ul>
-              <li><strong>Track/Playlist Link:</strong> ${campaignContentItem.mainLink}</li>
-              <li><strong>Track/Playlist Titles:</strong>
-                <ul>
-                  ${campaignContentItem.descriptions
-                                .map((pd, i) => `<li>${i + 1}. ${pd.description}</li>`)
-                                .join('')}
-                </ul>
-              </li>
-              <li><strong>Special Wishes:</strong> ${campaignContentItem.additionalBrief}</li>
-          </ul>
-          <p><strong>Selected Influencers:</strong></p>
-          <ul>
-              ${processedAccounts
-                                .filter(
-                                    (account) =>
-                                        account.selectedContent?.campaignContentItemId.toString() ===
-                                        campaignContentItem._id.toString(),
-                                )
-                                .map(
-                                    (account) =>
-                                        `<li>${account.socialMedia} username: ${account.username}</li>`,
-                                )
-                                .join('')}
-          </ul>
-        `,
-                        )
-                        .join('');
-                } else if (data.socialMedia === 'press') {
-                    return processedCampaignContent
-                        .map(
-                            (campaignContentItem, index) => `
-          <p><strong>Article ${index + 1}:</strong></p>
-          <ul>
-              <li><strong>Link to Music/Events/News:</strong> ${campaignContentItem.mainLink}</li>
-              <li><strong>Descriptions:</strong>
-                <ul>
-                  ${campaignContentItem.descriptions
-                                .map((pd, i) => `<li>${i + 1}. ${pd.description}</li>`)
-                                .join('')}
-                </ul>
-              </li>
-              <li><strong>Link To Press Release:</strong> ${campaignContentItem.taggedUser}</li>
-              <li><strong>Special Wishes:</strong> ${campaignContentItem.additionalBrief}</li>
-          </ul>
-          <p><strong>Selected Influencers:</strong></p>
-          <ul>
-              ${processedAccounts
-                                .filter(
-                                    (influencer) =>
-                                        influencer.selectedContent?.campaignContentItemId.toString() ===
-                                        campaignContentItem._id.toString(),
-                                )
-                                .map(
-                                    (influencer) =>
-                                        `<li>${influencer.socialMedia} username: ${influencer.username}</li>`,
-                                )
-                                .join('')}
-          </ul>
-        `,
-                        )
-                        .join('');
-                } else {
-                    return processedCampaignContent
-                        .map(
-                            (campaignContentItem, index) => `
-          <p><strong>Post Content ${index + 1}:</strong></p>
-          <ul>
-              <li><strong>Link:</strong> ${campaignContentItem.mainLink}</li>
-              <li><strong>Post Descriptions:</strong>
-                <ul>
-                  ${campaignContentItem.descriptions
-                                .map((pd, i) => `<li>${i + 1}. ${pd.description}</li>`)
-                                .join('')}
-                </ul>
-              </li>
-              <li><strong>Story Tag:</strong> ${campaignContentItem.taggedUser}</li>
-              <li><strong>Swipe Up Link:</strong> ${campaignContentItem.taggedLink}</li>
-              <li><strong>Special Wishes:</strong> ${campaignContentItem.additionalBrief}</li>
-          </ul>
-          <p><strong>Selected Influencers:</strong></p>
-          <ul>
-              ${processedAccounts
-                                .filter(
-                                    (influencer) =>
-                                        influencer.selectedContent?.campaignContentItemId.toString() ===
-                                        campaignContentItem._id.toString(),
-                                )
-                                .map(
-                                    (influencer) =>
-                                        `<li>${influencer.socialMedia} username: ${influencer.username}</li>`,
-                                )
-                                .join('')}
-          </ul>
-        `,
-                        )
-                        .join('');
-                }
-            };
-
-            const emailContent = `
-${emailStartContent()}
-${emailVideoContent()}
-<p>Payment Method Used: ${createdCampaign.paymentType}</p>
-<p>
-    <a style="font-weight: 600" href="${process.env.SERVER}/campaigns/verify?promoId=${createdCampaign._id.toString()}&status=accept">
-        Approve
-    </a> 
-    <a style="font-weight: 600" href="${process.env.SERVER}/campaigns/verify?promoId=${createdCampaign._id.toString()}&status=cancel">
-        Decline
-    </a>
-</p>`;
-
-            await sendMail(
-                process.env.EMAIL_USER,
-                'SoundInfluencers',
-                emailContent,
-                'html',
-            );
-        } catch (err) {
-            this.logger.warn(`Campaign ${data.campaignName} created, but email failed`, err);
-        }
+        await this.emailService.sendCampaignCreatedEmail({
+            campaignId: campaignId.toString(),
+            clientId: data.clientId,
+            campaignSocialMedia: data.socialMedia as SocialMediaEnum,
+            paymentType: createdCampaign.paymentType,
+            campaignName: createdCampaign.campaignName,
+            clientName: client.firstName ?? '',
+            clientEmail: client.email,
+            acceptLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=accept`,
+            declineLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=decline`,
+        })
     }
 
     // Returns detailed draft
@@ -686,14 +725,14 @@ ${emailVideoContent()}
     }
 
     // TODO: update and test
-    async verifyCampaign(campaignId: string, status: string) {
+    async verifyCampaign(campaignId: string, status: string): Promise<{ code: number, message: string }> {
         if (!campaignId || !status) throw new BadRequestException('Not enough arguments')
 
         const checkCampaign: Campaign = await this.campaignRepo.findById(campaignId, {lean: true});
 
         if (!checkCampaign) throw new NotFoundException('Campaign not found')
 
-        if (status === 'accept' && checkCampaign.statusCampaign === CampaignStatusEnum.pending) {
+        if (status === 'accept' && checkCampaign.statusCampaign === CampaignStatusEnum.underReview) {
             const influencersIds = checkCampaign.addedAccounts.map((item) => item.influencerId);
 
             const influencers = await this.influencerRepo.findMany({_id: {$in: influencersIds}});
@@ -769,28 +808,24 @@ ${emailVideoContent()}
                     accountsAndDetails: accountDetails,
                 });
 
+                // todo: user email service and create query of emails
                 await sendMail(
-                    influencer.email,
-                    // 'nazarkozynets030606@zohomail.eu',
+                    // influencer.email,
+                    'nazarkozynets030606@zohomail.eu',
                     'New Promo Request',
                     emailBody,
                     'html'
                 );
             }
 
-            const updateFields = {verifyCampaign: (checkCampaign as any)?.verifyCampaign};
-
-            if (checkCampaign.verifyCampaign !== undefined) {
-                updateFields.verifyCampaign = status;
-            }
-
-            await this.campaignRepo.updateOne({_id: campaignId}, {$set: updateFields});
+            await this.campaignRepo.updateOne({_id: campaignId}, {verifyCampaign: 'accept'});
 
             return {
                 code: 200,
                 message: 'Campaign verified',
             };
         } else {
+            await this.campaignRepo.updateOne({_id: campaignId}, {verifyCampaign: 'decline'});
             return {
                 code: 200,
                 message: 'Campaign declined',
@@ -930,6 +965,60 @@ ${emailVideoContent()}
         }
 
         return campaignToReturn;
+    }
+
+    // Update ongoing campaign
+    async updateOngoingCampaign(data: UpdateCampaignDto, userInfo: UserPayload): Promise<ClientCampaignForTable> {
+        const campaignId = data.campaignId;
+        const userId = new Types.ObjectId(userInfo._id);
+        const userRole = userInfo.role;
+
+        let campaign: Campaign;
+
+        switch (userRole) {
+            case Role.client:
+                campaign = await this.campaignRepo.findOne({
+                    _id: new Types.ObjectId(campaignId),
+                    clientId: userId,
+                    canEdit: true,
+                    statusCampaign: {
+                        $in: [
+                            CampaignStatusEnum.underReview,
+                            CampaignStatusEnum.pending
+                        ]
+                    }
+                });
+                break;
+            case Role.admin:
+                campaign = await this.campaignRepo.findById(campaignId);
+                break;
+            default:
+                throw new ForbiddenException('Not enough access');
+        }
+
+        if (!campaign) throw new NotFoundException('Campaign not found');
+
+        const newAccounts: SelectInfluencerDto[] = [];
+
+        campaign.addedAccounts = data.addedAccounts.map((acc: SelectInfluencerDto): CampaignAccount => {
+            if (!campaign.addedAccounts.find(i => i.accountId.toString() === acc.socialAccountId)) {
+                newAccounts.push(acc);
+            }
+
+            // check all fields and update
+        });
+
+        if (newAccounts.length > 0) {
+            const proceedNewAccounts: CampaignAccount[] = await this.buildCampaignAccountsBatch(newAccounts);
+
+            proceedNewAccounts.length === 0 ?
+                this.logger.warn("Can't proceed new accounts while updating campaign") :
+                proceedNewAccounts.map(i => { campaign.addedAccounts.push(i); });
+        }
+
+        await campaign.save();
+
+        return null;
     }
 
     async saveXLSXCampaign(data: SaveXlsxCampaignDto) {
@@ -1454,7 +1543,7 @@ ${emailVideoContent()}
             throw new ForbiddenException('You can only edit campaigns you created');
         }
 
-        const dataForEmail: BuildCampaignEmailDto = {
+        const dataForEmail: BuildRequestEditTemplateDto = {
             campaignId: campaignId,
             clientId: clientId,
             campaignName: campaign.campaignName,
@@ -1480,9 +1569,9 @@ ${emailVideoContent()}
         const canEdit = response === 'accept';
 
         const updateResult = await this.campaignRepo.updateOne(
-            { _id: new Types.ObjectId(campaignId) },
+            {_id: new Types.ObjectId(campaignId)},
             {
-                $set: { canEdit }
+                $set: {canEdit}
             }
         );
 

@@ -1,8 +1,11 @@
 import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
 import {DetailedDraftCampaignDto} from "../../modules/campaigns/dto/get-campaigns.dto";
 import {SafeCampaignAccount} from "../types/client/campaign.types";
-import {CampaignAccount} from "../../database/schemas/campaign/campaign.schema";
+import {CampaignAccount, CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
 import {ProposalCampaignAccount} from "../../database/schemas/campaign/proposal-campaign-option.schema";
+import {CampaignContentItemDto} from "../../modules/campaigns/dto/create-campaign.dto";
+import {Types} from "mongoose";
+import {SocialMediaEnum} from "../types/social-media.types";
 
 // export const mapToDetailedDraftCampaignDto = (draft: DraftCampaign): DetailedDraftCampaignDto => {
 //     return {
@@ -19,6 +22,23 @@ import {ProposalCampaignAccount} from "../../database/schemas/campaign/proposal-
 //         campaignContent: draft.campaignContent,
 //     }
 // }
+
+// builds object with CampaignContentItemDto type from CampaignContentItem (dto which using for creating and updating campaigns)
+export const mapContentItemDtoToModel = (campaignContentItem: CampaignContentItemDto): CampaignContentItem => {
+    return {
+        _id: new Types.ObjectId(campaignContentItem._id),
+        mainLink: campaignContentItem.mainLink.trim(),
+        socialMedia: campaignContentItem.socialMedia as SocialMediaEnum,
+        socialMediaGroup: campaignContentItem.socialMediaGroup,
+        descriptions: campaignContentItem?.descriptions.map((pd) => ({
+            _id: new Types.ObjectId(pd._id),
+            description: pd.description.trim(),
+        })) ?? undefined,
+        taggedUser: campaignContentItem.taggedUser?.trim() ?? undefined,
+        taggedLink: campaignContentItem.taggedLink?.trim() ?? undefined,
+        additionalBrief: campaignContentItem.additionalBrief?.trim() ?? undefined,
+    } satisfies CampaignContentItem;
+};
 
 export const mapToSafeCampaignAccount = (
     account: CampaignAccount | ProposalCampaignAccount

@@ -1,10 +1,11 @@
 import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {
-    BadRequestException,
     Body,
-    Controller, Delete,
+    Controller,
+    Delete,
     Get,
-    Param, Patch,
+    Param,
+    Patch,
     Post,
     Query,
     Req,
@@ -16,7 +17,8 @@ import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
 import {
     ClientCampaignForTableDto,
     ClientGetCampaignsDto,
-    ClientGetDashboardCampaignsQueryDto, DetailedDraftCampaignDto
+    ClientGetDashboardCampaignsQueryDto,
+    DetailedDraftCampaignDto
 } from "./dto/get-campaigns.dto";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {Auth} from "../../common/decorators/auth.decorator";
@@ -24,12 +26,10 @@ import {Public} from "../../common/decorators/public.decorator";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
 import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
 import {CreateCampaignDto, CreateDraftCampaignDto} from "./dto/create-campaign.dto";
-import { Response } from 'express';
-import {
-    CampaignTypeEnumForDevelopment,
-    PublicCampaignForTable
-} from "../../common/types/client/campaign.types";
+import {Response} from 'express';
+import {CampaignTypeEnumForDevelopment, PublicCampaignForTable} from "../../common/types/client/campaign.types";
 import {Roles} from "../../common/decorators/roles.decorator";
+import {UpdateCampaignDto} from "./dto/update-campaign.dto";
 
 @ApiTags('campaigns')
 @Controller('campaigns')
@@ -116,11 +116,12 @@ export class CampaignsController {
         return this.campaignsService.deleteDraftCampaign(draftId, request.user._id);
     }
 
+    @ApiExcludeEndpoint()
     @Public()
     @ApiOperation({summary: 'Verify campaign (For email)'})
     @Get('verify')
-    async verifyCampaign(@Query() args: { promoId: string; status: string }, @Res() res: Response) {
-        const result: { code: number, message: string } = await this.campaignsService.verifyCampaign(args.promoId, args.status);
+    async verifyCampaign(@Query() args: { campaignId: string; status: string }, @Res() res: Response) {
+        const result: { code: number, message: string } = await this.campaignsService.verifyCampaign(args.campaignId, args.status);
 
         if (result.code === 200) {
             const successMessage = result.message || 'Campaign verified';
@@ -184,7 +185,7 @@ export class CampaignsController {
 
     @Auth()
     @Roles(Role.client)
-    @ApiOperation({summary: 'Get client campaign (completed, ongoing, proposal)'})
+    @ApiOperation({summary: 'Get client campaign (completed, ongoing)'})
     @ApiParam({name: 'campaignId', required: true})
     @ApiResponseDto(ClientCampaignForTableDto)
     @Get(':campaignId')
@@ -192,6 +193,16 @@ export class CampaignsController {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
         return this.campaignsService.getClientOngoingOrPastCampaign(campaignId, request.user._id);
+    }
+
+    @Auth()
+    @Roles(Role.client, Role.admin)
+    @ApiOperation({summary: 'Updates ongoing campaign'})
+    @ApiParam({name: 'campaignId', required: true})
+    @ApiResponseDto(ClientCampaignForTableDto)
+    @Patch(':campaignId/update')
+    updateCampaign(@Param('campaignId') campaignId: string, @Body() data: UpdateCampaignDto, @Req() request: AuthenticatedRequest): Promise<ClientCampaignForTableDto> {
+        return this.campaignsService.updateOngoingCampaign({...data, campaignId}, request.user);
     }
 
     @Public()

@@ -45,6 +45,16 @@ export enum CampaignPaymentMethodEnum {
     crypto = 'crypto',
 }
 
+// selected payment method for emails, messages
+export const CampaignPaymentLabels: Record<CampaignPaymentMethodEnum, string> = {
+    [CampaignPaymentMethodEnum.bankCard]: 'Bank card',
+    [CampaignPaymentMethodEnum.bankTransferInternational]: 'International transfer',
+    [CampaignPaymentMethodEnum.bankTransferEu]: 'EU transfer',
+    [CampaignPaymentMethodEnum.bankTransferUk]: 'UK transfer',
+    [CampaignPaymentMethodEnum.paypal]: 'PayPal',
+    [CampaignPaymentMethodEnum.crypto]: 'Crypto',
+};
+
 // Using at home page
 export interface ClientGetCampaignForList {
     _id: string;

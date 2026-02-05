@@ -117,14 +117,14 @@ export class CreateCampaignDto {
     @Type(() => SelectInfluencerDto)
     @IsArray()
     @IsNotEmpty()
-    @ValidateNested()
+    @ValidateNested({ each: true })
     addedAccounts: SelectInfluencerDto[];
 
     @ApiProperty({type: () => [CampaignContentItemDto]})
     @Type(() => CampaignContentItemDto)
     @IsArray()
     @IsNotEmpty()
-    @ValidateNested()
+    @ValidateNested({ each: true })
     campaignContent: CampaignContentItemDto[];
 }
 

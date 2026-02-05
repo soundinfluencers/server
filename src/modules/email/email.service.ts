@@ -1,6 +1,9 @@
 import {Injectable, InternalServerErrorException, Logger, ServiceUnavailableException} from "@nestjs/common";
-import {buildRequestEditEmail} from "./templates/campaign-email.template";
-import {BuildCampaignEmailDto} from "./dto/campaign-email.dto";
+import {
+    buildClientCreatedCampaignTemplate,
+    buildRequestEditTemplate
+} from "./templates/campaign-email.template";
+import {BuildClientCreatedCampaignTemplateDto, BuildRequestEditTemplateDto} from "./dto/campaign-email.dto";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {BuildInvoiceEmailDto} from "./dto/invoice-email.dto";
 import {buildInfluencerInvoiceEmail, buildInfluencerInvoiceResponseEmail} from "./templates/invoice-email.template";
@@ -31,8 +34,8 @@ export class EmailService {
     }
 
     // Sends email to US about new campaign edit request
-    async sendNewEditRequestEmail(data: BuildCampaignEmailDto) {
-        const email = buildRequestEditEmail(data);
+    async sendNewEditRequestEmail(data: BuildRequestEditTemplateDto) {
+        const email = buildRequestEditTemplate(data);
         return this.safeSend(
             'nazarkozynets030606@gmail.com',
             'Campaign edit request',
@@ -62,5 +65,16 @@ export class EmailService {
         ).catch(err => {
             this.logger.warn('Influencer new invoice response email failed', err);
         });
+    };
+
+    // Sends email to US about 'client created new campaign'
+    async sendCampaignCreatedEmail(data: BuildClientCreatedCampaignTemplateDto) {
+        const email = buildClientCreatedCampaignTemplate(data);
+        return this.safeSend(
+            'nazarkozynets030606@gmail.com',
+            `Client created campaign`,
+            email,
+            'html',
+        );
     };
 }
