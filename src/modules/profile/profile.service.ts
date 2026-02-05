@@ -285,7 +285,10 @@ export class ProfileService {
 
         const accountAggregation = await this.influencerRepo.aggregate([
             {
-                $match: {_id: new Types.ObjectId(influencerId)}
+                $match: {
+                    _id: new Types.ObjectId(influencerId),
+                    isDeleted: { $ne: true },
+                }
             },
             {
                 $project: {
