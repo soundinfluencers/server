@@ -1,11 +1,13 @@
 import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
 import {DetailedDraftCampaignDto} from "../../modules/campaigns/dto/get-campaigns.dto";
-import {SafeCampaignAccount} from "../types/client/campaign.types";
-import {CampaignAccount, CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
+import {ClientCampaignForTable, SafeCampaignAccount} from "../types/client/campaign.types";
+import {Campaign, CampaignAccount, CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
 import {ProposalCampaignAccount} from "../../database/schemas/campaign/proposal-campaign-option.schema";
 import {CampaignContentItemDto} from "../../modules/campaigns/dto/create-campaign.dto";
 import {Types} from "mongoose";
 import {SocialMediaEnum} from "../types/social-media.types";
+import {formatDate} from "../utils/formatters";
+import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 
 // export const mapToDetailedDraftCampaignDto = (draft: DraftCampaign): DetailedDraftCampaignDto => {
 //     return {
@@ -68,3 +70,61 @@ export const mapToSafeCampaignAccount = (
         countries: (account as ProposalCampaignAccount).countries ?? null,
     }
 }
+
+// map schema Campaign class to ClientCampaignForTable
+export const mapToClientCampaignForTable = (campaign: Campaign): ClientCampaignForTable => {
+    let cpm: number | null;
+    let totalFollowers: number | null;
+    let totalImpressions: number | null;
+    let totalLikes: number | null;
+    let totalSaves: number | null;
+    let totalComments: number | null;
+    let totalShares: number | null;
+
+    const campaignPrice: number = campaign.campaignPrice ??
+        (campaign as any).price ??
+        (campaign as any).publicCampaignPrice ??
+        (campaign as any).amount ??
+        0;
+
+    // build safe campaign account item
+    // campaign.addedAccounts = campaign?.addedAccounts?.map(
+    //     (account: CampaignAccount):  =>
+    // ) ?? [];
+
+
+    // getting cpm
+    try {
+        cpm = totalImpressions > 0
+                ? Math.round((campaignPrice * 1000 / totalImpressions) * 1000) / 1000
+                : null;
+    } catch (e) {
+        console.warn(`Can't retrieve cpm for campaign ${campaign._id}: ${e}`);
+        cpm = null;
+    }
+
+    return {
+        campaignId: campaign._id.toString(),
+        campaignName: campaign.campaignName ?? "OLD CAMPAIGN",
+        socialMedia: campaign.socialMedia ?? "instagram",
+        creationDate: formatDate(campaign.createdAt),
+        price: campaignPrice,
+        status: campaign.statusCampaign,
+        addedAccounts: campaign.addedAccounts ?? [],
+        campaignContent: campaign.campaignContent ?? (campaign as any).videos ?? [],
+        shareLink: campaign.shareLink ?? null,
+
+        totalFollowers: totalFollowers ?? 0,
+        totalImpressions: totalImpressions ?? 0,
+        totalLikes: totalLikes ?? 0,
+        totalSaves: totalSaves ?? 0,
+        totalComments: totalComments ?? 0,
+        totalShares: totalShares ?? 0,
+
+        isCpmAndResultHidden: campaign.isCpmAndResultHidden ?? false,
+        isPriceHidden: campaign.isPriceHidden ?? false,
+        canEdit: campaign.canEdit ?? false,
+        hiddenColumns: campaign.hiddenColumns ?? [],
+        cpm: cpm ?? null,
+    };
+};

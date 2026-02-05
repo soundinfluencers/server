@@ -119,8 +119,7 @@ export interface ClientCampaignForTable {
     price: number;
     status: CampaignStatusEnum;
 
-    // TODO: interface for campaign's added accounts
-    addedAccounts: any[];
+    addedAccounts: SafeCampaignAccount[];
 
     campaignContent: SafeCampaignContent[];
 
@@ -134,10 +133,10 @@ export interface ClientCampaignForTable {
     totalShares: number;
 
     isCpmAndResultHidden: boolean;
-    isPriceHidden: boolean;
-
-    hiddenColumns?: string[];
     cpm?: number | null;
+    isPriceHidden: boolean;
+    hiddenColumns?: string[];
+    canEdit?: boolean;
 }
 
 export interface PublicCampaignForTable {

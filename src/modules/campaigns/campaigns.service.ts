@@ -1,11 +1,11 @@
 import {
-    BadRequestException, ForbiddenException,
+    BadRequestException, ConflictException, ForbiddenException,
     Injectable,
     InternalServerErrorException,
     Logger,
     NotFoundException,
 } from '@nestjs/common';
-import mongoose, {Types} from "mongoose";
+import mongoose, {HydratedDocument, Types} from "mongoose";
 import {
     CampaignConfirmationEnum,
     CampaignPaymentStatusEnum,
@@ -57,7 +57,7 @@ import {FoundAccountDto} from "../profile/dto/influencer/get-profile.dto";
 import {EmailService} from "../email/email.service";
 import {Role, UserPayload} from "../../common/types/auth.types";
 import {UpdateCampaignDto} from "./dto/update-campaign.dto";
-import {mapContentItemDtoToModel} from "../../common/mappers/campaign.mapper";
+import {mapContentItemDtoToModel, mapToClientCampaignForTable} from "../../common/mappers/campaign.mapper";
 import {uniq} from "../../common/utils/base.util";
 import {ObjId, toObjIdSafe} from "../../common/types/base.types";
 import {BuildRequestEditTemplateDto} from "../email/dto/campaign-email.dto";
@@ -833,7 +833,7 @@ export class CampaignsService {
         }
     }
 
-    // todo: создать оркестратор и разбить на три части (completed, ongoing, proposal)
+    // todo: создать оркестратор и разбить на три части (completed, ongoing, proposal) + use mapper mapToClientCampaignForTable
     // Returns one detailed campaign obj - used by campaign report page
     async getClientOngoingOrPastCampaign(campaignId: string, clientId: string): Promise<ClientCampaignForTable> {
         if (!campaignId || !clientId) throw new BadRequestException('Not enough arguments');
@@ -852,7 +852,7 @@ export class CampaignsService {
             socialMedia: campaign.socialMedia ?? 'instagram',
             creationDate: formatDate(campaign.createdAt),
             price: campaign.campaignPrice ?? (campaign as any).price ?? (campaign as any).publicCampaignPrice ?? (campaign as any).amount ?? 0,
-            status: campaign.creatorId ? 'proposal' : campaign.statusCampaign,
+            status: campaign.statusCampaign,
             addedAccounts: [],
             campaignContent: campaign.campaignContent ?? (campaign as any).videos ?? [],
             shareLink: campaign.shareLink ?? null,
@@ -973,7 +973,7 @@ export class CampaignsService {
         const userId = new Types.ObjectId(userInfo._id);
         const userRole = userInfo.role;
 
-        let campaign: Campaign;
+        let campaign: HydratedDocument<Campaign>;
 
         switch (userRole) {
             case Role.client:
@@ -998,27 +998,65 @@ export class CampaignsService {
 
         if (!campaign) throw new NotFoundException('Campaign not found');
 
-        const newAccounts: SelectInfluencerDto[] = [];
+        // Updating campaignName
+        if (data.campaignName && data.campaignName !== campaign.campaignName) {
+            campaign.campaignName = data.campaignName.trim();
+        }
 
-        campaign.addedAccounts = data.addedAccounts.map((acc: SelectInfluencerDto): CampaignAccount => {
-            if (!campaign.addedAccounts.find(i => i.accountId.toString() === acc.socialAccountId)) {
-                newAccounts.push(acc);
+        // Updating addedAccounts
+        if (data.addedAccounts) {
+            // 1. Existing accounts Map <accountId, CampaignAccount>
+            const existingAccountsMap = new Map<string, CampaignAccount>();
+            for (const acc of campaign.addedAccounts) {
+                existingAccountsMap.set(acc.accountId.toString(), acc);
             }
 
-            // check all fields and update
-        });
+            const updatedAccounts: CampaignAccount[] = [];
+            const newAccountsDto: SelectInfluencerDto[] = [];
 
-        if (newAccounts.length > 0) {
-            const proceedNewAccounts: CampaignAccount[] = await this.buildCampaignAccountsBatch(newAccounts);
+            // 2. Updating existing accounts and collecting new
+            for (const accDto of data.addedAccounts) {
+                const existingAcc: CampaignAccount = existingAccountsMap.get(accDto.socialAccountId);
+                if (existingAcc) {
+                    existingAcc.socialMedia = accDto.socialMedia;
+                    existingAcc.username = accDto.username;
+                    existingAcc.selectedContent.campaignContentItemId = new Types.ObjectId(accDto.selectedCampaignContentItem.campaignContentItemId);
+                    existingAcc.selectedContent.descriptionId = new Types.ObjectId(accDto.selectedCampaignContentItem.descriptionId);
+                    existingAcc.dateRequest = accDto.dateRequest;
+                    updatedAccounts.push(existingAcc);
+                } else {
+                    newAccountsDto.push(accDto);
+                }
+            }
 
-            proceedNewAccounts.length === 0 ?
-                this.logger.warn("Can't proceed new accounts while updating campaign") :
-                proceedNewAccounts.map(i => { campaign.addedAccounts.push(i); });
+            // 3. Building new CampaignAccount objects from new SelectInfluencerDto accounts
+            if (newAccountsDto.length > 0) {
+                const newAccounts = await this.buildCampaignAccountsBatch(newAccountsDto);
+                if (newAccounts.length === 0) {
+                    this.logger.warn("Can't proceed new accounts while updating campaign");
+                }
+                updatedAccounts.push(...newAccounts);
+            }
+
+            // 4. Saving all accounts
+            campaign.addedAccounts = updatedAccounts;
+        }
+
+        // Updating campaign content
+        if (data.campaignContent) {
+            campaign.campaignContent = data.campaignContent.map((itemDto: CampaignContentItemDto): CampaignContentItem => mapContentItemDtoToModel(itemDto));
         }
 
         await campaign.save();
 
-        return null;
+        try {
+            return mapToClientCampaignForTable(campaign.toObject() as Campaign);
+        } catch (err) {
+            this.logger.warn(`Error map ${data.campaignName} to ClientCampaignForTable: ${err}`);
+            throw new ConflictException(
+                'Campaign updated, but response serialization failed. Please refresh.'
+            );
+        }
     }
 
     async saveXLSXCampaign(data: SaveXlsxCampaignDto) {

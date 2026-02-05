@@ -19,7 +19,7 @@ export class UpdateCampaignDto {
     @IsArray()
     @ArrayNotEmpty()
     @ValidateNested({ each: true })
-    addedAccounts: SelectInfluencerDto[];
+    addedAccounts?: SelectInfluencerDto[];
 
     @ApiPropertyOptional({type: () => [CampaignContentItemDto]})
     @IsOptional()
@@ -27,5 +27,5 @@ export class UpdateCampaignDto {
     @IsArray()
     @ArrayNotEmpty()
     @ValidateNested({ each: true })
-    campaignContent: CampaignContentItemDto[];
+    campaignContent?: CampaignContentItemDto[];
 }
