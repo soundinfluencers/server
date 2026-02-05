@@ -70,6 +70,7 @@ export class SafeSelectedContent {
     descriptionId?: string | Types.ObjectId;
 }
 
+// full campaign content item
 export class SafeCampaignContent {
     _id: string | Types.ObjectId;
     socialMedia: SocialMediaEnum;
@@ -79,6 +80,18 @@ export class SafeCampaignContent {
         _id: string | Types.ObjectId;
         description: string;
     }[];
+    taggedUser?: string;
+    taggedLink?: string;
+    additionalBrief?: string;
+}
+
+// full campaign content item but with selected description
+export class SafeSelectedContentItem {
+    _id: string | Types.ObjectId;
+    socialMedia: SocialMediaEnum;
+    socialMediaGroup: string;
+    mainLink: string;
+    description: string;
     taggedUser?: string;
     taggedLink?: string;
     additionalBrief?: string;
@@ -94,6 +107,7 @@ export class SafeCampaignAccount {
     publicPrice: number;
     followers: number;
     selectedContent: SafeSelectedContent;
+    selectedContentItem?: SafeSelectedContentItem | null;
     confirmation: InfluencerConfirmationStatusEnum;
     closePromo: InfluencerPromoClosedStatusEnum;
     dateRequest?: string;

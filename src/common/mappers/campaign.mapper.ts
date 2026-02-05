@@ -1,13 +1,14 @@
-import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
-import {DetailedDraftCampaignDto} from "../../modules/campaigns/dto/get-campaigns.dto";
-import {ClientCampaignForTable, SafeCampaignAccount} from "../types/client/campaign.types";
+import {ClientCampaignForTable, SafeCampaignAccount, SafeSelectedContentItem} from "../types/client/campaign.types";
 import {Campaign, CampaignAccount, CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
 import {ProposalCampaignAccount} from "../../database/schemas/campaign/proposal-campaign-option.schema";
 import {CampaignContentItemDto} from "../../modules/campaigns/dto/create-campaign.dto";
 import {Types} from "mongoose";
 import {SocialMediaEnum} from "../types/social-media.types";
 import {formatDate} from "../utils/formatters";
+import {InfluencerConfirmationStatusEnum, InfluencerPromoClosedStatusEnum} from "../types/influencer/promo.types";
+import {safeParseToNumber} from "../utils/base.util";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
+import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
 
 // export const mapToDetailedDraftCampaignDto = (draft: DraftCampaign): DetailedDraftCampaignDto => {
 //     return {
@@ -43,8 +44,13 @@ export const mapContentItemDtoToModel = (campaignContentItem: CampaignContentIte
 };
 
 export const mapToSafeCampaignAccount = (
-    account: CampaignAccount | ProposalCampaignAccount
+    account: CampaignAccount | ProposalCampaignAccount,
+    selectedContentItem: SafeSelectedContentItem | null = null
 ): SafeCampaignAccount => {
+    // NOTE: commented because sometimes users dont use website and admin close promos by them (so confirmation still wait)
+    // const isPromoConfirmed = account.confirmation === InfluencerConfirmationStatusEnum.accept;
+    const isPromoConfirmed = true;
+
     return {
         addedAccountsId: account._id.toString(),
         socialAccountId: account.accountId.toString(),
@@ -52,27 +58,28 @@ export const mapToSafeCampaignAccount = (
         socialMedia: account.socialMedia,
         username: account.username,
         publicPrice: account.publicPrice,
-        followers: account.followers,
+        followers: safeParseToNumber(account.followers),
         selectedContent: account.selectedContent,
-        confirmation: account.confirmation,
-        closePromo: account.closePromo,
+        selectedContentItem: selectedContentItem,
+        confirmation: account.confirmation ?? InfluencerConfirmationStatusEnum.wait,
+        closePromo: account.closePromo ?? InfluencerPromoClosedStatusEnum.wait,
         dateRequest: account.dateRequest ?? null,
         datePost: account.datePost ?? null,
         postLink: account.postLink ?? null,
         screenshot: account.screenshot ?? null,
-        impressions: account.impressions ?? null,
-        like: account.like ?? null,
-        comments: account.comments ?? null,
-        shares: account.shares ?? null,
-        saves: account.saves ?? null,
-        rating: account.rating ?? null,
-        genres: (account as ProposalCampaignAccount).genres ?? null,
-        countries: (account as ProposalCampaignAccount).countries ?? null,
-    }
+        impressions: isPromoConfirmed ? safeParseToNumber(account.impressions) : null,
+        like: isPromoConfirmed ? safeParseToNumber(account.like) : null,
+        comments: isPromoConfirmed ? safeParseToNumber(account.comments) : null,
+        shares: isPromoConfirmed ? safeParseToNumber(account.shares) : null,
+        saves: isPromoConfirmed ? safeParseToNumber(account.saves) : null,
+        rating: isPromoConfirmed ? safeParseToNumber(account.rating) : null,
+        genres: "genres" in account ? account.genres : undefined,
+        countries: "countries" in account ? account.countries : undefined,
+    };
 }
 
 // map schema Campaign class to ClientCampaignForTable
-export const mapToClientCampaignForTable = (campaign: Campaign): ClientCampaignForTable => {
+export const mapToClientCampaignForTable = (campaign: Campaign | CompletedCampaign): ClientCampaignForTable => {
     let cpm: number | null;
     let totalFollowers: number | null;
     let totalImpressions: number | null;
@@ -81,23 +88,114 @@ export const mapToClientCampaignForTable = (campaign: Campaign): ClientCampaignF
     let totalComments: number | null;
     let totalShares: number | null;
 
-    const campaignPrice: number = campaign.campaignPrice ??
-        (campaign as any).price ??
-        (campaign as any).publicCampaignPrice ??
-        (campaign as any).amount ??
-        0;
+    // getting campaign price
+    const campaignPrice: number = campaign.campaignPrice ?? (campaign as any).price ?? (campaign as any).amount ?? 0;
 
     // build safe campaign account item
-    // campaign.addedAccounts = campaign?.addedAccounts?.map(
-    //     (account: CampaignAccount):  =>
-    // ) ?? [];
+    let proceedAccounts: SafeCampaignAccount[] = campaign?.addedAccounts?.map(
+        (account: CampaignAccount): SafeCampaignAccount => {
+            // NOTE: commented because sometimes users dont use website and admin close promos by them (so confirmation still wait)
+            // const isPromoConfirmed = account.confirmation === InfluencerConfirmationStatusEnum.accept;
+            const isPromoConfirmed = true;
 
+            const selectedCampaignContentItemId: string | Types.ObjectId =
+                account?.selectedContent?.campaignContentItemId?.toString() ??
+                (account as any)?.selectedCampaignContentItem?.toString() ??
+                (Array.isArray((campaign as any)?.videos)
+                    ? (campaign as any).videos?.find((v) => v.videoLink === (account as any)?.selectedVideo)?._id?.toString()
+                    : null) ??
+                null;
+
+            let selectedCampaignContentItem = null;
+            if (selectedCampaignContentItemId) {
+                selectedCampaignContentItem =
+                    (Array.isArray(campaign.campaignContent)
+                        ? (() => {
+                            const contentItem = campaign.campaignContent.find(
+                                (item) => item?._id.toString() === selectedCampaignContentItemId,
+                            );
+                            if (!contentItem) return null;
+
+                            let description: string;
+                            try {
+                                description = contentItem.descriptions?.find(
+                                    (pd) => pd._id.toString() === account.selectedContent?.descriptionId.toString(),
+                                )?.description ?? (contentItem as any)?.postDescription ?? '';
+                            } catch (err) {
+                                console.warn(`Can't get description for addedAccounts ${account._id} in campaign ${campaign._id}`);
+                            }
+
+                            return {
+                                _id: contentItem._id,
+                                mainLink: contentItem.mainLink ?? (contentItem as any).videoLink ?? null,
+                                description: description ?? null,
+                                taggedUser: contentItem.taggedUser ?? (contentItem as any).storyTag ?? null,
+                                taggedLink: contentItem.taggedLink ?? (contentItem as any).swipeUpLink ?? null,
+                                additionalBrief: contentItem.additionalBrief ?? (contentItem as any).specialWishes ?? null,
+                            };
+                        })()
+                        : null) ??
+                    (Array.isArray((campaign as any).videos)
+                        ? (campaign as any).videos.find(
+                            (item) => item?._id?.toString() === selectedCampaignContentItemId?.toString(),
+                        )
+                        : null) ??
+                    null;
+            }
+
+            account.selectedContent = {
+                campaignContentItemId: new Types.ObjectId(selectedCampaignContentItemId),
+                descriptionId: account.selectedContent.descriptionId ?? undefined
+            };
+
+            // counting meta
+            totalFollowers += safeParseToNumber(account.followers);
+
+            if (isPromoConfirmed) {
+                totalLikes += safeParseToNumber(account.like);
+                totalImpressions += safeParseToNumber(account.impressions);
+                totalSaves += safeParseToNumber(account.saves);
+                totalComments = safeParseToNumber(account.comments);
+                totalShares = safeParseToNumber(account.shares);
+            }
+
+            return mapToSafeCampaignAccount(account, selectedCampaignContentItem);
+        }
+    ) ?? [];
+
+    try {
+        proceedAccounts.sort((a, b) => {
+            const aIndex = Array.isArray(campaign.campaignContent)
+                ? campaign.campaignContent.findIndex(
+                    (c) => c?._id?.toString() === a.selectedContent.campaignContentItemId?.toString(),
+                )
+                : Array.isArray((campaign as any).videos)
+                    ? (campaign as any).videos.findIndex(
+                        (v) => v?._id?.toString() === (a as any)?.selectedCampaignContentItemId?.toString(),
+                    )
+                    : -1;
+
+            const bIndex = Array.isArray(campaign.campaignContent)
+                ? campaign.campaignContent.findIndex(
+                    (c) => c?._id?.toString() === b.selectedContent.campaignContentItemId?.toString(),
+                )
+                : Array.isArray((campaign as any).videos)
+                    ? (campaign as any).videos.findIndex(
+                        (v) => v?._id?.toString() === (b as any)?.selectedCampaignContentItemId?.toString(),
+                    )
+                    : -1;
+
+            return aIndex - bIndex;
+        });
+    } catch (e) {
+        console.warn(`Error sorting accounts in ${campaign._id}`, e)
+    }
 
     // getting cpm
     try {
         cpm = totalImpressions > 0
-                ? Math.round((campaignPrice * 1000 / totalImpressions) * 1000) / 1000
-                : null;
+            ? Math.round((campaignPrice * 1000 / totalImpressions) * 1000) / 1000
+            : null;
     } catch (e) {
         console.warn(`Can't retrieve cpm for campaign ${campaign._id}: ${e}`);
         cpm = null;
@@ -110,7 +208,7 @@ export const mapToClientCampaignForTable = (campaign: Campaign): ClientCampaignF
         creationDate: formatDate(campaign.createdAt),
         price: campaignPrice,
         status: campaign.statusCampaign,
-        addedAccounts: campaign.addedAccounts ?? [],
+        addedAccounts: proceedAccounts,
         campaignContent: campaign.campaignContent ?? (campaign as any).videos ?? [],
         shareLink: campaign.shareLink ?? null,
 
