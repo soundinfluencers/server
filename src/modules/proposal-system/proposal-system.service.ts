@@ -6,13 +6,12 @@ import {
     Logger,
     NotFoundException
 } from '@nestjs/common';
-import mongoose, {Types} from 'mongoose';
+import {Types} from 'mongoose';
 import {ProposalCampaignRepository} from "../../database/repositories/campaigns/proposal-campaign.repository";
-import {ProposalCampaignsListItem} from "./types/proposal-system.types";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {AdminRepository} from "../../database/repositories/users/admin.repository";
-import {CampaignContentItemDto, CreateCampaignDto, SelectInfluencerDto} from "../campaigns/dto/create-campaign.dto";
-import {Role} from "../../common/types/auth.types";
+import {CreateCampaignDto, SelectInfluencerDto} from "../campaigns/dto/create-campaign.dto";
+import {UserPayload} from "../../common/types/auth.types";
 import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
 import {CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
 import {
@@ -35,7 +34,25 @@ import {
     ProposalCampaignAccount,
     ProposalCampaignOption
 } from "../../database/schemas/campaign/proposal-campaign-option.schema";
-import {mapToSafeCampaignAccount} from "../../common/mappers/campaign.mapper";
+import {mapContentItemDtoToModel, mapToSafeCampaignAccount} from "../../common/mappers/campaign.mapper";
+import {uniq} from "../../common/utils/base.util";
+import {ObjId, toObjIdSafe} from "../../common/types/base.types";
+
+// -------------- PRIVATE TYPES -----------------
+
+type MinimalInfluencer = {
+    _id: ObjId;
+    instagram?: any[];
+    tiktok?: any[];
+    spotify?: any[];
+    soundcloud?: any[];
+    facebook?: any[];
+    youtube?: any[];
+    press?: any[];
+};
+type AccountKey = `${SocialMediaEnum}:${string}`; // sm:accountIdString
+type UsernameKey = `${SocialMediaEnum}:${string}`; // sm:username
+
 
 @Injectable()
 export class ProposalSystemService {
@@ -50,25 +67,238 @@ export class ProposalSystemService {
     ) {
     }
 
-    // Create new proposal campaign
-    async createProposalCampaign(data: CreateCampaignDto, creatorInfo: {
-        creatorId: string,
-        creatorRole: Role
-    }): Promise<CreatedProposalCampaignIdDto> {
-        const {creatorId, creatorRole} = creatorInfo;
 
-        if (!creatorId || !creatorRole) throw new BadRequestException("Not enough arguments");
+    // -------------- HELPERS -----------------
+
+
+    // builds object with ProposalCampaignAccount type from SelectInfluencerDto (dto which using for creating and updating campaigns)
+    private async buildProposalCampaignAccountsBatch(
+        addedAccountsData: SelectInfluencerDto[],
+    ): Promise<{ accounts: ProposalCampaignAccount[], privateCampaignPrice: number }> {
+        if (!addedAccountsData?.length) return {accounts: [], privateCampaignPrice: 0};
+
+        // 1) get only using social medias
+        const usedSocialMedia = uniq(
+            addedAccountsData.map(a => a.socialMedia).filter(Boolean)
+        );
+
+        // 2) get keys
+        const influencerIdStrs = uniq(
+            addedAccountsData.map(a => a.influencerId).filter(Boolean)
+        );
+
+        const influencerIds = influencerIdStrs
+            .map(toObjIdSafe)
+            .filter((x): x is ObjId => Boolean(x));
+
+        const socialAccountIdStrs = uniq(
+            addedAccountsData.map(a => a.socialAccountId).filter(Boolean)
+        );
+        const socialAccountIds = socialAccountIdStrs
+            .map(toObjIdSafe)
+            .filter((x): x is ObjId => Boolean(x));
+
+        // usernames as fallback
+        const usernamesByMedia = new Map<SocialMediaEnum, string[]>();
+        for (const a of addedAccountsData) {
+            if (!a.username) continue;
+            const arr = usernamesByMedia.get(a.socialMedia) ?? [];
+            arr.push(a.username);
+            usernamesByMedia.set(a.socialMedia, arr);
+        }
+        for (const [sm, arr] of usernamesByMedia) {
+            usernamesByMedia.set(sm, uniq(arr));
+        }
+
+        // 3) Projection: get only asked social medias + ids
+        const projection: Record<string, 1> = {_id: 1};
+        for (const sm of usedSocialMedia) projection[sm] = 1;
+
+        // 4) Request №1: by influencerIds
+        const influencers: MinimalInfluencer[] = influencerIds.length
+            ? await this.influencerRepo.findMany(
+                {_id: {$in: influencerIds}},
+                {lean: true, select: Object.keys(projection)} as any,
+            )
+            : [];
+
+        // 5) For elements without influencerId — request by accountId/username
+        const hasMissingInfluencerId = addedAccountsData.some(a => !a.influencerId);
+        if (hasMissingInfluencerId) {
+            const or: any[] = [];
+
+            if (socialAccountIds.length) {
+                for (const sm of usedSocialMedia) {
+                    or.push({[`${sm}._id`]: {$in: socialAccountIds}});
+                }
+            }
+
+            for (const [sm, names] of usernamesByMedia) {
+                if (names.length) or.push({[`${sm}.username`]: {$in: names}});
+            }
+
+            if (or.length) {
+                const extra: MinimalInfluencer[] = await this.influencerRepo.findMany(
+                    {$or: or},
+                    {lean: true, select: Object.keys(projection)} as any,
+                );
+
+                // merge unique by influencer _id
+                const seen = new Set(influencers.map(i => i._id.toString()));
+                for (const inf of extra) {
+                    const id = inf._id.toString();
+                    if (!seen.has(id)) {
+                        influencers.push(inf);
+                        seen.add(id);
+                    }
+                }
+            }
+        }
+
+        if (!influencers.length) return {accounts: [], privateCampaignPrice: 0};
+
+        // 6) Indexes in memory for O(1) matching
+        const byInfluencerId = new Map<string, MinimalInfluencer>();
+        const byAccountId = new Map<AccountKey, { influencerId: ObjId; acc: any }>();
+        const byUsername = new Map<UsernameKey, { influencerId: ObjId; acc: any }>();
+
+        for (const inf of influencers) {
+            byInfluencerId.set(inf._id.toString(), inf);
+
+            for (const sm of usedSocialMedia) {
+                const arr = (inf as any)[sm] as any[] | undefined;
+                if (!Array.isArray(arr) || !arr.length) continue;
+
+                for (const acc of arr) {
+                    if (!acc?._id) continue;
+
+                    const accIdStr = acc._id.toString();
+                    byAccountId.set(`${sm}:${accIdStr}`, {influencerId: inf._id, acc});
+
+                    const u = acc.username;
+                    if (u) byUsername.set(`${sm}:${u}`, {influencerId: inf._id, acc});
+                }
+            }
+        }
+
+        const result: ProposalCampaignAccount[] = [];
+        let privateCampaignPrice: number = 0;
+
+        // 7) Building CampaignAccount for each DTO item
+        const invalid: Array<{ index: number; reason: string }> = [];
+
+        for (let idx = 0; idx < addedAccountsData.length; idx++) {
+            const dto = addedAccountsData[idx];
+
+            const dtoInfluencerId = toObjIdSafe(dto.influencerId);
+            const dtoAccountId = toObjIdSafe(dto.socialAccountId);
+            const dtoUsername = dto.username;
+
+            let matched: { influencerId: ObjId; acc: any } | null = null;
+
+            if (dtoAccountId) {
+                matched = byAccountId.get(`${dto.socialMedia}:${dtoAccountId.toString()}`) ?? null;
+            } else if (dtoUsername) {
+                matched = byUsername.get(`${dto.socialMedia}:${dtoUsername}`) ?? null;
+            }
+
+            if (!matched) {
+                invalid.push({index: idx, reason: "Account not found for provided identifiers"});
+                continue;
+            }
+
+            if (dtoInfluencerId && matched.influencerId.toString() !== dtoInfluencerId.toString()) {
+                invalid.push({index: idx, reason: "InfluencerId does not match the resolved account"});
+                continue;
+            }
+
+            const acc = matched.acc;
+
+            // meta validation
+            if (!acc.isVerified) {
+                invalid.push({index: idx, reason: "Account is not verified"});
+                continue;
+            }
+            if (acc.isDeleted) {
+                invalid.push({index: idx, reason: "Account is deleted"});
+                continue;
+            }
+            if (acc.isHidden) {
+                invalid.push({index: idx, reason: "Account is hidden"});
+                continue;
+            }
+
+            // price validation
+            if (typeof acc.price !== "number" || acc.price < 0 || typeof acc.publicPrice !== "number" || acc.publicPrice < 0) {
+                invalid.push({index: idx, reason: "Invalid price/publicPrice"});
+                continue;
+            }
+
+            // selectedContent validation
+            if (!dto.selectedCampaignContentItem?.campaignContentItemId) {
+                invalid.push({index: idx, reason: "selectedCampaignContentItem.campaignContentItemId is required"});
+                continue;
+            }
+
+            privateCampaignPrice += acc.price;
+
+            result.push({
+                ...dto,
+                _id: new Types.ObjectId(),
+                username: acc.username,
+                influencerId: matched.influencerId,
+                accountId: acc._id,
+                followers: acc.followers,
+                price: acc.price,
+                publicPrice: acc.publicPrice,
+                selectedContent: {
+                    campaignContentItemId: new Types.ObjectId(dto.selectedCampaignContentItem.campaignContentItemId),
+                    descriptionId: dto.selectedCampaignContentItem.descriptionId
+                        ? new Types.ObjectId(dto.selectedCampaignContentItem.descriptionId)
+                        : undefined,
+                },
+                confirmation: InfluencerConfirmationStatusEnum.wait,
+                closePromo: InfluencerPromoClosedStatusEnum.wait,
+                dateRequest: dto.dateRequest ?? null,
+                genres: acc.musicGenres ? getArrayFromAccountMusicGenres(acc.musicGenres) : undefined,
+                countries: acc.countries ?? undefined,
+            } satisfies ProposalCampaignAccount);
+        }
+
+        // if (invalid.length) {
+        //     throw new BadRequestException({
+        //         message: "Some addedAccounts items are invalid",
+        //         invalid,
+        //     });
+        // }
+
+        return {accounts: result, privateCampaignPrice: privateCampaignPrice};
+    }
+
+
+    // -------------- SERVICES -----------------
+
+
+    // Create new proposal campaign
+    async createProposalCampaign(
+        data: CreateCampaignDto,
+        creatorInfo: UserPayload,
+        existingCampaignId?: string,
+    ): Promise<CreatedProposalCampaignIdDto> {
+        const {_id, role} = creatorInfo;
+
+        if (!_id || !role) throw new BadRequestException("Not enough arguments");
 
         // check if creator exists
-        switch (creatorRole) {
+        switch (role) {
             case 'admin': {
-                const exists = await this.adminRepo.findById(creatorId);
+                const exists = await this.adminRepo.findById(_id);
                 if (!exists) throw new NotFoundException('Admin not found');
                 break;
             }
             case 'client': {
                 const exists = await this.clientRepo.exists({
-                    _id: new Types.ObjectId(creatorId),
+                    _id: new ObjId(_id),
                     isProposalClient: true
                 });
 
@@ -79,128 +309,62 @@ export class ProposalSystemService {
                 throw new ForbiddenException('Not enough access');
         }
 
-        // Price that only we can see. Users will see public price
-        let privateCampaignPrice = 0;
+        const processedAccounts: {
+            accounts: ProposalCampaignAccount[],
+            privateCampaignPrice: number
+        } = await this.buildProposalCampaignAccountsBatch(data.addedAccounts);
 
-        // processing added accounts for proposal campaign
-        const processedAccounts: ProposalCampaignAccount[] = await Promise.all(
-            data.addedAccounts.map(async (account: SelectInfluencerDto): Promise<ProposalCampaignAccount> => {
-                const dateRequest = account.dateRequest;
-
-                // find account's owner
-                const influencerData = await this.influencerRepo
-                    .findOne({
-                        $or: [
-                            {
-                                [`${account.socialMedia}._id`]: new mongoose.Types.ObjectId(
-                                    account.socialAccountId,
-                                )
-                            },
-                            {
-                                _id: new Types.ObjectId(account.influencerId)
-                            },
-                            {
-                                [`${account.socialMedia}.username`]: account.username
-                            }
-                        ]
-                    }, {lean: true});
-
-                if (!influencerData) {
-                    this.logger.log(
-                        `Did not find any influencer with influencerId: ${account.influencerId} or social accountId: ${account.socialAccountId} while creating proposal campaign ${data.campaignName}`,
-                    )
-                    return null;
-                }
-
-                const influencerId = influencerData._id.toString();
-
-                const socialMediaAccount = influencerData[account.socialMedia].find(
-                    (account) =>
-                        account.username === account.username
-                );
-
-                if (socialMediaAccount) {
-                    privateCampaignPrice += socialMediaAccount.price;
-
-                    return {
-                        ...account,
-                        _id: new mongoose.Types.ObjectId(),
-                        username: socialMediaAccount.username,
-                        influencerId: new Types.ObjectId(influencerId),
-                        accountId: new Types.ObjectId(account.socialAccountId),
-                        followers: socialMediaAccount.followers,
-                        price: socialMediaAccount.price,
-                        publicPrice: socialMediaAccount.publicPrice,
-                        selectedContent: {
-                            campaignContentItemId: new Types.ObjectId(
-                                account.selectedCampaignContentItem.campaignContentItemId,
-                            ),
-                            descriptionId: new Types.ObjectId(
-                                account.selectedCampaignContentItem.descriptionId,
-                            ),
-                        },
-                        confirmation: InfluencerConfirmationStatusEnum.wait,
-                        closePromo: InfluencerPromoClosedStatusEnum.wait,
-                        countries: socialMediaAccount.countries ?? undefined,
-                        genres: socialMediaAccount.musicGenres ? getArrayFromAccountMusicGenres(socialMediaAccount.musicGenres) : undefined,
-                        createdAt: new Date(),
-                        dateRequest,
-                    } satisfies ProposalCampaignAccount;
-                }
-
-                return null
-            }).filter(Boolean),
-        );
-
-        // processing campaign content items
-        const processedCampaignContent: CampaignContentItem[] = await Promise.all(
-            data.campaignContent.map(async (campaignContentItem: CampaignContentItemDto): Promise<CampaignContentItem> => ({
-                _id: new mongoose.Types.ObjectId(campaignContentItem._id),
-                mainLink: campaignContentItem.mainLink.trim(),
-                socialMedia: campaignContentItem.socialMedia as SocialMediaEnum,
-                socialMediaGroup: campaignContentItem.socialMediaGroup,
-                descriptions: campaignContentItem?.descriptions.map((pd) => ({
-                    _id: new mongoose.Types.ObjectId(pd._id),
-                    description: pd.description.trim(),
-                })) ?? undefined,
-                taggedUser: campaignContentItem.taggedUser?.trim() ?? undefined,
-                taggedLink: campaignContentItem.taggedLink?.trim() ?? undefined,
-                additionalBrief: campaignContentItem.additionalBrief?.trim() ?? undefined,
-            } satisfies CampaignContentItem)),
-        );
-
-        const campaignId = new Types.ObjectId();
-        const campaignOptionId = new Types.ObjectId();
-
-        // building campaign with ProposalCampaign type
-        const proposalCampaignDto: ProposalCampaign = {
-            _id: campaignId,
-            schemaVersion: 2,
-            creatorId: new Types.ObjectId(creatorId),
-            creatorRole: creatorRole,
-            socialMedia: data.socialMedia,
-            campaignName: data.campaignName.trim(),
-            optionsIds: [campaignOptionId]
+        if (processedAccounts?.accounts?.length === 0) {
+            throw new BadRequestException('No valid influencers provided');
         }
 
-        // building campaign option with ProposalCampaign type
-        const proposalCampaignOptionDto: ProposalCampaignOption = {
-            _id: campaignOptionId,
-            creatorId: new Types.ObjectId(creatorId),
-            creatorRole: creatorRole,
-            proposalCampaignId: campaignId,
-            schemaVersion: 1,
-            publicCampaignPrice: data.campaignPrice,
-            privateCampaignPrice: data.campaignPrice,
-            addedAccounts: processedAccounts,
-            campaignContent: processedCampaignContent,
-        }
+        const processedCampaignContent: CampaignContentItem[] = data.campaignContent.map(
+            (campaignContentItem) => mapContentItemDtoToModel(campaignContentItem)
+        );
+
+        if (processedCampaignContent.length === 0) throw new BadRequestException('No valid campaign content provided')
 
         const session = await this.proposalCampaignRepo.startSession();
         session.startTransaction();
 
         try {
-            await this.proposalCampaignRepo.create<ProposalCampaign>(proposalCampaignDto, {session});
+            const campaignId = existingCampaignId ? new ObjId(existingCampaignId) : new ObjId();
+            const campaignOptionId = new ObjId();
+
+            // building campaign with ProposalCampaign type
+            await this.proposalCampaignRepo.findOneAndUpdate(
+                { _id: campaignId },
+                {
+                    $setOnInsert: {
+                        _id: campaignId,
+                        schemaVersion: 2,
+                        creatorId: new ObjId(_id),
+                        creatorRole: role,
+                        socialMedia: data.socialMedia,
+                        campaignName: data.campaignName.trim(),
+                    },
+                    $push: { optionsIds: campaignOptionId },
+                },
+                {
+                    upsert: true,
+                    session,
+                    new: true,
+                }
+            );
+
+            // building campaign option with ProposalCampaignOption type
+            const proposalCampaignOptionDto: ProposalCampaignOption = {
+                _id: campaignOptionId,
+                creatorId: new ObjId(_id),
+                creatorRole: role,
+                proposalCampaignId: campaignId,
+                schemaVersion: 1,
+                publicCampaignPrice: data.campaignPrice,
+                privateCampaignPrice: processedAccounts.privateCampaignPrice ?? data.campaignPrice,
+                addedAccounts: processedAccounts.accounts,
+                campaignContent: processedCampaignContent,
+            }
+
             await this.proposalCampaignOptionRepo.create<ProposalCampaignOption>(proposalCampaignOptionDto, {session});
 
             await session.commitTransaction();
@@ -208,6 +372,7 @@ export class ProposalSystemService {
             return {campaignId: campaignId.toString()};
         } catch (err) {
             await session.abortTransaction();
+            this.logger.error("Error creating new proposal campaign", err);
             throw new InternalServerErrorException('Error creating proposal campaign');
         } finally {
             await session.endSession();
@@ -305,321 +470,4 @@ export class ProposalSystemService {
             selectedOption: proposalCampaignOption,
         };
     }
-
-    // TODO: finish
-    async getAllProposalCampaigns(limit: number, page: number): Promise<ProposalCampaignsListItem[]> {
-        limit = Number(limit ?? 12);
-        page = Number(page ?? 1);
-
-        if (!Number.isInteger(limit) || limit <= 0) {
-            throw new BadRequestException('Invalid limit');
-        }
-
-        if (!Number.isInteger(page) || page <= 0) {
-            throw new BadRequestException('Invalid page');
-        }
-
-        return [];
-    };
-
-    // async getProposalCampaignById(campaignId: string): Promise<any> {
-    //     if (!campaignId) {
-    //         return {
-    //             status: 400,
-    //             message: 'Campaign ID is required',
-    //         };
-    //     }
-    //
-    //     try {
-    //         const proposalCampaign = await this.proposalCampaignModel
-    //             .findOne({
-    //                 _id: new mongoose.Types.ObjectId(campaignId),
-    //             })
-    //             .lean()
-    //             .exec();
-    //
-    //         if (!proposalCampaign) {
-    //             return {
-    //                 status: 404,
-    //                 message: 'Proposal campaign not found',
-    //             };
-    //         }
-    //
-    //         let client = null;
-    //         try {
-    //             client = await this.clientModel.findOne({
-    //                 _id: proposalCampaign.clientId,
-    //             });
-    //         } catch (err) {
-    //             console.error('Error fetching client:', err);
-    //         }
-    //
-    //         const processedSelectInfluencers = proposalCampaign.selectInfluencers?.length
-    //             ? await Promise.all(
-    //                 proposalCampaign.selectInfluencers.map((acc) => {
-    //                     const selectedCampaignContentItem = proposalCampaign.campaignContent.find(c =>
-    //                         c._id.toString() === acc.selectedContent.campaignContentItemId.toString()
-    //                     );
-    //
-    //                     let selectedCampaignContent: any = null;
-    //
-    //                     if (selectedCampaignContentItem) {
-    //                         const postDesc =
-    //                             selectedCampaignContentItem.postDescriptions.find(
-    //                                 i => i._id.toString() === acc.selectedContent.postDescriptionId?.toString()
-    //                             )?.description ?? "";
-    //
-    //                         selectedCampaignContent = {
-    //                             _id: selectedCampaignContentItem._id,
-    //                             videoLink: selectedCampaignContentItem.videoLink,
-    //                             postDescription: postDesc,
-    //                             storyTag: selectedCampaignContentItem.storyTag,
-    //                             storyLink: selectedCampaignContentItem.swipeUpLink,
-    //                             specialRequests: selectedCampaignContentItem.specialWishes,
-    //                             socialMedia: selectedCampaignContentItem.socialMedia,
-    //                         };
-    //                     }
-    //
-    //                     return {
-    //                         ...acc,
-    //                         selectedCampaignContentItem: selectedCampaignContent,
-    //                     };
-    //                 }),
-    //             )
-    //             : [];
-    //
-    //         const sortedInfluencers =
-    //             processedSelectInfluencers.length > 0 &&
-    //             processedSelectInfluencers.filter(influencer => influencer.selectedContent).sort((a, b) => {
-    //                 const aContentId = a.selectedContent;
-    //                 const bContentId = b.selectedContent;
-    //
-    //                 const aIndex = proposalCampaign.campaignContent
-    //                     ? proposalCampaign.campaignContent.findIndex(
-    //                         (content) => content._id.toString() === aContentId.campaignContentItemId.toString(),
-    //                     )
-    //                     : -1;
-    //
-    //                 const bIndex = proposalCampaign.campaignContent
-    //                     ? proposalCampaign.campaignContent.findIndex(
-    //                         (content) => content._id.toString() === bContentId.campaignContentItemId.toString(),
-    //                     )
-    //                     : -1;
-    //
-    //                 return aIndex - bIndex;
-    //             });
-    //
-    //         return {
-    //             status: 200,
-    //             proposalCampaign: {
-    //                 ...proposalCampaign,
-    //                 selectInfluencers: sortedInfluencers || [],
-    //                 client: client
-    //                     ? {
-    //                         clientId: client._id,
-    //                         firstName: client.firstName,
-    //                         email: client.email,
-    //                     }
-    //                     : null,
-    //                 createdAt: proposalCampaign.createdAt,
-    //             },
-    //         };
-    //     } catch (err) {
-    //         console.error('Error fetching proposal campaign:', err);
-    //         return {
-    //             status: 500,
-    //             message: 'An unknown error occurred',
-    //         };
-    //     }
-    // }
-    //
-    // async deleteProposalCampaign(campaignId: string, campaignName: string) {
-    //     if (!campaignId || !campaignName) {
-    //         return {
-    //             status: 400,
-    //             message: 'Campaign ID and Campaign Name is required',
-    //         };
-    //     }
-    //
-    //     try {
-    //         await this.proposalCampaignModel.findOneAndDelete({
-    //             _id: new mongoose.Types.ObjectId(campaignId),
-    //             campaignName: campaignName,
-    //         });
-    //
-    //         return {
-    //             status: 200,
-    //             message: `Proposal campaign "${campaignName}" deleted successfully`,
-    //         };
-    //     } catch (err) {
-    //         console.error('Error deleting proposal campaign:', err);
-    //         return {
-    //             status: 500,
-    //             message: 'An unknown error occurred',
-    //         };
-    //     }
-    // }
-    //
-    // async sendMailToAdminAboutChangingProposalCampaign(campaignId: string, campaignName: string) {
-    //     if (!campaignId || !campaignName) {
-    //         return {
-    //             status: 400,
-    //             message: 'Campaign ID and Campaign Name is required',
-    //         };
-    //     }
-    //
-    //     try {
-    //         const campaignClientId = await this.proposalCampaignModel
-    //             .findOne({
-    //                 _id: new mongoose.Types.ObjectId(campaignId),
-    //                 campaignName: campaignName,
-    //             })
-    //             .select('clientId');
-    //
-    //         if (!campaignClientId) {
-    //             return {
-    //                 status: 404,
-    //                 message: 'Proposal campaign not found',
-    //             };
-    //         }
-    //
-    //         const clientName = await this.clientModel
-    //             .findOne({
-    //                 _id: campaignClientId.clientId,
-    //             })
-    //             .select('firstName');
-    //
-    //         await sendMail(
-    //             // "nazarkozynets030606@zohomail.eu",
-    //             'admin@soundinfluencers.com',
-    //             'soundinfluencers',
-    //             `<p>The client <b>${clientName.firstName}</b> wants to talk about changes to the <b>"${campaignName}"</b> proposal campaign</p>`,
-    //             'html',
-    //         );
-    //
-    //         return {
-    //             status: 200,
-    //             message: `Proposal campaign "${campaignName}" sent to admin successfully`,
-    //         };
-    //     } catch (err) {
-    //         console.error('Error sending email to admin:', err);
-    //         return {
-    //             status: 500,
-    //             message: 'An unknown error occurred',
-    //         };
-    //     }
-    // }
-    //
-    // async approveProposalCampaign(campaignId: string) {
-    //     if (!campaignId) {
-    //         return {
-    //             code: 400,
-    //             message: 'Campaign ID is required',
-    //         };
-    //     }
-    //
-    //     const session = await this.connection.startSession();
-    //     session.startTransaction();
-    //
-    //     try {
-    //         const proposalCampaign = await this.proposalCampaignModel
-    //             .findById(campaignId)
-    //             .session(session);
-    //
-    //         if (!proposalCampaign) {
-    //             await session.abortTransaction();
-    //             return {
-    //                 code: 404,
-    //                 message: 'Proposal campaign not found',
-    //             };
-    //         }
-    //
-    //         if (
-    //             proposalCampaign.selectInfluencers?.length === 0 ||
-    //             proposalCampaign.campaignContent?.length === 0
-    //         ) {
-    //             await session.abortTransaction();
-    //             return {
-    //                 code: 500,
-    //                 message: `Proposal isn't ready for approve`,
-    //             };
-    //         }
-    //
-    //         const processedAccounts = proposalCampaign.selectInfluencers
-    //             .map(account => {
-    //                 if (
-    //                     !account.selectedContent.campaignContentItemId ||
-    //                     !account.selectedContent.postDescriptionId
-    //                 ) return null;
-    //
-    //                 return {
-    //                     influencerId: undefined,
-    //                     socialMediaAccountId: account.influencerId.toString(),
-    //                     socialMedia: account.socialMedia,
-    //                     socialMediaUsername: account.socialMediaUsername,
-    //                     selectedCampaignContentItem: {
-    //                         campaignContentItemId: account.selectedContent.campaignContentItemId.toString(),
-    //                         postDescriptionId: account.selectedContent.postDescriptionId.toString(),
-    //                     },
-    //                     dateRequest: account.dateRequest,
-    //                 };
-    //             })
-    //             .filter(Boolean);
-    //
-    //         const processedCampaignContent = proposalCampaign.campaignContent.map(campaignContentItem => ({
-    //             _id: campaignContentItem._id.toString(),
-    //             videoLink: campaignContentItem.videoLink,
-    //             postDescriptions: campaignContentItem.postDescriptions.map(i => ({
-    //                 description: i.description,
-    //                 _id: i._id.toString(),
-    //             })),
-    //             storyTag: campaignContentItem.storyTag ?? "",
-    //             swipeUpLink: campaignContentItem.swipeUpLink ?? "",
-    //             specialWishes: campaignContentItem.specialWishes ?? "",
-    //             socialMedia: campaignContentItem.socialMedia ?? "instagram",
-    //             socialMediaGroup: campaignContentItem.socialMediaGroup ?? "main"
-    //         }));
-    //
-    //         const formattedCampaign = {
-    //             clientId: proposalCampaign.clientId.toString() || '66f540faaf4e960d2f9bebfc',
-    //             campaignName: proposalCampaign.campaignName,
-    //             paymentType: 'Bank transfer',
-    //             paymentStatus: 'wait',
-    //             campaignPrice: proposalCampaign.price,
-    //             createdAt: proposalCampaign.createdAt.toString(),
-    //             socialMedia: proposalCampaign.socialMedia,
-    //             selectInfluencers: processedAccounts,
-    //             campaignContent: processedCampaignContent,
-    //         };
-    //
-    //         const resultOfDeletingProposal = await this.proposalCampaignModel
-    //             .deleteOne({_id: proposalCampaign._id})
-    //             .session(session);
-    //
-    //         if (resultOfDeletingProposal.deletedCount !== 1) {
-    //             throw new Error('Error while deleting proposal campaign');
-    //         }
-    //
-    //         const resultOfCreating = await this.campaignsService.createCampaign(formattedCampaign);
-    //
-    //         await session.commitTransaction();
-    //
-    //         return {
-    //             code: 201,
-    //             message: 'Campaign approved successfully',
-    //         };
-    //     } catch (e) {
-    //         await session.abortTransaction();
-    //         this.logger.error(
-    //             `Error approving proposal campaign: ${e}`,
-    //             e instanceof Error ? e.stack : new Error().stack,
-    //         );
-    //         return {
-    //             code: 500,
-    //             message: 'An unknown error occurred, transaction rolled back',
-    //         };
-    //     } finally {
-    //         await session.endSession();
-    //     }
-    // }
 }

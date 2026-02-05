@@ -1,6 +1,6 @@
 import {Body, Controller, Get, Param, Patch, Post, Query, Req} from '@nestjs/common';
 import {ProposalSystemService} from './proposal-system.service';
-import {ApiOperation, ApiQuery, ApiTags} from "@nestjs/swagger";
+import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
@@ -20,11 +20,20 @@ export class ProposalSystemController {
 
     @Auth()
     @Roles(Role.client, Role.admin)
-    @ApiOperation({summary: 'Create a proposal campaign'})
+    @ApiOperation({summary: 'Create a proposal campaign or add new option to existing campaign (if request with query campaignId)'})
     @ApiResponseDto(CreatedProposalCampaignIdDto, {successStatusCode: 201})
+    @ApiQuery({
+        name: 'campaignId',
+        type: 'string',
+        required: false,
+    })
     @Post()
-    createProposalCampaign(@Req() req: AuthenticatedRequest, @Body() data: CreateCampaignDto): Promise<CreatedProposalCampaignIdDto> {
-        return this.proposalSystemService.createProposalCampaign(data, {creatorId: req.user._id, creatorRole: req.user.role});
+    createProposalCampaign(
+        @Req() req: AuthenticatedRequest,
+        @Body() data: CreateCampaignDto,
+        @Query('campaignId') campaignId?: string
+    ): Promise<CreatedProposalCampaignIdDto> {
+        return this.proposalSystemService.createProposalCampaign(data, req.user, campaignId);
     }
 
     // @Auth()
@@ -33,24 +42,6 @@ export class ProposalSystemController {
     // updateProposalCampaign(@Body() data: UpdateProposalCampaignDto) {
     //     return this.proposalSystemService.updateProposalCampaign(data);
     // }
-
-    @Auth()
-    @Roles(Role.admin)
-    @ApiQuery({
-        name: 'limit',
-        required: false,
-        type: 'number',
-    })
-    @ApiQuery({
-        name: 'page',
-        required: false,
-        type: 'number',
-    })
-    @Get('')
-    async getAllProposalCampaigns(@Query() query: GetProposalCampaignsQueryDto): Promise<ProposalCampaignsListDto> {
-        const campaigns = await this.proposalSystemService.getAllProposalCampaigns(query.limit, query.page);
-        return ({campaigns});
-    }
 
     @Auth()
     @Roles(Role.client, Role.admin)
@@ -66,7 +57,7 @@ export class ProposalSystemController {
         @Req() request: AuthenticatedRequest,
         @Query('optionIndex') optionIndex: number,
         @Param('campaignId') campaignId: string,
-        ): Promise<ProposalCampaignWithOptionDto> {
+    ): Promise<ProposalCampaignWithOptionDto> {
         return this.proposalSystemService.getProposalCampaign({
             userId: request.user._id,
             userRole: request.user.role,
@@ -74,46 +65,4 @@ export class ProposalSystemController {
             optionIndex: optionIndex,
         });
     }
-
-    // // TODO
-    // @Get('get-proposal-campaign/:id')
-    // getProposalCampaignById(@Param('id') id: string) {
-    //     if (!id) return;
-    //     return this.proposalSystemService.getProposalCampaignById(id);
-    // }
-    //
-    // // TODO
-    // @Delete('delete-proposal-campaign/:campaignId/:campaignName')
-    // deleteProposalCampaign(
-    //     @Param('campaignId') campaignId: string,
-    //     @Param('campaignName') campaignName: string,
-    // ) {
-    //     const decodedCampaignId = decodeAndDecrypt(
-    //         campaignId,
-    //         process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
-    //     );
-    //     return this.proposalSystemService.deleteProposalCampaign(decodedCampaignId, campaignName);
-    // }
-    //
-    // // TODO
-    // @Post('send-email-to-admin-changes/:campaignId/:campaignName')
-    // sendMailToAdminAboutChangingProposalCampaign(
-    //     @Param('campaignId') campaignId: string,
-    //     @Param('campaignName') campaignName: string,
-    // ) {
-    //     const decodedCampaignId = decodeAndDecrypt(
-    //         campaignId,
-    //         process.env.SERVER_API_ENCRYPTION_SECRET_KEY,
-    //     );
-    //     return this.proposalSystemService.sendMailToAdminAboutChangingProposalCampaign(
-    //         decodedCampaignId,
-    //         campaignName,
-    //     );
-    // }
-    //
-    // // TODO
-    // @Post('approve/:campaignId')
-    // approveProposalCampaign(@Param('campaignId') campaignId: string) {
-    //     return this.proposalSystemService.approveProposalCampaign(campaignId);
-    // }
 }
