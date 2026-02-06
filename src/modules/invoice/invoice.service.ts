@@ -18,6 +18,7 @@ import {ClientRepository} from "../../database/repositories/users/client.reposit
 import {EmailService} from "../email/email.service";
 import {InvoiceDetailsRepository} from "../../database/repositories/invoices/invoice-details.repository";
 import {Role} from "../../common/types/auth.types";
+import {ObjId} from "../../common/types/base.types";
 
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
@@ -152,7 +153,7 @@ export class InvoiceService {
 
             // Creating invoice
             const invoice = await this.influencerInvoiceRepository.create({
-                _id: new Types.ObjectId(),
+                _id: new ObjId(),
                 schemaVersion: 2,
                 influencerId: influencer._id,
                 status: InvoiceStatusEnum.submitted,
@@ -163,9 +164,30 @@ export class InvoiceService {
                 amount: data.amount,
                 selectedPaymentMethod: data.selectedPaymentMethod,
 
-                ...(data.ukBankTransfer ? {ukBankTransfer: data.ukBankTransfer} : {}),
-                ...(data.internationalBankTransfer ? {internationalBankTransfer: data.internationalBankTransfer} : {}),
-                ...(data.paypal ? {paypal: data.paypal} : {}),
+                ...(data.ukBankTransfer ? {
+                    ukBankTransfer: {
+                        ...data.ukBankTransfer,
+                        _id: new ObjId(),
+                        userId: new ObjId(data.influencerId),
+                        userRole: Role.influencer
+                    }
+                } : {}),
+                ...(data.internationalBankTransfer ? {
+                    internationalBankTransfer: {
+                        ...data.internationalBankTransfer,
+                        _id: new ObjId(),
+                        userId: new ObjId(data.influencerId),
+                        userRole: Role.influencer
+                    }
+                } : {}),
+                ...(data.paypal ? {
+                    paypal: {
+                        ...data.paypal,
+                        _id: new ObjId(),
+                        userId: new ObjId(data.influencerId),
+                        userRole: Role.influencer
+                    }
+                } : {}),
                 ...(data.company ? {company: data.company} : {}),
                 ...(data.vatNumber ? {vatNumber: data.vatNumber} : {}),
             } satisfies InfluencerInvoice, {session});
@@ -321,7 +343,7 @@ export class InvoiceService {
             influencerId: new Types.ObjectId(influencerId)
         }, {
             lean: true,
-            sort: ({ createdAt: -1 })
+            sort: ({createdAt: -1})
         })
 
         return {

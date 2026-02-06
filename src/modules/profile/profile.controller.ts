@@ -29,6 +29,8 @@ import {
 import {SocialAccountSortByEnum} from "../../common/types/influencer/influencer.types";
 import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
 import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details.dto";
+import {PaymentDetailsDto, PaymentMethodRequestEnum, UpdatePaymentDetailsDto} from "./dto/payment-details.dto";
+import {InvoicePaymentMethodEnum} from "../../common/types/influencer/invoice.types";
 
 @ApiTags('profile')
 @Controller('profile')
@@ -94,6 +96,30 @@ export class ProfileController {
     @Patch('/invoice-details')
     updateInvoiceDetails(@Req() request: AuthenticatedRequest, @Body() data: UpdateInvoiceDetailsDto): Promise<InvoiceDetailsDto> {
         return this.profileService.updateInvoiceDetails({...data, userId: request.user._id, userRole: request.user.role});
+    }
+
+    @Auth()
+    @Roles(Role.client, Role.influencer)
+    @ApiOperation({summary: "Returns user's payment details"})
+    @ApiResponseDto(PaymentDetailsDto)
+    @ApiQuery({
+        name: 'method',
+        type: 'string',
+        enum: PaymentMethodRequestEnum,
+        required: false
+    })
+    @Get('/payment-details')
+    getPaymentDetails(@Req() req: AuthenticatedRequest, @Query('method') paymentMethod = PaymentMethodRequestEnum.all): Promise<PaymentDetailsDto> {
+        return this.profileService.getPaymentDetails(req.user, paymentMethod);
+    }
+
+    @Auth()
+    @Roles(Role.client, Role.influencer)
+    @ApiOperation({summary: "Updates user's payment details"})
+    @ApiResponseDto(PaymentDetailsDto)
+    @Patch('/payment-details')
+    updatePaymentDetails(@Req() req: AuthenticatedRequest, @Body() data: UpdatePaymentDetailsDto): Promise<PaymentDetailsDto> {
+        return this.profileService.updatePaymentDetailsOrchestrator(data, req.user);
     }
 
     @Auth()

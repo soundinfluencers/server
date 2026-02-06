@@ -13,74 +13,7 @@ import {
 } from 'class-validator';
 import {InvoicePaymentMethodEnum} from "../../../common/types/influencer/invoice.types";
 import {Type} from "class-transformer";
-
-// dto for UK Bank Transfer payment method
-export class UKBankTransferDto {
-    @ApiProperty()
-    @IsString()
-    @IsNotEmpty()
-    beneficiary: string;
-
-    @ApiProperty()
-    @IsString()
-    @IsNotEmpty()
-    beneficiaryAddress: string;
-
-    @ApiProperty()
-    @IsString()
-    @IsNotEmpty()
-    sortCode: string;
-
-    @ApiProperty()
-    @IsString()
-    @IsNotEmpty()
-    accountNumber: string;
-}
-
-// dto for International Bank Transfer payment method
-export class InternationalBankTransferDto {
-    @ApiProperty()
-    @IsString()
-    @IsNotEmpty()
-    beneficiary: string;
-
-    @ApiProperty()
-    @IsString()
-    @IsNotEmpty()
-    beneficiaryAddress: string;
-
-    @ApiProperty()
-    @IsString()
-    @IsNotEmpty()
-    iban: string;
-
-    @ApiProperty()
-    @IsString()
-    @IsNotEmpty()
-    bankName: string;
-
-    @ApiProperty()
-    @IsString()
-    @IsNotEmpty()
-    bankCountry: string;
-
-    @ApiProperty()
-    @IsString()
-    @IsNotEmpty()
-    bankAccountCurrency: string;
-
-    @ApiProperty()
-    @IsString()
-    @IsNotEmpty()
-    swiftBicCode: string;
-}
-
-// dto for PayPal payment method
-export class PayPalDto {
-    @ApiProperty()
-    @IsEmail()
-    paypalEmail?: string;
-}
+import {InternationalBankTransferDto, PayPalDto, UKBankTransferDto} from "../../profile/dto/payment-details.dto";
 
 // dto for creating new influencer's invoice
 export class CreateInvoiceDto {

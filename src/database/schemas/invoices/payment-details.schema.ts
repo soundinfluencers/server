@@ -76,7 +76,7 @@ export class PayPalDetails {
     @Prop({ required: true, type: String, enum: Role })
     userRole: Role;
 
-    @Prop({ required: false, type: String })
+    @Prop({ required: true, type: String })
     paypalEmail?: string;
 }
 

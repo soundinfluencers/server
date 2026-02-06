@@ -1,7 +1,9 @@
 import {
     BadRequestException,
     ConflictException,
-    Injectable, InternalServerErrorException, Logger,
+    Injectable,
+    InternalServerErrorException,
+    Logger,
     NotFoundException,
     UnauthorizedException
 } from '@nestjs/common';
@@ -28,14 +30,9 @@ import {MigrateAccountDto} from "../migrations/dto/migrate-account.dto";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
-import {Role} from "../../common/types/auth.types";
+import {Role, UserPayload} from "../../common/types/auth.types";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
-import {CreateSocialAccountDto} from "../auth/dto/create-influencer.dto";
-import {
-    getArrayFromMusicGenreDto,
-    normalizeDtoToMusicGenres,
-    normalizeStringToMusicGenres
-} from "../../common/utils/genres";
+import {normalizeDtoToMusicGenres, normalizeStringToMusicGenres} from "../../common/utils/genres";
 import {InfluencerAccountDetails, SocialAccountDetails} from "../../common/types/influencer/influencer.types";
 import {mapInfluencerToAccountDetailsDto, mapToSocialAccountDetailsDto} from "../../common/mappers/influencer.mapper";
 import {ClientAccountDetails} from "../../common/types/client/client.types";
@@ -50,7 +47,25 @@ import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
 import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details.dto";
 import {InvoiceDetailsRepository} from "../../database/repositories/invoices/invoice-details.repository";
 import {mapToInvoiceDetailsDto} from "../../common/mappers/invoice.mapper";
-import {InvoiceDetails} from "../../database/schemas/invoices/invoice-details.schema";
+import {
+    InternationalBankTransferDto,
+    PaymentDetailsDto,
+    PaymentMethodRequestEnum, PayPalDto,
+    UKBankTransferDto,
+    UpdatePaymentDetailsDto
+} from "./dto/payment-details.dto";
+import {UkBankTransferDetailsRepository} from "../../database/repositories/invoices/uk-transfer-details.repository";
+import {
+    InternationalBankTransferDetailsRepository
+} from "../../database/repositories/invoices/international-transfer-details.repository";
+import {PaypalDetailsRepository} from "../../database/repositories/invoices/paypal-details.repository";
+import {ObjId} from "../../common/types/base.types";
+import {
+    mapToInternationalBankTransferDto,
+    mapToPayPalDto,
+    mapToUkBankTransferDto
+} from "../../common/mappers/payment-details.mapper";
+import {InvoicePaymentMethodEnum} from "../../common/types/influencer/invoice.types";
 
 const bcrypt = require('bcryptjs');
 
@@ -60,9 +75,15 @@ export class ProfileService {
 
     constructor(
         private readonly webSocketService: AppGateway,
+        // users
         private readonly clientRepo: ClientRepository,
         private readonly influencerRepo: InfluencerRepository,
+        // invoice details
         private readonly invoiceDetailsRepo: InvoiceDetailsRepository,
+        // payment details
+        private readonly ukTransferDetailsRepo: UkBankTransferDetailsRepository,
+        private readonly internationalTransferDetailsRepo: InternationalBankTransferDetailsRepository,
+        private readonly paypalDetailsRepo: PaypalDetailsRepository
     ) {
     }
 
@@ -76,6 +97,31 @@ export class ProfileService {
 
     private escapeRegex = (input: string): string => {
         return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+
+    // ------------- ORCHESTRATORS -------------
+
+
+    // Updates user's payment details
+    async updatePaymentDetailsOrchestrator(data: UpdatePaymentDetailsDto, userInfo: UserPayload): Promise<PaymentDetailsDto> {
+        let paymentDetails: PaymentDetailsDto = {};
+
+        switch (data.selectedPaymentMethod) {
+            case InvoicePaymentMethodEnum.ukBankTransfer:
+                paymentDetails.ukBankTransfer = await this.updateUkTransferDetails(data.ukBankTransfer, userInfo);
+                break;
+            case InvoicePaymentMethodEnum.internationalBankTransfer:
+                paymentDetails.internationalBankTransfer = await this.updateInternationalTransferDetails(data.internationalBankTransfer, userInfo);
+                break;
+            case InvoicePaymentMethodEnum.paypal:
+                paymentDetails.paypal = await this.updatePaypalDetails(data.paypal, userInfo);
+                break;
+            default:
+                throw new BadRequestException('Unsupported payment method');
+        }
+
+        return paymentDetails;
     }
 
 
@@ -189,7 +235,7 @@ export class ProfileService {
 
         return mapToInvoiceDetailsDto(invoiceDetails);
     }
-    
+
     // Updates user's invoice details {
     async updateInvoiceDetails(data: UpdateInvoiceDetailsDto): Promise<InvoiceDetailsDto> {
         const {userId, userRole, firstName, lastName, address, country, company, vatNumber} = data;
@@ -224,6 +270,192 @@ export class ProfileService {
         }
 
         return mapToInvoiceDetailsDto(updatedInvoiceDetails);
+    }
+
+    // Returns current user payment methods details
+    async getPaymentDetails(
+        userInfo: UserPayload,
+        selectedPaymentMethod: PaymentMethodRequestEnum = PaymentMethodRequestEnum.all
+    ): Promise<PaymentDetailsDto> {
+        let paymentDetails: PaymentDetailsDto = {};
+        switch (selectedPaymentMethod) {
+            case PaymentMethodRequestEnum.ukBankTransfer:
+                try {
+                    const ukDetails = await this.ukTransferDetailsRepo.findOne({
+                        userId: new ObjId(userInfo._id),
+                        userRole: userInfo.role
+                    });
+
+                    if (ukDetails) {
+                        paymentDetails.ukBankTransfer = mapToUkBankTransferDto(ukDetails);
+                    }
+                } catch (err) {
+                    this.logger.error(`Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`, err);
+                    throw new InternalServerErrorException(`Error getting payment details`);
+                }
+                break;
+            case PaymentMethodRequestEnum.internationalBankTransfer:
+                try {
+                    const internationalDetails = await this.internationalTransferDetailsRepo.findOne({
+                        userId: new ObjId(userInfo._id),
+                        userRole: userInfo.role
+                    });
+
+                    if (internationalDetails) {
+                        paymentDetails.internationalBankTransfer = mapToInternationalBankTransferDto(internationalDetails);
+                    }
+                } catch (err) {
+                    this.logger.error(`Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`, err);
+                    throw new InternalServerErrorException(`Error getting payment details`);
+                }
+                break;
+            case PaymentMethodRequestEnum.paypal:
+                try {
+                    const paypalDetails = await this.paypalDetailsRepo.findOne({
+                        userId: new ObjId(userInfo._id),
+                        userRole: userInfo.role
+                    });
+
+                    if (paypalDetails) {
+                        paymentDetails.paypal = mapToPayPalDto(paypalDetails);
+                    }
+                } catch (err) {
+                    this.logger.error(`Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`, err);
+                    throw new InternalServerErrorException(`Error getting payment details`);
+                }
+                break;
+            case PaymentMethodRequestEnum.all: {
+                try {
+                    const ukDetails = await this.ukTransferDetailsRepo.findOne({
+                        userId: new ObjId(userInfo._id),
+                        userRole: userInfo.role
+                    });
+
+                    if (ukDetails) {
+                        paymentDetails.ukBankTransfer = mapToUkBankTransferDto(ukDetails);
+                    }
+                } catch (err) {
+                    this.logger.error(`Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`, err);
+                }
+
+                try {
+                    const internationalDetails = await this.internationalTransferDetailsRepo.findOne({
+                        userId: new ObjId(userInfo._id),
+                        userRole: userInfo.role
+                    });
+
+                    if (internationalDetails) {
+                        paymentDetails.internationalBankTransfer = mapToInternationalBankTransferDto(internationalDetails);
+                    }
+                } catch (err) {
+                    this.logger.error(`Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`, err);
+                }
+
+                try {
+                    const paypalDetails = await this.paypalDetailsRepo.findOne({
+                        userId: new ObjId(userInfo._id),
+                        userRole: userInfo.role
+                    });
+
+                    if (paypalDetails) {
+                        paymentDetails.paypal = mapToPayPalDto(paypalDetails);
+                    }
+                } catch (err) {
+                    this.logger.error(`Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`, err);
+                }
+                break;
+            }
+            default:
+                throw new BadRequestException("Unknown payment method");
+        }
+
+        return paymentDetails;
+    }
+
+    // updates uk bank transfer details
+    private async updateUkTransferDetails(data: UKBankTransferDto, userInfo: UserPayload): Promise<UKBankTransferDto> {
+        const updateData: Partial<{
+            beneficiary: string;
+            beneficiaryAddress: string;
+            sortCode: string;
+            accountNumber: string;
+        }> = {};
+
+        if (data.beneficiary) updateData.beneficiary = data.beneficiary.trim();
+        if (data.beneficiaryAddress) updateData.beneficiaryAddress = data.beneficiaryAddress.trim();
+        if (data.sortCode) updateData.sortCode = data.sortCode.trim();
+        if (data.accountNumber) updateData.accountNumber = data.accountNumber.trim();
+
+        const updatedPaymentDetails = await this.ukTransferDetailsRepo.findOneAndUpdate(
+            {
+                userId: new ObjId(userInfo._id),
+                userRole: userInfo.role,
+            },
+            {$set: updateData},
+            {new: true, upsert: true}
+        );
+
+        if (!updatedPaymentDetails) {
+            throw new InternalServerErrorException("Something went wrong");
+        }
+
+        return mapToUkBankTransferDto(updatedPaymentDetails);
+    }
+
+    // updates international bank transfer details
+    private async updateInternationalTransferDetails(data: InternationalBankTransferDto, userInfo: UserPayload): Promise<InternationalBankTransferDto> {
+        const updateData: Partial<{
+            beneficiary: string;
+            beneficiaryAddress: string;
+            iban: string;
+            bankName: string;
+            bankCountry: string;
+            bankAccountCurrency: string;
+            swiftBicCode: string;
+        }> = {};
+
+        if (data.beneficiary) updateData.beneficiary = data.beneficiary.trim();
+        if (data.beneficiaryAddress) updateData.beneficiaryAddress = data.beneficiaryAddress.trim();
+        if (data.iban) updateData.iban = data.iban.trim();
+        if (data.bankName) updateData.bankName = data.bankName.trim();
+        if (data.bankCountry) updateData.bankCountry = data.bankCountry.trim();
+        if (data.bankAccountCurrency) updateData.bankAccountCurrency = data.bankAccountCurrency.trim();
+        if (data.swiftBicCode) updateData.swiftBicCode = data.swiftBicCode.trim();
+
+        const updatedPaymentDetails = await this.internationalTransferDetailsRepo.findOneAndUpdate(
+            {
+                userId: new ObjId(userInfo._id),
+                userRole: userInfo.role,
+            },
+            {$set: updateData},
+            {new: true, upsert: true}
+        );
+
+        if (!updatedPaymentDetails) {
+            throw new InternalServerErrorException("Something went wrong");
+        }
+
+        return mapToInternationalBankTransferDto(updatedPaymentDetails);
+    }
+
+    // updates paypal transfer details
+    private async updatePaypalDetails(data: PayPalDto, userInfo: UserPayload): Promise<PayPalDto> {
+        if (!data.paypalEmail) throw new BadRequestException('PayPal email required');
+
+        const updatedPaymentDetails = await this.paypalDetailsRepo.findOneAndUpdate(
+            {
+                userId: new ObjId(userInfo._id),
+                userRole: userInfo.role,
+            },
+            {$set: {paypalEmail: data.paypalEmail}},
+            {new: true, upsert: true}
+        );
+
+        if (!updatedPaymentDetails) {
+            throw new InternalServerErrorException("Something went wrong");
+        }
+
+        return mapToPayPalDto(updatedPaymentDetails);
     }
 
     // Updates user's password
@@ -287,7 +519,7 @@ export class ProfileService {
             {
                 $match: {
                     _id: new Types.ObjectId(influencerId),
-                    isDeleted: { $ne: true },
+                    isDeleted: {$ne: true},
                 }
             },
             {
