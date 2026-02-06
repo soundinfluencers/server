@@ -4,66 +4,13 @@ import {
     InvoicePaymentMethodEnum,
     InvoiceStatusEnum,
 } from '../../../common/types/influencer/invoice.types';
-
-// ------------- SUB SCHEMAS -------------
-
-
-@Schema({ _id: false })
-export class UKBankTransferDetails {
-    @Prop({ required: true, type: String })
-    beneficiary: string;
-
-    @Prop({ required: true, type: String })
-    beneficiaryAddress: string;
-
-    @Prop({ required: true, type: String })
-    sortCode: string;
-
-    @Prop({ required: true, type: String })
-    accountNumber: string;
-}
-
-export const UKBankTransferDetailsSchema =
-    SchemaFactory.createForClass(UKBankTransferDetails);
-
-@Schema({ _id: false })
-export class InternationalBankTransferDetails {
-    @Prop({ required: true, type: String })
-    beneficiary: string;
-
-    @Prop({ required: true, type: String })
-    beneficiaryAddress: string;
-
-    @Prop({ required: true, type: String })
-    iban: string;
-
-    @Prop({ required: true, type: String })
-    bankName: string;
-
-    @Prop({ required: true, type: String })
-    bankCountry: string;
-
-    @Prop({ required: true, type: String })
-    bankAccountCurrency: string;
-
-    @Prop({ required: true, type: String })
-    swiftBicCode: string;
-}
-
-export const InternationalBankTransferDetailsSchema =
-    SchemaFactory.createForClass(InternationalBankTransferDetails);
-
-@Schema({ _id: false })
-export class PayPalDetails {
-    @Prop({ required: false, type: String })
-    paypalEmail?: string;
-}
-
-export const PayPalDetailsSchema = SchemaFactory.createForClass(PayPalDetails);
-
-
-// ------------- MAIN SCHEMA -------------
-
+import {Role} from "../../../common/types/auth.types";
+import {
+    InternationalBankTransferDetails,
+    InternationalBankTransferDetailsSchema, PayPalDetails, PayPalDetailsSchema,
+    UKBankTransferDetails,
+    UKBankTransferDetailsSchema
+} from "./payment-details.schema";
 
 @Schema({
     timestamps: true,

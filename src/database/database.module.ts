@@ -31,6 +31,16 @@ import {InvoiceDetails, InvoiceDetailsSchema} from "./schemas/invoices/invoice-d
 import {InvoiceDetailsRepository} from "./repositories/invoices/invoice-details.repository";
 import {ProposalCampaignOption, ProposalCampaignOptionSchema} from "./schemas/campaign/proposal-campaign-option.schema";
 import {ProposalCampaignOptionRepository} from "./repositories/campaigns/proposal-campaign-option.repository";
+import {
+    InternationalBankTransferDetails, InternationalBankTransferDetailsSchema, PayPalDetails, PayPalDetailsSchema,
+    UKBankTransferDetails,
+    UKBankTransferDetailsSchema
+} from "./schemas/invoices/payment-details.schema";
+import {UkBankTransferDetailsRepository} from "./repositories/invoices/uk-transfer-details.repository";
+import {
+    InternationalBankTransferDetailsRepository
+} from "./repositories/invoices/international-transfer-details.repository";
+import {PaypalDetailsRepository} from "./repositories/invoices/paypal-details.repository";
 
 @Global()
 @Module({
@@ -49,6 +59,9 @@ import {ProposalCampaignOptionRepository} from "./repositories/campaigns/proposa
             { name: ProposalCampaignOption.name, schema: ProposalCampaignOptionSchema },
             { name: InfluencerInvoice.name, schema: InfluencerInvoiceSchema },
             { name: InvoiceDetails.name, schema: InvoiceDetailsSchema },
+            { name: UKBankTransferDetails.name, schema: UKBankTransferDetailsSchema },
+            { name: InternationalBankTransferDetails.name, schema: InternationalBankTransferDetailsSchema },
+            { name: PayPalDetails.name, schema: PayPalDetailsSchema },
             { name: ReportSizes.name, schema: ReportSizesSchema },
         ]),
     ],
@@ -66,6 +79,9 @@ import {ProposalCampaignOptionRepository} from "./repositories/campaigns/proposa
         ProposalCampaignOptionRepository,
         InfluencerInvoiceRepository,
         InvoiceDetailsRepository,
+        UkBankTransferDetailsRepository,
+        InternationalBankTransferDetailsRepository,
+        PaypalDetailsRepository,
         ReportSizeRepository,
     ],
     exports: [
@@ -82,6 +98,9 @@ import {ProposalCampaignOptionRepository} from "./repositories/campaigns/proposa
         ProposalCampaignOptionRepository,
         InfluencerInvoiceRepository,
         InvoiceDetailsRepository,
+        UkBankTransferDetailsRepository,
+        InternationalBankTransferDetailsRepository,
+        PaypalDetailsRepository,
         ReportSizeRepository,
     ],
 })
