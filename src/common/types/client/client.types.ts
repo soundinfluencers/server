@@ -7,4 +7,5 @@ export interface ClientAccountDetails {
 
     lastName?: string;
     profilePhotoUrl?: string;
+    isProposal?: boolean;
 }

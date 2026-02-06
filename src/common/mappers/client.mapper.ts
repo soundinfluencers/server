@@ -9,5 +9,6 @@ export const mapClientToAccountDetailsDto = (client: Client): ClientAccountDetai
         companyName: client.company,
         email: client.email,
         phone: client.phone,
+        isProposal: client.isProposalClient ?? false,
     }
 };

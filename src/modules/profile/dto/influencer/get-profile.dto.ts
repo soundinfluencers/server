@@ -107,6 +107,9 @@ export class ClientAccountDetailsDto implements ClientAccountDetails {
 
     @ApiProperty({example: '+380501234567'})
     phone: string;
+
+    @ApiPropertyOptional({type: Boolean})
+    isProposal?: boolean;
 }
 
 // query dto for getting detailed social account

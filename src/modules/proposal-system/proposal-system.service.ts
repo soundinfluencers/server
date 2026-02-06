@@ -1,5 +1,5 @@
 import {
-    BadRequestException,
+    BadRequestException, ConflictException,
     ForbiddenException,
     Injectable,
     InternalServerErrorException,
@@ -10,10 +10,10 @@ import {Types} from 'mongoose';
 import {ProposalCampaignRepository} from "../../database/repositories/campaigns/proposal-campaign.repository";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {AdminRepository} from "../../database/repositories/users/admin.repository";
-import {CreateCampaignDto, SelectInfluencerDto} from "../campaigns/dto/create-campaign.dto";
-import {UserPayload} from "../../common/types/auth.types";
+import {CampaignContentItemDto, CreateCampaignDto, SelectInfluencerDto} from "../campaigns/dto/create-campaign.dto";
+import {Role, UserPayload} from "../../common/types/auth.types";
 import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
-import {CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
+import {CampaignAccount, CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
 import {
     InfluencerConfirmationStatusEnum,
     InfluencerPromoClosedStatusEnum
@@ -37,6 +37,7 @@ import {
 import {mapContentItemDtoToModel, mapToSafeCampaignAccount} from "../../common/mappers/campaign.mapper";
 import {uniq} from "../../common/utils/base.util";
 import {ObjId, toObjIdSafe} from "../../common/types/base.types";
+import {UpdateCampaignDto} from "../campaigns/dto/update-campaign.dto";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -71,11 +72,28 @@ export class ProposalSystemService {
     // -------------- HELPERS -----------------
 
 
+    // checks if user have access for manipulating proposal campaign
+    private async checkProposalAccess(userId: string, userRole: Role): Promise<boolean> {
+        switch (userRole) {
+            case 'admin': {
+                return true;
+            }
+            case 'client': {
+                return await this.clientRepo.exists({
+                    _id: new ObjId(userId),
+                    isProposalClient: true
+                });
+            }
+            default:
+                return false;
+        }
+    }
+
     // builds object with ProposalCampaignAccount type from SelectInfluencerDto (dto which using for creating and updating campaigns)
     private async buildProposalCampaignAccountsBatch(
         addedAccountsData: SelectInfluencerDto[],
-    ): Promise<{ accounts: ProposalCampaignAccount[], privateCampaignPrice: number }> {
-        if (!addedAccountsData?.length) return {accounts: [], privateCampaignPrice: 0};
+    ): Promise<{ accounts: ProposalCampaignAccount[], publicCampaignPrice: number, privateCampaignPrice: number }> {
+        if (!addedAccountsData?.length) return {accounts: [], publicCampaignPrice: 0, privateCampaignPrice: 0};
 
         // 1) get only using social medias
         const usedSocialMedia = uniq(
@@ -155,7 +173,7 @@ export class ProposalSystemService {
             }
         }
 
-        if (!influencers.length) return {accounts: [], privateCampaignPrice: 0};
+        if (!influencers.length) return {accounts: [], publicCampaignPrice: 0, privateCampaignPrice: 0};
 
         // 6) Indexes in memory for O(1) matching
         const byInfluencerId = new Map<string, MinimalInfluencer>();
@@ -182,6 +200,7 @@ export class ProposalSystemService {
         }
 
         const result: ProposalCampaignAccount[] = [];
+        let publicCampaignPrice: number = 0;
         let privateCampaignPrice: number = 0;
 
         // 7) Building CampaignAccount for each DTO item
@@ -240,6 +259,7 @@ export class ProposalSystemService {
                 continue;
             }
 
+            publicCampaignPrice += acc.publicPrice;
             privateCampaignPrice += acc.price;
 
             result.push({
@@ -272,7 +292,7 @@ export class ProposalSystemService {
         //     });
         // }
 
-        return {accounts: result, privateCampaignPrice: privateCampaignPrice};
+        return {accounts: result, publicCampaignPrice: publicCampaignPrice, privateCampaignPrice: privateCampaignPrice};
     }
 
 
@@ -289,28 +309,11 @@ export class ProposalSystemService {
 
         if (!_id || !role) throw new BadRequestException("Not enough arguments");
 
-        // check if creator exists
-        switch (role) {
-            case 'admin': {
-                const exists = await this.adminRepo.findById(_id);
-                if (!exists) throw new NotFoundException('Admin not found');
-                break;
-            }
-            case 'client': {
-                const exists = await this.clientRepo.exists({
-                    _id: new ObjId(_id),
-                    isProposalClient: true
-                });
-
-                if (!exists) throw new NotFoundException('Client not found');
-                break;
-            }
-            default:
-                throw new ForbiddenException('Not enough access');
-        }
+        if (!await this.checkProposalAccess(_id, role)) throw new ForbiddenException('Not enough access');
 
         const processedAccounts: {
             accounts: ProposalCampaignAccount[],
+            publicCampaignPrice: number,
             privateCampaignPrice: number
         } = await this.buildProposalCampaignAccountsBatch(data.addedAccounts);
 
@@ -333,7 +336,7 @@ export class ProposalSystemService {
 
             // building campaign with ProposalCampaign type
             await this.proposalCampaignRepo.findOneAndUpdate(
-                { _id: campaignId },
+                {_id: campaignId},
                 {
                     $setOnInsert: {
                         _id: campaignId,
@@ -343,7 +346,7 @@ export class ProposalSystemService {
                         socialMedia: data.socialMedia,
                         campaignName: data.campaignName.trim(),
                     },
-                    $push: { optionsIds: campaignOptionId },
+                    $push: {optionsIds: campaignOptionId},
                 },
                 {
                     upsert: true,
@@ -359,7 +362,7 @@ export class ProposalSystemService {
                 creatorRole: role,
                 proposalCampaignId: campaignId,
                 schemaVersion: 1,
-                publicCampaignPrice: data.campaignPrice,
+                publicCampaignPrice: data.campaignPrice ?? processedAccounts.publicCampaignPrice,
                 privateCampaignPrice: processedAccounts.privateCampaignPrice ?? data.campaignPrice,
                 addedAccounts: processedAccounts.accounts,
                 campaignContent: processedCampaignContent,
@@ -379,43 +382,111 @@ export class ProposalSystemService {
         }
     }
 
-    // Update proposal campaign
-    // async updateProposalCampaign(data: UpdateProposalCampaignDto) {
-    //     if (!data.campaignName) throw new BadRequestException("Not enough arguments");
-    //
-    //     let proposalCampaign = await this.proposalCampaignRepo.findOne({
-    //         _id: new Types.ObjectId(data.campaignId),
-    //     });
-    //
-    //     if (!proposalCampaign) {
-    //         throw new NotFoundException('Campaign not found');
-    //     } else {
-    //         await this.proposalCampaignRepo.updateOne(
-    //             {
-    //                 _id: new Types.ObjectId(data.campaignId),
-    //             },
-    //             {
-    //                 clientId: data.clientId
-    //                     ? new Types.ObjectId(data.clientId)
-    //                     : new Types.ObjectId('66f540faaf4e960d2f9bebfc'),
-    //                 campaignName: data.campaignName.trim(),
-    //                 addedAccounts: data.addedAccounts.map(account => ({
-    //                     ...account,
-    //                     selectedContent: {
-    //                         campaignContentItemId: new Types.ObjectId(account.selectedContent.campaignContentItemId),
-    //                         postDescriptionId: new Types.ObjectId(account.selectedContent.postDescriptionId)
-    //                     }
-    //                 })),
-    //                 campaignContent: data.campaignContent,
-    //                 price: data.price,
-    //                 publicPrice: data.publicPrice,
-    //                 totalFollowers: data.totalFollowers,
-    //                 socialMedia: data.socialMedia,
-    //                 hiddenColumns: data.hiddenColumns,
-    //             },
-    //         );
-    //     }
-    // }
+    // Updates proposal campaign option
+    async updateProposalCampaignOption(data: UpdateCampaignDto, userInfo: UserPayload): Promise<ProposalCampaignWithOptionDto> {
+        if (!await this.checkProposalAccess(userInfo._id, userInfo.role)) throw new ForbiddenException('Not enough access');
+
+        const {campaignId, optionIndex = 0} = data;
+
+        const proposalCampaign = await this.proposalCampaignRepo.findById(campaignId);
+
+        if (!proposalCampaign) {
+            throw new NotFoundException('Proposal campaign not found');
+        }
+
+        const optionId: ObjId = proposalCampaign?.optionsIds[optionIndex];
+
+        if (!optionId) {
+            throw new BadRequestException('Unexisting option');
+        }
+
+        const campaignOption = await this.proposalCampaignOptionRepo.findOne({_id: optionId});
+
+        if (!campaignOption) {
+            throw new NotFoundException('Option not found');
+        }
+
+        // Updating addedAccounts
+        if (data.addedAccounts) {
+            // 1. Existing accounts Map <accountId, ProposalCampaignAccount>
+            const existingAccountsMap = new Map<string, ProposalCampaignAccount>();
+            for (const acc of campaignOption.addedAccounts) {
+                existingAccountsMap.set(acc.accountId.toString(), acc);
+            }
+
+            const updatedAccounts: ProposalCampaignAccount[] = [];
+            const newAccountsDto: SelectInfluencerDto[] = [];
+
+            let newCampaignPrices = {
+                publicCampaignPrice: 0,
+                privateCampaignPrice: 0
+            }
+
+            // 2. Updating existing accounts and collecting new
+            for (const accDto of data.addedAccounts) {
+                const existingAcc: ProposalCampaignAccount = existingAccountsMap.get(accDto.socialAccountId);
+                if (existingAcc) {
+                    existingAcc.socialMedia = accDto.socialMedia;
+                    existingAcc.username = accDto.username;
+                    existingAcc.selectedContent.campaignContentItemId = new ObjId(accDto.selectedCampaignContentItem.campaignContentItemId);
+                    existingAcc.selectedContent.descriptionId = new ObjId(accDto.selectedCampaignContentItem.descriptionId);
+                    existingAcc.dateRequest = accDto.dateRequest;
+
+                    newCampaignPrices.publicCampaignPrice += existingAcc.publicPrice;
+                    newCampaignPrices.privateCampaignPrice += existingAcc.price;
+
+                    updatedAccounts.push(existingAcc);
+                } else {
+                    newAccountsDto.push(accDto);
+                }
+            }
+
+            // 3. Building new CampaignAccount objects from new SelectInfluencerDto accounts
+            if (newAccountsDto.length > 0) {
+                const newAccounts = await this.buildProposalCampaignAccountsBatch(newAccountsDto);
+                if (newAccounts?.accounts?.length > 0) {
+                    updatedAccounts.push(...newAccounts.accounts);
+
+                    newCampaignPrices.publicCampaignPrice += newAccounts.publicCampaignPrice;
+                    newCampaignPrices.privateCampaignPrice += newAccounts.privateCampaignPrice;
+                } else {
+                    this.logger.warn("Can't proceed new accounts while updating campaign");
+                }
+            }
+
+            // 4. Saving all accounts
+            campaignOption.addedAccounts = updatedAccounts;
+            campaignOption.publicCampaignPrice = newCampaignPrices.publicCampaignPrice;
+            campaignOption.privateCampaignPrice = newCampaignPrices.privateCampaignPrice;
+        }
+
+        // Updating campaign content
+        if (data.campaignContent) {
+            campaignOption.campaignContent = data.campaignContent.map((itemDto: CampaignContentItemDto): CampaignContentItem => mapContentItemDtoToModel(itemDto));
+        }
+
+        await campaignOption.save();
+
+        try {
+            return {
+                campaignId: campaignId,
+                campaignName: proposalCampaign.campaignName,
+                socialMedia: proposalCampaign.socialMedia as SocialMediaEnum,
+                existingOptions: proposalCampaign.optionsIds.map((option: Types.ObjectId, index: number) => index),
+                selectedOption: {
+                    optionIndex: optionIndex,
+                    price: campaignOption.publicCampaignPrice,
+                    addedAccounts: campaignOption.addedAccounts.map((account) => mapToSafeCampaignAccount(account)),
+                    campaignContent: campaignOption.campaignContent
+                },
+            };
+        } catch (err) {
+            this.logger.warn(`Error map ${data.campaignName} to ProposalCampaignWithOptionDto: ${err}`);
+            throw new ConflictException(
+                'Campaign option updated, but response serialization failed. Please refresh.'
+            );
+        }
+    }
 
     // Returns proposal campaign option
     async getProposalCampaignOption(data: GetProposalCampaignDto): Promise<BaseProposalCampaignOptionDto> {

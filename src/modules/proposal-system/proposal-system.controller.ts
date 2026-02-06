@@ -11,6 +11,7 @@ import {
 } from "./dto/proposal-campaigns.dto";
 import {CreateCampaignDto} from "../campaigns/dto/create-campaign.dto";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
+import {UpdateCampaignDto} from "../campaigns/dto/update-campaign.dto";
 
 @ApiTags('proposal-system')
 @Controller('proposal-system')
@@ -35,6 +36,32 @@ export class ProposalSystemController {
     ): Promise<CreatedProposalCampaignIdDto> {
         return this.proposalSystemService.createProposalCampaign(data, req.user, campaignId);
     }
+
+    @Auth()
+    @Roles(Role.client, Role.admin)
+    @ApiOperation({summary: "Update proposal campaign option"})
+    @ApiQuery({
+        name: 'optionIndex',
+        type: 'number',
+        required: false,
+    })
+    @Patch(':campaignId')
+    async updateProposalCampaignOption(
+        @Req() req: AuthenticatedRequest,
+        @Param('campaignId') campaignId: string,
+        @Query('optionIndex') optionIndex: number = 0,
+        @Body() data: UpdateCampaignDto
+    ): Promise<ProposalCampaignWithOptionDto> {
+        return this.proposalSystemService.updateProposalCampaignOption(
+            {
+                ...data,
+                campaignId,
+                optionIndex
+            },
+            req.user
+        );
+    }
+
 
     // @Auth()
     // @Roles(Role.client, Role.admin)

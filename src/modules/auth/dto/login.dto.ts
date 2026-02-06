@@ -39,6 +39,9 @@ export class GetMeResponseDto {
 
     @ApiPropertyOptional()
     logoUrl?: string;
+
+    @ApiPropertyOptional()
+    isProposal?: boolean;
 }
 
 // dto for login response (adds accessToken to get/me)

@@ -315,6 +315,7 @@ export class AuthService {
             role: user.role as Role,
             balance: (user as any).balance ?? undefined,
             logoUrl: (user as any).logoUrl ?? undefined,
+            isProposal: (user as any).isProposalClient ?? undefined,
         };
     }
 
@@ -579,6 +580,7 @@ export class AuthService {
             role: user.role as Role,
             balance: (user as any).balance ?? undefined,
             logoUrl: (user as any).logoUrl ?? undefined,
+            isProposal: (user as any).isProposalClient ?? undefined,
         };
     }
 }

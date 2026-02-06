@@ -6,6 +6,7 @@ import {CampaignContentItemDto, SelectInfluencerDto} from "./create-campaign.dto
 // dto for requesting campaign update
 export class UpdateCampaignDto {
     campaignId: string;
+    optionIndex?: number;
 
     @ApiPropertyOptional({type: String})
     @IsOptional()
