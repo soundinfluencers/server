@@ -1,12 +1,13 @@
 import {Injectable, InternalServerErrorException, Logger, ServiceUnavailableException} from "@nestjs/common";
 import {
-    buildClientCreatedCampaignTemplate,
+    buildClientCreatedCampaignTemplate, buildNewBespokeCampaignRequestTemplate,
     buildRequestEditTemplate
 } from "./templates/campaign-email.template";
 import {BuildClientCreatedCampaignTemplateDto, BuildRequestEditTemplateDto} from "./dto/campaign-email.dto";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {BuildInvoiceEmailDto} from "./dto/invoice-email.dto";
 import {buildInfluencerInvoiceEmail, buildInfluencerInvoiceResponseEmail} from "./templates/invoice-email.template";
+import {CreateBespokeCampaignDto} from "../campaigns/dto/bespoke-request.dto";
 
 @Injectable()
 export class EmailService {
@@ -77,4 +78,20 @@ export class EmailService {
             'html',
         );
     };
+
+    // Sends email to US about new bespoke campaign request
+    async sendBespokeCampaignRequestEmail(
+        data: CreateBespokeCampaignDto & {
+            clientName?: string;
+            clientEmail?: string;
+        }
+    ) {
+        const email = buildNewBespokeCampaignRequestTemplate(data);
+        return this.safeSend(
+            'nazarkozynets030606@gmail.com',
+            'Bespoke campaign request',
+            email,
+            'html'
+        )
+    }
 }

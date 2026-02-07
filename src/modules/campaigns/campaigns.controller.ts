@@ -24,12 +24,12 @@ import {ApiResponseDto} from "../../common/decorators/api/response/api-response.
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Public} from "../../common/decorators/public.decorator";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
-import {BespokeRequestDto} from "./dto/bespoke-request.dto";
 import {CreateCampaignDto, CreateDraftCampaignDto} from "./dto/create-campaign.dto";
 import {Response} from 'express';
 import {CampaignTypeEnumForDevelopment, PublicCampaignForTable} from "../../common/types/client/campaign.types";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {UpdateCampaignDto} from "./dto/update-campaign.dto";
+import {CreateBespokeCampaignDto} from "./dto/bespoke-request.dto";
 
 @ApiTags('campaigns')
 @Controller('campaigns')
@@ -218,10 +218,8 @@ export class CampaignsController {
     @ApiOperation({summary: `Sends full service campaign request`})
     @Post('bespoke')
     @ApiResponseDto(undefined, { successStatusCode: 201 })
-    createBespokeCampaignRequest(@Req() request: AuthenticatedRequest, @Body() data: BespokeRequestDto) {
-        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
-
-        return this.campaignsService.sendNewFullServicedCampaignRequest(data);
+    createBespokeCampaignRequest(@Req() request: AuthenticatedRequest, @Body() data: CreateBespokeCampaignDto) {
+        return this.campaignsService.createBespokeCampaignRequest(data, request.user);
     }
 
     @Public()

@@ -24,7 +24,7 @@ import {
     SelectInfluencerDto
 } from "./dto/create-campaign.dto";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
-import {BespokeRequestDto} from "./dto/bespoke-request.dto";
+import {CreateBespokeCampaignDto} from "./dto/bespoke-request.dto";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import axios from "axios";
 import {
@@ -61,6 +61,7 @@ import {mapContentItemDtoToModel, mapToClientCampaignForTable} from "../../commo
 import {uniq} from "../../common/utils/base.util";
 import {ObjId, toObjIdSafe} from "../../common/types/base.types";
 import {BuildRequestEditTemplateDto} from "../email/dto/campaign-email.dto";
+import {BespokeCampaignRepository} from "../../database/repositories/campaigns/bespoke-campaign.repository";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -89,6 +90,7 @@ export class CampaignsService {
         private readonly draftCampaignRepo: DraftCampaignRepository,
         private readonly completedCampaignRepo: CompletedCampaignRepository,
         private readonly proposalCampaignRepo: ProposalCampaignRepository,
+        private readonly bespokeCampaignRepo: BespokeCampaignRepository,
         private readonly influencerActionsHistoryService: InfluencerActionsHistoryService,
         private readonly emailService: EmailService,
     ) {
@@ -1270,24 +1272,36 @@ export class CampaignsService {
         await axios.put(`${process.env.SERVER}/proposal-system/save-proposal-campaign`, campaign);
     }
 
-    async sendNewFullServicedCampaignRequest(data: BespokeRequestDto) {
-        const {clientId, campaignGoal, videos, music, budget, additional = ''} = data;
+    async createBespokeCampaignRequest(data: CreateBespokeCampaignDto, userInfo: UserPayload) {
+        const creatorInfo = await this.clientRepo.findById(userInfo._id, {select: ['firstName', 'email']});
+        if (!creatorInfo) {
+            throw new NotFoundException('Client not found');
+        }
 
-        const clientObj = await this.clientRepo.findById(clientId);
+        const session = await this.bespokeCampaignRepo.startSession();
+        session.startTransaction();
 
-        if (!clientObj) throw new NotFoundException('Client not found');
+        try {
+            await this.bespokeCampaignRepo.create({
+                ...data.payload,
+                category: data.category,
+                userId: new ObjId(userInfo._id),
+            }, {session});
 
-        const emailText = `
-    <p>${clientObj.firstName} (${clientObj.email}) requested the full serviced campaign.</p>
-    <p>Details:</p><br/>
-    <p><strong>Campaign Goal:</strong> ${campaignGoal}</p>
-    <p><strong>Videos:</strong> ${videos}</p>
-    <p><strong>Music:</strong> ${music}</p>
-    <p><strong>Budget:</strong> ${budget}</p>
-    ${additional ? `<p><strong>Additional:</strong> ${additional}</p>` : ''}
-`;
+            await this.emailService.sendBespokeCampaignRequestEmail({
+                ...data,
+                clientName: creatorInfo.firstName,
+                clientEmail: creatorInfo.email
+            })
 
-        await sendMail(process.env.EMAIL_USER, 'SoundInfluencers', emailText, 'html');
+            await session.commitTransaction();
+        } catch (error) {
+            await session.abortTransaction();
+            this.logger.error(`Error while creating bespoke campaign request`, error);
+            throw new InternalServerErrorException('Something went wrong')
+        } finally {
+            await session.endSession();
+        }
     }
 
     // Returns detailed campaign (trying to get by sharelink, so not all info visible)

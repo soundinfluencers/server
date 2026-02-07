@@ -1,6 +1,15 @@
 import {BuildClientCreatedCampaignTemplateDto, BuildRequestEditTemplateDto} from "../dto/campaign-email.dto";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {formatCampaignPaymentType} from "../../../common/utils/formatters";
+import {
+    CreateBespokeCampaignDto,
+    EventBespokeCampaignDto, MusicBespokeCampaignDto,
+    OtherBespokeCampaignDto
+} from "../../campaigns/dto/bespoke-request.dto";
+import {BespokeRequestCategory} from "../../../common/types/client/campaign.types";
+
+
+// ------------- UTILS -------------
 
 export const escapeHtml = (v: string) =>
     v
@@ -9,6 +18,69 @@ export const escapeHtml = (v: string) =>
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#39;");
+
+const formatMoney = (value: unknown) => {
+    const n = typeof value === "number" ? value : Number(value);
+    if (Number.isFinite(n)) return `${n.toLocaleString("en-US")} EUR`;
+    return "—";
+};
+
+const safeLink = (url?: string) => {
+    if (!url) return "—";
+    const u = escapeHtml(url);
+    return `<a href="${u}" style="color:#2563eb; text-decoration:none;">${u}</a>`;
+};
+
+const pickBaseFields = (payload: any) => ({
+    campaignGoal: payload?.campaignGoal ? escapeHtml(payload.campaignGoal) : "—",
+    contentLink: payload?.contentLink ? safeLink(payload.contentLink) : "—",
+    budget: formatMoney(payload?.budget),
+    targetTerritories: payload?.targetTerritories ? escapeHtml(payload.targetTerritories) : "worldwide",
+    extraBriefs: payload?.extraBriefs ? escapeHtml(payload.extraBriefs) : "—",
+});
+
+const renderCategoryFields = (dto: CreateBespokeCampaignDto) => {
+    const { category, payload } = dto;
+
+    switch (category) {
+        case BespokeRequestCategory.music: {
+            const p = payload as MusicBespokeCampaignDto;
+            return `
+        <p style="margin:0 0 6px 0;"><strong>Track link:</strong> ${p.trackLink ? safeLink(p.trackLink) : "—"}</p>
+        <p style="margin:0 0 6px 0;"><strong>Release date:</strong> ${p.releaseDate ? escapeHtml(p.releaseDate) : "—"}</p>
+        <p style="margin:0;"><strong>Smart link:</strong> ${p.smartLink ? safeLink(p.smartLink) : "—"}</p>
+      `;
+        }
+
+        case BespokeRequestCategory.event: {
+            const p = payload as EventBespokeCampaignDto;
+            return `
+        <p style="margin:0;"><strong>Ticket link:</strong> ${p.ticketLink ? safeLink(p.ticketLink) : "—"}</p>
+      `;
+        }
+
+        case BespokeRequestCategory.other: {
+            const p = payload as OtherBespokeCampaignDto;
+            return `
+        <p style="margin:0;"><strong>Brief:</strong> ${p.brief ? escapeHtml(p.brief) : "—"}</p>
+      `;
+        }
+
+        case BespokeRequestCategory.artist:
+        default: {
+            // artist не имеет доп. полей поверх Base
+            return `
+        <p style="margin:0; color:#64748b;">
+          No additional fields for this category.
+        </p>
+      `;
+        }
+    }
+};
+
+
+// ------------- BUILDERS -------------
+
 
 export const buildRequestEditTemplate = (data: BuildRequestEditTemplateDto) => {
     const campaignName = escapeHtml(data.campaignName ?? "Unknown campaign");
@@ -135,3 +207,85 @@ export const buildClientCreatedCampaignTemplate = (data: BuildClientCreatedCampa
 </div>
 `;
 }
+
+export const buildNewBespokeCampaignRequestTemplate = (
+    data: CreateBespokeCampaignDto & {
+        clientName?: string;
+        clientEmail?: string;
+    }
+) => {
+    const clientName = escapeHtml(data.clientName ?? "Unknown client");
+    const clientEmail = escapeHtml(data.clientEmail ?? "Unknown email");
+    const category = escapeHtml(String(data.category ?? "unknown"));
+
+    const base = pickBaseFields(data.payload);
+
+    return `
+<div style="
+  font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  background:#f6f7fb;
+  padding:40px 20px;
+">
+  <div style="
+    max-width:640px;
+    margin:0 auto;
+    background:#ffffff;
+    border-radius:14px;
+    padding:32px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.06);
+  ">
+    <h2 style="margin:0 0 14px 0;">New bespoke campaign request</h2>
+
+    <p style="margin:0 0 20px 0; color:#444; line-height:1.5;">
+      A client has submitted a new <strong>individual (bespoke)</strong> campaign request.
+      Please review the details below and follow up if anything is missing.
+    </p>
+
+    <div style="
+      background:#f3f5f9;
+      border-radius:10px;
+      padding:16px;
+      margin-bottom:18px;
+    ">
+      <p style="margin:0 0 6px 0;"><strong>Client:</strong> ${clientName}</p>
+      <p style="margin:0;"><strong>Email:</strong> ${clientEmail}</p>
+    </div>
+
+    <div style="
+      border:1px solid #e5e7eb;
+      border-radius:10px;
+      padding:16px;
+      margin-bottom:18px;
+    ">
+      <p style="margin:0 0 10px 0;">
+        <strong>Category:</strong>
+        <span style="background:#eef2ff; padding:2px 8px; border-radius:999px; font-size:12px;">
+          ${category}
+        </span>
+      </p>
+
+      <p style="margin:0 0 6px 0;"><strong>Campaign goal:</strong> ${base.campaignGoal}</p>
+      <p style="margin:0 0 6px 0;"><strong>Content link:</strong> ${base.contentLink}</p>
+      <p style="margin:0 0 6px 0;"><strong>Budget:</strong> ${base.budget}</p>
+      <p style="margin:0 0 6px 0;"><strong>Target territories:</strong> ${base.targetTerritories}</p>
+      <p style="margin:0;"><strong>Extra briefs:</strong> ${base.extraBriefs}</p>
+    </div>
+
+    <div style="
+      background:#fff7ed;
+      border:1px solid #fed7aa;
+      border-radius:10px;
+      padding:16px;
+      margin-bottom:18px;
+    ">
+      <p style="margin:0 0 10px 0;"><strong>Category-specific details</strong></p>
+      ${renderCategoryFields(data)}
+    </div>
+
+    <p style="margin:0; color:#64748b; font-size:12px; line-height:1.4; text-align:center;">
+      This is an automated message from the SoundInfluencers system.
+    </p>
+  </div>
+</div>
+`;
+};

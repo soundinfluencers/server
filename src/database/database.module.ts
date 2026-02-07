@@ -1,5 +1,5 @@
 import {Global, Module} from "@nestjs/common";
-import {MongooseModule} from "@nestjs/mongoose";
+import {MongooseModule, Schema} from "@nestjs/mongoose";
 import {Influencer, InfluencerSchema} from "./schemas/users/influencer.schema";
 import {Client, ClientSchema} from "./schemas/users/client.schema";
 import {InfluencerRepository} from "./repositories/users/influencer.repository";
@@ -48,6 +48,7 @@ import {
 } from "./schemas/campaign/bespoke-campaign.schema";
 import {BespokeRequestCategory} from "../common/types/client/campaign.types";
 import {BespokeCampaignRepository} from "./repositories/campaigns/bespoke-campaign.repository";
+import { Schema as MongooseSchema } from 'mongoose';
 
 @Global()
 @Module({
@@ -77,9 +78,13 @@ import {BespokeCampaignRepository} from "./repositories/campaigns/bespoke-campai
                 useFactory: () => {
                     const baseSchema = BespokeCampaignRequestSchema;
 
-                    // discriminators for using sub schemes (depends on request category)
+                    const ArtistSchema = new MongooseSchema({}, { _id: false });
+                    const OtherSchema  = new MongooseSchema({}, { _id: false });
+
+                    baseSchema.discriminator(BespokeRequestCategory.artist, ArtistSchema);
                     baseSchema.discriminator(BespokeRequestCategory.music, MusicBespokeCampaignFieldsSchema);
                     baseSchema.discriminator(BespokeRequestCategory.event, EventBespokeCampaignFieldsSchema);
+                    baseSchema.discriminator(BespokeRequestCategory.other, OtherSchema);
 
                     return baseSchema;
                 }
