@@ -24,7 +24,7 @@ import {
     SelectInfluencerDto
 } from "./dto/create-campaign.dto";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
-import {SendNewFullServicedCampaignRequest} from "./dto/send-new-full-serviced-campaign-request";
+import {BespokeRequestDto} from "./dto/bespoke-request.dto";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import axios from "axios";
 import {
@@ -1270,7 +1270,7 @@ export class CampaignsService {
         await axios.put(`${process.env.SERVER}/proposal-system/save-proposal-campaign`, campaign);
     }
 
-    async sendNewFullServicedCampaignRequest(data: SendNewFullServicedCampaignRequest) {
+    async sendNewFullServicedCampaignRequest(data: BespokeRequestDto) {
         const {clientId, campaignGoal, videos, music, budget, additional = ''} = data;
 
         const clientObj = await this.clientRepo.findById(clientId);

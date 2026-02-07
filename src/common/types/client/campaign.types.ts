@@ -35,6 +35,15 @@ export enum CampaignStatusEnum {
     draft = 'draft'
 }
 
+// Enum for bespoke campaign request type
+export enum BespokeRequestCategory {
+    artist = 'artist',
+    music = 'music',
+    event = 'event',
+    other = 'other',
+}
+
+
 // Enum for selected payment method
 export enum CampaignPaymentMethodEnum {
     bankCard = 'bank_card',
