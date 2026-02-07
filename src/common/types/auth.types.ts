@@ -6,6 +6,10 @@ export interface UserPayload {
     email?: string;
 }
 
+export interface ClientPayload extends UserPayload {
+    isProposalClient?: boolean;
+}
+
 export interface AuthenticatedRequest extends Request {
     user: UserPayload;
 }

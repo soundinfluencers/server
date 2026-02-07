@@ -315,7 +315,6 @@ export class AuthService {
             role: user.role as Role,
             balance: (user as any).balance ?? undefined,
             logoUrl: (user as any).logoUrl ?? undefined,
-            isProposal: (user as any).isProposalClient ?? undefined,
         };
     }
 
@@ -383,11 +382,18 @@ export class AuthService {
     // Generates access token
     private generateAccessToken(user: any) {
         return jwt.sign(
-            {_id: user._id, role: user.role},
+            {
+                _id: user._id,
+                role: user.role,
+                ...(user instanceof Client
+                    ? { isProposalClient: user.isProposalClient }
+                    : {})
+            },
             this.accessKey,
-            {expiresIn: '15m'},
+            { expiresIn: '15m' },
         );
     }
+
 
     // Generates refresh token
     private generateRefreshToken(user) {
@@ -580,7 +586,6 @@ export class AuthService {
             role: user.role as Role,
             balance: (user as any).balance ?? undefined,
             logoUrl: (user as any).logoUrl ?? undefined,
-            isProposal: (user as any).isProposalClient ?? undefined,
         };
     }
 }

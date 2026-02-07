@@ -71,24 +71,6 @@ export class ProposalSystemService {
 
     // -------------- HELPERS -----------------
 
-
-    // checks if user have access for manipulating proposal campaign
-    private async checkProposalAccess(userId: string, userRole: Role): Promise<boolean> {
-        switch (userRole) {
-            case 'admin': {
-                return true;
-            }
-            case 'client': {
-                return await this.clientRepo.exists({
-                    _id: new ObjId(userId),
-                    isProposalClient: true
-                });
-            }
-            default:
-                return false;
-        }
-    }
-
     // builds object with ProposalCampaignAccount type from SelectInfluencerDto (dto which using for creating and updating campaigns)
     private async buildProposalCampaignAccountsBatch(
         addedAccountsData: SelectInfluencerDto[],
@@ -309,8 +291,6 @@ export class ProposalSystemService {
 
         if (!_id || !role) throw new BadRequestException("Not enough arguments");
 
-        if (!await this.checkProposalAccess(_id, role)) throw new ForbiddenException('Not enough access');
-
         const processedAccounts: {
             accounts: ProposalCampaignAccount[],
             publicCampaignPrice: number,
@@ -384,8 +364,6 @@ export class ProposalSystemService {
 
     // Updates proposal campaign option
     async updateProposalCampaignOption(data: UpdateCampaignDto, userInfo: UserPayload): Promise<ProposalCampaignWithOptionDto> {
-        if (!await this.checkProposalAccess(userInfo._id, userInfo.role)) throw new ForbiddenException('Not enough access');
-
         const {campaignId, optionIndex = 0} = data;
 
         const proposalCampaign = await this.proposalCampaignRepo.findById(campaignId);

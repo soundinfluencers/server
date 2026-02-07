@@ -12,6 +12,7 @@ import {
 import {CreateCampaignDto} from "../campaigns/dto/create-campaign.dto";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {UpdateCampaignDto} from "../campaigns/dto/update-campaign.dto";
+import {ProposalAccess} from "../../common/decorators/proposal-access.decorator";
 
 @ApiTags('proposal-system')
 @Controller('proposal-system')
@@ -21,6 +22,7 @@ export class ProposalSystemController {
 
     @Auth()
     @Roles(Role.client, Role.admin)
+    @ProposalAccess('adminOrProposalClient')
     @ApiOperation({summary: 'Create a proposal campaign or add new option to existing campaign (if request with query campaignId)'})
     @ApiResponseDto(CreatedProposalCampaignIdDto, {successStatusCode: 201})
     @ApiQuery({
@@ -39,6 +41,7 @@ export class ProposalSystemController {
 
     @Auth()
     @Roles(Role.client, Role.admin)
+    @ProposalAccess('adminOrProposalClient')
     @ApiOperation({summary: "Update proposal campaign option"})
     @ApiQuery({
         name: 'optionIndex',
@@ -72,6 +75,7 @@ export class ProposalSystemController {
 
     @Auth()
     @Roles(Role.client, Role.admin)
+    @ProposalAccess('adminOrProposalClient')
     @ApiOperation({summary: 'Returns proposal campaign with one selected option'})
     @ApiResponseDto(ProposalCampaignWithOptionDto)
     @ApiQuery({
