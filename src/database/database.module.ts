@@ -41,6 +41,13 @@ import {
     InternationalBankTransferDetailsRepository
 } from "./repositories/invoices/international-transfer-details.repository";
 import {PaypalDetailsRepository} from "./repositories/invoices/paypal-details.repository";
+import {
+    BespokeCampaignRequest,
+    BespokeCampaignRequestSchema, EventBespokeCampaignFieldsSchema,
+    MusicBespokeCampaignFieldsSchema
+} from "./schemas/campaign/bespoke-campaign.schema";
+import {BespokeRequestCategory} from "../common/types/client/campaign.types";
+import {BespokeCampaignRepository} from "./repositories/campaigns/bespoke-campaign.repository";
 
 @Global()
 @Module({
@@ -64,6 +71,20 @@ import {PaypalDetailsRepository} from "./repositories/invoices/paypal-details.re
             { name: PayPalDetails.name, schema: PayPalDetailsSchema },
             { name: ReportSizes.name, schema: ReportSizesSchema },
         ]),
+        MongooseModule.forFeatureAsync([
+            {
+                name: BespokeCampaignRequest.name,
+                useFactory: () => {
+                    const baseSchema = BespokeCampaignRequestSchema;
+
+                    // discriminators for using sub schemes (depends on request category)
+                    baseSchema.discriminator(BespokeRequestCategory.music, MusicBespokeCampaignFieldsSchema);
+                    baseSchema.discriminator(BespokeRequestCategory.event, EventBespokeCampaignFieldsSchema);
+
+                    return baseSchema;
+                }
+            }
+        ])
     ],
     providers: [
         ClientRepository,
@@ -77,6 +98,7 @@ import {PaypalDetailsRepository} from "./repositories/invoices/paypal-details.re
         CompletedCampaignRepository,
         ProposalCampaignRepository,
         ProposalCampaignOptionRepository,
+        BespokeCampaignRepository,
         InfluencerInvoiceRepository,
         InvoiceDetailsRepository,
         UkBankTransferDetailsRepository,
@@ -96,6 +118,7 @@ import {PaypalDetailsRepository} from "./repositories/invoices/paypal-details.re
         CompletedCampaignRepository,
         ProposalCampaignRepository,
         ProposalCampaignOptionRepository,
+        BespokeCampaignRepository,
         InfluencerInvoiceRepository,
         InvoiceDetailsRepository,
         UkBankTransferDetailsRepository,
