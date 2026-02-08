@@ -30,6 +30,7 @@ import {CampaignTypeEnumForDevelopment, PublicCampaignForTable} from "../../comm
 import {Roles} from "../../common/decorators/roles.decorator";
 import {UpdateCampaignDto} from "./dto/update-campaign.dto";
 import {CreateBespokeCampaignDto} from "./dto/bespoke-request.dto";
+import {userInfo} from "node:os";
 
 @ApiTags('campaigns')
 @Controller('campaigns')
@@ -39,7 +40,7 @@ export class CampaignsController {
 
     @Auth()
     @Roles(Role.client)
-    @ApiOperation({ summary: 'Get client campaigns list' })
+    @ApiOperation({summary: 'Get client campaigns list'})
     @ApiResponseDto(ClientGetCampaignsDto)
     @ApiQuery({
         name: 'status',
@@ -65,7 +66,7 @@ export class CampaignsController {
 
         const campaigns = await this.campaignsService.getCampaignsList({...query, clientId: request.user._id});
 
-        return { campaigns };
+        return {campaigns};
     }
 
     @Auth()
@@ -121,7 +122,10 @@ export class CampaignsController {
     @ApiOperation({summary: 'Verify campaign (For email)'})
     @Get('verify')
     async verifyCampaign(@Query() args: { campaignId: string; status: string }, @Res() res: Response) {
-        const result: { code: number, message: string } = await this.campaignsService.verifyCampaign(args.campaignId, args.status);
+        const result: {
+            code: number,
+            message: string
+        } = await this.campaignsService.verifyCampaign(args.campaignId, args.status);
 
         if (result.code === 200) {
             const successMessage = result.message || 'Campaign verified';
@@ -217,7 +221,7 @@ export class CampaignsController {
     @Roles(Role.client)
     @ApiOperation({summary: `Sends full service campaign request`})
     @Post('bespoke')
-    @ApiResponseDto(undefined, { successStatusCode: 201 })
+    @ApiResponseDto(undefined, {successStatusCode: 201})
     createBespokeCampaignRequest(@Req() request: AuthenticatedRequest, @Body() data: CreateBespokeCampaignDto) {
         return this.campaignsService.createBespokeCampaignRequest(data, request.user);
     }
@@ -247,5 +251,20 @@ export class CampaignsController {
     @Get(':campaignId/request-edit/:response')
     updateCampaignEditRequest(@Param('campaignId') campaignId: string, @Param('response') response: string) {
         return this.campaignsService.updateCampaignEditRequest(campaignId, response);
+    }
+
+    @Auth()
+    @Roles(Role.client, Role.admin)
+    @ApiOperation({summary: `Return .csv file with completed campaign info`})
+    @ApiParam({name: 'campaignId', required: true, type: 'string'})
+    @Get(':campaignId/csv')
+    async getCampaignCsvFile(@Req() request: AuthenticatedRequest, @Param('campaignId') campaignId: string, @Res() res: Response) {
+        const { stream, filename } = await this.campaignsService.streamCampaignCsv(campaignId, request.user);
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', filename);
+        res.setHeader('Cache-Control', 'no-store');
+
+        stream.pipe(res);
     }
 }

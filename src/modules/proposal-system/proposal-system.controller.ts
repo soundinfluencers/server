@@ -13,6 +13,7 @@ import {CreateCampaignDto} from "../campaigns/dto/create-campaign.dto";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {UpdateCampaignDto} from "../campaigns/dto/update-campaign.dto";
 import {ProposalAccess} from "../../common/decorators/proposal-access.decorator";
+import {Public} from "../../common/decorators/public.decorator";
 
 @ApiTags('proposal-system')
 @Controller('proposal-system')
@@ -73,9 +74,8 @@ export class ProposalSystemController {
     //     return this.proposalSystemService.updateProposalCampaign(data);
     // }
 
-    @Auth()
+    @Public()
     @Roles(Role.client, Role.admin)
-    @ProposalAccess('adminOrProposalClient')
     @ApiOperation({summary: 'Returns proposal campaign with one selected option'})
     @ApiResponseDto(ProposalCampaignWithOptionDto)
     @ApiQuery({
@@ -89,11 +89,13 @@ export class ProposalSystemController {
         @Query('optionIndex') optionIndex: number,
         @Param('campaignId') campaignId: string,
     ): Promise<ProposalCampaignWithOptionDto> {
-        return this.proposalSystemService.getProposalCampaign({
-            userId: request.user._id,
-            userRole: request.user.role,
-            campaignId: campaignId,
-            optionIndex: optionIndex,
-        });
+        console.log(request.user, 'user')
+        return this.proposalSystemService.getProposalCampaign(
+            {
+                campaignId: campaignId,
+                optionIndex: optionIndex,
+            },
+            request.user
+        );
     }
 }

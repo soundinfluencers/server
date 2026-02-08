@@ -501,18 +501,14 @@ export class ProposalSystemService {
 
         if (!campaignId) throw new BadRequestException("Invalid campaign id");
 
-        let proposalCampaign: ProposalCampaign = await this.proposalCampaignRepo.findAccessibleById({
-            campaignId: new ObjId(campaignId),
-            userId: new ObjId(userInfo._id),
-            userRole: userInfo.role,
-        })
+        let proposalCampaign: ProposalCampaign = await this.proposalCampaignRepo.findById(campaignId)
 
         if (!proposalCampaign) throw new NotFoundException('Proposal campaign not found');
 
         const proposalCampaignOption = await this.getProposalCampaignOption(data, userInfo);
 
         if (!proposalCampaignOption) throw new InternalServerErrorException("Can't get selected proposal campaign option");
-
+        console.log(this.checkCanEdit(userInfo));
         return {
             campaignId: campaignId,
             campaignName: proposalCampaign.campaignName,

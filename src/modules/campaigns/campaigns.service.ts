@@ -58,10 +58,12 @@ import {EmailService} from "../email/email.service";
 import {Role, UserPayload} from "../../common/types/auth.types";
 import {UpdateCampaignDto} from "./dto/update-campaign.dto";
 import {mapContentItemDtoToModel, mapToClientCampaignForTable} from "../../common/mappers/campaign.mapper";
-import {uniq} from "../../common/utils/base.util";
+import {buildSafeFileName, uniq} from "../../common/utils/base.util";
 import {ObjId, toObjIdSafe} from "../../common/types/base.types";
 import {BuildRequestEditTemplateDto} from "../email/dto/campaign-email.dto";
 import {BespokeCampaignRepository} from "../../database/repositories/campaigns/bespoke-campaign.repository";
+import {CampaignCsvExporter} from "../../common/utils/export/csv/campaign-csv.exporter";
+import {maxLength} from "class-validator";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -1510,6 +1512,32 @@ export class CampaignsService {
 
         if (updateResult.matchedCount === 0) {
             throw new NotFoundException('Campaign not found');
+        }
+    }
+
+    // Stream .csv completed campaign info
+    async streamCampaignCsv(campaignId: string, userInfo: UserPayload) {
+        const campaign = await this.completedCampaignRepo.findById(campaignId);
+
+        if (!campaign) {
+            throw new NotFoundException(`Campaign not found`);
+        }
+
+        const isAdmin = userInfo.role === Role.admin;
+        const isOwner = String(campaign.clientId) === String(userInfo._id);
+
+        if (!isAdmin && !isOwner) {
+            throw new ForbiddenException('Not enough access');
+        }
+
+        try {
+            return {
+                stream: CampaignCsvExporter.buildStream(campaign),
+                filename: `${buildSafeFileName(campaign.campaignName, {maxLength: 60})}.csv`,
+            };
+        } catch (err) {
+            this.logger.error(`Error getting .csv for campaign ${campaignId}`, err);
+            throw new InternalServerErrorException("Something went wrong");
         }
     }
 }
