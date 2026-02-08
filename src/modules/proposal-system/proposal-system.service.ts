@@ -1,6 +1,6 @@
 import {
-    BadRequestException, ConflictException,
-    ForbiddenException,
+    BadRequestException,
+    ConflictException,
     Injectable,
     InternalServerErrorException,
     Logger,
@@ -8,12 +8,10 @@ import {
 } from '@nestjs/common';
 import {Types} from 'mongoose';
 import {ProposalCampaignRepository} from "../../database/repositories/campaigns/proposal-campaign.repository";
-import {ClientRepository} from "../../database/repositories/users/client.repository";
-import {AdminRepository} from "../../database/repositories/users/admin.repository";
 import {CampaignContentItemDto, CreateCampaignDto, SelectInfluencerDto} from "../campaigns/dto/create-campaign.dto";
-import {Role, UserPayload} from "../../common/types/auth.types";
+import {ClientPayload, Role, UserPayload} from "../../common/types/auth.types";
 import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
-import {CampaignAccount, CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
+import {CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
 import {
     InfluencerConfirmationStatusEnum,
     InfluencerPromoClosedStatusEnum
@@ -24,8 +22,8 @@ import {getArrayFromAccountMusicGenres} from "../../common/utils/genres";
 import {
     BaseProposalCampaignOptionDto,
     CreatedProposalCampaignIdDto,
-    ProposalCampaignWithOptionDto,
-    GetProposalCampaignDto
+    GetProposalCampaignDto,
+    ProposalCampaignWithOptionDto
 } from "./dto/proposal-campaigns.dto";
 import {
     ProposalCampaignOptionRepository
@@ -60,9 +58,7 @@ export class ProposalSystemService {
     private readonly logger = new Logger();
 
     constructor(
-        private readonly clientRepo: ClientRepository,
         private readonly influencerRepo: InfluencerRepository,
-        private readonly adminRepo: AdminRepository,
         private readonly proposalCampaignRepo: ProposalCampaignRepository,
         private readonly proposalCampaignOptionRepo: ProposalCampaignOptionRepository,
     ) {
@@ -277,6 +273,10 @@ export class ProposalSystemService {
         return {accounts: result, publicCampaignPrice: publicCampaignPrice, privateCampaignPrice: privateCampaignPrice};
     }
 
+    private checkCanEdit(userInfo: UserPayload) {
+        if (userInfo?.role === Role.admin) return true;
+        return userInfo?.role === Role.client && (userInfo as ClientPayload)?.isProposalClient === true;
+    }
 
     // -------------- SERVICES -----------------
 
@@ -455,7 +455,8 @@ export class ProposalSystemService {
                     optionIndex: optionIndex,
                     price: campaignOption.publicCampaignPrice,
                     addedAccounts: campaignOption.addedAccounts.map((account) => mapToSafeCampaignAccount(account)),
-                    campaignContent: campaignOption.campaignContent
+                    campaignContent: campaignOption.campaignContent,
+                    canEdit: this.checkCanEdit(userInfo) ?? false,
                 },
             };
         } catch (err) {
@@ -467,7 +468,7 @@ export class ProposalSystemService {
     }
 
     // Returns proposal campaign option
-    async getProposalCampaignOption(data: GetProposalCampaignDto): Promise<BaseProposalCampaignOptionDto> {
+    async getProposalCampaignOption(data: GetProposalCampaignDto, userInfo: UserPayload): Promise<BaseProposalCampaignOptionDto> {
         const {campaignId} = data;
         const optionIndex = data.optionIndex ?? 0;
 
@@ -485,7 +486,8 @@ export class ProposalSystemService {
                 optionIndex: optionIndex,
                 price: proposalCampaignOption.publicCampaignPrice,
                 addedAccounts: proposalCampaignOption.addedAccounts.map((account) => mapToSafeCampaignAccount(account)),
-                campaignContent: proposalCampaignOption.campaignContent
+                campaignContent: proposalCampaignOption.campaignContent,
+                canEdit: this.checkCanEdit(userInfo) ?? false,
             }
         } catch (err) {
             this.logger.error('Proposal campaign option found but formatting failed', err);
@@ -494,20 +496,20 @@ export class ProposalSystemService {
     }
 
     // Returns one proposal campaign (with 1 selected option)
-    async getProposalCampaign(data: GetProposalCampaignDto): Promise<ProposalCampaignWithOptionDto> {
-        const {userId, userRole, campaignId} = data;
+    async getProposalCampaign(data: GetProposalCampaignDto, userInfo: UserPayload): Promise<ProposalCampaignWithOptionDto> {
+        const campaignId = data.campaignId;
 
         if (!campaignId) throw new BadRequestException("Invalid campaign id");
 
         let proposalCampaign: ProposalCampaign = await this.proposalCampaignRepo.findAccessibleById({
-            campaignId: new Types.ObjectId(campaignId),
-            userId: new Types.ObjectId(userId),
-            userRole: userRole
+            campaignId: new ObjId(campaignId),
+            userId: new ObjId(userInfo._id),
+            userRole: userInfo.role,
         })
 
         if (!proposalCampaign) throw new NotFoundException('Proposal campaign not found');
 
-        const proposalCampaignOption = await this.getProposalCampaignOption(data);
+        const proposalCampaignOption = await this.getProposalCampaignOption(data, userInfo);
 
         if (!proposalCampaignOption) throw new InternalServerErrorException("Can't get selected proposal campaign option");
 

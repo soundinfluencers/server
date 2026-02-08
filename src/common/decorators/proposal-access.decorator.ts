@@ -1,4 +1,5 @@
-import { SetMetadata } from '@nestjs/common';
+import { applyDecorators, SetMetadata, UseGuards } from '@nestjs/common';
+import { ProposalAccessGuard } from '../guards/proposal-access.guard';
 
 export const PROPOSAL_ACCESS_KEY = 'proposal_access';
 
@@ -8,4 +9,7 @@ export type ProposalAccessType =
     | 'adminOrProposalClient';
 
 export const ProposalAccess = (type: ProposalAccessType) =>
-    SetMetadata(PROPOSAL_ACCESS_KEY, type);
+    applyDecorators(
+        SetMetadata(PROPOSAL_ACCESS_KEY, type),
+        UseGuards(ProposalAccessGuard),
+    );

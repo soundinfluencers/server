@@ -26,7 +26,7 @@ export enum CampaignTypeEnumForDevelopment {
     all = 'all'
 }
 
-// Verified campaign progress status enum
+// campaign progress status enum
 export enum CampaignStatusEnum {
     underReview = 'under_review',
     pending = 'pending',

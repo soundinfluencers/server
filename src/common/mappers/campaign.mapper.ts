@@ -1,4 +1,9 @@
-import {ClientCampaignForTable, SafeCampaignAccount, SafeSelectedContentItem} from "../types/client/campaign.types";
+import {
+    CampaignStatusEnum,
+    ClientCampaignForTable,
+    SafeCampaignAccount,
+    SafeSelectedContentItem
+} from "../types/client/campaign.types";
 import {Campaign, CampaignAccount, CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
 import {ProposalCampaignAccount} from "../../database/schemas/campaign/proposal-campaign-option.schema";
 import {CampaignContentItemDto} from "../../modules/campaigns/dto/create-campaign.dto";
@@ -8,7 +13,6 @@ import {formatDate} from "../utils/formatters";
 import {InfluencerConfirmationStatusEnum, InfluencerPromoClosedStatusEnum} from "../types/influencer/promo.types";
 import {safeParseToNumber} from "../utils/base.util";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
-import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
 
 // export const mapToDetailedDraftCampaignDto = (draft: DraftCampaign): DetailedDraftCampaignDto => {
 //     return {
@@ -221,7 +225,7 @@ export const mapToClientCampaignForTable = (campaign: Campaign | CompletedCampai
 
         isCpmAndResultHidden: campaign.isCpmAndResultHidden ?? false,
         isPriceHidden: campaign.isPriceHidden ?? false,
-        canEdit: campaign.canEdit ?? false,
+        canEdit: [CampaignStatusEnum.underReview, CampaignStatusEnum.pending].includes(campaign.statusCampaign) && campaign.canEdit,
         hiddenColumns: campaign.hiddenColumns ?? [],
         cpm: cpm ?? null,
     };

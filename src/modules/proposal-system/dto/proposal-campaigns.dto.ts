@@ -42,6 +42,9 @@ export class BaseProposalCampaignOptionDto {
     @IsNotEmpty()
     @ValidateNested()
     campaignContent: SafeCampaignContent[];
+
+    @ApiProperty({type: Boolean})
+    canEdit: boolean;
 }
 
 // base proposal campaign dto
@@ -81,9 +84,6 @@ export class GetProposalCampaignDto {
     @IsNumber()
     @IsOptional()
     optionIndex: number;
-
-    userId: string;
-    userRole: Role;
 }
 
 
