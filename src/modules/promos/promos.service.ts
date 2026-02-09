@@ -35,6 +35,7 @@ import {InfluencerActionsHistoryService} from "../influencer-actions-history/inf
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {CampaignConfirmationEnum, CampaignStatusEnum} from "../../common/types/client/campaign.types";
+import {ObjId} from "../../common/types/base.types";
 
 mongoose.Promise = global.Promise;
 
@@ -325,6 +326,7 @@ export class PromosService {
                     campaignId: campaign._id.toString(),
                     campaignName: campaign.campaignName,
                     updatedCampaignAction: {
+                        addedAccountsId: selectedAcc._id,
                         socialAccountId: selectedAcc.accountId,
                         actionNumber: isAccept ? 1 : 5,
                         networkUsername: selectedAcc.username,
@@ -1084,6 +1086,7 @@ export class PromosService {
                     campaignId,
                     campaignName: campaign.campaignName,
                     updatedCampaignAction: {
+                        addedAccountsId: new ObjId(addedAccountsId),
                         socialAccountId: socialAccount._id,
                         actionNumber: 2,
                         networkUsername: username,

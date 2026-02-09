@@ -750,6 +750,7 @@ export class CampaignsService {
                 await Promise.all(
                     socialMedias.map(async (socialMedia) => {
                         const accounts = influencer[socialMedia];
+
                         await Promise.all(
                             accounts.map(async (account) => {
                                 if (
@@ -766,6 +767,7 @@ export class CampaignsService {
                                         campaignId: campaignId,
                                         campaignName: checkCampaign.campaignName,
                                         updatedCampaignAction: {
+                                            addedAccountsId: account._id,
                                             socialAccountId: account._id,
                                             actionNumber: 1,
                                             networkUsername: account.username,

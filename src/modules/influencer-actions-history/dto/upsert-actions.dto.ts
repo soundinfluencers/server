@@ -4,6 +4,7 @@ import {Types} from "mongoose";
 import {InvoicePaymentMethodEnum} from "../../../common/types/influencer/invoice.types";
 
 export class NewCampaignActionDto {
+    addedAccountsId: Types.ObjectId;
     socialAccountId: Types.ObjectId;
 
     @IsNumber()

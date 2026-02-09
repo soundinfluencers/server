@@ -46,9 +46,10 @@ export class InfluencerActionsHistoryService {
 
         const {email, balance} = influencer;
 
-        const {actionNumber, networkUsername, rewardForInfluencer, socialMedia, socialAccountId} = updatedCampaignAction;
+        const {actionNumber, networkUsername, rewardForInfluencer, socialMedia, socialAccountId, addedAccountsId} = updatedCampaignAction;
 
         const action: CampaignAction = {
+            addedAccountsId,
             socialAccountId,
             actionNumber,
             networkUsername,
@@ -165,9 +166,35 @@ export class InfluencerActionsHistoryService {
             { $unwind: { path: '$campaigns.actions', preserveNullAndEmptyArrays: true } },
 
             {
+                $addFields: {
+                    campaignIdObj: {
+                        $cond: [
+                            { $eq: [{ $type: '$campaigns.campaignId' }, 'objectId'] },
+                            '$campaigns.campaignId',
+                            { $toObjectId: '$campaigns.campaignId' },
+                        ],
+                    },
+
+                    socialAccountIdObj: {
+                        $cond: [
+                            { $eq: [{ $type: '$campaigns.actions.socialAccountId' }, 'objectId'] },
+                            '$campaigns.actions.socialAccountId',
+                            {
+                                $cond: [
+                                    { $in: [{ $type: '$campaigns.actions.socialAccountId' }, ['string']] },
+                                    { $toObjectId: '$campaigns.actions.socialAccountId' },
+                                    null,
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+
+            {
                 $lookup: {
                     from: 'campaigns',
-                    localField: 'campaigns.campaignId',
+                    localField: 'campaignIdObj',
                     foreignField: '_id',
                     as: 'openCampaign',
                 },
@@ -177,7 +204,7 @@ export class InfluencerActionsHistoryService {
             {
                 $lookup: {
                     from: 'completedcampaigns',
-                    localField: 'campaigns.campaignId',
+                    localField: 'campaignIdObj',
                     foreignField: '_id',
                     as: 'closedCampaign',
                 },
@@ -187,6 +214,52 @@ export class InfluencerActionsHistoryService {
             {
                 $project: {
                     _id: 0,
+                    addedAccountsId: {
+                        $ifNull: [
+                            '$campaigns.actions.addedAccountsId',
+                            {
+                                $cond: [
+                                    { $ne: ['$openCampaign._id', null] },
+                                    {
+                                        $let: {
+                                            vars: {
+                                                byAccountId: {
+                                                    $first: {
+                                                        $filter: {
+                                                            input: { $ifNull: ['$openCampaign.addedAccounts', []] },
+                                                            as: 'acc',
+                                                            cond: {
+                                                                $and: [
+                                                                    { $ne: ['$$acc.accountId', null] },
+                                                                    { $eq: ['$$acc.accountId', '$socialAccountIdObj'] },
+                                                                ],
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                                byUsername: {
+                                                    $first: {
+                                                        $filter: {
+                                                            input: { $ifNull: ['$openCampaign.addedAccounts', []] },
+                                                            as: 'acc',
+                                                            cond: {
+                                                                $and: [
+                                                                    { $eq: ['$$acc.username', '$campaigns.actions.networkUsername'] },
+                                                                    { $eq: ['$$acc.socialMedia', '$campaigns.actions.socialMedia'] },
+                                                                ],
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                            in: { $ifNull: ['$$byAccountId._id', '$$byUsername._id'] },
+                                        },
+                                    },
+                                    null,
+                                ],
+                            },
+                        ],
+                    },
                     campaignId: '$campaigns.campaignId',
                     campaignName: '$campaigns.campaignName',
 
@@ -209,6 +282,8 @@ export class InfluencerActionsHistoryService {
             { $skip: skip },
             { $limit: limit },
         ]);
+
+        console.log()
 
         let history: HistoryCampaignItemForProcessedHistory[] = [];
 

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Dropbox, DropboxAuth } from 'dropbox';
+import {DropboxLinkKind} from "../../common/types/file/file.types";
 
 export function detectDropboxLinkKind(url: string): DropboxLinkKind {
     let u: URL;
@@ -140,5 +141,57 @@ export class DropboxService {
         });
 
         return shareLink.result.url.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+    }
+
+    async listVideosFromSharedFolder(folderUrl: string) {
+        const videos: Array<{ id: string; name: string; size?: number }> = [];
+
+        let res = await this.dbx.filesListFolder({
+            path: '',
+            shared_link: { url: folderUrl },
+            recursive: false,
+            include_media_info: false,
+        });
+
+        while (true) {
+            for (const e of res.result.entries) {
+                if (e['.tag'] !== 'file') continue;
+                const name = (e as any).name as string;
+                if (!name.toLowerCase().endsWith('.mp4')) continue;
+
+                videos.push({
+                    id: (e as any).id,
+                    name,
+                    size: (e as any).size,
+                });
+            }
+
+            if (!res.result.has_more) break;
+            res = await this.dbx.filesListFolderContinue({ cursor: res.result.cursor });
+        }
+
+        return videos;
+    }
+
+    async getPlayableTempLinkById(fileId: string) {
+        const r = await this.dbx.filesGetTemporaryLink({ path: fileId });
+        return r.result.link;
+    }
+
+    async tryGetPosterBase64ById(fileId: string) {
+        try {
+            const r = await this.dbx.filesGetThumbnailV2({
+                resource: { '.tag': 'path', path: fileId },
+                format: { '.tag': 'jpeg' },
+                size: { '.tag': 'w640h480' },
+                mode: { '.tag': 'bestfit' },
+            });
+
+            const bytes = (r as any).result.thumbnail as Uint8Array;
+            const b64 = Buffer.from(bytes).toString('base64');
+            return `data:image/jpeg;base64,${b64}`;
+        } catch {
+            return null;
+        }
     }
 }

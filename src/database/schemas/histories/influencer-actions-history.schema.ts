@@ -5,6 +5,9 @@ import {SocialMediaEnum} from "../../../common/types/social-media.types";
 @Schema()
 export class CampaignAction {
     @Prop({type: Types.ObjectId, required: true})
+    addedAccountsId: Types.ObjectId;
+
+    @Prop({type: Types.ObjectId, required: true})
     socialAccountId: Types.ObjectId;
 
     @Prop({type: Number, required: true, min: 0, max: 5})

@@ -78,6 +78,9 @@ export class HistoryCampaignItemForProcessedHistory {
     campaignSocialMedia: SocialMediaEnum | 'multipromo';
 
     @ApiProperty()
+    addedAccountsId: string | null;
+
+    @ApiProperty()
     socialAccountId: string;
 
     @ApiProperty()
