@@ -65,6 +65,7 @@ import {BespokeCampaignRepository} from "../../database/repositories/campaigns/b
 import {CampaignCsvExporter} from "../../common/utils/export/csv/campaign-csv.exporter";
 import {maxLength} from "class-validator";
 import {CampaignPdfExporter} from "../../common/utils/export/pdf/campaign-pdf.exporter";
+import {MediaService} from "../media/media.service";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -94,6 +95,7 @@ export class CampaignsService {
         private readonly completedCampaignRepo: CompletedCampaignRepository,
         private readonly proposalCampaignRepo: ProposalCampaignRepository,
         private readonly bespokeCampaignRepo: BespokeCampaignRepository,
+        private readonly mediaService: MediaService,
         private readonly influencerActionsHistoryService: InfluencerActionsHistoryService,
         private readonly emailService: EmailService,
     ) {
@@ -490,6 +492,8 @@ export class CampaignsService {
 
         if (processedCampaignContent.length === 0) throw new BadRequestException('No valid campaign content provided')
 
+        const campaignContentWithCache = await this.mediaService.applyMediaCacheForCreate(processedCampaignContent);
+
         const session = await this.campaignRepo.startSession();
         session.startTransaction();
 
@@ -509,7 +513,7 @@ export class CampaignsService {
                 statusCampaign: CampaignStatusEnum.underReview,
                 verifyCampaign: CampaignConfirmationEnum.wait,
                 shareLink: `${process.env.SERVER_CLIENT}/promo-share/${campaignId}/${data.socialMedia}`,
-                campaignContent: processedCampaignContent,
+                campaignContent: campaignContentWithCache,
                 createdAt,
                 schemaVersion: 2
             } as Campaign, {session});
@@ -1544,6 +1548,7 @@ export class CampaignsService {
         }
     }
 
+    // Returns .pdf completed campaign info
     async buildCampaignPdfReport(campaignId: string, userInfo: UserPayload) {
         const campaign = await this.completedCampaignRepo.findById(campaignId);
 
@@ -1569,5 +1574,12 @@ export class CampaignsService {
             this.logger.error(`Error getting .csv for campaign ${campaignId}`, err);
             throw new InternalServerErrorException("Something went wrong");
         }
+    }
+
+    // Returns all campaign content items video previews
+    async getCampaignContentPreviews(campaignId: string) {
+        const campaign = await this.getCampaignByPublicShareLink(campaignId);
+
+        
     }
 }

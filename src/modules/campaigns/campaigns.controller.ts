@@ -30,7 +30,6 @@ import {CampaignTypeEnumForDevelopment, PublicCampaignForTable} from "../../comm
 import {Roles} from "../../common/decorators/roles.decorator";
 import {UpdateCampaignDto} from "./dto/update-campaign.dto";
 import {CreateBespokeCampaignDto} from "./dto/bespoke-request.dto";
-import {userInfo} from "node:os";
 
 @ApiTags('campaigns')
 @Controller('campaigns')
@@ -259,7 +258,7 @@ export class CampaignsController {
     @ApiParam({name: 'campaignId', required: true, type: 'string'})
     @Get(':campaignId/csv')
     async getCampaignCsvFile(@Req() request: AuthenticatedRequest, @Param('campaignId') campaignId: string, @Res() res: Response) {
-        const { stream, filename } = await this.campaignsService.streamCampaignCsv(campaignId, request.user);
+        const {stream, filename} = await this.campaignsService.streamCampaignCsv(campaignId, request.user);
 
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', filename);
@@ -276,7 +275,7 @@ export class CampaignsController {
         @Param('campaignId') campaignId: string,
         @Res() res: Response,
     ) {
-        const { pdfBuffer, filename } = await this.campaignsService.buildCampaignPdfReport(
+        const {pdfBuffer, filename} = await this.campaignsService.buildCampaignPdfReport(
             campaignId,
             request.user,
         );
@@ -288,5 +287,27 @@ export class CampaignsController {
         res.setHeader('Cache-Control', 'no-store');
 
         return res.end(pdfBuffer);
+    }
+
+    @Public()
+    @ApiOperation({summary: 'Returns previews for campaign content videos'})
+    @ApiResponseDto()
+    @ApiParam({
+        name: 'campaignId',
+    })
+    @Get(':campaignId/previews')
+    async getCampaignContentPreviews() {
+        return this.campaignsService.
+    }
+
+    @Public()
+    @ApiOperation({summary: 'Returns campaign content video'})
+    @ApiResponseDto()
+    @ApiParam({
+        name: 'campaignId',
+    })
+    @Get(':campaignId/video')
+    async getCampaignContentPreviews() {
+
     }
 }

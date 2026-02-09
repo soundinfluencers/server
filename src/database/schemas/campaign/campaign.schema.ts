@@ -10,6 +10,7 @@ import {
     InfluencerConfirmationStatusEnum,
     InfluencerPromoClosedStatusEnum
 } from "../../../common/types/influencer/promo.types";
+import {MediaKindEnum, MediaProviderEnum} from "../../../common/types/file/file.types";
 
 @Schema({_id: false, timestamps: false})
 export class SelectedContent {
@@ -96,6 +97,34 @@ export class CampaignAccount {
 
 const CampaignAccountSchema = SchemaFactory.createForClass(CampaignAccount);
 
+@Schema({_id: false, timestamps: false})
+export class CampaignContentMediaItem {
+    @Prop({ required: true })
+    fileId: string;
+
+    @Prop({ required: true })
+    name: string;
+}
+
+export const CampaignContentMediaItemSchema = SchemaFactory.createForClass(CampaignContentMediaItem);
+
+@Schema({_id: false, timestamps: false})
+export class CampaignContentMediaCache {
+    @Prop({type: String, required: true, enum: MediaProviderEnum})
+    provider: MediaProviderEnum;
+
+    @Prop({required: true, type: String, enum: MediaKindEnum})
+    kind: MediaKindEnum;
+
+    @Prop({required: false, type: [CampaignContentMediaItemSchema]})
+    items?: CampaignContentMediaItem[];
+
+    @Prop({required: false, type: Date})
+    cachedAt?: Date;
+}
+
+export const CampaignContentMediaCacheSchema = SchemaFactory.createForClass(CampaignContentMediaCache);
+
 @Schema({timestamps: false})
 export class CampaignContentDescriptionItem {
     @Prop({type: Types.ObjectId, required: true})
@@ -120,6 +149,9 @@ export class CampaignContentItem {
 
     @Prop({type: String, required: true})
     mainLink: string; // was videoLink
+
+    @Prop({ type: CampaignContentMediaCacheSchema, required: false })
+    mediaCache?: CampaignContentMediaCache;
 
     @Prop({type: [CampaignContentDescriptionItemSchema], required: false})
     descriptions?: CampaignContentDescriptionItem[]; // was postDescriptions

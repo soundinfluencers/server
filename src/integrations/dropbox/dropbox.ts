@@ -143,26 +143,46 @@ export class DropboxService {
         return shareLink.result.url.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
     }
 
-    async listVideosFromSharedFolder(folderUrl: string) {
+    async listVideosFromSharedFolder(
+        folderUrl: string,
+        opts?: {
+            recursive?: boolean;
+            extensions?: string[];
+            maxItems?: number;
+        },
+    ) {
+        const extensions = (opts?.extensions ?? ['.mp4', '.mov', '.m4v', '.webm']).map((x) =>
+            x.toLowerCase(),
+        );
+        const maxItems = opts?.maxItems ?? 500;
+        const recursive = opts?.recursive ?? false;
+
         const videos: Array<{ id: string; name: string; size?: number }> = [];
 
         let res = await this.dbx.filesListFolder({
             path: '',
             shared_link: { url: folderUrl },
-            recursive: false,
+            recursive,
             include_media_info: false,
+            include_deleted: false,
         });
 
         while (true) {
             for (const e of res.result.entries) {
+                if (videos.length >= maxItems) return videos;
+
                 if (e['.tag'] !== 'file') continue;
-                const name = (e as any).name as string;
-                if (!name.toLowerCase().endsWith('.mp4')) continue;
+
+                const anyE = e as any;
+                const name = (anyE.name as string) ?? '';
+                const lower = name.toLowerCase();
+
+                if (!extensions.some((ext) => lower.endsWith(ext))) continue;
 
                 videos.push({
-                    id: (e as any).id,
+                    id: anyE.id,
                     name,
-                    size: (e as any).size,
+                    size: anyE.size,
                 });
             }
 
@@ -173,17 +193,45 @@ export class DropboxService {
         return videos;
     }
 
-    async getPlayableTempLinkById(fileId: string) {
-        const r = await this.dbx.filesGetTemporaryLink({ path: fileId });
+    async getPlayableTempLinkById(fileIdOrPath: string): Promise<string> {
+        const r = await this.dbx.filesGetTemporaryLink({ path: fileIdOrPath });
         return r.result.link;
     }
 
-    async tryGetPosterBase64ById(fileId: string) {
+    async resolveFileIdFromSharedLink(sharedUrl: string): Promise<{ id?: string; pathLower?: string; name?: string }> {
+        const r = await this.dbx.sharingGetSharedLinkMetadata({ url: sharedUrl });
+
+        const md: any = r.result;
+        return {
+            id: md?.id,
+            pathLower: md?.path_lower,
+            name: md?.name,
+        };
+    }
+
+    async getPlayableTempLinkFromSharedFileLink(sharedUrl: string): Promise<{ videoUrl: string; fileId?: string; name?: string }> {
+        const meta = await this.resolveFileIdFromSharedLink(sharedUrl);
+
+        const path = meta.id ?? meta.pathLower;
+        if (!path) {
+            return { videoUrl: this.toDropboxRaw(sharedUrl), fileId: undefined, name: meta.name };
+        }
+
+        const videoUrl = await this.getPlayableTempLinkById(path);
+        return { videoUrl, fileId: meta.id, name: meta.name };
+    }
+
+    async tryGetPosterBase64ById(
+        fileIdOrPath: string,
+        opts?: { sizeTag?: "w64h64" | "w128h128" | "w256h256" | "w640h480" | "w32h32" | "w480h320" | "w960h640" | "w1024h768" | "w2048h1536" },
+    ): Promise<string | null> {
         try {
+            const sizeTag = opts?.sizeTag ?? 'w256h256';
+
             const r = await this.dbx.filesGetThumbnailV2({
-                resource: { '.tag': 'path', path: fileId },
+                resource: { '.tag': 'path', path: fileIdOrPath },
                 format: { '.tag': 'jpeg' },
-                size: { '.tag': 'w640h480' },
+                size: { '.tag': sizeTag },
                 mode: { '.tag': 'bestfit' },
             });
 
@@ -193,5 +241,12 @@ export class DropboxService {
         } catch {
             return null;
         }
+    }
+
+    toDropboxRaw(url: string): string {
+        const u = new URL(url);
+        u.searchParams.delete('dl');
+        u.searchParams.set('raw', '1');
+        return u.toString();
     }
 }

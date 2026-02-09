@@ -23,6 +23,7 @@ import {DatabaseModule} from "../../database/database.module";
 import {CampaignsModule} from "../campaigns/campaigns.module";
 import {MigrationsModule} from "../migrations/migrations.module";
 import {EmailModule} from "../email/email.module";
+import {MediaModule} from "../media/media.module";
 
 @Module({
     imports: [
@@ -45,6 +46,7 @@ import {EmailModule} from "../email/email.module";
         ScrapersModule,
         ReportsSizesModule,
         MigrationsModule,
+        MediaModule,
         EmailModule,
         DatabaseModule,
         ServeStaticModule.forRoot({

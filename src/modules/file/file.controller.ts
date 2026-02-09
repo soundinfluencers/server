@@ -1,9 +1,10 @@
 import {Controller, Post, UseInterceptors, UploadedFile, Get, Query} from '@nestjs/common';
 import {FileInterceptor} from '@nestjs/platform-express';
-import {ApiBody, ApiConsumes, ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
+import {ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {FileService} from "./file.service";
 import {Auth} from "../../common/decorators/auth.decorator";
+import {Public} from "../../common/decorators/public.decorator";
 
 @ApiTags('file')
 @Controller('file')

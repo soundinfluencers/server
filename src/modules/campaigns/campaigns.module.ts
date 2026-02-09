@@ -9,8 +9,10 @@ import {Campaign, CampaignSchema} from "../../database/schemas/campaign/campaign
 import {ProposalCampaign, ProposalCampaignSchema} from "../../database/schemas/campaign/proposal-campaign.schema";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {EmailService} from "../email/email.service";
+import {MediaModule} from "../media/media.module";
 
 @Module({
+    imports: [MediaModule],
     controllers: [CampaignsController],
     providers: [CampaignsService, InfluencerActionsHistoryService, EmailService],
     exports: [CampaignsService],
