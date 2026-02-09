@@ -267,4 +267,26 @@ export class CampaignsController {
 
         stream.pipe(res);
     }
+
+    @Auth()
+    @Roles(Role.client, Role.admin)
+    @Get(':campaignId/pdf')
+    async getCampaignPdfFile(
+        @Req() request: AuthenticatedRequest,
+        @Param('campaignId') campaignId: string,
+        @Res() res: Response,
+    ) {
+        const { pdfBuffer, filename } = await this.campaignsService.buildCampaignPdfReport(
+            campaignId,
+            request.user,
+        );
+
+        res.status(200);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', filename);
+        res.setHeader('Cache-Control', 'no-store');
+
+        return res.end(pdfBuffer);
+    }
 }

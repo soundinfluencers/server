@@ -64,6 +64,7 @@ import {BuildRequestEditTemplateDto} from "../email/dto/campaign-email.dto";
 import {BespokeCampaignRepository} from "../../database/repositories/campaigns/bespoke-campaign.repository";
 import {CampaignCsvExporter} from "../../common/utils/export/csv/campaign-csv.exporter";
 import {maxLength} from "class-validator";
+import {CampaignPdfExporter} from "../../common/utils/export/pdf/campaign-pdf.exporter";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -1533,7 +1534,34 @@ export class CampaignsService {
         try {
             return {
                 stream: CampaignCsvExporter.buildStream(campaign),
-                filename: `${buildSafeFileName(campaign.campaignName, {maxLength: 60})}.csv`,
+                filename: `${buildSafeFileName(campaign.campaignName, {maxLength: 60, extension: 'csv'})}.csv`,
+            };
+        } catch (err) {
+            this.logger.error(`Error getting .csv for campaign ${campaignId}`, err);
+            throw new InternalServerErrorException("Something went wrong");
+        }
+    }
+
+    async buildCampaignPdfReport(campaignId: string, userInfo: UserPayload) {
+        const campaign = await this.completedCampaignRepo.findById(campaignId);
+
+        if (!campaign) {
+            throw new NotFoundException(`Campaign not found`);
+        }
+
+        const isAdmin = userInfo.role === Role.admin;
+        const isOwner = String(campaign.clientId) === String(userInfo._id);
+
+        if (!isAdmin && !isOwner) {
+            throw new ForbiddenException('Not enough access');
+        }
+
+        const pdfBuffer = await CampaignPdfExporter.buildPdfBuffer(campaign);
+
+        try {
+            return {
+                pdfBuffer: pdfBuffer,
+                filename: `${buildSafeFileName(campaign.campaignName, {maxLength: 60, extension: 'pdf'})}`,
             };
         } catch (err) {
             this.logger.error(`Error getting .csv for campaign ${campaignId}`, err);

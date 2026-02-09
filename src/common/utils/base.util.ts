@@ -32,7 +32,8 @@ export const buildSafeFileName = (
     {
         maxLength = 80,
         fallback = `${formatDate(new Date())}`,
-    }: { maxLength?: number; fallback?: string } = {},
+        extension = 'csv'
+    }: { maxLength?: number; fallback?: string, extension?: 'csv' | 'pdf' } = {},
 ): string => {
     const baseName = rawName || fallback;
 
@@ -56,5 +57,5 @@ export const buildSafeFileName = (
         .replace(/['()]/g, c => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)
         .replace(/\*/g, '%2A');
 
-    return `attachment; filename="${asciiFallback}.csv"; filename*=UTF-8''${encoded}.csv`;
+    return `attachment; filename="${asciiFallback}.${extension}"; filename*=UTF-8''${encoded}.${extension}`;
 };
