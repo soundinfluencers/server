@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import pLimit = require('p-limit');
-import { MediaStrategy, ResolveMode } from './media.strategy';
-import { detectDropboxLinkKind, DropboxService } from '../../../integrations/dropbox/dropbox';
+import {MediaStrategy, ResolveMode, ThumbSizeTag} from './media.strategy';
+import DropboxService, { detectDropboxLinkKind } from '../../../integrations/dropbox/dropbox';
 import { ResolvedMediaDto } from '../dto/resolved-media.dto';
 import { MediaKindEnum, MediaProviderEnum } from '../../../common/types/file/file.types';
 import {
@@ -10,19 +10,53 @@ import {
     CampaignContentMediaItem,
 } from '../../../database/schemas/campaign/campaign.schema';
 
-type CacheItem = { fileId: string; name: string };
+type CacheItem = { fileId?: string; name: string; pathLower: string };
 
 @Injectable()
 export class DropboxMediaStrategy implements MediaStrategy {
     private readonly limit = pLimit(5);
     private readonly folderCacheTtlMs = 24 * 60 * 60 * 1000;
-    private readonly previewFirstN = 8;
+    private readonly previewFirstN = 50;
 
     constructor(private readonly dropbox: DropboxService) {}
 
     canHandle(mainLink: string): boolean {
         const kind = detectDropboxLinkKind(mainLink);
         return kind === 'file' || kind === 'folder';
+    }
+
+    async getPreviewsBatch(params: { paths: string[]; sizeTag: ThumbSizeTag }) {
+        const sizeTag = params.sizeTag ?? 'w256h256';
+
+        return Promise.all(
+            params.paths.map((path) =>
+                this.limit(async () => ({
+                    path,
+                    previewUrl: await this.dropbox.tryGetPosterBase64ByPath(path, { sizeTag }),
+                })),
+            ),
+        );
+    }
+
+    async getPreviewJpeg(params: { pathLower?: string; fileId?: string; sizeTag?: ThumbSizeTag }) {
+        const sizeTag = params.sizeTag ?? 'w256h256';
+
+        if (!params.pathLower) return null;
+
+        return this.dropbox.tryGetPosterJpegByPath(params.pathLower, { sizeTag });
+    }
+
+    async getVideoUrl(params: { pathLower?: string; url?: string }): Promise<string> {
+        if (params.pathLower) {
+            return this.dropbox.getPlayableTempLinkByPath(params.pathLower);
+        }
+
+        if (params.url) {
+            const { videoUrl } = await this.dropbox.getPlayableTempLinkFromSharedFileLink(params.url);
+            return videoUrl;
+        }
+
+        throw new BadRequestException('pathLower or url is required');
     }
 
     async resolve(
@@ -43,14 +77,18 @@ export class DropboxMediaStrategy implements MediaStrategy {
 
             let mediaCachePatch: CampaignContentMediaCache | undefined;
 
-            if (!isCacheFresh || !items?.length) {
+            if (!isCacheFresh || !items?.length || items.some((x) => !(x as any).pathLower)) {
                 const videos = await this.dropbox.listVideosFromSharedFolder(contentItem.mainLink, {
                     extensions: ['.mp4', '.mov', '.m4v', '.webm'],
                     maxItems: 500,
                     recursive: false,
                 });
 
-                items = videos.map((v) => ({ fileId: v.id, name: v.name }));
+                items = videos.map((v) => ({
+                    fileId: v.id,
+                    name: v.name,
+                    pathLower: v.pathLower,
+                }));
 
                 mediaCachePatch = {
                     provider: MediaProviderEnum.dropbox,
@@ -106,18 +144,17 @@ export class DropboxMediaStrategy implements MediaStrategy {
                 };
             }
 
-            const { videoUrl, fileId, name } =
+            const { videoUrl, fileId, name, pathLower } =
                 await this.dropbox.getPlayableTempLinkFromSharedFileLink(contentItem.mainLink);
 
-            const previewUrl = fileId
-                ? await this.dropbox.tryGetPosterBase64ById(fileId, { sizeTag: 'w256h256' })
-                : null;
+            const previewUrl =
+                pathLower ? await this.dropbox.tryGetPosterBase64ByPath(pathLower, { sizeTag: 'w256h256' }) : null;
 
             return {
                 resolved: {
                     provider: MediaProviderEnum.dropbox,
                     kind: MediaKindEnum.file,
-                    items: [{ fileId, name, videoUrl, previewUrl }],
+                    items: [{ fileId, name, videoUrl, previewUrl, pathLower } as any],
                     expiresInSec: 4 * 60 * 60,
                 },
             };
@@ -137,7 +174,7 @@ export class DropboxMediaStrategy implements MediaStrategy {
             resolved: {
                 provider: MediaProviderEnum.direct,
                 kind: MediaKindEnum.file,
-                items: [{ videoUrl: contentItem.mainLink, previewUrl: null }],
+                items: [{ videoUrl: contentItem.mainLink, previewUrl: null } as any],
             },
         };
     }
@@ -146,13 +183,20 @@ export class DropboxMediaStrategy implements MediaStrategy {
         return Promise.all(
             items.map((i, idx) =>
                 this.limit(async () => {
-                    const videoUrl = await this.dropbox.getPlayableTempLinkById(i.fileId);
+                    const videoUrl = await this.dropbox.getPlayableTempLinkByPath(i.pathLower);
+
                     const previewUrl =
                         idx < this.previewFirstN
-                            ? await this.dropbox.tryGetPosterBase64ById(i.fileId, { sizeTag: 'w256h256' })
+                            ? await this.dropbox.tryGetPosterBase64ByPath(i.pathLower, { sizeTag: 'w256h256' })
                             : null;
 
-                    return { fileId: i.fileId, name: i.name, videoUrl, previewUrl };
+                    return {
+                        fileId: i.fileId,
+                        name: i.name,
+                        pathLower: i.pathLower,
+                        videoUrl,
+                        previewUrl,
+                    };
                 }),
             ),
         );

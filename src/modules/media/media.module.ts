@@ -3,7 +3,7 @@ import { MediaService } from './media.service';
 import { MediaStrategyFactory } from './media.factory';
 import { DropboxMediaStrategy } from './strategies/dropbox.strategy';
 import { DirectMediaStrategy } from './strategies/direct.strategy';
-import { DropboxService } from '../../integrations/dropbox/dropbox';
+import DropboxService from '../../integrations/dropbox/dropbox';
 
 @Module({
     providers: [

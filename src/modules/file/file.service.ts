@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { createWriteStream } from 'fs';
-import {DropboxService} from "../../integrations/dropbox/dropbox";
+import DropboxService from "../../integrations/dropbox/dropbox";
 
 @Injectable()
 export class FileService {

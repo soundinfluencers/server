@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Dropbox, DropboxAuth } from 'dropbox';
 import {DropboxLinkKind} from "../../common/types/file/file.types";
+import {ThumbSizeTag} from "../../modules/media/strategies/media.strategy";
 
 export function detectDropboxLinkKind(url: string): DropboxLinkKind {
     let u: URL;
@@ -16,14 +17,20 @@ export function detectDropboxLinkKind(url: string): DropboxLinkKind {
     if (!hostIsDropbox) return 'not_dropbox';
 
     if (u.pathname.includes('/scl/fo/')) return 'folder';
-
     if (u.pathname.includes('/s/') || u.pathname.includes('/scl/fi/')) return 'file';
 
     return 'unknown_dropbox';
 }
 
+export type DropboxSharedFolderVideo = {
+    id?: string;
+    name: string;
+    size?: number;
+    pathLower: string;
+};
+
 @Injectable()
-export class DropboxService {
+class DropboxService {
     private dbxAuth: DropboxAuth;
     private dbx: Dropbox;
     private accessToken: string;
@@ -150,14 +157,14 @@ export class DropboxService {
             extensions?: string[];
             maxItems?: number;
         },
-    ) {
+    ): Promise<DropboxSharedFolderVideo[]> {
         const extensions = (opts?.extensions ?? ['.mp4', '.mov', '.m4v', '.webm']).map((x) =>
             x.toLowerCase(),
         );
         const maxItems = opts?.maxItems ?? 500;
         const recursive = opts?.recursive ?? false;
 
-        const videos: Array<{ id: string; name: string; size?: number }> = [];
+        const videos: DropboxSharedFolderVideo[] = [];
 
         let res = await this.dbx.filesListFolder({
             path: '',
@@ -170,8 +177,7 @@ export class DropboxService {
         while (true) {
             for (const e of res.result.entries) {
                 if (videos.length >= maxItems) return videos;
-
-                if (e['.tag'] !== 'file') continue;
+                if ((e as any)['.tag'] !== 'file') continue;
 
                 const anyE = e as any;
                 const name = (anyE.name as string) ?? '';
@@ -179,10 +185,14 @@ export class DropboxService {
 
                 if (!extensions.some((ext) => lower.endsWith(ext))) continue;
 
+                const pathLower = anyE.path_lower as string | undefined;
+                if (!pathLower) continue;
+
                 videos.push({
                     id: anyE.id,
                     name,
                     size: anyE.size,
+                    pathLower,
                 });
             }
 
@@ -193,15 +203,97 @@ export class DropboxService {
         return videos;
     }
 
-    async getPlayableTempLinkById(fileIdOrPath: string): Promise<string> {
-        const r = await this.dbx.filesGetTemporaryLink({ path: fileIdOrPath });
+    async getPlayableTempLinkByPath(pathLower: string): Promise<string> {
+        const r = await this.dbx.filesGetTemporaryLink({ path: pathLower });
         return r.result.link;
     }
 
-    async resolveFileIdFromSharedLink(sharedUrl: string): Promise<{ id?: string; pathLower?: string; name?: string }> {
-        const r = await this.dbx.sharingGetSharedLinkMetadata({ url: sharedUrl });
+    async tryGetPosterBase64ByPath(
+        pathLower: string,
+        opts?: {
+            sizeTag?: ThumbSizeTag
+        },
+    ): Promise<string | null> {
+        try {
+            const sizeTag = opts?.sizeTag ?? 'w256h256';
 
+            const r: any = await this.dbx.filesGetThumbnailV2({
+                resource: { '.tag': 'path', path: pathLower },
+                format: { '.tag': 'jpeg' },
+                size: { '.tag': sizeTag },
+                mode: { '.tag': 'bestfit' },
+            });
+
+            const bytes: any =
+                r?.result?.thumbnail ??
+                r?.result?.fileBinary ??
+                r?.fileBinary ??
+                r?.result;
+
+            console.log(r, 'res')
+
+            if (!bytes) {
+                console.warn('Dropbox thumbnail bytes missing for', pathLower);
+                return null;
+            }
+
+            const buf = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+            return `data:image/jpeg;base64,${buf.toString('base64')}`;
+        } catch (e: any) {
+            console.error('tryGetPosterBase64ByPath failed', e?.error ?? e);
+            return null;
+        }
+    }
+
+    async tryGetPosterJpegByPath(
+        pathLower: string,
+        opts?: { sizeTag?: ThumbSizeTag },
+    ): Promise<Buffer | null> {
+        try {
+            const sizeTag = opts?.sizeTag ?? 'w256h256';
+
+            const r: any = await this.dbx.filesGetThumbnailV2({
+                resource: { '.tag': 'path', path: pathLower },
+                format: { '.tag': 'jpeg' },
+                size: { '.tag': sizeTag },
+                mode: { '.tag': 'bestfit' },
+            });
+
+            const bytes: any =
+                r?.result?.thumbnail ??
+                r?.result?.fileBinary ??
+                r?.fileBinary ??
+                r?.result;
+
+            if (!bytes) return null;
+
+            if (Buffer.isBuffer(bytes)) return bytes;
+            if (bytes instanceof Uint8Array) return Buffer.from(bytes);
+            if (bytes instanceof ArrayBuffer) return Buffer.from(new Uint8Array(bytes));
+
+            if (typeof bytes === 'string') {
+                const b64 = bytes.startsWith('data:')
+                    ? bytes.slice(bytes.indexOf('base64,') + 'base64,'.length)
+                    : bytes;
+                return Buffer.from(b64, 'base64');
+            }
+
+            return Buffer.from(bytes);
+        } catch (e: any) {
+            console.error('tryGetPosterJpegByPath failed', e?.error ?? e);
+            return null;
+        }
+    }
+
+
+    async resolveFilePathFromSharedLink(sharedUrl: string): Promise<{
+        id?: string;
+        pathLower?: string;
+        name?: string;
+    }> {
+        const r = await this.dbx.sharingGetSharedLinkMetadata({ url: sharedUrl });
         const md: any = r.result;
+
         return {
             id: md?.id,
             pathLower: md?.path_lower,
@@ -209,38 +301,30 @@ export class DropboxService {
         };
     }
 
-    async getPlayableTempLinkFromSharedFileLink(sharedUrl: string): Promise<{ videoUrl: string; fileId?: string; name?: string }> {
-        const meta = await this.resolveFileIdFromSharedLink(sharedUrl);
+    async getPlayableTempLinkFromSharedFileLink(sharedUrl: string): Promise<{
+        videoUrl: string;
+        fileId?: string;
+        name?: string;
+        pathLower?: string;
+    }> {
+        const meta = await this.resolveFilePathFromSharedLink(sharedUrl);
 
-        const path = meta.id ?? meta.pathLower;
-        if (!path) {
-            return { videoUrl: this.toDropboxRaw(sharedUrl), fileId: undefined, name: meta.name };
+        if (!meta.pathLower) {
+            return {
+                videoUrl: this.toDropboxRaw(sharedUrl),
+                fileId: meta.id,
+                name: meta.name,
+                pathLower: undefined,
+            };
         }
 
-        const videoUrl = await this.getPlayableTempLinkById(path);
-        return { videoUrl, fileId: meta.id, name: meta.name };
-    }
-
-    async tryGetPosterBase64ById(
-        fileIdOrPath: string,
-        opts?: { sizeTag?: "w64h64" | "w128h128" | "w256h256" | "w640h480" | "w32h32" | "w480h320" | "w960h640" | "w1024h768" | "w2048h1536" },
-    ): Promise<string | null> {
-        try {
-            const sizeTag = opts?.sizeTag ?? 'w256h256';
-
-            const r = await this.dbx.filesGetThumbnailV2({
-                resource: { '.tag': 'path', path: fileIdOrPath },
-                format: { '.tag': 'jpeg' },
-                size: { '.tag': sizeTag },
-                mode: { '.tag': 'bestfit' },
-            });
-
-            const bytes = (r as any).result.thumbnail as Uint8Array;
-            const b64 = Buffer.from(bytes).toString('base64');
-            return `data:image/jpeg;base64,${b64}`;
-        } catch {
-            return null;
-        }
+        const videoUrl = await this.getPlayableTempLinkByPath(meta.pathLower);
+        return {
+            videoUrl,
+            fileId: meta.id,
+            name: meta.name,
+            pathLower: meta.pathLower,
+        };
     }
 
     toDropboxRaw(url: string): string {
@@ -250,3 +334,5 @@ export class DropboxService {
         return u.toString();
     }
 }
+
+export default DropboxService

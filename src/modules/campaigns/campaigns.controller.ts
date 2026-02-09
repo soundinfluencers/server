@@ -3,7 +3,7 @@ import {
     Body,
     Controller,
     Delete,
-    Get,
+    Get, Header,
     Param,
     Patch,
     Post,
@@ -30,6 +30,8 @@ import {CampaignTypeEnumForDevelopment, PublicCampaignForTable} from "../../comm
 import {Roles} from "../../common/decorators/roles.decorator";
 import {UpdateCampaignDto} from "./dto/update-campaign.dto";
 import {CreateBespokeCampaignDto} from "./dto/bespoke-request.dto";
+import {CampaignPreviewItemDto, GetCampaignContentVideoUrl} from "../media/dto/resolved-media.dto";
+import {ThumbSizeTag} from "../media/strategies/media.strategy";
 
 @ApiTags('campaigns')
 @Controller('campaigns')
@@ -291,23 +293,35 @@ export class CampaignsController {
 
     @Public()
     @ApiOperation({summary: 'Returns previews for campaign content videos'})
-    @ApiResponseDto()
+    @ApiResponseDto(CampaignPreviewItemDto, {isArray: true})
     @ApiParam({
         name: 'campaignId',
     })
-    @Get(':campaignId/previews')
-    async getCampaignContentPreviews() {
-        return this.campaignsService.
+    @ApiQuery({
+        name: 'pathLower'
+    })
+    @ApiQuery({
+        name: 'sizeTag'
+    })
+    @Header('Content-Type', 'image/jpeg')
+    @Header('Cache-Control', 'public, max-age=86400')
+    @Get(':campaignId/preview')
+    async getCampaignContentPreview(@Param('campaignId') campaignId: string, @Query('pathLower') pathLower: string, @Query('sizeTag') sizeTag: ThumbSizeTag = 'w256h256', @Res() res: Response) {
+        if (!pathLower) return res.status(400).end();
+
+        const buffer = await this.campaignsService.getCampaignContentPreviewJpeg(campaignId, pathLower, sizeTag);
+
+        if (!buffer) return res.status(404).end();
+
+        return res.send(buffer);
     }
 
     @Public()
     @ApiOperation({summary: 'Returns campaign content video'})
     @ApiResponseDto()
-    @ApiParam({
-        name: 'campaignId',
-    })
     @Get(':campaignId/video')
-    async getCampaignContentPreviews() {
-
+    async getCampaignVideo(@Body() data: GetCampaignContentVideoUrl, @Res() res: Response) {
+        const videoUrl = await this.campaignsService.getCampaignContentVideoUrl(data);
+        return res.redirect(302, videoUrl);
     }
 }

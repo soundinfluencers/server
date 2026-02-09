@@ -100,6 +100,9 @@ const CampaignAccountSchema = SchemaFactory.createForClass(CampaignAccount);
 @Schema({_id: false, timestamps: false})
 export class CampaignContentMediaItem {
     @Prop({ required: true })
+    pathLower: string;
+
+    @Prop({ required: true })
     fileId: string;
 
     @Prop({ required: true })

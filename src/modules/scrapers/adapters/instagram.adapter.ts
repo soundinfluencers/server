@@ -4,7 +4,7 @@ import {InstagramAccountDetailsItem, InstagramPostDetailsItem} from "../types/sc
 import axios from "axios";
 import {Logger} from "@nestjs/common";
 import {Types} from "mongoose";
-import {DropboxService} from "../../../integrations/dropbox/dropbox";
+import DropboxService from "../../../integrations/dropbox/dropbox";
 
 export class InstagramAdapter implements ScraperAdapter<InstagramPostDetailsItem> {
     private readonly logger = new Logger();

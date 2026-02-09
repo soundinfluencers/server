@@ -66,6 +66,9 @@ import {CampaignCsvExporter} from "../../common/utils/export/csv/campaign-csv.ex
 import {maxLength} from "class-validator";
 import {CampaignPdfExporter} from "../../common/utils/export/pdf/campaign-pdf.exporter";
 import {MediaService} from "../media/media.service";
+import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
+import {GetCampaignContentVideoUrl} from "../media/dto/resolved-media.dto";
+import {ThumbSizeTag} from "../media/strategies/media.strategy";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -1577,9 +1580,27 @@ export class CampaignsService {
     }
 
     // Returns all campaign content items video previews
-    async getCampaignContentPreviews(campaignId: string) {
-        const campaign = await this.getCampaignByPublicShareLink(campaignId);
+    async getCampaignContentPreviewJpeg(campaignId: string, pathLower: string, sizeTag: ThumbSizeTag) {
+        let campaign: Campaign | CompletedCampaign = await this.campaignRepo.findById(campaignId, { lean: true });
+        if (!campaign) campaign = await this.completedCampaignRepo.findById(campaignId, { lean: true });
+        if (!campaign) throw new NotFoundException('Campaign not found');
 
-        
+        const contentItem = (campaign.campaignContent ?? []).find((ci) =>
+            (ci.mediaCache?.items ?? []).some((x) => x?.pathLower === pathLower),
+        );
+
+        if (!contentItem) return null;
+
+        return this.mediaService.getCampaignPreviewJpeg({
+            mainLinkHint: contentItem.mainLink,
+            pathLower,
+            sizeTag,
+        });
+    }
+
+    // Returns campaign content item video url
+    async getCampaignContentVideoUrl(data: GetCampaignContentVideoUrl): Promise<string> {
+        const { videoUrl } = await this.mediaService.getVideoRedirectUrl(data);
+        return videoUrl;
     }
 }
