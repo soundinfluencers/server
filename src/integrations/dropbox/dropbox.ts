@@ -1,6 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import { Dropbox, DropboxAuth } from 'dropbox';
 
+export function detectDropboxLinkKind(url: string): DropboxLinkKind {
+    let u: URL;
+    try {
+        u = new URL(url);
+    } catch {
+        return 'not_dropbox';
+    }
+
+    const hostIsDropbox =
+        u.hostname.endsWith('dropbox.com') || u.hostname === 'dl.dropboxusercontent.com';
+
+    if (!hostIsDropbox) return 'not_dropbox';
+
+    if (u.pathname.includes('/scl/fo/')) return 'folder';
+
+    if (u.pathname.includes('/s/') || u.pathname.includes('/scl/fi/')) return 'file';
+
+    return 'unknown_dropbox';
+}
+
 @Injectable()
 export class DropboxService {
     private dbxAuth: DropboxAuth;
