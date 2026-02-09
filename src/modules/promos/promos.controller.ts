@@ -12,7 +12,7 @@ import {ApiOperation, ApiParam, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {
     InfluencerCompletedPromoDto,
     InfluencerDashboardPromosDto, InfluencerDetailedPromo, InfluencerDetailedPromosDto,
-    InfluencerGetDashboardPromosQueryDto, InfluencerGetDetailedPromoParamsDto,
+    InfluencerGetDashboardPromosQueryDto, InfluencerGetDetailedPromoParamsDto, InfluencerGetDetailedPromosQueryDto,
     InfluencerNewPromoRequestsDto, InfluencerOngoingPromoDto, InfluencerUpdatePromoReqBodyDto,
     InfluencerUpdatePromoResponseUpdateDto,
 } from "./dto/influencer-get-promos.dto";
@@ -75,9 +75,19 @@ export class PromosController {
         required: false,
         enum: InfluencerDetailedPromoStatusRequest,
     })
+    @ApiQuery({
+        name: 'limit',
+        required: false,
+        type: 'number',
+    })
+    @ApiQuery({
+        name: 'page',
+        required: false,
+        type: 'number',
+    })
     @Get('/detailed')
-    async influencerGetDetailedPromos(@Req() request: AuthenticatedRequest, @Query('status') query: InfluencerDetailedPromoStatusRequest): Promise<InfluencerDetailedPromosDto> {
-        const promos = await this.promosService.getDetailedPromosByType(request.user._id, query);
+    async influencerGetDetailedPromos(@Req() request: AuthenticatedRequest, @Query() query: InfluencerGetDetailedPromosQueryDto): Promise<InfluencerDetailedPromosDto> {
+        const promos = await this.promosService.getDetailedPromosByType({...query, influencerId: request.user._id});
         return ({promos});
     }
 

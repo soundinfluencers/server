@@ -234,6 +234,30 @@ export class InfluencerGetDashboardPromosQueryDto {
     influencerId: string;
 }
 
+// dto request for getting detailed promos
+export class InfluencerGetDetailedPromosQueryDto {
+    @ApiProperty({
+        description: 'Type of promos returned',
+        enum: InfluencerDetailedPromoStatusRequest,
+        default: InfluencerDetailedPromoStatusRequest.ongoing,
+    })
+    @IsEnum(InfluencerDetailedPromoStatusRequest)
+    status: InfluencerDetailedPromoStatusRequest;
+
+    @ApiPropertyOptional({
+        default: 12,
+    })
+    limit: number;
+
+    @ApiPropertyOptional({
+        default: 1,
+        description: 'Page number (starts from 1)',
+    })
+    page: number;
+
+    influencerId: string;
+}
+
 // dto request for getting detailed promo
 export class InfluencerGetDetailedPromoParamsDto {
     @ApiProperty({

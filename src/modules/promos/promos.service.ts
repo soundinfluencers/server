@@ -11,7 +11,7 @@ import sendMail from "../../integrations/nodemailer/nodemailer";
 import {
     InfluencerDetailedPromo,
     InfluencerGetDashboardPromosQueryDto,
-    InfluencerGetDetailedPromoParamsDto,
+    InfluencerGetDetailedPromoParamsDto, InfluencerGetDetailedPromosQueryDto,
     InfluencerUpdatePromoReqBodyDto,
     InfluencerUpdatePromoResponseUpdateDto
 } from "./dto/influencer-get-promos.dto";
@@ -54,17 +54,25 @@ export class PromosService {
 
 
     // orchestrator for getting array of detailed promos with specific type (ongoing, completed, etc.)
-    async getDetailedPromosByType(influencerId: string, statusPromo: InfluencerDetailedPromoStatusRequest): Promise<InfluencerDetailedPromo[]> {
+    async getDetailedPromosByType(data: InfluencerGetDetailedPromosQueryDto): Promise<InfluencerDetailedPromo[]> {
         let promos: InfluencerDetailedPromo[];
 
-        const status = statusPromo ?? InfluencerDetailedPromoStatusRequest.ongoing;
+        const status = data.status ?? InfluencerDetailedPromoStatusRequest.ongoing;
 
         switch (status) {
             case InfluencerDetailedPromoStatusRequest.ongoing:
-                promos = await this.getOngoingPromos(influencerId);
+                promos = await this.getOngoingPromos({
+                    limit: data.limit,
+                    page: data.page,
+                    influencerId: data.influencerId
+                });
                 break;
             case InfluencerDetailedPromoStatusRequest.close:
-                promos = await this.getCompletedPromos(influencerId);
+                promos = await this.getCompletedPromos({
+                    limit: data.limit,
+                    page: data.page,
+                    influencerId: data.influencerId
+                });
                 break;
             default:
                 throw new Error('Unsupported promo status')
@@ -498,7 +506,26 @@ export class PromosService {
 
 
     // [COMPLETED] Returns influencer's detailed completed promos [GET MANY]
-    async getCompletedPromos(influencerId: string): Promise<InfluencerCompletedPromo[]> {
+    async getCompletedPromos(data: {
+        limit: number,
+        page: number,
+        influencerId: string
+    }): Promise<InfluencerCompletedPromo[]> {
+        const influencerId = data.influencerId;
+
+        const limit = Number(data.limit ?? 12);
+        const page = Number(data.page ?? 1);
+
+        if (!Number.isInteger(limit) || limit <= 0) {
+            throw new BadRequestException('Invalid limit');
+        }
+
+        if (!Number.isInteger(page) || page <= 0) {
+            throw new BadRequestException('Invalid page');
+        }
+
+        const skip = (data.page - 1) * limit;
+
         const influencerExists = await this.influencerRepo.exists({
             _id: new Types.ObjectId(influencerId),
         });
@@ -541,6 +568,12 @@ export class PromosService {
             },
             {
                 $sort: {createdAt: -1},
+            },
+            {
+                $skip: skip,
+            },
+            {
+                $limit: limit,
             },
             {
                 $project: {
@@ -650,7 +683,26 @@ export class PromosService {
 
 
     // [ONGOING] Returns influencer's detailed completed promos [GET MANY]
-    async getOngoingPromos(influencerId: string): Promise<InfluencerOngoingPromo[]> {
+    async getOngoingPromos(data: {
+        limit: number,
+        page: number,
+        influencerId: string
+    }): Promise<InfluencerOngoingPromo[]> {
+        const influencerId = data.influencerId;
+
+        const limit = Number(data.limit ?? 12);
+        const page = Number(data.page ?? 1);
+
+        if (!Number.isInteger(limit) || limit <= 0) {
+            throw new BadRequestException('Invalid limit');
+        }
+
+        if (!Number.isInteger(page) || page <= 0) {
+            throw new BadRequestException('Invalid page');
+        }
+
+        const skip = (data.page - 1) * limit;
+
         const influencerExists = await this.influencerRepo.exists({
             _id: new Types.ObjectId(influencerId),
         });
@@ -679,6 +731,8 @@ export class PromosService {
             },
             {$unwind: {path: '$client', preserveNullAndEmptyArrays: true}},
             {$sort: {createdAt: -1}},
+            {$skip: skip},
+            {$limit: limit},
             {
                 $project: {
                     _id: 0,
