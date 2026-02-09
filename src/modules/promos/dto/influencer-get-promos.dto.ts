@@ -234,39 +234,6 @@ export class InfluencerGetDashboardPromosQueryDto {
     influencerId: string;
 }
 
-// dto request for getting detailed promos of specific type
-export class InfluencerGetDetailedPromosQueryDto {
-    @ApiPropertyOptional({
-        description: 'Type of promos returned',
-        enum: InfluencerDetailedPromoStatusRequest,
-        default: InfluencerDetailedPromoStatusRequest.ongoing,
-    })
-    @IsEnum(InfluencerDetailedPromoStatusRequest)
-    @IsOptional()
-    status: InfluencerDetailedPromoStatusRequest;
-
-    @ApiPropertyOptional({
-        default: 12,
-    })
-    @Type(() => Number)
-    @IsNumber()
-    @Min(1)
-    @IsOptional()
-    limit: number;
-
-    @ApiPropertyOptional({
-        default: 1,
-        description: 'Page number (starts from 1)',
-    })
-    @Type(() => Number)
-    @IsNumber()
-    @Min(0)
-    @IsOptional()
-    page: number;
-
-    influencerId: string;
-}
-
 // dto request for getting detailed promo
 export class InfluencerGetDetailedPromoParamsDto {
     @ApiProperty({

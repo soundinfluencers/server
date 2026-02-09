@@ -487,7 +487,7 @@ export class ProposalSystemService {
                 price: proposalCampaignOption.publicCampaignPrice,
                 addedAccounts: proposalCampaignOption.addedAccounts.map((account) => mapToSafeCampaignAccount(account)),
                 campaignContent: proposalCampaignOption.campaignContent,
-                canEdit: this.checkCanEdit(userInfo) ?? false,
+                canEdit: this.checkCanEdit(userInfo),
             }
         } catch (err) {
             this.logger.error('Proposal campaign option found but formatting failed', err);
@@ -508,7 +508,6 @@ export class ProposalSystemService {
         const proposalCampaignOption = await this.getProposalCampaignOption(data, userInfo);
 
         if (!proposalCampaignOption) throw new InternalServerErrorException("Can't get selected proposal campaign option");
-        console.log(this.checkCanEdit(userInfo));
         return {
             campaignId: campaignId,
             campaignName: proposalCampaign.campaignName,

@@ -75,7 +75,6 @@ export class ProposalSystemController {
     // }
 
     @Public()
-    @Roles(Role.client, Role.admin)
     @ApiOperation({summary: 'Returns proposal campaign with one selected option'})
     @ApiResponseDto(ProposalCampaignWithOptionDto)
     @ApiQuery({
@@ -89,7 +88,6 @@ export class ProposalSystemController {
         @Query('optionIndex') optionIndex: number,
         @Param('campaignId') campaignId: string,
     ): Promise<ProposalCampaignWithOptionDto> {
-        console.log(request.user, 'user')
         return this.proposalSystemService.getProposalCampaign(
             {
                 campaignId: campaignId,

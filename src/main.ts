@@ -1,4 +1,4 @@
-import {NestFactory} from '@nestjs/core';
+import {NestFactory, Reflector} from '@nestjs/core';
 import {SwaggerModule, DocumentBuilder} from '@nestjs/swagger';
 import * as bodyParser from 'body-parser';
 import * as cookieParser from 'cookie-parser';
@@ -6,6 +6,8 @@ import {AppModule} from './modules/app/app.module';
 import {ResponseTransformInterceptor} from "./common/interceptors/response-transform.interceptor";
 import {AllExceptionsFilter} from "./common/filters/exceptions.filter";
 import {ValidationPipe} from "@nestjs/common";
+import {RolesGuard} from "./common/guards/roles.guard";
+import {JwtGuard} from "./common/guards/jwt.guard";
 
 function parseOrigins(env?: string): string[] {
     return (env ?? '')
@@ -18,7 +20,12 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 
     const allowedOrigins = parseOrigins(process.env.CORS_ORIGINS);
+    const reflector = app.get(Reflector);
 
+    app.useGlobalGuards(
+        new JwtGuard(reflector),
+        new RolesGuard(reflector),
+    );
     app.use(cookieParser());
     app.use(bodyParser.json({limit: '50mb'}));
     app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));

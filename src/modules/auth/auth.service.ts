@@ -385,9 +385,7 @@ export class AuthService {
             {
                 _id: user._id,
                 role: user.role,
-                ...(user instanceof Client
-                    ? { isProposalClient: user.isProposalClient }
-                    : {})
+                ...(user.role === Role.client ? { isProposalClient: !!user.isProposalClient } : {}),
             },
             this.accessKey,
             { expiresIn: '15m' },

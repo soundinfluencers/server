@@ -12,7 +12,7 @@ import {ApiOperation, ApiParam, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {
     InfluencerCompletedPromoDto,
     InfluencerDashboardPromosDto, InfluencerDetailedPromo, InfluencerDetailedPromosDto,
-    InfluencerGetDashboardPromosQueryDto, InfluencerGetDetailedPromoParamsDto, InfluencerGetDetailedPromosQueryDto,
+    InfluencerGetDashboardPromosQueryDto, InfluencerGetDetailedPromoParamsDto,
     InfluencerNewPromoRequestsDto, InfluencerOngoingPromoDto, InfluencerUpdatePromoReqBodyDto,
     InfluencerUpdatePromoResponseUpdateDto,
 } from "./dto/influencer-get-promos.dto";
@@ -62,8 +62,6 @@ export class PromosController {
     })
     @Get('/dashboard')
     async influencerGetDashboardPromos(@Req() request: AuthenticatedRequest, @Query() query: InfluencerGetDashboardPromosQueryDto): Promise<InfluencerDashboardPromosDto> {
-        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
-
         const promos = await this.promosService.getDashboardPromos({...query, influencerId: request.user._id});
         return ({promos});
     }
@@ -77,21 +75,9 @@ export class PromosController {
         required: false,
         enum: InfluencerDetailedPromoStatusRequest,
     })
-    @ApiQuery({
-        name: 'limit',
-        required: false,
-        type: 'number',
-    })
-    @ApiQuery({
-        name: 'page',
-        required: false,
-        type: 'number',
-    })
     @Get('/detailed')
-    async influencerGetDetailedPromos(@Req() request: AuthenticatedRequest, @Query() query: InfluencerGetDetailedPromosQueryDto): Promise<InfluencerDetailedPromosDto> {
-        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
-
-        const promos = await this.promosService.getDetailedPromosByType({...query, influencerId: request.user._id});
+    async influencerGetDetailedPromos(@Req() request: AuthenticatedRequest, @Query('status') query: InfluencerDetailedPromoStatusRequest): Promise<InfluencerDetailedPromosDto> {
+        const promos = await this.promosService.getDetailedPromosByType(request.user._id, query);
         return ({promos});
     }
 
