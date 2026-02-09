@@ -1,6 +1,6 @@
 import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
 import {InvoicePaymentMethodEnum} from "../../../common/types/influencer/invoice.types";
-import {IsEmail, IsEnum, IsNotEmpty, IsString, ValidateIf, ValidateNested} from "class-validator";
+import {IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateIf, ValidateNested} from "class-validator";
 import {Type} from "class-transformer";
 
 
@@ -9,22 +9,26 @@ import {Type} from "class-transformer";
 
 // dto for UK Bank Transfer payment method
 export class UKBankTransferDto {
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     @IsNotEmpty()
     beneficiary: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     @IsNotEmpty()
     beneficiaryAddress: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     @IsNotEmpty()
     sortCode: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     @IsNotEmpty()
     accountNumber: string;
@@ -32,37 +36,44 @@ export class UKBankTransferDto {
 
 // dto for International Bank Transfer payment method
 export class InternationalBankTransferDto {
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     @IsNotEmpty()
     beneficiary: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     @IsNotEmpty()
     beneficiaryAddress: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     @IsNotEmpty()
     iban: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     @IsNotEmpty()
     bankName: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     @IsNotEmpty()
     bankCountry: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     @IsNotEmpty()
     bankAccountCurrency: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     @IsNotEmpty()
     swiftBicCode: string;
@@ -70,7 +81,8 @@ export class InternationalBankTransferDto {
 
 // dto for PayPal payment method
 export class PayPalDto {
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsEmail()
     paypalEmail?: string;
 }

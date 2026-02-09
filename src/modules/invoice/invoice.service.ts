@@ -3,7 +3,6 @@ import {CreateInvoiceDto} from './dto/create-invoice.dto';
 import {InfluencerInvoice} from '../../database/schemas/invoices/influencer-invoice.schema';
 import {BadRequestException, ForbiddenException, Injectable, NotFoundException} from '@nestjs/common';
 import {Response} from 'express';
-import sendMail from "../../integrations/nodemailer/nodemailer";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {InfluencerInvoiceRepository} from "../../database/repositories/invoices/influencer-invoice.repository";
@@ -17,8 +16,15 @@ import {formatDate} from "../../common/utils/formatters";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {EmailService} from "../email/email.service";
 import {InvoiceDetailsRepository} from "../../database/repositories/invoices/invoice-details.repository";
-import {Role} from "../../common/types/auth.types";
+import {Role, UserPayload} from "../../common/types/auth.types";
 import {ObjId} from "../../common/types/base.types";
+import {UkBankTransferDetailsRepository} from "../../database/repositories/invoices/uk-transfer-details.repository";
+import {
+    InternationalBankTransferDetailsRepository
+} from "../../database/repositories/invoices/international-transfer-details.repository";
+import {PaypalDetailsRepository} from "../../database/repositories/invoices/paypal-details.repository";
+import {PaymentMethodRequestEnum} from "../profile/dto/payment-details.dto";
+import {ProfileService} from "../profile/profile.service";
 
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
@@ -26,11 +32,20 @@ const PDFDocument = require('pdfkit');
 @Injectable()
 export class InvoiceService {
     constructor(
+        // users
         private readonly influencerRepo: InfluencerRepository,
         private readonly clientRepo: ClientRepository,
+        // invoices
         private readonly influencerInvoiceRepository: InfluencerInvoiceRepository,
+        // invoice details
         private readonly invoiceDetailsRepo: InvoiceDetailsRepository,
+        // payment details
+        private readonly ukTransferDetailsRepo: UkBankTransferDetailsRepository,
+        private readonly internationalTransferDetailsRepo: InternationalBankTransferDetailsRepository,
+        private readonly paypalDetailsRepo: PaypalDetailsRepository,
+        // services
         private readonly influencerHistoryService: InfluencerActionsHistoryService,
+        private readonly profileService: ProfileService,
         private readonly emailService: EmailService
     ) {
     }
@@ -322,7 +337,9 @@ export class InvoiceService {
         // }
     }
 
-    async getInvoiceDraft(influencerId: string): Promise<CreateInvoiceDto> {
+    async getInvoiceDraft(userInfo: UserPayload): Promise<CreateInvoiceDto> {
+        const influencerId = userInfo._id;
+
         const influencerBalance = await this.influencerRepo.findById(influencerId, {select: ['balance']});
 
         if (!influencerBalance) {
@@ -339,25 +356,30 @@ export class InvoiceService {
             lean: true
         });
 
-        const latestInvoice = await this.influencerInvoiceRepository.findOne({
-            influencerId: new Types.ObjectId(influencerId)
-        }, {
-            lean: true,
-            sort: ({createdAt: -1})
-        })
+        const paymentDetails = await this.profileService.getPaymentDetails(userInfo, PaymentMethodRequestEnum.all)
+        let latestInvoice = null;
+
+        if (!paymentDetails.ukBankTransfer && !paymentDetails.internationalBankTransfer && !paymentDetails.paypal) {
+            latestInvoice = await this.influencerInvoiceRepository.findOne({
+                influencerId: new Types.ObjectId(influencerId)
+            }, {
+                lean: true,
+                sort: ({createdAt: -1})
+            })
+        }
 
         return {
-            firstName: invoiceDetails.firstName ?? latestInvoice.firstName ?? null,
-            lastName: invoiceDetails.lastName ?? latestInvoice.lastName ?? null,
-            address: invoiceDetails.address ?? latestInvoice.address ?? null,
-            country: invoiceDetails.country ?? latestInvoice.country ?? null,
-            company: invoiceDetails.company ?? latestInvoice.company ?? null,
-            vatNumber: invoiceDetails.vatNumber ?? latestInvoice.vatNumber ?? null,
+            firstName: invoiceDetails.firstName ?? latestInvoice?.firstName ?? null,
+            lastName: invoiceDetails.lastName ?? latestInvoice?.lastName ?? null,
+            address: invoiceDetails.address ?? latestInvoice?.address ?? null,
+            country: invoiceDetails.country ?? latestInvoice?.country ?? null,
+            company: invoiceDetails.company ?? latestInvoice?.company ?? null,
+            vatNumber: invoiceDetails.vatNumber ?? latestInvoice?.vatNumber ?? null,
             amount: influencerBalance.balance,
-            selectedPaymentMethod: latestInvoice.selectedPaymentMethod ?? null,
-            ukBankTransfer: latestInvoice.ukBankTransfer ?? null,
-            internationalBankTransfer: latestInvoice.internationalBankTransfer ?? null,
-            paypal: latestInvoice.paypal ?? null
+            selectedPaymentMethod: latestInvoice?.selectedPaymentMethod ?? null,
+            ukBankTransfer: paymentDetails.ukBankTransfer ?? latestInvoice?.ukBankTransfer ?? null,
+            internationalBankTransfer: paymentDetails.internationalBankTransfer ?? latestInvoice?.internationalBankTransfer ?? null,
+            paypal: paymentDetails.paypal ?? latestInvoice?.paypal ?? null
         }
     }
 }

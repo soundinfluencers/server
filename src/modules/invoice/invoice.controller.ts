@@ -8,6 +8,7 @@ import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {GetInvoicesQueryDto, InvoicesForDashboardDto} from "./dto/invoice.dto";
+import {PaymentMethodRequestEnum} from "../profile/dto/payment-details.dto";
 
 @ApiTags('invoice')
 @Controller('invoice')
@@ -66,6 +67,6 @@ export class InvoiceController {
     @ApiResponseDto(CreateInvoiceDto)
     @Get('draft')
     getDraft(@Req() req: AuthenticatedRequest) {
-        return this.invoiceService.getInvoiceDraft(req.user._id);
+        return this.invoiceService.getInvoiceDraft(req.user);
     }
 }
