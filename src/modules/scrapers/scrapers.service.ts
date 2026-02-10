@@ -463,7 +463,7 @@ export class ScrapersService {
                         this.logger.warn(
                             `[SCRAPER] Influencer ${inf._id?.toString() ?? 'UNKNOWN'} has account without _id (${socialMedia})`
                         );
-                        return false;
+                        acc._id = new Types.ObjectId();
                     }
                     return true;
                 })
