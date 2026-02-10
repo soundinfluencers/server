@@ -29,7 +29,10 @@ export class UserInvoice {
     userRole: Role;
 
     @Prop({ type: Types.ObjectId, required: false })
-    campaignId?: Types.ObjectId;
+    campaignId?: Types.ObjectId; // only for client's invoice
+
+    @Prop({ type: String, required: false })
+    campaignName?: string; // only for client's invoice
 
     @Prop({
         required: true,

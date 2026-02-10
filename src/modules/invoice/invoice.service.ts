@@ -244,43 +244,108 @@ export class InvoiceService {
 
     async getInvoices(
         data: GetInvoicesQueryDto,
+        userInfo: UserPayload,
     ): Promise<InvoiceForDashboard[]> {
-        const {limit, page, influencerId} = data;
+        const { limit, page } = data;
+
+        const userId = new ObjId(userInfo._id);
+        const userRole = userInfo.role;
 
         const skip = (page - 1) * limit;
 
         const pipeline: PipelineStage[] = [
+            { $match: { userId, userRole } },
+            { $sort: { createdAt: -1 } },
+            { $skip: skip },
+            { $limit: limit },
+
             {
-                $match: {
-                    influencerId: new Types.ObjectId(influencerId),
+                $addFields: {
+                    needCampaignNameLookup: {
+                        $and: [
+                            { $eq: ['$userRole', 'client'] },
+                            { $eq: [{ $ifNull: ['$campaignName', null] }, null] },
+                        ],
+                    },
                 },
             },
+
             {
-                $sort: {
-                    createdAt: -1,
+                $lookup: {
+                    from: 'campaigns',
+                    let: { cid: '$campaignId', need: '$needCampaignNameLookup' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        '$$need',
+                                        { $eq: ['$_id', '$$cid'] },
+                                    ],
+                                },
+                            },
+                        },
+                        { $project: { _id: 0, campaignName: 1 } },
+                        { $limit: 1 },
+                    ],
+                    as: 'campaignDoc',
                 },
             },
+
             {
-                $skip: skip,
+                $lookup: {
+                    from: 'completedcampaigns',
+                    let: { cid: '$campaignId', need: '$needCampaignNameLookup' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        '$$need',
+                                        { $eq: ['$_id', '$$cid'] },
+                                    ],
+                                },
+                            },
+                        },
+                        { $project: { _id: 0, campaignName: 1 } },
+                        { $limit: 1 },
+                    ],
+                    as: 'completedCampaignDoc',
+                },
             },
+
             {
-                $limit: limit,
+                $addFields: {
+                    campaignNameResolved: {
+                        $ifNull: [
+                            '$campaignName',
+                            {
+                                $ifNull: [
+                                    { $first: '$campaignDoc.campaignName' },
+                                    { $first: '$completedCampaignDoc.campaignName' },
+                                ],
+                            },
+                        ],
+                    },
+                },
             },
+
             {
                 $project: {
                     _id: 0,
-                    shortInvoiceId: {
-                        $substr: [{$toString: '$_id'}, 0, 8],
-                    },
-                    creationDate: {
-                        $dateToString: {
-                            date: '$createdAt',
-                            format: '%d.%m.%Y',
-                        },
-                    },
+                    shortInvoiceId: { $substr: [{ $toString: '$_id' }, 0, 8] },
+                    creationDate: { $dateToString: { date: '$createdAt', format: '%d.%m.%Y' } },
                     paymentMethod: '$selectedPaymentMethod',
                     amount: 1,
                     status: 1,
+
+                    campaignName: {
+                        $cond: [
+                            { $eq: ['$userRole', 'client'] },
+                            '$campaignNameResolved',
+                            '$$REMOVE',
+                        ],
+                    },
                 },
             },
         ];

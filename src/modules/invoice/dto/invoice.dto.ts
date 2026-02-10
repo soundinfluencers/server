@@ -16,8 +16,6 @@ export class GetInvoicesQueryDto {
     @IsNumber()
     @IsPositive()
     page: number;
-
-    influencerId: string;
 }
 
 // dto for one invoice from influencer's dashboard
@@ -36,6 +34,9 @@ export class InvoiceForDashboardDto implements InvoiceForDashboard {
 
     @ApiProperty({ example: 'Submitted' })
     status: string;
+
+    @ApiPropertyOptional({example: 'Test campaign'})
+    campaignName?: string;
 }
 
 // dto for an array invoices from influencer's dashboard

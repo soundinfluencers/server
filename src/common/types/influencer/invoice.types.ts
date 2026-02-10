@@ -5,6 +5,7 @@ export interface InvoiceForDashboard {
     paymentMethod: string;
     amount: number;
     status: string;
+    campaignName?: string;
 }
 
 // enum for influencer's invoice status

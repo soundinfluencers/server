@@ -8,7 +8,6 @@ import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {GetInvoicesQueryDto, InvoicesForDashboardDto} from "./dto/invoice.dto";
-import {PaymentMethodRequestEnum} from "../profile/dto/payment-details.dto";
 
 @ApiTags('invoice')
 @Controller('invoice')
@@ -32,8 +31,8 @@ export class InvoiceController {
     }
 
     @Auth()
-    @Roles(Role.influencer)
-    @ApiOperation({summary: "Gets list of influencer's invoices"})
+    @Roles(Role.influencer, Role.client)
+    @ApiOperation({summary: "Gets list of user's invoices"})
     @ApiResponseDto(InvoicesForDashboardDto)
     @ApiQuery({
         name: 'limit',
@@ -48,7 +47,7 @@ export class InvoiceController {
     @Get()
     async getInvoices(@Req() req: AuthenticatedRequest, @Query() query: GetInvoicesQueryDto): Promise<InvoicesForDashboardDto> {
         if (!req.user._id) throw new UnauthorizedException('Unauthorized');
-        const invoices = await this.invoiceService.getInvoices({...query, influencerId: req.user._id});
+        const invoices = await this.invoiceService.getInvoices(query, req.user);
         return {invoices};
     }
 

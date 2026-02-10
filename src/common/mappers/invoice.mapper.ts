@@ -59,5 +59,6 @@ export const mapToInvoiceModel = (data: CreateInvoiceDto): UserInvoice => {
         ...(data.company ? {company: data.company} : {}),
         ...(data.vatNumber ? {vatNumber: data.vatNumber} : {}),
         ...(data.campaignId ? {campaignId: new ObjId(data.campaignId)} : {}),
+        ...(data.campaignName ? {campaignName: data.campaignName} : {}),
     } satisfies UserInvoice;
 }

@@ -25,6 +25,9 @@ export class CreateInvoiceDto {
     // only for client campaign invoice
     // front does not send this. this field is setting and using only by backend
     campaignId?: string;
+    // only for client campaign invoice
+    // front does not send this. this field is setting and using only by backend
+    campaignName?: string;
 
     @ApiProperty()
     @IsString()
