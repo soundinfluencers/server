@@ -1,5 +1,10 @@
 import {InvoiceDetailsDto} from "../../modules/profile/dto/invoice-details.dto";
 import {InvoiceDetails} from "../../database/schemas/invoices/invoice-details.schema";
+import {CreateInvoiceDto} from "../../modules/invoice/dto/create-invoice.dto";
+import {UserInvoice} from "../../database/schemas/invoices/user-invoice.schema";
+import {ObjId} from "../types/base.types";
+import {Role} from "../types/auth.types";
+import {InvoiceStatusEnum} from "../types/influencer/invoice.types";
 
 export const mapToInvoiceDetailsDto = (data: InvoiceDetails): InvoiceDetailsDto => {
     return {
@@ -11,3 +16,48 @@ export const mapToInvoiceDetailsDto = (data: InvoiceDetails): InvoiceDetailsDto 
         vatNumber: data.vatNumber ?? null,
     }
 };
+
+// map dto to ready-to-go model
+export const mapToInvoiceModel = (data: CreateInvoiceDto): UserInvoice => {
+    return {
+        _id: new ObjId(),
+        schemaVersion: 2,
+        userId: new ObjId(data.userId),
+        userRole: data.userRole,
+        status: InvoiceStatusEnum.submitted,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        address: data.address,
+        country: data.country,
+        amount: data.amount,
+        selectedPaymentMethod: data.selectedPaymentMethod,
+
+        ...(data.ukBankTransfer ? {
+            ukBankTransfer: {
+                ...data.ukBankTransfer,
+                _id: new ObjId(),
+                userId: new ObjId(data.userId),
+                userRole: Role.influencer
+            }
+        } : {}),
+        ...(data.internationalBankTransfer ? {
+            internationalBankTransfer: {
+                ...data.internationalBankTransfer,
+                _id: new ObjId(),
+                userId: new ObjId(data.userId),
+                userRole: Role.influencer
+            }
+        } : {}),
+        ...(data.paypal ? {
+            paypal: {
+                ...data.paypal,
+                _id: new ObjId(),
+                userId: new ObjId(data.userId),
+                userRole: Role.influencer
+            }
+        } : {}),
+        ...(data.company ? {company: data.company} : {}),
+        ...(data.vatNumber ? {vatNumber: data.vatNumber} : {}),
+        ...(data.campaignId ? {campaignId: new ObjId(data.campaignId)} : {}),
+    } satisfies UserInvoice;
+}

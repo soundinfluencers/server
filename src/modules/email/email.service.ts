@@ -6,7 +6,11 @@ import {
 import {BuildClientCreatedCampaignTemplateDto, BuildRequestEditTemplateDto} from "./dto/campaign-email.dto";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {BuildInvoiceEmailDto} from "./dto/invoice-email.dto";
-import {buildInfluencerInvoiceEmail, buildInfluencerInvoiceResponseEmail} from "./templates/invoice-email.template";
+import {
+    buildClientCampaignInvoiceTemplate,
+    buildInfluencerInvoiceEmail,
+    buildInfluencerInvoiceResponseEmail
+} from "./templates/invoice-email.template";
 import {CreateBespokeCampaignDto} from "../campaigns/dto/bespoke-request.dto";
 
 @Injectable()
@@ -92,6 +96,18 @@ export class EmailService {
             'Bespoke campaign request',
             email,
             'html'
+        )
+    }
+
+    // Sends email to client with invoice (after creating new campaign)
+    async sendClientCampaignInvoiceEmail(pdfPath: string) {
+        const email = buildClientCampaignInvoiceTemplate();
+        return this.safeSend(
+            'nazarkozynets030606@gmail.com',
+            'Campaign invoice',
+            email,
+            'pdf',
+            pdfPath
         )
     }
 }

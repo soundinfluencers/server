@@ -7,7 +7,9 @@ import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
 import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
 import {Campaign, CampaignSchema} from "../../database/schemas/campaign/campaign.schema";
 import {ProposalCampaign, ProposalCampaignSchema} from "../../database/schemas/campaign/proposal-campaign.schema";
-import {InfluencerInvoice, InfluencerInvoiceSchema} from "../../database/schemas/invoices/user-invoice.schema";
+import {
+    UserInvoice, UserInvoiceSchema
+} from "../../database/schemas/invoices/user-invoice.schema";
 
 @Module({
   imports: [
@@ -15,7 +17,7 @@ import {InfluencerInvoice, InfluencerInvoiceSchema} from "../../database/schemas
       { name: Campaign.name, schema: CampaignSchema },
       { name: Client.name, schema: ClientSchema },
       { name: Influencer.name, schema: InfluencerSchema },
-      { name: InfluencerInvoice.name, schema: InfluencerInvoiceSchema },
+      { name: UserInvoice.name, schema: UserInvoiceSchema },
       { name: Payment.name, schema: Payment },
       { name: CompletedCampaign.name, schema: CompletedCampaignSchema },
       { name: ProposalCampaign.name, schema: ProposalCampaignSchema },

@@ -14,10 +14,17 @@ import {
 import {InvoicePaymentMethodEnum} from "../../../common/types/influencer/invoice.types";
 import {Type} from "class-transformer";
 import {InternationalBankTransferDto, PayPalDto, UKBankTransferDto} from "../../profile/dto/payment-details.dto";
+import {Role} from "../../../common/types/auth.types";
 
 // dto for creating new influencer's invoice
 export class CreateInvoiceDto {
-    influencerId?: string;
+    // front does not send this. this field is setting and using only by backend
+    userId?: string;
+    // front does not send this. this field is setting and using only by backend
+    userRole?: Role;
+    // only for client campaign invoice
+    // front does not send this. this field is setting and using only by backend
+    campaignId?: string;
 
     @ApiProperty()
     @IsString()

@@ -1,11 +1,13 @@
 import {
-    BadRequestException, ConflictException, ForbiddenException,
+    BadRequestException,
+    ConflictException,
+    ForbiddenException,
     Injectable,
     InternalServerErrorException,
     Logger,
     NotFoundException,
 } from '@nestjs/common';
-import mongoose, {HydratedDocument, Types} from "mongoose";
+import {HydratedDocument, Types} from "mongoose";
 import {
     CampaignConfirmationEnum,
     CampaignPaymentStatusEnum,
@@ -63,12 +65,9 @@ import {ObjId, toObjIdSafe} from "../../common/types/base.types";
 import {BuildRequestEditTemplateDto} from "../email/dto/campaign-email.dto";
 import {BespokeCampaignRepository} from "../../database/repositories/campaigns/bespoke-campaign.repository";
 import {CampaignCsvExporter} from "../../common/utils/export/csv/campaign-csv.exporter";
-import {maxLength} from "class-validator";
 import {CampaignPdfExporter} from "../../common/utils/export/pdf/campaign-pdf.exporter";
 import {MediaService} from "../media/media.service";
-import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
-import {GetCampaignContentVideoUrl} from "../media/dto/resolved-media.dto";
-import {ThumbSizeTag} from "../media/strategies/media.strategy";
+import {InvoiceService} from "../invoice/invoice.service";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -99,6 +98,7 @@ export class CampaignsService {
         private readonly proposalCampaignRepo: ProposalCampaignRepository,
         private readonly bespokeCampaignRepo: BespokeCampaignRepository,
         private readonly mediaService: MediaService,
+        private readonly invoiceService: InvoiceService,
         private readonly influencerActionsHistoryService: InfluencerActionsHistoryService,
         private readonly emailService: EmailService,
     ) {
@@ -478,7 +478,7 @@ export class CampaignsService {
 
     // Creates new campaign (NOT DRAFT)
     async createCampaign(data: CreateCampaignDto): Promise<void> {
-        if (!data) throw new BadRequestException('Not enough arguments')
+        if (!data || !data.paymentDetails) throw new BadRequestException('Not enough arguments')
 
         const createdAt = new Date();
 
@@ -522,6 +522,13 @@ export class CampaignsService {
             } as Campaign, {session});
 
             client = await this.clientRepo.findById(data.clientId, {session});
+
+            data.paymentDetails.userId = data.clientId;
+            data.paymentDetails.userRole = Role.client;
+            data.paymentDetails.campaignId = campaignId.toString();
+
+            // create and send invoice to client
+            await this.invoiceService.createClientCampaignInvoice(data);
 
             await session.commitTransaction();
         } catch (err) {

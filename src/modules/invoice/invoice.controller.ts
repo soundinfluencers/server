@@ -28,7 +28,7 @@ export class InvoiceController {
     @Post()
     createInfluencerInvoice(@Req() req: AuthenticatedRequest, @Body() data: CreateInvoiceDto): Promise<void> {
         if (!req.user._id) throw new UnauthorizedException('Unauthorized');
-        return this.invoiceService.createInfluencerInvoice({...data, influencerId: req.user._id});
+        return this.invoiceService.createInfluencerInvoice({...data, userId: req.user._id, userRole: req.user.role});
     }
 
     @Auth()

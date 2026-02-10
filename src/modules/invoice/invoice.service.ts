@@ -1,4 +1,4 @@
-import {PipelineStage, Types} from 'mongoose';
+import {ClientSession, PipelineStage, Types} from 'mongoose';
 import {CreateInvoiceDto} from './dto/create-invoice.dto';
 import {UserInvoice} from '../../database/schemas/invoices/user-invoice.schema';
 import {BadRequestException, ForbiddenException, Injectable, NotFoundException} from '@nestjs/common';
@@ -25,6 +25,8 @@ import {
 import {PaypalDetailsRepository} from "../../database/repositories/invoices/paypal-details.repository";
 import {PaymentMethodRequestEnum} from "../profile/dto/payment-details.dto";
 import {ProfileService} from "../profile/profile.service";
+import {CreateCampaignDto} from "../campaigns/dto/create-campaign.dto";
+import {mapToInvoiceModel} from "../../common/mappers/invoice.mapper";
 
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
@@ -50,27 +52,27 @@ export class InvoiceService {
     ) {
     }
 
-    private async createPDF(result: UserInvoice) {
+    private async createPDF(data: UserInvoice) {
         let beneficiary, beneficiaryAddress, paymentMethodDetails;
 
-        switch (result.selectedPaymentMethod) {
+        switch (data.selectedPaymentMethod) {
             case InvoicePaymentMethodEnum.internationalBankTransfer:
-                beneficiary = result?.internationalBankTransfer?.beneficiary;
-                beneficiaryAddress = result?.internationalBankTransfer?.beneficiaryAddress;
-                paymentMethodDetails = `Bank Name: ${result?.internationalBankTransfer?.bankName}\nBeneficiary: ${result?.internationalBankTransfer?.beneficiary}\nBeneficiary Address: ${result?.internationalBankTransfer?.beneficiaryAddress}\nIBAN: ${result?.internationalBankTransfer?.iban}\nBank Country: ${result?.internationalBankTransfer?.bankCountry}\nBank Account Currency: ${result?.internationalBankTransfer?.bankAccountCurrency}\nSWIFT/BIC: ${result?.internationalBankTransfer?.swiftBicCode}`;
+                beneficiary = data?.internationalBankTransfer?.beneficiary;
+                beneficiaryAddress = data?.internationalBankTransfer?.beneficiaryAddress;
+                paymentMethodDetails = `Bank Name: ${data?.internationalBankTransfer?.bankName}\nBeneficiary: ${data?.internationalBankTransfer?.beneficiary}\nBeneficiary Address: ${data?.internationalBankTransfer?.beneficiaryAddress}\nIBAN: ${data?.internationalBankTransfer?.iban}\nBank Country: ${data?.internationalBankTransfer?.bankCountry}\nBank Account Currency: ${data?.internationalBankTransfer?.bankAccountCurrency}\nSWIFT/BIC: ${data?.internationalBankTransfer?.swiftBicCode}`;
                 break;
             case InvoicePaymentMethodEnum.ukBankTransfer:
-                beneficiary = result?.ukBankTransfer?.beneficiary;
-                beneficiaryAddress = result?.ukBankTransfer?.beneficiaryAddress;
-                paymentMethodDetails = `Beneficiary: ${result?.ukBankTransfer?.beneficiary}\nBeneficiary Address: ${result?.ukBankTransfer?.beneficiaryAddress}\nSort Code: ${result?.ukBankTransfer?.sortCode}\nAccount Number: ${result?.ukBankTransfer?.accountNumber}`;
+                beneficiary = data?.ukBankTransfer?.beneficiary;
+                beneficiaryAddress = data?.ukBankTransfer?.beneficiaryAddress;
+                paymentMethodDetails = `Beneficiary: ${data?.ukBankTransfer?.beneficiary}\nBeneficiary Address: ${data?.ukBankTransfer?.beneficiaryAddress}\nSort Code: ${data?.ukBankTransfer?.sortCode}\nAccount Number: ${data?.ukBankTransfer?.accountNumber}`;
                 break;
             case InvoicePaymentMethodEnum.paypal:
-                beneficiary = `${result.firstName} ${result.lastName}`;
+                beneficiary = `${data.firstName} ${data.lastName}`;
                 beneficiaryAddress = undefined;
-                paymentMethodDetails = `Paypal Email: ${result?.paypal?.paypalEmail}`;
+                paymentMethodDetails = `Paypal Email: ${data?.paypal?.paypalEmail}`;
                 break;
             default:
-                throw new BadRequestException(`Unsupported payment method: ${String(result.selectedPaymentMethod)}`);
+                throw new BadRequestException(`Unsupported payment method: ${String(data.selectedPaymentMethod)}`);
         }
 
 
@@ -83,15 +85,15 @@ export class InvoiceService {
         doc.fontSize(20).text('INVOICE', 50, 50);
 
         // Sender's details
-        doc.fontSize(10).text(result.firstName + ' ' + result.lastName, 50, 100);
-        doc.text(result.address, 50, 115);
-        doc.text(`Postcode: ${result.country}`, 50, 130);
+        doc.fontSize(10).text(data.firstName + ' ' + data.lastName, 50, 100);
+        doc.text(data.address, 50, 115);
+        doc.text(`Postcode: ${data.country}`, 50, 130);
         doc.text(beneficiary, 50, 145);
         if (beneficiaryAddress) doc.text(beneficiaryAddress, 50, 160);
 
         // Date and Invoice Number
         doc.text(`DATE: ${formatDate(new Date())}`, 400, 100);
-        doc.text(`INVOICE NO. ${result?._id}`, 400, 115);
+        doc.text(`INVOICE NO. ${data?._id}`, 400, 115);
 
         // Bill To
         doc.text('BILL TO', 50, 200);
@@ -108,19 +110,19 @@ export class InvoiceService {
 
         // Table content
         doc.text(beneficiary + ' campaign', 50, 350);
-        doc.text(result.amount + '€', 250, 350);
+        doc.text(data.amount + '€', 250, 350);
 
         // Payment details
         let currentY = 400;
         doc.text('SUBTOTAL:', 50, currentY);
-        doc.text(result.amount + '€', 250, currentY);
+        doc.text(data.amount + '€', 250, currentY);
 
         currentY += 15;
         doc.text('BALANCE DUE:', 50, currentY);
-        doc.text(result.amount + '€', 250, currentY);
+        doc.text(data.amount + '€', 250, currentY);
 
         currentY += 20;
-        doc.text('Selected Payment Method: ' + result.selectedPaymentMethod, 50, currentY);
+        doc.text('Selected Payment Method: ' + data.selectedPaymentMethod, 50, currentY);
 
         currentY += 20;
         doc.text(paymentMethodDetails, 50, currentY, {width: 500, continued: false});
@@ -141,7 +143,7 @@ export class InvoiceService {
     }
 
     async createInfluencerInvoice(data: CreateInvoiceDto): Promise<void> {
-        const influencer = await this.influencerRepo.findById(data.influencerId);
+        const influencer = await this.influencerRepo.findById(data.userId);
 
         if (!influencer) throw new NotFoundException('Influencer not found');
 
@@ -153,7 +155,7 @@ export class InvoiceService {
 
             const updatedInfluencer = await this.influencerRepo.findOneAndUpdate(
                 {
-                    _id: new Types.ObjectId(data.influencerId),
+                    _id: new Types.ObjectId(data.userId),
                     balance: {$gte: amount},
                 },
                 {$inc: {balance: -amount}},
@@ -167,51 +169,12 @@ export class InvoiceService {
             const newBalance = Number(updatedInfluencer.balance);
 
             // Creating invoice
-            const invoice = await this.userInvoiceRepository.create({
-                _id: new ObjId(),
-                schemaVersion: 2,
-                userId: influencer._id,
-                userRole: Role.influencer,
-                status: InvoiceStatusEnum.submitted,
-                firstName: data.firstName,
-                lastName: data.lastName,
-                address: data.address,
-                country: data.country,
-                amount: data.amount,
-                selectedPaymentMethod: data.selectedPaymentMethod,
-
-                ...(data.ukBankTransfer ? {
-                    ukBankTransfer: {
-                        ...data.ukBankTransfer,
-                        _id: new ObjId(),
-                        userId: new ObjId(data.influencerId),
-                        userRole: Role.influencer
-                    }
-                } : {}),
-                ...(data.internationalBankTransfer ? {
-                    internationalBankTransfer: {
-                        ...data.internationalBankTransfer,
-                        _id: new ObjId(),
-                        userId: new ObjId(data.influencerId),
-                        userRole: Role.influencer
-                    }
-                } : {}),
-                ...(data.paypal ? {
-                    paypal: {
-                        ...data.paypal,
-                        _id: new ObjId(),
-                        userId: new ObjId(data.influencerId),
-                        userRole: Role.influencer
-                    }
-                } : {}),
-                ...(data.company ? {company: data.company} : {}),
-                ...(data.vatNumber ? {vatNumber: data.vatNumber} : {}),
-            } satisfies UserInvoice, {session});
+            const invoice = await this.userInvoiceRepository.create(mapToInvoiceModel(data), {session});
 
             // Updating influencer's actions history
             await this.influencerHistoryService.upsertInfluencerInvoiceHistory(
                 {
-                    influencerId: data.influencerId,
+                    influencerId: data.userId,
                     invoiceId: invoice._id.toString(),
                     paymentMethod: data.selectedPaymentMethod,
                     currentBalance: newBalance,
@@ -264,6 +227,19 @@ export class InvoiceService {
         } finally {
             session.endSession();
         }
+    }
+
+    // todo: update after designer finish design for invoices
+    async createClientCampaignInvoice(data: CreateCampaignDto, session?: ClientSession): Promise<void> {
+        const invoice = mapToInvoiceModel(data.paymentDetails);
+
+        if (!invoice) throw new BadRequestException('Invalid payment details');
+
+        await this.userInvoiceRepository.create(invoice, {session});
+
+        const pdfInvoice = await this.createPDF(invoice);
+
+        await this.emailService.sendClientCampaignInvoiceEmail(pdfInvoice);
     }
 
     async getInvoices(

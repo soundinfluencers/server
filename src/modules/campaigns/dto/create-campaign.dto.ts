@@ -2,6 +2,7 @@ import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {IsArray, IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested} from "class-validator";
 import {Type} from "class-transformer";
+import {CreateInvoiceDto} from "../../invoice/dto/create-invoice.dto";
 
 export class SelectedCampaignContentItemDto {
     @ApiProperty()
@@ -94,6 +95,7 @@ export class CampaignContentItemDto {
 
 // dto for creating campaign
 export class CreateCampaignDto {
+    // front does not send this. this field is setting and using only by backend
     clientId?: string;
 
     @ApiProperty({required: true})
@@ -126,6 +128,12 @@ export class CreateCampaignDto {
     @IsNotEmpty()
     @ValidateNested({ each: true })
     campaignContent: CampaignContentItemDto[];
+
+    @ApiPropertyOptional({ type: () => CreateInvoiceDto })
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => CreateInvoiceDto)
+    paymentDetails?: CreateInvoiceDto;
 }
 
 export class DraftCampaignAccountDto {
