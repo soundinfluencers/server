@@ -15,15 +15,21 @@ import {
 @Schema({
     timestamps: true,
 })
-export class InfluencerInvoice {
+export class UserInvoice {
     @Prop({ type: Types.ObjectId, required: true })
     _id: Types.ObjectId;
 
     @Prop({ type: Number, default: 2, index: true, required: false })
     schemaVersion: number;
 
-    @Prop({ type: Types.ObjectId, required: true, ref: 'Influencer' })
-    influencerId: Types.ObjectId;
+    @Prop({ type: Types.ObjectId, required: true })
+    userId: Types.ObjectId;
+
+    @Prop({ type: String, required: true, enum: Role })
+    userRole: Role;
+
+    @Prop({ type: Types.ObjectId, required: false })
+    campaignId?: Types.ObjectId;
 
     @Prop({
         required: true,
@@ -74,5 +80,5 @@ export class InfluencerInvoice {
     vatNumber?: string | null;
 }
 
-export const InfluencerInvoiceSchema =
-    SchemaFactory.createForClass(InfluencerInvoice);
+export const UserInvoiceSchema =
+    SchemaFactory.createForClass(UserInvoice);

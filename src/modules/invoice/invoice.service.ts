@@ -1,11 +1,11 @@
 import {PipelineStage, Types} from 'mongoose';
 import {CreateInvoiceDto} from './dto/create-invoice.dto';
-import {InfluencerInvoice} from '../../database/schemas/invoices/influencer-invoice.schema';
+import {UserInvoice} from '../../database/schemas/invoices/user-invoice.schema';
 import {BadRequestException, ForbiddenException, Injectable, NotFoundException} from '@nestjs/common';
 import {Response} from 'express';
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
-import {InfluencerInvoiceRepository} from "../../database/repositories/invoices/influencer-invoice.repository";
+import {UserInvoiceRepository} from "../../database/repositories/invoices/user-invoice.repository";
 import {GetInvoicesQueryDto} from "./dto/invoice.dto";
 import {
     InvoiceForDashboard,
@@ -36,7 +36,7 @@ export class InvoiceService {
         private readonly influencerRepo: InfluencerRepository,
         private readonly clientRepo: ClientRepository,
         // invoices
-        private readonly influencerInvoiceRepository: InfluencerInvoiceRepository,
+        private readonly userInvoiceRepository: UserInvoiceRepository,
         // invoice details
         private readonly invoiceDetailsRepo: InvoiceDetailsRepository,
         // payment details
@@ -50,7 +50,7 @@ export class InvoiceService {
     ) {
     }
 
-    private async createPDF(result: InfluencerInvoice) {
+    private async createPDF(result: UserInvoice) {
         let beneficiary, beneficiaryAddress, paymentMethodDetails;
 
         switch (result.selectedPaymentMethod) {
@@ -140,7 +140,7 @@ export class InvoiceService {
         });
     }
 
-    async createInvoice(data: CreateInvoiceDto): Promise<void> {
+    async createInfluencerInvoice(data: CreateInvoiceDto): Promise<void> {
         const influencer = await this.influencerRepo.findById(data.influencerId);
 
         if (!influencer) throw new NotFoundException('Influencer not found');
@@ -167,10 +167,11 @@ export class InvoiceService {
             const newBalance = Number(updatedInfluencer.balance);
 
             // Creating invoice
-            const invoice = await this.influencerInvoiceRepository.create({
+            const invoice = await this.userInvoiceRepository.create({
                 _id: new ObjId(),
                 schemaVersion: 2,
-                influencerId: influencer._id,
+                userId: influencer._id,
+                userRole: Role.influencer,
                 status: InvoiceStatusEnum.submitted,
                 firstName: data.firstName,
                 lastName: data.lastName,
@@ -205,7 +206,7 @@ export class InvoiceService {
                 } : {}),
                 ...(data.company ? {company: data.company} : {}),
                 ...(data.vatNumber ? {vatNumber: data.vatNumber} : {}),
-            } satisfies InfluencerInvoice, {session});
+            } satisfies UserInvoice, {session});
 
             // Updating influencer's actions history
             await this.influencerHistoryService.upsertInfluencerInvoiceHistory(
@@ -308,11 +309,11 @@ export class InvoiceService {
             },
         ];
 
-        return this.influencerInvoiceRepository.aggregate(pipeline);
+        return this.userInvoiceRepository.aggregate(pipeline);
     }
 
     async downloadInvoice(invoiceId: string, res: Response) {
-        const invoiceData = await this.influencerInvoiceRepository.findById(invoiceId);
+        const invoiceData = await this.userInvoiceRepository.findById(invoiceId);
 
         if (!invoiceData) {
             return res.status(404).send('Invoice not found');
@@ -360,7 +361,7 @@ export class InvoiceService {
         let latestInvoice = null;
 
         if (!paymentDetails.ukBankTransfer && !paymentDetails.internationalBankTransfer && !paymentDetails.paypal) {
-            latestInvoice = await this.influencerInvoiceRepository.findOne({
+            latestInvoice = await this.userInvoiceRepository.findOne({
                 influencerId: new Types.ObjectId(influencerId)
             }, {
                 lean: true,

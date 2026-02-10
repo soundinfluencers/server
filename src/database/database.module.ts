@@ -1,5 +1,5 @@
 import {Global, Module} from "@nestjs/common";
-import {MongooseModule, Schema} from "@nestjs/mongoose";
+import {MongooseModule} from "@nestjs/mongoose";
 import {Influencer, InfluencerSchema} from "./schemas/users/influencer.schema";
 import {Client, ClientSchema} from "./schemas/users/client.schema";
 import {InfluencerRepository} from "./repositories/users/influencer.repository";
@@ -21,8 +21,10 @@ import {ProposalCampaign, ProposalCampaignSchema} from "./schemas/campaign/propo
 import {ProposalCampaignRepository} from "./repositories/campaigns/proposal-campaign.repository";
 import {Admin, AdminSchema} from "./schemas/users/admin.schema";
 import {AdminRepository} from "./repositories/users/admin.repository";
-import {InfluencerInvoice, InfluencerInvoiceSchema} from "./schemas/invoices/influencer-invoice.schema";
-import {InfluencerInvoiceRepository} from "./repositories/invoices/influencer-invoice.repository";
+import {
+    UserInvoice,
+    UserInvoiceSchema
+} from "./schemas/invoices/user-invoice.schema";
 import {ReportSizes, ReportSizesSchema} from "./schemas/report-size/reports-sizes.schema";
 import {ReportSizeRepository} from "./repositories/report-size/report-size.repository";
 import {DraftCampaign, DraftCampaignSchema} from "./schemas/campaign/draft-campaign.schema";
@@ -49,6 +51,7 @@ import {
 import {BespokeRequestCategory} from "../common/types/client/campaign.types";
 import {BespokeCampaignRepository} from "./repositories/campaigns/bespoke-campaign.repository";
 import { Schema as MongooseSchema } from 'mongoose';
+import {UserInvoiceRepository} from "./repositories/invoices/user-invoice.repository";
 
 @Global()
 @Module({
@@ -65,7 +68,7 @@ import { Schema as MongooseSchema } from 'mongoose';
             { name: CompletedCampaign.name, schema: CompletedCampaignSchema },
             { name: ProposalCampaign.name, schema: ProposalCampaignSchema },
             { name: ProposalCampaignOption.name, schema: ProposalCampaignOptionSchema },
-            { name: InfluencerInvoice.name, schema: InfluencerInvoiceSchema },
+            { name: UserInvoice.name, schema: UserInvoiceSchema },
             { name: InvoiceDetails.name, schema: InvoiceDetailsSchema },
             { name: UKBankTransferDetails.name, schema: UKBankTransferDetailsSchema },
             { name: InternationalBankTransferDetails.name, schema: InternationalBankTransferDetailsSchema },
@@ -104,7 +107,7 @@ import { Schema as MongooseSchema } from 'mongoose';
         ProposalCampaignRepository,
         ProposalCampaignOptionRepository,
         BespokeCampaignRepository,
-        InfluencerInvoiceRepository,
+        UserInvoiceRepository,
         InvoiceDetailsRepository,
         UkBankTransferDetailsRepository,
         InternationalBankTransferDetailsRepository,
@@ -124,7 +127,7 @@ import { Schema as MongooseSchema } from 'mongoose';
         ProposalCampaignRepository,
         ProposalCampaignOptionRepository,
         BespokeCampaignRepository,
-        InfluencerInvoiceRepository,
+        UserInvoiceRepository,
         InvoiceDetailsRepository,
         UkBankTransferDetailsRepository,
         InternationalBankTransferDetailsRepository,

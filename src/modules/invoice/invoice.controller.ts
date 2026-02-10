@@ -26,9 +26,9 @@ export class InvoiceController {
     @ApiOperation({summary: "Creates influencer's invoice"})
     @ApiResponseDto(undefined, { successStatusCode: 201 })
     @Post()
-    createInvoice(@Req() req: AuthenticatedRequest, @Body() data: CreateInvoiceDto): Promise<void> {
+    createInfluencerInvoice(@Req() req: AuthenticatedRequest, @Body() data: CreateInvoiceDto): Promise<void> {
         if (!req.user._id) throw new UnauthorizedException('Unauthorized');
-        return this.invoiceService.createInvoice({...data, influencerId: req.user._id});
+        return this.invoiceService.createInfluencerInvoice({...data, influencerId: req.user._id});
     }
 
     @Auth()
