@@ -1,6 +1,6 @@
 import { MediaProviderEnum, MediaKindEnum } from '../../../common/types/file/file.types';
 import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
-import {IsNotEmpty, IsOptional, IsString} from "class-validator";
+import {IsEnum, IsNotEmpty, IsOptional, IsString} from "class-validator";
 
 export type ResolvedMediaItemDto = {
     fileId?: string;
@@ -48,8 +48,8 @@ export class GetCampaignContentVideoUrl {
     @IsString()
     url?: string;
 
-    @ApiPropertyOptional()
+    @ApiPropertyOptional({enum: MediaProviderEnum})
     @IsOptional()
-    @IsString()
-    mainLinkHint?: string;
+    @IsEnum(MediaProviderEnum)
+    provider?: MediaProviderEnum;
 }

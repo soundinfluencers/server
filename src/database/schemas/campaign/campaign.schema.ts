@@ -112,7 +112,7 @@ export class CampaignContentMediaItem {
 export const CampaignContentMediaItemSchema = SchemaFactory.createForClass(CampaignContentMediaItem);
 
 @Schema({_id: false, timestamps: false})
-export class CampaignContentMediaCache {
+    export class CampaignContentMediaCache {
     @Prop({type: String, required: true, enum: MediaProviderEnum})
     provider: MediaProviderEnum;
 

@@ -2,6 +2,7 @@ import {SocialMediaEnum, SocialMediaType} from "../social-media.types";
 import {ApiProperty} from "@nestjs/swagger";
 import {Types} from "mongoose";
 import {InfluencerConfirmationStatusEnum, InfluencerPromoClosedStatusEnum} from "../influencer/promo.types";
+import {CampaignContentMediaCache} from "../../../database/schemas/campaign/campaign.schema";
 
 // Campaign verify status
 export enum CampaignConfirmationEnum {
@@ -84,6 +85,7 @@ export class SafeCampaignContent {
     socialMedia: SocialMediaEnum;
     socialMediaGroup: string;
     mainLink: string;
+    mediaCache?: CampaignContentMediaCache;
     descriptions?: {
         _id: string | Types.ObjectId;
         description: string;

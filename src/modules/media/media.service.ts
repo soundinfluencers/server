@@ -5,6 +5,7 @@ import {CampaignPreviewItemDto, GetCampaignContentVideoUrl} from "./dto/resolved
 import {MediaKindEnum, MediaProviderEnum} from "../../common/types/file/file.types";
 import {detectDropboxLinkKind} from "../../integrations/dropbox/dropbox";
 import {ThumbSizeTag} from "./strategies/media.strategy";
+import {factory} from "ts-jest/dist/transformers/hoist-jest";
 
 @Injectable()
 export class MediaService {
@@ -79,9 +80,7 @@ export class MediaService {
     }
 
     async getVideoRedirectUrl(params: GetCampaignContentVideoUrl) {
-        const strategy = params.pathLower
-            ? this.factory.getDropbox()
-            : this.factory.getStrategy(params.mainLinkHint ?? params.url ?? '');
+        const strategy = this.factory.getStrategyByProvider(params.provider);
 
         const videoUrl = await (strategy as any).getVideoUrl({
             pathLower: params.pathLower,
