@@ -940,6 +940,7 @@ export class CampaignsService {
         // Updating campaign content
         if (data.campaignContent) {
             campaign.campaignContent = data.campaignContent.map((itemDto: CampaignContentItemDto): CampaignContentItem => mapContentItemDtoToModel(itemDto));
+            campaign.campaignContent = await this.mediaService.applyMediaCacheForCreate(campaign.campaignContent);
         }
 
         await campaign.save();
@@ -1577,30 +1578,5 @@ export class CampaignsService {
             this.logger.error(`Error getting .csv for campaign ${campaignId}`, err);
             throw new InternalServerErrorException("Something went wrong");
         }
-    }
-
-    // Returns all campaign content items video previews
-    async getCampaignContentPreviewJpeg(campaignId: string, pathLower: string, sizeTag: ThumbSizeTag) {
-        let campaign: Campaign | CompletedCampaign = await this.campaignRepo.findById(campaignId, { lean: true });
-        if (!campaign) campaign = await this.completedCampaignRepo.findById(campaignId, { lean: true });
-        if (!campaign) throw new NotFoundException('Campaign not found');
-
-        const contentItem = (campaign.campaignContent ?? []).find((ci) =>
-            (ci.mediaCache?.items ?? []).some((x) => x?.pathLower === pathLower),
-        );
-
-        if (!contentItem) return null;
-
-        return this.mediaService.getCampaignPreviewJpeg({
-            mainLinkHint: contentItem.mainLink,
-            pathLower,
-            sizeTag,
-        });
-    }
-
-    // Returns campaign content item video url
-    async getCampaignContentVideoUrl(data: GetCampaignContentVideoUrl): Promise<string> {
-        const { videoUrl } = await this.mediaService.getVideoRedirectUrl(data);
-        return videoUrl;
     }
 }

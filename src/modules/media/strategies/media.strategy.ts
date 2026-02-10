@@ -1,4 +1,5 @@
 import { CampaignContentItem } from '../../../database/schemas/campaign/campaign.schema';
+import {GetCampaignPreviewItem} from "../dto/resolved-media.dto";
 
 export type ResolveMode = 'create' | 'read';
 
@@ -22,12 +23,7 @@ export interface MediaStrategy {
         sizeTag?: ThumbSizeTag;
     }): Promise<Array<{ path: string; previewUrl: string | null }>>;
 
-    getPreviewJpeg(params: {
-        mainLinkHint?: string;
-        pathLower?: string;
-        fileId?: string;
-        sizeTag?: ThumbSizeTag;
-    }): Promise<Buffer | null>;
+    getPreviewJpeg(params: GetCampaignPreviewItem): Promise<Buffer | null>;
 
     getVideoUrl(params: { pathLower?: string; url?: string; mainLinkHint?: string }): Promise<string>;
 

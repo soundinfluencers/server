@@ -1,9 +1,12 @@
-import { Module } from '@nestjs/common';
-import { ProposalSystemController } from './proposal-system.controller';
-import { ProposalSystemService } from './proposal-system.service';
+import {Module} from '@nestjs/common';
+import {ProposalSystemController} from './proposal-system.controller';
+import {ProposalSystemService} from './proposal-system.service';
+import {MediaModule} from "../media/media.module";
 
 @Module({
-  controllers: [ProposalSystemController],
-  providers: [ProposalSystemService],
+    imports: [MediaModule],
+    controllers: [ProposalSystemController],
+    providers: [ProposalSystemService],
 })
-export class ProposalSystemModule {}
+export class ProposalSystemModule {
+}

@@ -36,6 +36,7 @@ import {mapContentItemDtoToModel, mapToSafeCampaignAccount} from "../../common/m
 import {uniq} from "../../common/utils/base.util";
 import {ObjId, toObjIdSafe} from "../../common/types/base.types";
 import {UpdateCampaignDto} from "../campaigns/dto/update-campaign.dto";
+import {MediaService} from "../media/media.service";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -61,6 +62,7 @@ export class ProposalSystemService {
         private readonly influencerRepo: InfluencerRepository,
         private readonly proposalCampaignRepo: ProposalCampaignRepository,
         private readonly proposalCampaignOptionRepo: ProposalCampaignOptionRepository,
+        private readonly mediaService: MediaService,
     ) {
     }
 
@@ -307,6 +309,8 @@ export class ProposalSystemService {
 
         if (processedCampaignContent.length === 0) throw new BadRequestException('No valid campaign content provided')
 
+        const campaignContentWithCache = await this.mediaService.applyMediaCacheForCreate(processedCampaignContent);
+
         const session = await this.proposalCampaignRepo.startSession();
         session.startTransaction();
 
@@ -345,7 +349,7 @@ export class ProposalSystemService {
                 publicCampaignPrice: data.campaignPrice ?? processedAccounts.publicCampaignPrice,
                 privateCampaignPrice: processedAccounts.privateCampaignPrice ?? data.campaignPrice,
                 addedAccounts: processedAccounts.accounts,
-                campaignContent: processedCampaignContent,
+                campaignContent: campaignContentWithCache,
             }
 
             await this.proposalCampaignOptionRepo.create<ProposalCampaignOption>(proposalCampaignOptionDto, {session});
@@ -441,6 +445,7 @@ export class ProposalSystemService {
         // Updating campaign content
         if (data.campaignContent) {
             campaignOption.campaignContent = data.campaignContent.map((itemDto: CampaignContentItemDto): CampaignContentItem => mapContentItemDtoToModel(itemDto));
+            campaignOption.campaignContent = await this.mediaService.applyMediaCacheForCreate(campaignOption.campaignContent);
         }
 
         await campaignOption.save();

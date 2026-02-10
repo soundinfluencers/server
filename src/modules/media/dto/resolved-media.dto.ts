@@ -1,6 +1,8 @@
 import { MediaProviderEnum, MediaKindEnum } from '../../../common/types/file/file.types';
 import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
 import {IsEnum, IsNotEmpty, IsOptional, IsString} from "class-validator";
+import {ThumbSizeTag} from "../strategies/media.strategy";
+import {Type} from "class-transformer";
 
 export type ResolvedMediaItemDto = {
     fileId?: string;
@@ -20,6 +22,9 @@ export type ResolvedMediaDto = {
 export class CampaignPreviewItemDto {
     @ApiProperty()
     contentItemId: string;
+
+    @ApiProperty({enum: MediaProviderEnum})
+    provider: MediaProviderEnum;
 
     @ApiProperty()
     mainLink: string;
@@ -48,8 +53,29 @@ export class GetCampaignContentVideoUrl {
     @IsString()
     url?: string;
 
-    @ApiPropertyOptional({enum: MediaProviderEnum})
-    @IsOptional()
+    @ApiProperty({enum: MediaProviderEnum})
     @IsEnum(MediaProviderEnum)
-    provider?: MediaProviderEnum;
+    provider: MediaProviderEnum;
+}
+
+// dto for getting video preview
+export class GetCampaignPreviewItem {
+    @ApiProperty({enum: MediaProviderEnum})
+    @IsEnum(MediaProviderEnum)
+    provider: MediaProviderEnum;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    pathLower?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    fileId?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    sizeTag?: ThumbSizeTag;
 }

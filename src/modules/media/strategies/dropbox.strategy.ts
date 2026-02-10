@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import pLimit = require('p-limit');
 import {MediaStrategy, ResolveMode, ThumbSizeTag} from './media.strategy';
 import DropboxService, { detectDropboxLinkKind } from '../../../integrations/dropbox/dropbox';
-import { ResolvedMediaDto } from '../dto/resolved-media.dto';
+import {GetCampaignPreviewItem, ResolvedMediaDto} from '../dto/resolved-media.dto';
 import { MediaKindEnum, MediaProviderEnum } from '../../../common/types/file/file.types';
 import {
     CampaignContentItem,
@@ -38,7 +38,7 @@ export class DropboxMediaStrategy implements MediaStrategy {
         );
     }
 
-    async getPreviewJpeg(params: { pathLower?: string; fileId?: string; sizeTag?: ThumbSizeTag }) {
+    async getPreviewJpeg(params: GetCampaignPreviewItem): Promise<Buffer | null> {
         const sizeTag = params.sizeTag ?? 'w256h256';
 
         if (!params.pathLower) return null;

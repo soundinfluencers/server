@@ -290,38 +290,4 @@ export class CampaignsController {
 
         return res.end(pdfBuffer);
     }
-
-    @Public()
-    @ApiOperation({summary: 'Returns previews for campaign content videos'})
-    @ApiResponseDto(CampaignPreviewItemDto, {isArray: true})
-    @ApiParam({
-        name: 'campaignId',
-    })
-    @ApiQuery({
-        name: 'pathLower'
-    })
-    @ApiQuery({
-        name: 'sizeTag'
-    })
-    @Header('Content-Type', 'image/jpeg')
-    @Header('Cache-Control', 'public, max-age=86400')
-    @Get(':campaignId/preview')
-    async getCampaignContentPreview(@Param('campaignId') campaignId: string, @Query('pathLower') pathLower: string, @Query('sizeTag') sizeTag: ThumbSizeTag = 'w256h256', @Res() res: Response) {
-        if (!pathLower) return res.status(400).end();
-
-        const buffer = await this.campaignsService.getCampaignContentPreviewJpeg(campaignId, pathLower, sizeTag);
-
-        if (!buffer) return res.status(404).end();
-
-        return res.send(buffer);
-    }
-
-    @Public()
-    @ApiOperation({summary: 'Returns campaign content video'})
-    @ApiResponseDto()
-    @Post(':campaignId/video')
-    async getCampaignVideo(@Body() data: GetCampaignContentVideoUrl, @Res() res: Response) {
-        const videoUrl = await this.campaignsService.getCampaignContentVideoUrl(data);
-        return res.redirect(302, videoUrl);
-    }
 }
