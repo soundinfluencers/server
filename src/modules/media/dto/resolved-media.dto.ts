@@ -38,19 +38,18 @@ export class CampaignPreviewItemDto {
 
 // dto for getting campaign content item video url
 export class GetCampaignContentVideoUrl {
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    pathLower: string;
-
-    @ApiProperty()
-    @IsString()
-    @IsNotEmpty()
-    url: string;
+    pathLower?: string;
 
     @ApiPropertyOptional()
     @IsOptional()
     @IsString()
-    @IsNotEmpty()
+    url?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
     mainLinkHint?: string;
 }

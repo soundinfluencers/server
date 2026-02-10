@@ -319,7 +319,7 @@ export class CampaignsController {
     @Public()
     @ApiOperation({summary: 'Returns campaign content video'})
     @ApiResponseDto()
-    @Get(':campaignId/video')
+    @Post(':campaignId/video')
     async getCampaignVideo(@Body() data: GetCampaignContentVideoUrl, @Res() res: Response) {
         const videoUrl = await this.campaignsService.getCampaignContentVideoUrl(data);
         return res.redirect(302, videoUrl);

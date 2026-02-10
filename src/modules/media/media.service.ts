@@ -61,6 +61,7 @@ export class MediaService {
         );
     }
 
+    // returns jpeg image with campaign content video preview
     async getCampaignPreviewJpeg(params: {
         mainLinkHint: string;
         pathLower?: string;
@@ -78,8 +79,9 @@ export class MediaService {
     }
 
     async getVideoRedirectUrl(params: GetCampaignContentVideoUrl) {
-        const hint = params.mainLinkHint ?? params.url ?? '';
-        const strategy = this.factory.getStrategy(hint);
+        const strategy = params.pathLower
+            ? this.factory.getDropbox()
+            : this.factory.getStrategy(params.mainLinkHint ?? params.url ?? '');
 
         const videoUrl = await (strategy as any).getVideoUrl({
             pathLower: params.pathLower,

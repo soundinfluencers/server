@@ -14,4 +14,8 @@ export class MediaStrategyFactory {
         if (this.dropbox.canHandle(mainLink)) return this.dropbox;
         return this.direct;
     }
+
+    getDropbox(): MediaStrategy {
+        return this.dropbox;
+    }
 }
