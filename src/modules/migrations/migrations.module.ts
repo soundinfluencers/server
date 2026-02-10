@@ -8,6 +8,11 @@ import {CompletedCampaign, CompletedCampaignSchema} from "../../database/schemas
 import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
 import {MongooseModule} from "@nestjs/mongoose";
 import {Campaign, CampaignSchema} from "../../database/schemas/campaign/campaign.schema";
+import {ProposalCampaign, ProposalCampaignSchema} from "../../database/schemas/campaign/proposal-campaign.schema";
+import {
+    ProposalCampaignOption,
+    ProposalCampaignOptionSchema
+} from "../../database/schemas/campaign/proposal-campaign-option.schema";
 
 @Module({
     imports: [
@@ -18,6 +23,8 @@ import {Campaign, CampaignSchema} from "../../database/schemas/campaign/campaign
             {name: Influencer.name, schema: InfluencerSchema},
             {name: Campaign.name, schema: CampaignSchema},
             {name: CompletedCampaign.name, schema: CompletedCampaignSchema},
+            {name: ProposalCampaign.name, schema: ProposalCampaignSchema},
+            {name: ProposalCampaignOption.name, schema: ProposalCampaignOptionSchema},
         ])
     ],
     controllers: [MigrationsController],

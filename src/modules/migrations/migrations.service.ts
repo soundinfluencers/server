@@ -16,6 +16,11 @@ import {
 } from "../../common/types/influencer/promo.types";
 import {CampaignConfirmationEnum, CampaignStatusEnum} from "../../common/types/client/campaign.types";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
+import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
+import {
+    ProposalCampaignAccount,
+    ProposalCampaignOption
+} from "../../database/schemas/campaign/proposal-campaign-option.schema";
 
 
 // ------------ LEGACY SCHEMAS ---------------
@@ -93,6 +98,10 @@ export class MigrationsService {
         private readonly campaignModel: Model<Campaign>,
         @InjectModel(Influencer.name)
         private readonly influencerModel: Model<Influencer>,
+        @InjectModel(ProposalCampaign.name)
+        private readonly proposalCampaignModel: Model<ProposalCampaign>,
+        @InjectModel(ProposalCampaignOption.name)
+        private readonly proposalCampaignOptionModel: Model<ProposalCampaignOption>,
     ) {
     }
 
@@ -156,7 +165,7 @@ export class MigrationsService {
                 const arr = Array.isArray(inf[social]) ? inf[social] : [];
                 for (const acc of arr) {
                     const accId = this.oid(acc?._id);
-                    const username = (acc?.username ?? (acc as any).instagramUsername ?? '').toString(); // БЕЗ нормализации
+                    const username = (acc?.username ?? (acc as any).instagramUsername ?? '').toString();
 
                     if (!accId || !username) continue;
 
@@ -700,5 +709,326 @@ export class MigrationsService {
         }
 
         return {ok: true, dryRun, scanned, updated};
+    }
+
+
+    // Migrating proposal campaigns after updating schema
+    async migrateProposalCampaigns(dto: { limit?: number; dryRun?: boolean; startAfterId?: string }) {
+        const limit = dto.limit ?? 100;
+        const dryRun = !!dto.dryRun;
+
+        let lastId = this.oid(dto.startAfterId);
+        let scanned = 0;
+        let createdOptions = 0;
+        let updatedProposals = 0;
+        let failed = 0;
+        let missingAccountId = 0;
+
+        const unsupportableDocsIds: Types.ObjectId[] = [];
+
+        const resolveContentSocialMedia = (c: any, doc: any, legacySelect: any[]) => {
+            const normalize = (v: any) => (v ?? '').toString().toLowerCase();
+
+            const cSm = normalize(c?.socialMedia);
+
+            if (cSm && cSm !== 'multipromo') return cSm;
+
+            const selectedSm = normalize(
+                legacySelect.find((acc: any) =>
+                    String(acc?.selectedContent?.campaignContentItemId ?? acc?.selectedCampaignContentItem) === String(c?._id)
+                )?.socialMedia
+            );
+
+            if (selectedSm && selectedSm !== 'multipromo') return selectedSm;
+
+            const docSm = normalize(doc?.socialMedia);
+            if (docSm && docSm !== 'multipromo') return docSm;
+
+            return 'instagram';
+        };
+
+        while (true) {
+            const filter: any = {
+                $and: [
+                    {selectInfluencers: {$exists: true}},
+                    {campaignContent: {$exists: true}},
+                    {$or: [{schemaVersion: {$exists: false}}, {schemaVersion: {$lt: 2}}]},
+                ],
+            };
+
+            if (lastId) filter._id = {$gt: lastId};
+
+            const docs = await this.proposalCampaignModel
+                .find(filter)
+                .sort({_id: 1})
+                .limit(limit)
+                .lean();
+
+            if (!docs.length) break;
+
+            const normalizeUsername = (u: any) => (u ?? '').toString().trim();
+            const normalizeSocial = (s: any) => this.socialField((s ?? '').toString()); // уже lower внутри socialField
+
+// соберём уникальные пары social+username из всей пачки proposal docs
+            const pairKeys = new Set<string>();
+            const pairs: Array<{ social: string; username: string }> = [];
+
+            for (const d of docs as any[]) {
+                const sel = Array.isArray(d.selectInfluencers) ? d.selectInfluencers : [];
+                for (const acc of sel) {
+                    const social = normalizeSocial(acc?.socialMedia);
+                    const username = normalizeUsername(acc?.username ?? acc?.socialMediaUsername);
+
+                    if (!social || !username) continue;
+
+                    const key = `${social}:${username}`;
+                    if (!pairKeys.has(key)) {
+                        pairKeys.add(key);
+                        pairs.push({ social, username });
+                    }
+                }
+            }
+
+            const pairMap = new Map<string, { influencerId: Types.ObjectId; accountId: Types.ObjectId }>();
+
+            if (pairs.length) {
+                const or: any[] = [];
+                for (const p of pairs) {
+                    or.push({ [`${p.social}.username`]: p.username });
+                }
+
+                const influencers = await this.influencerModel
+                    .find(
+                        { $or: or },
+                        {
+                            _id: 1,
+                            instagram: 1,
+                            tiktok: 1,
+                            spotify: 1,
+                            soundcloud: 1,
+                            facebook: 1,
+                            youtube: 1,
+                            press: 1,
+                        },
+                    )
+                    .lean();
+
+                const socials = ['instagram','tiktok','spotify','soundcloud','facebook','youtube','press'];
+
+                for (const inf of influencers as any[]) {
+                    const influencerId = this.oid(inf?._id);
+                    if (!influencerId) continue;
+
+                    for (const social of socials) {
+                        const arr = Array.isArray(inf[social]) ? inf[social] : [];
+                        for (const acc of arr) {
+                            const username = normalizeUsername(acc?.username);
+                            const accountId = this.oid(acc?._id);
+                            if (!username || !accountId) continue;
+
+                            const key = `${social}:${username}`;
+                            if (!pairMap.has(key)) {
+                                pairMap.set(key, { influencerId, accountId });
+                            }
+                        }
+                    }
+                }
+            }
+
+            for (const doc of docs) {
+                scanned++;
+                lastId = doc._id;
+
+                try {
+                    const optionId = new Types.ObjectId();
+
+                    const legacySelect = Array.isArray((doc as any).selectInfluencers)
+                        ? (doc as any).selectInfluencers
+                        : [];
+                    const legacyContent = Array.isArray((doc as any).campaignContent)
+                        ? (doc as any).campaignContent
+                        : [];
+
+                    const campaignContent = legacyContent.map((c: any) => {
+                        const descriptions =
+                            Array.isArray(c.postDescriptions) && c.postDescriptions.length
+                                ? c.postDescriptions.map((p: any) => {
+                                    const desc = (p?.description ?? '').toString().trim();
+
+                                    return {
+                                        _id: this.oid(p._id) ?? new Types.ObjectId(),
+                                        description: desc.length ? desc : 'change this',
+                                    };
+                                })
+                                : [
+                                    {
+                                        _id: new Types.ObjectId(),
+                                        description: ((c?.postDescription ?? '').toString().trim().length
+                                            ? (c?.postDescription ?? '').toString().trim()
+                                            : 'change this'),
+                                    },
+                                ];
+
+                        const socialMedia = resolveContentSocialMedia(c, doc, legacySelect) as SocialMediaEnum;
+
+                        return {
+                            _id: this.oid(c._id) ?? new Types.ObjectId(),
+                            socialMedia: socialMedia,
+                            socialMediaGroup: c.socialMediaGroup ?? 'main',
+                            mainLink: c.mainLink ?? c.videoLink ?? '',
+                            descriptions,
+                            taggedUser: c.taggedUser ?? c.storyTag,
+                            taggedLink: c.taggedLink ?? c.swipeUpLink,
+                            additionalBrief: c.additionalBrief ?? c.specialWishes,
+                        } satisfies CampaignContentItem;
+                    });
+
+                    const cleanedSelect = legacySelect
+                        .map((acc: any) => {
+                            const social = normalizeSocial(acc?.socialMedia);
+                            const username = normalizeUsername(acc?.username ?? acc?.socialMediaUsername);
+
+                            if (!social || !username) return null;
+
+                            const key = `${social}:${username}`;
+                            const resolved = pairMap.get(key);
+
+                            // если не нашли инфлюенсера по связке social+username — выкидываем аккаунт из кампании
+                            if (!resolved) {
+                                return null;
+                            }
+
+                            const influencerId = resolved.influencerId;
+                            const resolvedAccountId = resolved.accountId;
+
+                            const selected = acc.selectedContent ?? acc.selectedCampaignContentItem;
+
+                            const selectedContentItemId =
+                                typeof selected === 'string' || selected instanceof Types.ObjectId
+                                    ? this.oid(selected)
+                                    : this.oid(selected?.campaignContentItemId);
+
+                            if (!selectedContentItemId) return null;
+
+                            let selectedDescriptionId: Types.ObjectId | null =
+                                typeof selected === 'string' || selected instanceof Types.ObjectId
+                                    ? null
+                                    : this.oid(selected?.postDescriptionId);
+
+                            if (!selectedDescriptionId) {
+                                const found = campaignContent.find((i: any) => String(i._id) === String(selectedContentItemId));
+                                selectedDescriptionId = found?.descriptions?.[0]?._id ?? null;
+                            }
+
+                            return {
+                                _id: this.oid(acc._id) ?? new Types.ObjectId(),
+
+                                influencerId,
+                                accountId: resolvedAccountId,
+
+                                socialMedia: acc.socialMedia,
+                                username,
+
+                                price: this.num(acc.price) ?? 0,
+                                publicPrice: this.num(acc.publicPrice) ?? 0,
+                                followers: this.toNumber(acc.followers) ?? this.toNumber(acc.followersNumber) ?? 0,
+
+                                selectedContent: {
+                                    campaignContentItemId: selectedContentItemId,
+                                    descriptionId: selectedDescriptionId ?? undefined,
+                                },
+
+                                confirmation: acc.confirmation ?? 'wait',
+                                closePromo: acc.closePromo ?? 'wait',
+
+                                dateRequest: acc.dateRequest ?? undefined,
+                                datePost: acc.datePost ?? undefined,
+
+                                postLink: acc.postLink ?? undefined,
+                                screenshot: acc.screenshot ?? undefined,
+                                impressions: this.num(acc.impressions) ?? undefined,
+                                like: this.num(acc.like) ?? undefined,
+                                comments: this.num(acc.comments) ?? undefined,
+                                shares: this.num(acc.shares) ?? undefined,
+                                saves: this.num(acc.saves) ?? undefined,
+                                rating: this.num(acc.rating) ?? undefined,
+
+                                adminChecked: acc.adminChecked ?? false,
+                                genres: acc.genres ?? [],
+                                countries: acc.countries ?? [],
+                            } satisfies ProposalCampaignAccount;
+                        })
+                        .filter(Boolean) as ProposalCampaignAccount[];
+
+                    const removedBad = legacySelect.length - cleanedSelect.length;
+                    if (removedBad > 0) {
+                        this.logger.warn(
+                            `migrateProposalCampaigns: proposalId=${String(doc._id)} removed ${removedBad} selectInfluencers that cannot be resolved by social+username`,
+                        );
+                    }
+
+                    const addedAccounts = cleanedSelect;
+
+                    const optionDoc = {
+                        _id: optionId,
+                        proposalCampaignId: doc._id,
+                        creatorId: (doc as any).clientId ?? doc.creatorId,
+                        creatorRole: (doc as any).creatorRole ?? 'client',
+                        schemaVersion: 1,
+                        publicCampaignPrice: this.toNumber((doc as any).publicPrice) ?? 0,
+                        privateCampaignPrice: this.toNumber((doc as any).price) ?? 0,
+                        addedAccounts,
+                        campaignContent,
+                    };
+
+                    if (!dryRun) {
+                        await this.proposalCampaignOptionModel.create(optionDoc);
+
+                        await this.proposalCampaignModel.updateOne(
+                            {_id: doc._id},
+                            {
+                                $set: {
+                                    optionsIds: [optionId],
+                                    schemaVersion: 2,
+                                },
+                                $unset: {
+                                    selectInfluencers: 1,
+                                    campaignContent: 1,
+                                    price: 1,
+                                    publicPrice: 1,
+                                    totalFollowers: 1,
+                                },
+                            },
+                        );
+                    }
+
+                    createdOptions++;
+                    updatedProposals++;
+                } catch (e: any) {
+                    failed++;
+                    this.logger.error(
+                        `migrateProposalCampaigns failed: proposalId=${String(doc._id)} msg=${e?.message ?? e}`,
+                        e?.stack,
+                    );
+                    unsupportableDocsIds.push(doc._id);
+                    continue;
+                }
+            }
+        }
+
+        await this.proposalCampaignOptionModel.deleteMany({ proposalCampaignId: { $in: unsupportableDocsIds } });
+        await this.proposalCampaignModel.deleteMany({ _id: { $in: unsupportableDocsIds } });
+
+        return {
+            ok: true,
+            dryRun,
+            scanned,
+            createdOptions,
+            updatedProposals,
+            failed,
+            missingAccountId,
+            note:
+                'missingAccountId означает: не удалось найти accountId ни в legacy поле, ни в embedded аккаунтах Influencer (строго по username). В этом случае accountId будет null.',
+        };
     }
 }

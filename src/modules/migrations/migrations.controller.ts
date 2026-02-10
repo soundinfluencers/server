@@ -39,4 +39,13 @@ export class MigrationsController {
     migrateInfluencersSocialAccountsV2(@Body() data: MigrateCampaignsDto) {
         return this.migrationsService.migrateInfluencersSocialAccountsV2(data);
     }
+
+    @Auth()
+    @Roles(Role.admin)
+    @ApiOperation({ summary: '(ADMIN) Migrate proposal campaigns to latest format'})
+    @ApiResponseDto(undefined, { successStatusCode: 201 })
+    @Patch('proposal-campaigns')
+    migrateProposalCampaigns(@Body() data: MigrateCampaignsDto) {
+        return this.migrationsService.migrateProposalCampaigns(data);
+    }
 }
