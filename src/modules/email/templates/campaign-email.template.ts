@@ -1,4 +1,9 @@
-import {BuildClientCreatedCampaignTemplateDto, BuildRequestEditTemplateDto} from "../dto/campaign-email.dto";
+import {
+    AccountObjectForCreateNewPromoRequestMessage,
+    BuildClientCreatedCampaignTemplateDto,
+    BuildInfluencerNewPromoRequestTemplateDto,
+    BuildRequestEditTemplateDto
+} from "../dto/campaign-email.dto";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {formatCampaignPaymentType} from "../../../common/utils/formatters";
 import {
@@ -77,6 +82,74 @@ const renderCategoryFields = (dto: CreateBespokeCampaignDto) => {
         }
     }
 };
+
+function getPlatformDescription(platform: string): string {
+    switch (platform.toLowerCase()) {
+        case 'instagram':
+            return 'Instagram (1 Post + 1 Story)';
+        case 'tiktok':
+            return 'TikTok (1 Post + 1 Story)';
+        case 'facebook':
+            return 'Facebook (1 Post + 1 Story)';
+        case 'youtube':
+            return 'YouTube (1 Shorts Post)';
+        case 'spotify':
+            return 'Spotify - 1 playlist feature with feedback (Top 1-10 positions for 30 days)';
+        case 'soundcloud':
+            return 'SoundCloud - 1 repost for 30 days';
+        case 'press':
+            return 'Press - 1 Article Feature';
+        default:
+            return `${platform}`;
+    }
+}
+
+function formatAccountHTML(acc: AccountObjectForCreateNewPromoRequestMessage): string {
+    const lines: string[] = [];
+
+    lines.push(`<strong>Platform:</strong> ${getPlatformDescription(acc.socialMedia)}`);
+
+    switch (acc.socialMedia.toLowerCase()) {
+        case 'youtube':
+            lines.push(`<strong>Channel:</strong> ${acc.pageName}`);
+            if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`<strong>Description:</strong> ${acc.dateRequest}`);
+            lines.push(`<strong>Content:</strong> ${acc.mainLink}`);
+            if (acc.description) lines.push(`<strong>Description:</strong> ${acc.description}`);
+            if (acc.taggedUser) lines.push(`<strong>Story Tag:</strong> ${acc.taggedUser}`);
+            if (acc.taggedLink) lines.push(`<strong>Story Link:</strong> ${acc.taggedLink}`);
+            if (acc.additionalBrief)
+                lines.push(`<strong>Special Requests:</strong> ${acc.additionalBrief}`);
+            break;
+        case 'spotify':
+            lines.push(`<strong>Playlist:</strong> ${acc.pageName}`);
+            if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`<strong>Description:</strong> ${acc.dateRequest}`);
+            lines.push(`<strong>Track:</strong> ${acc.mainLink}`);
+            break;
+        case 'soundcloud':
+            lines.push(`<strong>Channel:</strong> ${acc.pageName}`);
+            if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`<strong>Description:</strong> ${acc.dateRequest}`);
+            lines.push(`<strong>Track:</strong> ${acc.mainLink}`);
+            break;
+        case 'press':
+            lines.push(`<strong>Website:</strong> ${acc.pageName}`);
+            if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`<strong>Description:</strong> ${acc.dateRequest}`);
+            lines.push(`<strong>Press Release:</strong> ${acc.mainLink}`);
+            break;
+        default:
+            lines.push(`<strong>Page:</strong> ${acc.pageName}`);
+            if (acc.dateRequest && acc.dateRequest !== "ASAP") lines.push(`<strong>Description:</strong> ${acc.dateRequest}`);
+            lines.push(`<strong>Content:</strong> ${acc.mainLink}`);
+            if (acc.description) lines.push(`<strong>Description:</strong> ${acc.description}`);
+            if (acc.taggedUser) lines.push(`<strong>Story Tag:</strong> ${acc.taggedUser}`);
+            if (acc.taggedLink) lines.push(`<strong>Story Link:</strong> ${acc.taggedLink}`);
+            if (acc.additionalBrief)
+                lines.push(`<strong>Special Requests:</strong> ${acc.additionalBrief}`);
+            break;
+    }
+
+    lines.push(`<strong>Reward:</strong> ${acc.reward?.replace(/\D/g, '') + '€' || ''}`);
+    return lines.join('<br>');
+}
 
 
 // ------------- BUILDERS -------------
@@ -287,5 +360,24 @@ export const buildNewBespokeCampaignRequestTemplate = (
     </p>
   </div>
 </div>
+`;
+};
+
+export const buildInfluencerNewPromoRequestTemplate = (data: BuildInfluencerNewPromoRequestTemplateDto) => {
+    const { firstName, accountsAndDetails } = data;
+
+    const platformMessages = accountsAndDetails.map(formatAccountHTML);
+
+    return `Hi ${firstName},<br><br>
+
+You have a new promo request 🔥<br><br>
+
+<strong>CAMPAIGN DETAILS:</strong><br><br>
+
+${platformMessages.join('<br><br>')}
+
+<br><br>You can manage this promo(s) in your account here: <a href="https://go.soundinfluencers.com">Dashboard Link</a><br><br>
+
+Let us know if you'd like to take part in this campaign(s)
 `;
 };

@@ -33,7 +33,8 @@ export enum CampaignStatusEnum {
     pending = 'pending',
     distributing = 'distributing',
     completed = 'completed',
-    draft = 'draft'
+    draft = 'draft',
+    declined = 'declined',
 }
 
 // Enum for bespoke campaign request type
