@@ -11,6 +11,7 @@ import {
     UKBankTransferDetails,
     UKBankTransferDetailsSchema
 } from "./payment-details.schema";
+import {CampaignPaymentMethodEnum} from "../../../common/types/client/campaign.types";
 
 @Schema({
     timestamps: true,
@@ -60,9 +61,12 @@ export class UserInvoice {
     @Prop({
         required: true,
         type: String,
-        enum: InvoicePaymentMethodEnum,
+        enum: [
+            ...Object.values(InvoicePaymentMethodEnum),
+            ...Object.values(CampaignPaymentMethodEnum),
+        ],
     })
-    selectedPaymentMethod: InvoicePaymentMethodEnum;
+    selectedPaymentMethod: InvoicePaymentMethodEnum | CampaignPaymentMethodEnum;
 
     @Prop({ required: false, type: UKBankTransferDetailsSchema})
     ukBankTransfer?: UKBankTransferDetails;

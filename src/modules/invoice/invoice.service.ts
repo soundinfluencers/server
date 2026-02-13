@@ -1,5 +1,5 @@
 import {ClientSession, PipelineStage, Types} from 'mongoose';
-import {CreateInvoiceDto} from './dto/create-invoice.dto';
+import {CreateCampaignInvoiceDto, CreateInvoiceDto} from './dto/create-invoice.dto';
 import {UserInvoice} from '../../database/schemas/invoices/user-invoice.schema';
 import {BadRequestException, ForbiddenException, Injectable, NotFoundException} from '@nestjs/common';
 import {Response} from 'express';
@@ -27,6 +27,7 @@ import {PaymentMethodRequestEnum} from "../profile/dto/payment-details.dto";
 import {ProfileService} from "../profile/profile.service";
 import {CreateCampaignDto} from "../campaigns/dto/create-campaign.dto";
 import {mapToInvoiceModel} from "../../common/mappers/invoice.mapper";
+import {InvoicePdfExporter} from "../../common/utils/export/pdf/invoice-pdf.exporter";
 
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
@@ -207,7 +208,7 @@ export class InvoiceService {
                 .join('');
 
             // Creating and sending email
-            const pdfInvoice = await this.createPDF(invoice)
+            const pdfInvoice = await InvoicePdfExporter.buildPdfBuffer(invoice)
             await this.emailService.sendNewInfluencerInvoiceEmail({
                 influencerEmail: influencer.email,
                 instagramAccounts,
@@ -225,20 +226,19 @@ export class InvoiceService {
             await session.abortTransaction();
             throw err;
         } finally {
-            session.endSession();
+            await session.endSession();
         }
     }
 
     // todo: update after designer finish design for invoices
-    async createClientCampaignInvoice(data: CreateCampaignDto, session?: ClientSession): Promise<void> {
-        const invoice = mapToInvoiceModel(data.paymentDetails);
+    async createClientCampaignInvoice(data: CreateCampaignInvoiceDto, session?: ClientSession): Promise<void> {
+        const invoice = mapToInvoiceModel(data);
 
         if (!invoice) throw new BadRequestException('Invalid payment details');
 
         await this.userInvoiceRepository.create(invoice, {session});
 
-        const pdfInvoice = await this.createPDF(invoice);
-
+        const pdfInvoice = await InvoicePdfExporter.buildPdfBuffer(invoice)
         await this.emailService.sendClientCampaignInvoiceEmail(pdfInvoice);
     }
 

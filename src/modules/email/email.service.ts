@@ -24,7 +24,7 @@ export class EmailService {
         try {
             return await sendMail(...args);
         } catch (err: any) {
-            // this.logger.error('Email send failed', err);
+            this.logger.error('Email send failed', err);
 
             if (err?.code === 'EAUTH' || err?.responseCode === 535) {
                 throw new ServiceUnavailableException('Email auth failed');
@@ -50,7 +50,7 @@ export class EmailService {
     };
 
     // Sends emails about new influencer invoice
-    async sendNewInfluencerInvoiceEmail(data: BuildInvoiceEmailDto, pdfPath: string) {
+    async sendNewInfluencerInvoiceEmail(data: BuildInvoiceEmailDto, pdfPath: Buffer) {
         const emailToUs = buildInfluencerInvoiceEmail(data);
         const emailToInfluencer = buildInfluencerInvoiceResponseEmail();
 
@@ -100,7 +100,7 @@ export class EmailService {
     }
 
     // Sends email to client with invoice (after creating new campaign)
-    async sendClientCampaignInvoiceEmail(pdfPath: string) {
+    async sendClientCampaignInvoiceEmail(pdfPath: Buffer) {
         const email = buildClientCampaignInvoiceTemplate();
         return this.safeSend(
             'nazarkozynets030606@gmail.com',

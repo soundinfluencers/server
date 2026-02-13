@@ -511,7 +511,7 @@ export class CampaignsService {
                 clientId: new ObjId(data.clientId),
                 campaignName: data.campaignName.trim(),
                 addedAccounts: processedAccounts,
-                paymentType: !data.paymentType ? 'payment' : data.paymentType,
+                paymentType: data.paymentDetails.selectedPaymentMethod,
                 paymentStatus: CampaignPaymentStatusEnum.confirmed,
                 statusCampaign: CampaignStatusEnum.underReview,
                 verifyCampaign: CampaignConfirmationEnum.wait,
@@ -529,7 +529,7 @@ export class CampaignsService {
             data.paymentDetails.campaignName = data.campaignName.trim();
 
             // create and send invoice to client
-            await this.invoiceService.createClientCampaignInvoice(data);
+            await this.invoiceService.createClientCampaignInvoice(data.paymentDetails);
 
             await session.commitTransaction();
         } catch (err) {
@@ -840,14 +840,14 @@ export class CampaignsService {
                 );
             }
 
-            await this.campaignRepo.updateOne({_id: campaignId}, {verifyCampaign: 'accept'});
+            await this.campaignRepo.updateOne({_id: new ObjId(campaignId)}, {verifyCampaign: 'accept'});
 
             return {
                 code: 200,
                 message: 'Campaign verified',
             };
         } else {
-            await this.campaignRepo.updateOne({_id: campaignId}, {verifyCampaign: 'decline'});
+            await this.campaignRepo.updateOne({_id: new ObjId(campaignId)}, {verifyCampaign: 'decline'});
             return {
                 code: 200,
                 message: 'Campaign declined',

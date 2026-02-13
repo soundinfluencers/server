@@ -44,7 +44,6 @@ export enum BespokeRequestCategory {
     other = 'other',
 }
 
-// Enum for selected payment method
 export enum CampaignPaymentMethodEnum {
     bankCard = 'bank_card',
     paypal = 'paypal',

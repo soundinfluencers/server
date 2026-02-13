@@ -12,15 +12,20 @@ const transporter = nodemailer.createTransport({
 });
 
 // todo: сделать так чтобы sendMail принимал один обьект + создать утилиту которая будет билдить этот обьект
-const sendMail = async (to = '', title = '', text = '', type = '', path = '') => {
+const sendMail = async (to = '', title = '', text = '', type = '', path: string | Buffer = '') => {
     const mailOptions = (() => {
         if (type === 'pdf') {
+            const attachment =
+                Buffer.isBuffer(path)
+                    ? { filename: 'invoice.pdf', content: path, contentType: 'application/pdf' }
+                    : { filename: 'invoice.pdf', path };
+
             return {
                 from: process.env.EMAIL_USER,
-                to,
+                to: process.env.NODE_ENV === 'development' ? process.env.EMAIL_USER : to,
                 subject: title,
                 html: text,
-                attachments: [{ filename: 'invoice.pdf', path }],
+                attachments: [attachment],
             };
         }
 

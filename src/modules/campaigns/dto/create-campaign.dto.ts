@@ -2,7 +2,9 @@ import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {IsArray, IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested} from "class-validator";
 import {Type} from "class-transformer";
-import {CreateInvoiceDto} from "../../invoice/dto/create-invoice.dto";
+import {CreateCampaignInvoiceDto, CreateInvoiceDto} from "../../invoice/dto/create-invoice.dto";
+import {InvoicePaymentMethodEnum} from "../../../common/types/influencer/invoice.types";
+import {CampaignPaymentMethodEnum} from "../../../common/types/client/campaign.types";
 
 export class SelectedCampaignContentItemDto {
     @ApiProperty()
@@ -111,10 +113,6 @@ export class CreateCampaignDto {
     @Type(() => Number)
     campaignPrice: number;
 
-    @ApiPropertyOptional({required: false})
-    @IsString()
-    paymentType?: string;
-
     @ApiProperty({type: () => [SelectInfluencerDto]})
     @Type(() => SelectInfluencerDto)
     @IsArray()
@@ -129,11 +127,11 @@ export class CreateCampaignDto {
     @ValidateNested({ each: true })
     campaignContent: CampaignContentItemDto[];
 
-    @ApiPropertyOptional({ type: () => CreateInvoiceDto })
+    @ApiPropertyOptional({ type: () => CreateCampaignInvoiceDto })
     @IsOptional()
     @ValidateNested()
-    @Type(() => CreateInvoiceDto)
-    paymentDetails?: CreateInvoiceDto;
+    @Type(() => CreateCampaignInvoiceDto)
+    paymentDetails?: CreateCampaignInvoiceDto;
 }
 
 export class DraftCampaignAccountDto {
