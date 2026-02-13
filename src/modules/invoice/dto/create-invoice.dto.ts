@@ -9,7 +9,7 @@ import {
     IsPositive,
     IsIn,
     IsUUID,
-    Length, IsEnum, ValidateIf, ValidateNested,
+    Length, IsEnum, ValidateIf, ValidateNested, Min,
 } from 'class-validator';
 import {InvoicePaymentMethodEnum} from "../../../common/types/influencer/invoice.types";
 import {Type} from "class-transformer";
@@ -52,6 +52,7 @@ export class CreateInvoiceDto {
 
     @ApiProperty()
     @IsNumber()
+    @Min(1)
     amount: number;
 
     @ApiPropertyOptional()
