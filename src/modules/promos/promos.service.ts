@@ -11,7 +11,8 @@ import sendMail from "../../integrations/nodemailer/nodemailer";
 import {
     InfluencerDetailedPromo,
     InfluencerGetDashboardPromosQueryDto,
-    InfluencerGetDetailedPromoParamsDto, InfluencerGetDetailedPromosQueryDto,
+    InfluencerGetDetailedPromoParamsDto,
+    InfluencerGetDetailedPromosQueryDto,
     InfluencerUpdatePromoReqBodyDto,
     InfluencerUpdatePromoResponseUpdateDto
 } from "./dto/influencer-get-promos.dto";
@@ -220,7 +221,10 @@ export class PromosService {
         const promos = await this.campaignRepo
             .findMany({
                 addedAccounts: {
-                    $elemMatch: {influencerId: new Types.ObjectId(influencerId), confirmation: 'wait'},
+                    $elemMatch: {
+                        influencerId: new Types.ObjectId(influencerId),
+                        confirmation: InfluencerConfirmationStatusEnum.wait
+                    },
                 },
                 verifyCampaign: CampaignConfirmationEnum.accept,
             }, {lean: true});
@@ -230,8 +234,7 @@ export class PromosService {
         const allSocialMediaAccounts = promos
             .flatMap((item) => {
                 return item.addedAccounts.flatMap((acc): (InfluencerNewPromoRequest & { userId: string })[] => {
-                    if (acc.confirmation !== 'wait' || acc.influencerId.toString() !== influencerId)
-                        return [];
+                    if (acc.confirmation !== InfluencerConfirmationStatusEnum.wait || acc.influencerId.toString() !== influencerId) return [];
 
                     const {addedAccounts, ...newObject} = item;
                     const {_id, ...newObjectSocialMediaAccount} = acc;
@@ -272,9 +275,7 @@ export class PromosService {
             })
             .filter(Boolean);
 
-        const filteredByInfluencerId = allSocialMediaAccounts.filter(
-            (item) => (item as any).influencerId.toString() === influencerId,
-        );
+        const filteredByInfluencerId = allSocialMediaAccounts.filter(x => x.influencerId === influencerId);
 
         const promosWithClientName: InfluencerNewPromoRequest[] = await Promise.all(
             filteredByInfluencerId.map(async (item) => {
@@ -1004,7 +1005,7 @@ export class PromosService {
     async updateOngoingCampaign(
         data: InfluencerUpdatePromoReqBodyDto,
     ): Promise<{ balance: number }> {
-        const { influencerId, campaignId, username, addedAccountsId, data: postDetails } = data;
+        const {influencerId, campaignId, username, addedAccountsId, data: postDetails} = data;
 
         if (!influencerId || !campaignId || !username || !addedAccountsId) {
             throw new BadRequestException("Not enough arguments");
@@ -1020,7 +1021,7 @@ export class PromosService {
                     },
                 },
             },
-            { lean: true },
+            {lean: true},
         );
 
         if (!campaign) {
@@ -1057,8 +1058,8 @@ export class PromosService {
                     _id: new Types.ObjectId(campaignId),
                     "addedAccounts._id": new Types.ObjectId(addedAccountsId),
                 },
-                { $set: updatePayload },
-                { session },
+                {$set: updatePayload},
+                {session},
             );
 
             if (updateResult.modifiedCount === 0) {
@@ -1071,9 +1072,9 @@ export class PromosService {
             }
 
             const updatedInfluencer = await this.influencerRepo.findOneAndUpdate(
-                { _id: new Types.ObjectId(influencerId) },
-                { $inc: { balance: reward } },
-                { session, new: true },
+                {_id: new Types.ObjectId(influencerId)},
+                {$inc: {balance: reward}},
+                {session, new: true},
             );
 
             if (!updatedInfluencer) {
@@ -1099,7 +1100,7 @@ export class PromosService {
 
             await session.commitTransaction();
 
-            return { balance: updatedInfluencer.balance };
+            return {balance: updatedInfluencer.balance};
         } catch (e) {
             await session.abortTransaction();
             throw e;

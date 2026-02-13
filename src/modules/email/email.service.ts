@@ -1,9 +1,13 @@
 import {Injectable, InternalServerErrorException, Logger, ServiceUnavailableException} from "@nestjs/common";
 import {
-    buildClientCreatedCampaignTemplate, buildNewBespokeCampaignRequestTemplate,
+    buildClientCreatedCampaignTemplate, buildInfluencerNewPromoRequestTemplate, buildNewBespokeCampaignRequestTemplate,
     buildRequestEditTemplate
 } from "./templates/campaign-email.template";
-import {BuildClientCreatedCampaignTemplateDto, BuildRequestEditTemplateDto} from "./dto/campaign-email.dto";
+import {
+    BuildClientCreatedCampaignTemplateDto,
+    BuildInfluencerNewPromoRequestTemplateDto,
+    BuildRequestEditTemplateDto
+} from "./dto/campaign-email.dto";
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {BuildInvoiceEmailDto} from "./dto/invoice-email.dto";
 import {
@@ -108,6 +112,18 @@ export class EmailService {
             email,
             'pdf',
             pdfPath
+        )
+    }
+
+    // Sends email to influencer about new promo request
+    async sendInfluencerNewPromoRequestEmail(data: BuildInfluencerNewPromoRequestTemplateDto) {
+        const email = buildInfluencerNewPromoRequestTemplate(data);
+        return this.safeSend(
+            'nazarkozynets030606@gmail.com',
+            // data.email,
+            'New promo request',
+            email,
+            'html'
         )
     }
 }

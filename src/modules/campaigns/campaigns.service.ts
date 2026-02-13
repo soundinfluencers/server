@@ -27,12 +27,7 @@ import {
 } from "./dto/create-campaign.dto";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
 import {CreateBespokeCampaignDto} from "./dto/bespoke-request.dto";
-import sendMail from "../../integrations/nodemailer/nodemailer";
 import axios from "axios";
-import {
-    AccountObjectForCreateNewPromoRequestMessage,
-    createNewPromoRequestHTMLMessage
-} from "../../common/utils/new-promo-message";
 import {getSocialMediaGroup} from "../../common/utils/socialMedia";
 import {returnMusicStyles} from "../../common/utils/genres";
 import {ClientGetDashboardCampaignsQueryDto, DetailedDraftCampaignDto} from "./dto/get-campaigns.dto";
@@ -62,7 +57,10 @@ import {UpdateCampaignDto} from "./dto/update-campaign.dto";
 import {mapContentItemDtoToModel, mapToClientCampaignForTable} from "../../common/mappers/campaign.mapper";
 import {buildSafeFileName, uniq} from "../../common/utils/base.util";
 import {ObjId, toObjIdSafe} from "../../common/types/base.types";
-import {BuildRequestEditTemplateDto} from "../email/dto/campaign-email.dto";
+import {
+    AccountObjectForCreateNewPromoRequestMessage,
+    BuildRequestEditTemplateDto
+} from "../email/dto/campaign-email.dto";
 import {BespokeCampaignRepository} from "../../database/repositories/campaigns/bespoke-campaign.repository";
 import {CampaignCsvExporter} from "../../common/utils/export/csv/campaign-csv.exporter";
 import {CampaignPdfExporter} from "../../common/utils/export/pdf/campaign-pdf.exporter";
@@ -825,29 +823,26 @@ export class CampaignsService {
 
                 if (accountDetails.length === 0) continue;
 
-                const emailBody = createNewPromoRequestHTMLMessage({
-                    firstName: influencer.firstName,
-                    accountsAndDetails: accountDetails,
-                });
-
                 // todo: user email service and create query of emails
-                await sendMail(
-                    // influencer.email,
-                    'nazarkozynets030606@zohomail.eu',
-                    'New Promo Request',
-                    emailBody,
-                    'html'
-                );
+                try {
+                    await this.emailService.sendInfluencerNewPromoRequestEmail({
+                        firstName: influencer.firstName,
+                        email: influencer.email,
+                        accountsAndDetails: accountDetails,
+                    });
+                } catch (err) {
+                    this.logger.warn(`${checkCampaign.campaignName} new promo request email failed for influencer ${influencer._id} - ${influencer.email}`, err);
+                }
             }
 
-            await this.campaignRepo.updateOne({_id: new ObjId(campaignId)}, {verifyCampaign: 'accept'});
+            await this.campaignRepo.updateOne({_id: new ObjId(campaignId)}, {verifyCampaign: CampaignConfirmationEnum.accept, statusCampaign: CampaignStatusEnum.pending});
 
             return {
                 code: 200,
                 message: 'Campaign verified',
             };
         } else {
-            await this.campaignRepo.updateOne({_id: new ObjId(campaignId)}, {verifyCampaign: 'decline'});
+            await this.campaignRepo.updateOne({_id: new ObjId(campaignId)}, {verifyCampaign: CampaignConfirmationEnum.decline, statusCampaign: CampaignStatusEnum.declined});
             return {
                 code: 200,
                 message: 'Campaign declined',

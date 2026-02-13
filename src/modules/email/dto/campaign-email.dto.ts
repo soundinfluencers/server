@@ -29,3 +29,22 @@ export class BuildClientCreatedCampaignTemplateDto {
     acceptLink: string;
     declineLink: string;
 }
+
+export interface AccountObjectForCreateNewPromoRequestMessage {
+    pageName: string;
+    dateRequest?: string;
+    reward: string;
+    socialMedia: string;
+    mainLink: string;
+    description?: string;
+    taggedUser?: string;
+    taggedLink?: string;
+    additionalBrief?: string;
+}
+
+// dto for sending influencer new promo request
+export class BuildInfluencerNewPromoRequestTemplateDto {
+    email: string;
+    firstName: string;
+    accountsAndDetails: AccountObjectForCreateNewPromoRequestMessage[];
+}
