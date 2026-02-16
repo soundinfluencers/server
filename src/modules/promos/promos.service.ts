@@ -109,6 +109,7 @@ export class PromosService {
         skip: number = 0
     ): PipelineStage[] {
         const pipeline: PipelineStage[] = [
+            { $match: { verifyCampaign: 'accept' } },
             {
                 $match: {
                     'addedAccounts.influencerId': new Types.ObjectId(influencerId),
