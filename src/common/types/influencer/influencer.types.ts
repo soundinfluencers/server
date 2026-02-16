@@ -26,7 +26,7 @@ export interface InfluencerAccountDetails {
 
     lastName?: string;
     telegramUsername?: string;
-    profilePhotoUrl?: string;
+    logoUrl?: string;
 }
 
 export interface SocialAccountDetails {
