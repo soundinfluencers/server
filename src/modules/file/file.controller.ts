@@ -21,6 +21,7 @@ export class FileController {
     ) {
     }
 
+    @Public()
     @ApiOperation({ summary: 'Uploads photo' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({
@@ -41,6 +42,7 @@ export class FileController {
         return this.fileService.uploadDropBox(file);
     }
 
+    @Public()
     @ApiOperation({summary: 'Checks if photo uploaded'})
     @ApiQuery({
         name: 'fileName',
