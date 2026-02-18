@@ -34,6 +34,7 @@ export const mapInfluencerToAccountDetailsDto = (
         logoUrl: influencer.logoUrl ?? null,
         email: influencer.email,
         phone: influencer.phone,
+        notificationMethods: influencer.notificationMethods ?? {whatsapp: true, telegram: true},
 
         instagram: filterSocialAccounts(influencer.instagram),
         tiktok: filterSocialAccounts(influencer.tiktok),

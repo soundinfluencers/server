@@ -22,7 +22,7 @@ import {Influencer, SocialAccount} from "../../database/schemas/users/influencer
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {getArrayFromMusicGenreDto, normalizeDtoToMusicGenres} from "../../common/utils/genres";
 import {AdminRepository} from "../../database/repositories/users/admin.repository";
-import {Role} from "../../common/types/auth.types";
+import {Role} from "../../common/types/user.types";
 import {Client} from "../../database/schemas/users/client.schema";
 
 const jwt = require('jsonwebtoken');

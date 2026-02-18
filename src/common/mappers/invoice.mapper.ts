@@ -3,7 +3,7 @@ import {InvoiceDetails} from "../../database/schemas/invoices/invoice-details.sc
 import {CreateCampaignInvoiceDto, CreateInvoiceDto} from "../../modules/invoice/dto/create-invoice.dto";
 import {UserInvoice} from "../../database/schemas/invoices/user-invoice.schema";
 import {ObjId} from "../types/base.types";
-import {Role} from "../types/auth.types";
+import {Role} from "../types/user.types";
 import {InvoiceStatusEnum} from "../types/influencer/invoice.types";
 
 export const mapToInvoiceDetailsDto = (data: InvoiceDetails): InvoiceDetailsDto => {

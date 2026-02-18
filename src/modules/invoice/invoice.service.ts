@@ -16,7 +16,7 @@ import {formatDate} from "../../common/utils/formatters";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {EmailService} from "../email/email.service";
 import {InvoiceDetailsRepository} from "../../database/repositories/invoices/invoice-details.repository";
-import {Role, UserPayload} from "../../common/types/auth.types";
+import {Role, UserPayload} from "../../common/types/user.types";
 import {ObjId} from "../../common/types/base.types";
 import {UkBankTransferDetailsRepository} from "../../database/repositories/invoices/uk-transfer-details.repository";
 import {

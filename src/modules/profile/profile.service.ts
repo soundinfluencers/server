@@ -24,13 +24,13 @@ import {
     Influencer,
     InfluencerCountryStats,
     InfluencerMusicGenre,
-    SocialAccount
+    SocialAccount, UserNotificationMethods
 } from "../../database/schemas/users/influencer.schema";
 import {MigrateAccountDto} from "../migrations/dto/migrate-account.dto";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
-import {Role, UserPayload} from "../../common/types/auth.types";
+import {NotificationMethodsEnum, Role, UserPayload} from "../../common/types/user.types";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {normalizeDtoToMusicGenres, normalizeStringToMusicGenres} from "../../common/utils/genres";
 import {InfluencerAccountDetails, SocialAccountDetails} from "../../common/types/influencer/influencer.types";
@@ -220,6 +220,38 @@ export class ProfileService {
             email: updatedUser.email,
             phone: updatedUser.phone,
         };
+    }
+
+    // Updates influencer's selected notification methods
+    async updateNotificationMethodsInfluencer(
+        method: NotificationMethodsEnum,
+        userInfo: UserPayload
+    ): Promise<boolean> {
+
+        const influencer = await this.influencerRepo.findById(
+            userInfo._id,
+            { lean: true }
+        );
+
+        if (!influencer) {
+            throw new NotFoundException("Influencer not found");
+        }
+
+        const currentValue =
+            influencer.notificationMethods?.[method] ?? true;
+
+        const newValue = !currentValue;
+
+        await this.influencerRepo.updateOne(
+            { _id: new ObjId(userInfo._id) },
+            {
+                $set: {
+                    [`notificationMethods.${method}`]: newValue
+                }
+            }
+        );
+
+        return newValue;
     }
 
     // Returns current user invoice details

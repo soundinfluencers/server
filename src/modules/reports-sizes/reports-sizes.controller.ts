@@ -3,7 +3,7 @@ import {ReportsSizesService} from './reports-sizes.service';
 import {ApiOperation, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
-import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
+import {AuthenticatedRequest, Role} from "../../common/types/user.types";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {UpdateReportSizeRequestDto, UpdateReportSizeResponseDto} from "./dto/update-report-size.dto";
 

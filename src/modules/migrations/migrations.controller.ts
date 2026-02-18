@@ -5,7 +5,7 @@ import {MigrateAccountDto} from "./dto/migrate-account.dto";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
-import {Role} from "../../common/types/auth.types";
+import {Role} from "../../common/types/user.types";
 import {MigrateCampaignsDto} from "./dto/migrate-campaigns.dto";
 
 @ApiTags('migrations')

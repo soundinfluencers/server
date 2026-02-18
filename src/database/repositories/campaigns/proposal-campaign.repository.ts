@@ -5,7 +5,7 @@ import {Model, Query, Types} from "mongoose";
 import {RepoOptions} from "../../types/repo.types";
 import {applyQueryOptions} from "../../utils/apply-query-options.util";
 import {ProposalCampaign} from "../../schemas/campaign/proposal-campaign.schema";
-import {Role} from "../../../common/types/auth.types";
+import {Role} from "../../../common/types/user.types";
 
 @Injectable()
 export class ProposalCampaignRepository extends BaseRepository<ProposalCampaign> {

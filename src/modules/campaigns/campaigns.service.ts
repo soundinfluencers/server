@@ -52,7 +52,7 @@ import {
 import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
 import {FoundAccountDto} from "../profile/dto/influencer/get-profile.dto";
 import {EmailService} from "../email/email.service";
-import {Role, UserPayload} from "../../common/types/auth.types";
+import {Role, UserPayload} from "../../common/types/user.types";
 import {UpdateCampaignDto} from "./dto/update-campaign.dto";
 import {mapContentItemDtoToModel, mapToClientCampaignForTable} from "../../common/mappers/campaign.mapper";
 import {buildSafeFileName, uniq} from "../../common/utils/base.util";

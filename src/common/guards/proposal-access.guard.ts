@@ -6,7 +6,7 @@ import {
     UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AuthenticatedRequest, ClientPayload, Role, UserPayload } from '../types/auth.types';
+import { AuthenticatedRequest, ClientPayload, Role, UserPayload } from '../types/user.types';
 import { PROPOSAL_ACCESS_KEY, ProposalAccessType } from '../decorators/proposal-access.decorator';
 
 function isClientPayload(user: UserPayload): user is ClientPayload {

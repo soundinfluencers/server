@@ -8,7 +8,7 @@ import {allowedGenresMap} from "../../common/types/genres.types";
 import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiTags} from "@nestjs/swagger";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
-import {Role} from "../../common/types/auth.types";
+import {Role} from "../../common/types/user.types";
 import {FilteredPublishedOffersByGenreAndSocialMedia, GetFilteredPublishedOffers} from "./dto/get-offers.dto";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 

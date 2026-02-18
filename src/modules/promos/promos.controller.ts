@@ -16,7 +16,7 @@ import {
     InfluencerNewPromoRequestsDto, InfluencerOngoingPromoDto, InfluencerUpdatePromoReqBodyDto,
     InfluencerUpdatePromoResponseUpdateDto,
 } from "./dto/influencer-get-promos.dto";
-import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
+import {AuthenticatedRequest, Role} from "../../common/types/user.types";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";

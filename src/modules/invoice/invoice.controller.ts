@@ -5,7 +5,7 @@ import {CreateInvoiceDto} from './dto/create-invoice.dto';
 import {Response} from 'express';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
-import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
+import {AuthenticatedRequest, Role} from "../../common/types/user.types";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {GetInvoicesQueryDto, InvoicesForDashboardDto} from "./dto/invoice.dto";
 

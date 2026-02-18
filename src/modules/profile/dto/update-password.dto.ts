@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {Role} from "../../../common/types/auth.types";
+import {Role} from "../../../common/types/user.types";
 
 export class UpdateUserPasswordDto {
   @ApiProperty({ required: true })

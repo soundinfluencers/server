@@ -6,7 +6,7 @@ import {ReqUpdateAllAccountsDto} from "./dto/req-update-all-accounts.dto";
 import {ApiOperation, ApiTags} from "@nestjs/swagger";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
-import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
+import {AuthenticatedRequest, Role} from "../../common/types/user.types";
 import {
     UpdateAllAccountsResponseDto,
     UpdateAllPostDetailsResponseDto,

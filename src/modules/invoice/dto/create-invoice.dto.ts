@@ -14,7 +14,7 @@ import {
 import {InvoicePaymentMethodEnum} from "../../../common/types/influencer/invoice.types";
 import {Type} from "class-transformer";
 import {InternationalBankTransferDto, PayPalDto, UKBankTransferDto} from "../../profile/dto/payment-details.dto";
-import {Role} from "../../../common/types/auth.types";
+import {Role} from "../../../common/types/user.types";
 import {CampaignPaymentMethodEnum} from "../../../common/types/client/campaign.types";
 
 // dto for creating new influencer's invoice

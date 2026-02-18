@@ -1,6 +1,6 @@
 import {Prop, Schema, SchemaFactory} from "@nestjs/mongoose";
 import {Types} from "mongoose";
-import {Role} from "../../../common/types/auth.types";
+import {Role} from "../../../common/types/user.types";
 
 @Schema({ timestamps: true })
 export class UKBankTransferDetails {

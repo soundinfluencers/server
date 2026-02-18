@@ -20,3 +20,9 @@ export enum Role {
     influencer = 'influencer',
     admin = 'admin',
 }
+
+// available notification methods
+export enum NotificationMethodsEnum {
+    whatsapp = 'whatsapp',
+    telegram = 'telegram',
+}

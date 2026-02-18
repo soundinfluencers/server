@@ -5,7 +5,7 @@ import {
     CampaignContentItem,
     CampaignContentItemSchema,
 } from "./campaign.schema";
-import {Role} from "../../../common/types/auth.types";
+import {Role} from "../../../common/types/user.types";
 
 @Schema({ timestamps: true })
 export class ProposalCampaign {

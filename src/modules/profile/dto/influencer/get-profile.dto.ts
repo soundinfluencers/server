@@ -4,7 +4,11 @@ import {
     SocialAccountForAccountDetails
 } from "../../../../common/types/influencer/influencer.types";
 import {ClientAccountDetails} from "../../../../common/types/client/client.types";
-import {InfluencerCountryStats, InfluencerMusicGenre} from "../../../../database/schemas/users/influencer.schema";
+import {
+    InfluencerCountryStats,
+    InfluencerMusicGenre,
+    UserNotificationMethods
+} from "../../../../database/schemas/users/influencer.schema";
 import {SocialMediaEnum} from "../../../../common/types/social-media.types";
 import {IsEnum, IsString} from "class-validator";
 
@@ -38,6 +42,9 @@ export class InfluencerAccountDetailsDto implements InfluencerAccountDetails {
 
     @ApiProperty({example: '+380501234567'})
     phone: string;
+
+    @ApiProperty({type: () => UserNotificationMethods})
+    notificationMethods: UserNotificationMethods;
 
     @ApiProperty({
         type: [SocialAccountForAccountDetailsDto],

@@ -1,6 +1,6 @@
 import puppeteer, {Browser, Page} from "puppeteer";
 import { UserInvoice } from "../../../../database/schemas/invoices/user-invoice.schema";
-import {Role} from "../../../types/auth.types";
+import {Role} from "../../../types/user.types";
 const fs = require("fs");
 const path = require("path");
 

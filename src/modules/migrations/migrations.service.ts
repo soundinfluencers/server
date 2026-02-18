@@ -655,7 +655,14 @@ export class MigrationsService {
                 scanned++;
                 lastId = doc._id as any;
 
-                const $set: any = {schemaVersion: 2, updatedAt: new Date()};
+                const $set: any = {
+                    schemaVersion: 2,
+                    notificationMethods: {
+                        whatsapp: true,
+                        telegram: true
+                    },
+                    updatedAt: new Date()
+                };
                 let touched = false;
 
                 for (const social of socials) {

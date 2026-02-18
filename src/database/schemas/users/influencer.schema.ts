@@ -3,7 +3,7 @@ import {Document, Types} from 'mongoose';
 import {
     InfluencerProfileCategory
 } from "../../../common/types/influencer/influencer.types";
-import {Role} from "../../../common/types/auth.types";
+import {Role} from "../../../common/types/user.types";
 
 @Schema({_id: false})
 export class InfluencerMusicGenre {
@@ -107,6 +107,17 @@ SocialAccountSchema.index({
     isHidden: 1,
 });
 
+@Schema({_id: false})
+export class UserNotificationMethods {
+    @Prop({required: false, default: true, type: Boolean})
+    whatsapp: boolean;
+
+    @Prop({required: false, default: true, type: Boolean})
+    telegram: boolean;
+}
+
+export const UserNotificationMethodsSchema = SchemaFactory.createForClass(UserNotificationMethods);
+
 @Schema({
     timestamps: true,
 })
@@ -114,7 +125,7 @@ export class Influencer extends Document {
     @Prop()
     _id: Types.ObjectId;
 
-    @Prop({ type: Number, default: 2, index: true, required: false })
+    @Prop({type: Number, default: 2, index: true, required: false})
     schemaVersion: number;
 
     @Prop({required: true, type: String, enum: Role})
@@ -170,6 +181,9 @@ export class Influencer extends Document {
 
     @Prop({type: [SocialAccountSchema], default: []})
     press: SocialAccount[];
+
+    @Prop({type: UserNotificationMethodsSchema, required: false})
+    notificationMethods: UserNotificationMethods;
 
     @Prop({default: null})
     refreshToken: string | null;

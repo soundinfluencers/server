@@ -13,7 +13,7 @@ import {
     UnauthorizedException
 } from "@nestjs/common";
 import {CampaignsService} from "./campaigns.service";
-import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
+import {AuthenticatedRequest, Role} from "../../common/types/user.types";
 import {
     ClientCampaignForTableDto,
     ClientGetCampaignsDto,

@@ -1,4 +1,8 @@
-import {InfluencerCountryStats, InfluencerMusicGenre} from "../../../database/schemas/users/influencer.schema";
+import {
+    InfluencerCountryStats,
+    InfluencerMusicGenre,
+    UserNotificationMethods
+} from "../../../database/schemas/users/influencer.schema";
 
 export enum InfluencerProfileCategory {
     community = 'community',
@@ -15,6 +19,7 @@ export interface InfluencerAccountDetails {
     firstName: string;
     email: string;
     phone: string;
+    notificationMethods: UserNotificationMethods;
 
     instagram: SocialAccountForAccountDetails[];
     tiktok: SocialAccountForAccountDetails[];

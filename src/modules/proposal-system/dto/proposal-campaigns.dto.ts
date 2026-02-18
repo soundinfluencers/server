@@ -13,7 +13,7 @@ import {
     ValidateNested
 } from "class-validator";
 import {Type} from "class-transformer";
-import {Role} from "../../../common/types/auth.types";
+import {Role} from "../../../common/types/user.types";
 import {SafeCampaignAccount, SafeCampaignContent} from "../../../common/types/client/campaign.types";
 
 // ------------ BASE TYPES --------------

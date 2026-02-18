@@ -12,7 +12,7 @@ import {
 import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
-import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
+import {AuthenticatedRequest, NotificationMethodsEnum, Role} from "../../common/types/user.types";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {
     ClientAccountDetailsDto, FoundAccountsDto,
@@ -75,9 +75,22 @@ export class ProfileController {
     @ApiResponseDto(InfluencerUpdatedPersonalDetailsDto)
     @Patch('influencer/personal')
     updatePersonalInfluencer(@Req() request: AuthenticatedRequest, @Body() data: UpdateInfluencerPersonalDetailsDto): Promise<InfluencerUpdatedPersonalDetailsDto> {
-        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
-
         return this.profileService.updatePersonalInfluencer({...data, influencerId: request.user._id});
+    }
+
+    @Auth()
+    @Roles(Role.influencer)
+    @ApiOperation({summary: "Updates influencer's notification methods"})
+    @ApiResponseDto(Boolean)
+    @ApiParam({
+        name: 'method',
+        required: true,
+        enum: NotificationMethodsEnum,
+        type: String
+    })
+    @Patch('influencer/notification/:method')
+    updateNotificationMethodsInfluencer(@Req() request: AuthenticatedRequest, @Param('method') method: NotificationMethodsEnum): Promise<boolean> {
+        return this.profileService.updateNotificationMethodsInfluencer(method, request.user);
     }
 
     @Auth()

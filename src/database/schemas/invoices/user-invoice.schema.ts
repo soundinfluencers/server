@@ -4,7 +4,7 @@ import {
     InvoicePaymentMethodEnum,
     InvoiceStatusEnum,
 } from '../../../common/types/influencer/invoice.types';
-import {Role} from "../../../common/types/auth.types";
+import {Role} from "../../../common/types/user.types";
 import {
     InternationalBankTransferDetails,
     InternationalBankTransferDetailsSchema, PayPalDetails, PayPalDetailsSchema,

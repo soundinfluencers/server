@@ -3,7 +3,7 @@ import {ProposalSystemService} from './proposal-system.service';
 import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
-import {AuthenticatedRequest, Role} from "../../common/types/auth.types";
+import {AuthenticatedRequest, Role} from "../../common/types/user.types";
 import {
     CreatedProposalCampaignIdDto, GetProposalCampaignDto,
     GetProposalCampaignsQueryDto,

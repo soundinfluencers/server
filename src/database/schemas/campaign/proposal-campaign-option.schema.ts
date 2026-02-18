@@ -1,7 +1,7 @@
 import {Prop, Schema, SchemaFactory} from "@nestjs/mongoose";
 import {CampaignAccount, CampaignContentItem, CampaignContentItemSchema} from "./campaign.schema";
 import {Types} from "mongoose";
-import {Role} from "../../../common/types/auth.types";
+import {Role} from "../../../common/types/user.types";
 
 @Schema()
 export class ProposalCampaignAccount extends CampaignAccount {

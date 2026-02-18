@@ -1,5 +1,5 @@
 import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
-import {Role} from "../../../common/types/auth.types";
+import {Role} from "../../../common/types/user.types";
 import {IsEmail, IsEnum, IsString} from "class-validator";
 
 export class LoginDto {

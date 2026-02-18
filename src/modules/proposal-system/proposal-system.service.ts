@@ -10,7 +10,7 @@ import {
 import {Types} from 'mongoose';
 import {ProposalCampaignRepository} from "../../database/repositories/campaigns/proposal-campaign.repository";
 import {CampaignContentItemDto, CreateCampaignDto, SelectInfluencerDto} from "../campaigns/dto/create-campaign.dto";
-import {ClientPayload, Role, UserPayload} from "../../common/types/auth.types";
+import {ClientPayload, Role, UserPayload} from "../../common/types/user.types";
 import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
 import {CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
 import {

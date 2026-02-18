@@ -1,6 +1,6 @@
 import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
 import {IsOptional, IsString} from "class-validator";
-import {Role} from "../../../common/types/auth.types";
+import {Role} from "../../../common/types/user.types";
 
 // dto request for updating invoice details
 export class UpdateInvoiceDetailsDto {
