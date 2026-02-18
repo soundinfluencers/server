@@ -24,7 +24,7 @@ import {
     InfluencerDashboardPromoStatusRequest,
     InfluencerDetailedPromoStatusRequest,
     InfluencerNewPromoRequest,
-    InfluencerOngoingPromo,
+    InfluencerOngoingPromo, InfluencerPromoClosedStatusEnum,
     InfluencerPromoClosedStatusType,
 } from "../../common/types/influencer/promo.types";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
@@ -37,6 +37,8 @@ import {ClientRepository} from "../../database/repositories/users/client.reposit
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {CampaignConfirmationEnum, CampaignStatusEnum} from "../../common/types/client/campaign.types";
 import {ObjId} from "../../common/types/base.types";
+import {Campaign} from "../../database/schemas/campaign/campaign.schema";
+import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 
 mongoose.Promise = global.Promise;
 
@@ -102,89 +104,44 @@ export class PromosService {
 
 
     // helper for creating pipeline for influencerGetDashboardPromos
-    private buildInfluencerDashboardPipeline(
-        influencerId: string,
-        status: InfluencerDashboardPromoStatusRequest,
-        limit: number = 12,
-        skip: number = 0
-    ): PipelineStage[] {
-        const pipeline: PipelineStage[] = [
-            { $match: { verifyCampaign: 'accept' } },
-            {
-                $match: {
-                    'addedAccounts.influencerId': new Types.ObjectId(influencerId),
-                },
-            },
-            {$unwind: '$addedAccounts'},
-            {
-                $match: {
-                    'addedAccounts.influencerId': new Types.ObjectId(influencerId),
-                },
-            },
-        ];
+    private buildInfluencerDashboardPipelineCore(influencerId: string): PipelineStage[] {
+        const influencerObjectId = new Types.ObjectId(influencerId);
 
+        return [
+            {$match: {verifyCampaign: 'accept'}},
+
+            {$match: {'addedAccounts.influencerId': influencerObjectId}},
+
+            {$unwind: '$addedAccounts'},
+
+            {$match: {'addedAccounts.influencerId': influencerObjectId}},
+
+            {$match: {'addedAccounts.isDeleted': {$ne: true}}},
+        ];
+    }
+
+    private buildStatusStages(status: InfluencerDashboardPromoStatusRequest): PipelineStage[] {
         switch (status) {
             case InfluencerDashboardPromoStatusRequest.new:
-                pipeline.push({
-                    $match: {
-                        'addedAccounts.confirmation': 'wait',
-                    },
-                });
-                break;
+                return [{$match: {'addedAccounts.confirmation': 'wait'}}];
 
             case InfluencerDashboardPromoStatusRequest.ongoing:
-                pipeline.push({
-                    $match: {
-                        'addedAccounts.confirmation': 'accept',
-                        'addedAccounts.closePromo': 'wait',
+                return [
+                    {
+                        $match: {
+                            'addedAccounts.confirmation': 'accept',
+                            'addedAccounts.closePromo': 'wait',
+                        },
                     },
-                });
-                break;
+                ];
 
             case InfluencerDashboardPromoStatusRequest.close:
-                pipeline.push({
-                    $match: {
-                        'addedAccounts.closePromo': 'close',
-                    },
-                });
-                break;
+                return [{$match: {'addedAccounts.closePromo': 'close'}}];
 
             case InfluencerDashboardPromoStatusRequest.all:
             default:
-                break;
+                return [];
         }
-
-        pipeline.push({$sort: {createdAt: -1}});
-        pipeline.push({$skip: skip})
-        pipeline.push({$limit: Number(limit)});
-
-        pipeline.push({
-            $project: {
-                _id: 0,
-                campaignId: '$_id',
-                addedAccountsId: '$addedAccounts._id',
-                campaignName: '$campaignName',
-                socialMedia: '$addedAccounts.socialMedia',
-                reward: '$addedAccounts.price',
-                statusCampaign: '$statusCampaign',
-                closedStatus: '$addedAccounts.closePromo',
-                confirmation: '$addedAccounts.confirmation',
-                createdAt: {
-                    $concat: [
-                        {$dateToString: {date: '$createdAt', format: '%d.%m.'}},
-                        {
-                            $substr: [
-                                {$dateToString: {date: '$createdAt', format: '%Y'}},
-                                2,
-                                2,
-                            ],
-                        },
-                    ],
-                },
-            },
-        });
-
-        return pipeline;
     }
 
     // Replace influencerId in each ongoing promo (for migrate social account to another owner)
@@ -491,70 +448,90 @@ export class PromosService {
         if (!Number.isInteger(limit) || limit <= 0) {
             throw new BadRequestException('Invalid limit');
         }
-
         if (!Number.isInteger(page) || page <= 0) {
             throw new BadRequestException('Invalid page');
         }
 
-        const skip = (data.page - 1) * limit;
+        const skip = (page - 1) * limit;
 
         const influencerExists = await this.influencerRepo.exists({
             _id: new Types.ObjectId(influencerId),
         });
-
         if (!influencerExists) {
             throw new NotFoundException('Influencer not found');
         }
 
-        // new + ongoing
-        if (
-            status === InfluencerDashboardPromoStatusRequest.new ||
-            status === InfluencerDashboardPromoStatusRequest.ongoing
-        ) {
-            return this.campaignRepo
-                .aggregate<InfluencerDashboardPromo>(
-                    this.buildInfluencerDashboardPipeline(influencerId, status, limit, skip),
-                )
-                .exec();
-        }
+        const base = this.buildInfluencerDashboardPipelineCore(influencerId);
 
-        // closed
-        if (status === InfluencerDashboardPromoStatusRequest.close) {
-            return this.completedCampaignRepo
-                .aggregate<InfluencerDashboardPromo>(
-                    this.buildInfluencerDashboardPipeline(influencerId, status, limit, skip),
-                )
-                .exec();
-        }
+        const statusStages = this.buildStatusStages(status);
 
-        // all
-        const [active, closed] = await Promise.all([
-            this.campaignRepo
-                .aggregate<InfluencerDashboardPromo>(
-                    this.buildInfluencerDashboardPipeline(influencerId, InfluencerDashboardPromoStatusRequest.all, limit, skip),
-                )
-                .exec(),
+        const completedCollName = 'completedcampaigns';
 
-            this.completedCampaignRepo
-                .aggregate<InfluencerDashboardPromo>(
-                    this.buildInfluencerDashboardPipeline(influencerId, InfluencerDashboardPromoStatusRequest.all, limit, skip),
-                )
-                .exec(),
-        ]);
+        const pipeline: any[] = [
+            ...base,
+            {$addFields: {source: 'campaigns'}},
 
-        return [...active, ...closed]
-            .sort((a, b) =>
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-            )
-            .slice(0, limit);
+            {
+                $unionWith: {
+                    coll: completedCollName,
+                    pipeline: [
+                        ...base,
+                        {$addFields: {source: 'completedCampaigns'}},
+                    ],
+                },
+            },
+
+            ...statusStages,
+
+            {$sort: {createdAt: -1}},
+            {$skip: skip},
+            {$limit: limit},
+
+            {
+                $project: {
+                    _id: 0,
+                    campaignId: '$_id',
+                    addedAccountsId: '$addedAccounts._id',
+                    campaignName: 1,
+                    socialMedia: '$addedAccounts.socialMedia',
+                    reward: '$addedAccounts.price',
+                    statusCampaign: 1,
+                    closedStatus: '$addedAccounts.closePromo',
+                    confirmation: '$addedAccounts.confirmation',
+                    createdAt: 1,
+                    source: 1,
+                },
+            },
+
+            {
+                $addFields: {
+                    createdAtFormatted: {
+                        $concat: [
+                            {$dateToString: {date: '$createdAt', format: '%d.%m.'}},
+                            {
+                                $substr: [
+                                    {$dateToString: {date: '$createdAt', format: '%Y'}},
+                                    2,
+                                    2,
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ];
+
+        return this.campaignRepo
+            .aggregate<InfluencerDashboardPromo>(pipeline, {allowDiskUse: true})
+            .exec();
     }
 
 
     // [COMPLETED] Returns influencer's detailed completed promos [GET MANY]
     async getCompletedPromos(data: {
-        limit: number,
-        page: number,
-        influencerId: string
+        limit: number;
+        page: number;
+        influencerId: string;
     }): Promise<InfluencerCompletedPromo[]> {
         const influencerId = data.influencerId;
 
@@ -564,27 +541,23 @@ export class PromosService {
         if (!Number.isInteger(limit) || limit <= 0) {
             throw new BadRequestException('Invalid limit');
         }
-
         if (!Number.isInteger(page) || page <= 0) {
             throw new BadRequestException('Invalid page');
         }
 
-        const skip = (data.page - 1) * limit;
+        const skip = (page - 1) * limit;
 
         const influencerExists = await this.influencerRepo.exists({
             _id: new Types.ObjectId(influencerId),
         });
-
         if (!influencerExists) {
             throw new NotFoundException('Influencer not found');
         }
 
-        return await this.completedCampaignRepo.aggregate<InfluencerCompletedPromo>([
-            {
-                $match: {
-                    'addedAccounts.influencerId': new Types.ObjectId(influencerId),
-                },
-            },
+        const influencerObjectId = new Types.ObjectId(influencerId);
+
+        const base: any[] = [
+            {$match: {'addedAccounts.influencerId': influencerObjectId}},
             {
                 $unwind: {
                     path: '$addedAccounts',
@@ -593,7 +566,7 @@ export class PromosService {
             },
             {
                 $match: {
-                    'addedAccounts.influencerId': new Types.ObjectId(influencerId),
+                    'addedAccounts.influencerId': influencerObjectId,
                     'addedAccounts.closePromo': 'close',
                 },
             },
@@ -611,22 +584,32 @@ export class PromosService {
                     preserveNullAndEmptyArrays: true,
                 },
             },
+        ];
+
+        const completedCollName =
+            (this.completedCampaignRepo as any)?.collectionName ??
+            (this.completedCampaignRepo as any)?.model?.collection?.name ??
+            'completedcampaigns';
+
+        const pipeline: any[] = [
+            ...base,
+
             {
-                $sort: {createdAt: -1},
+                $unionWith: {
+                    coll: completedCollName,
+                    pipeline: base,
+                },
             },
-            {
-                $skip: skip,
-            },
-            {
-                $limit: limit,
-            },
+
+            {$sort: {createdAt: -1}},
+            {$skip: skip},
+            {$limit: limit},
+
             {
                 $project: {
                     _id: 0,
                     campaignId: {$toString: '$_id'},
-
                     addedAccountsId: {$toString: '$addedAccounts._id'},
-
                     campaignName: '$campaignName',
 
                     username: '$addedAccounts.username',
@@ -636,7 +619,12 @@ export class PromosService {
 
                     clientName: {
                         $cond: {
-                            if: {$and: [{$ne: ['$client.company', null]}, {$ne: ['$client.company', '']}]},
+                            if: {
+                                $and: [
+                                    {$ne: ['$client.company', null]},
+                                    {$ne: ['$client.company', '']},
+                                ],
+                            },
                             then: '$client.company',
                             else: '$client.firstName',
                         },
@@ -645,12 +633,22 @@ export class PromosService {
                     createdAt: {
                         $concat: [
                             {$dateToString: {date: '$createdAt', format: '%d.%m.'}},
-                            {$substr: [{$dateToString: {date: '$createdAt', format: '%Y'}}, 2, 2]},
+                            {
+                                $substr: [
+                                    {$dateToString: {date: '$createdAt', format: '%Y'}},
+                                    2,
+                                    2,
+                                ],
+                            },
                         ],
                     },
                 },
-            }
-        ]).exec();
+            },
+        ];
+
+        return this.campaignRepo
+            .aggregate<InfluencerCompletedPromo>(pipeline, {allowDiskUse: true})
+            .exec();
     }
 
 
@@ -665,7 +663,18 @@ export class PromosService {
         const influencer = await this.influencerRepo.findById(influencerId);
         if (!influencer) throw new NotFoundException('Influencer not found')
 
-        let campaign = await this.completedCampaignRepo.findOne({_id: new Types.ObjectId(campaignId)}, {lean: true});
+        let campaign: Campaign | CompletedCampaign = await this.completedCampaignRepo.findOne(
+            {
+                _id: new Types.ObjectId(campaignId),
+                'addedAccounts._id': new Types.ObjectId(addedAccountsId),
+                'addedAccounts.closePromo': InfluencerPromoClosedStatusEnum.close
+            }, {lean: true});
+        if (!campaign) campaign = await this.campaignRepo.findOne(
+            {
+                _id: new Types.ObjectId(campaignId),
+                'addedAccounts._id': new Types.ObjectId(addedAccountsId),
+                'addedAccounts.closePromo': InfluencerPromoClosedStatusEnum.close
+            }, {lean: true});
 
         if (!campaign) throw new NotFoundException('Campaign not found');
 
@@ -978,7 +987,13 @@ export class PromosService {
             throw new NotFoundException('Influencer not found');
         }
 
-        const campaign = await this.campaignRepo.findById(campaignId).lean();
+        const campaign = await this.campaignRepo.findOne(
+            {
+                campaignId: new ObjId(campaignId),
+                'addedAccounts._id': new ObjId(addedAccountsId),
+                'addedAccounts.closePromo': InfluencerPromoClosedStatusEnum.wait
+            }, {lean: true}
+        );
         if (!campaign) {
             throw new NotFoundException('Campaign not found');
         }

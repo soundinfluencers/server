@@ -388,7 +388,7 @@ export class AuthService {
                 ...(user.role === Role.client ? { isProposalClient: !!user.isProposalClient } : {}),
             },
             this.accessKey,
-            { expiresIn: '15m' },
+            { expiresIn: '30m' },
         );
     }
 
