@@ -742,7 +742,6 @@ export class CampaignsService {
         await this.draftCampaignRepo.deleteById(new Types.ObjectId(draftId));
     }
 
-    // TODO: update and test
     async verifyCampaign(campaignId: string, status: string): Promise<{ code: number, message: string }> {
         if (!campaignId || !status) throw new BadRequestException('Not enough arguments')
 
@@ -852,15 +851,75 @@ export class CampaignsService {
 
     // todo: создать оркестратор и разбить на три части (completed, ongoing, proposal) + use mapper mapToClientCampaignForTable
     // Returns one detailed campaign obj - used by campaign report page
-    async getClientOngoingOrPastCampaign(campaignId: string, clientId: string): Promise<ClientCampaignForTable> {
-        if (!campaignId || !clientId) throw new BadRequestException('Not enough arguments');
+    async getClientOngoingOrPastCampaign(
+        campaignId: string,
+        clientId: string
+    ): Promise<ClientCampaignForTable> {
+
+        if (!campaignId || !clientId)
+            throw new BadRequestException('Not enough arguments');
 
         const client = await this.clientRepo.findById(clientId);
-        if (!client) throw new NotFoundException('User not found');
+        if (!client)
+            throw new NotFoundException('User not found');
 
-        let campaign: any = await this.campaignRepo.findById(campaignId, {lean: true});
-        if (!campaign) campaign = await this.completedCampaignRepo.findById(campaignId, {lean: true});
-        if (!campaign) throw new NotFoundException('Campaign not found');
+        let campaign: any = await this.campaignRepo.findById(campaignId, { lean: true });
+        if (!campaign)
+            campaign = await this.completedCampaignRepo.findById(campaignId, { lean: true });
+
+        if (!campaign)
+            throw new NotFoundException('Campaign not found');
+
+        const influencerIds = [
+            ...new Set(
+                campaign.addedAccounts.map(acc => acc.influencerId)
+            )
+        ];
+
+        const influencers = await this.influencerRepo.findMany(
+            { _id: { $in: influencerIds } },
+            {
+                lean: true,
+                select: [
+                    '_id',
+                    'instagram._id',
+                    'instagram.logoUrl',
+                    'tiktok._id',
+                    'tiktok.logoUrl',
+                    'youtube._id',
+                    'youtube.logoUrl',
+                    'facebook._id',
+                    'facebook.logoUrl',
+                    'spotify._id',
+                    'spotify.logoUrl',
+                    'soundcloud._id',
+                    'soundcloud.logoUrl',
+                    'press._id',
+                    'press.logoUrl',
+                ]
+            }
+        );
+
+        const influencerMap = new Map(
+            influencers.map(inf => [inf._id.toString(), inf])
+        );
+
+        campaign.addedAccounts = campaign.addedAccounts.map(acc => {
+            const influencer = influencerMap.get(acc.influencerId.toString());
+
+            if (!influencer) return acc;
+
+            const accountsArray = influencer[acc.socialMedia] ?? [];
+
+            const matchedAccount = accountsArray.find(
+                a => a._id?.toString() === acc.accountId?.toString()
+            );
+
+            return {
+                ...acc,
+                logoUrl: matchedAccount?.logoUrl ?? null
+            };
+        });
 
         return mapToClientCampaignForTable(campaign);
     }

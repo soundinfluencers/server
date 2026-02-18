@@ -61,6 +61,7 @@ export const mapToSafeCampaignAccount = (
         influencerId: account.influencerId.toString(),
         socialMedia: account.socialMedia,
         username: account.username,
+        logoUrl: (account as any)?.logoUrl ?? null,
         publicPrice: account.publicPrice,
         followers: safeParseToNumber(account.followers),
         selectedContent: account.selectedContent,

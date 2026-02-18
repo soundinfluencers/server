@@ -112,6 +112,7 @@ export class SafeCampaignAccount {
     socialAccountId: string | Types.ObjectId;
     influencerId: string | Types.ObjectId;
     socialMedia: SocialMediaEnum;
+    logoUrl?: string;
     username: string;
     // price: number
     publicPrice: number;

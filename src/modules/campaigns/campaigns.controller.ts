@@ -3,7 +3,7 @@ import {
     Body,
     Controller,
     Delete,
-    Get, Header,
+    Get,
     Param,
     Patch,
     Post,
@@ -30,8 +30,6 @@ import {CampaignTypeEnumForDevelopment, PublicCampaignForTable} from "../../comm
 import {Roles} from "../../common/decorators/roles.decorator";
 import {UpdateCampaignDto} from "./dto/update-campaign.dto";
 import {CreateBespokeCampaignDto} from "./dto/bespoke-request.dto";
-import {CampaignPreviewItemDto, GetCampaignContentVideoUrl} from "../media/dto/resolved-media.dto";
-import {ThumbSizeTag} from "../media/strategies/media.strategy";
 
 @ApiTags('campaigns')
 @Controller('campaigns')
