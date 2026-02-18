@@ -739,7 +739,7 @@ export class CampaignsService {
         if (!draftExists) throw new NotFoundException('Draft not found');
 
         // delete draft
-        await this.draftCampaignRepo.deleteById(draftId);
+        await this.draftCampaignRepo.deleteById(new Types.ObjectId(draftId));
     }
 
     // TODO: update and test
