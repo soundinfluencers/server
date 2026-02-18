@@ -225,33 +225,35 @@ export class ProfileService {
     // Updates influencer's selected notification methods
     async updateNotificationMethodsInfluencer(
         method: NotificationMethodsEnum,
-        userInfo: UserPayload
-    ): Promise<boolean> {
+        userInfo: UserPayload,
+    ): Promise<UserNotificationMethods> {
 
-        const influencer = await this.influencerRepo.findById(
-            userInfo._id,
-            { lean: true }
-        );
-
-        if (!influencer) {
-            throw new NotFoundException("Influencer not found");
+        if (!Object.values(NotificationMethodsEnum).includes(method)) {
+            throw new BadRequestException('Invalid notification method');
         }
 
-        const currentValue =
-            influencer.notificationMethods?.[method] ?? true;
+        const update: Record<string, boolean> = {
+            [`notificationMethods.${NotificationMethodsEnum.whatsapp}`]:
+                method === NotificationMethodsEnum.whatsapp,
+            [`notificationMethods.${NotificationMethodsEnum.telegram}`]:
+                method === NotificationMethodsEnum.telegram,
+        };
 
-        const newValue = !currentValue;
-
-        await this.influencerRepo.updateOne(
+        const influencer = await this.influencerRepo.findOneAndUpdate(
             { _id: new ObjId(userInfo._id) },
+            { $set: update },
             {
-                $set: {
-                    [`notificationMethods.${method}`]: newValue
-                }
+                new: true,
+                select: ['notificationMethods'],
+                lean: true,
             }
         );
 
-        return newValue;
+        if (!influencer) {
+            throw new NotFoundException('Influencer not found');
+        }
+
+        return influencer.notificationMethods;
     }
 
     // Returns current user invoice details

@@ -72,13 +72,17 @@ export class BaseRepository<T> {
     async findOneAndUpdate(
         filter: FilterQuery<T>,
         update: UpdateQuery<T>,
-        options: RepoOptions & { new?: boolean; upsert?: boolean; runValidators?: boolean } = {}
+        options: RepoOptions & { new?: boolean; upsert?: boolean; runValidators?: boolean, select?: string[] } = {}
     ) {
-        const query = this.model.findOneAndUpdate(filter, update, {
+        let query = this.model.findOneAndUpdate(filter, update, {
             new: true,
             runValidators: true,
             ...options,
         });
+
+        if (options?.select?.length) {
+            query = query.select(options.select.join(' '));
+        }
 
         return applyQueryOptions(query, options);
     }

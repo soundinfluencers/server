@@ -31,6 +31,7 @@ import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
 import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details.dto";
 import {PaymentDetailsDto, PaymentMethodRequestEnum, UpdatePaymentDetailsDto} from "./dto/payment-details.dto";
 import {InvoicePaymentMethodEnum} from "../../common/types/influencer/invoice.types";
+import {UserNotificationMethods} from "../../database/schemas/users/influencer.schema";
 
 @ApiTags('profile')
 @Controller('profile')
@@ -89,7 +90,7 @@ export class ProfileController {
         type: String
     })
     @Patch('influencer/notification/:method')
-    updateNotificationMethodsInfluencer(@Req() request: AuthenticatedRequest, @Param('method') method: NotificationMethodsEnum): Promise<boolean> {
+    updateNotificationMethodsInfluencer(@Req() request: AuthenticatedRequest, @Param('method') method: NotificationMethodsEnum): Promise<UserNotificationMethods> {
         return this.profileService.updateNotificationMethodsInfluencer(method, request.user);
     }
 
