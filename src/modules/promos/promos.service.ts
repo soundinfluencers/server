@@ -505,7 +505,7 @@ export class PromosService {
 
             {
                 $addFields: {
-                    createdAtFormatted: {
+                    createdAt: {
                         $concat: [
                             {$dateToString: {date: '$createdAt', format: '%d.%m.'}},
                             {
