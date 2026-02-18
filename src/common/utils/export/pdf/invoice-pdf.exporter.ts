@@ -159,11 +159,18 @@ export class InvoicePdfExporter {
             this.browserLaunching = (async () => {
                 const b = await puppeteer.launch({
                     headless: true,
+                    executablePath: "/snap/bin/chromium",
                     args: [
                         "--no-sandbox",
                         "--disable-setuid-sandbox",
-                        "--font-render-hinting=medium",
                         "--disable-dev-shm-usage",
+                        "--disable-gpu",
+                        "--no-zygote",
+                        "--no-first-run",
+                        "--no-default-browser-check",
+                        "--disable-background-networking",
+                        "--disable-features=Translate,BackForwardCache",
+                        "--font-render-hinting=medium",
                     ],
                 });
 
