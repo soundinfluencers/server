@@ -56,17 +56,21 @@ export class FileController {
     }
 
     @Public()
-    @ApiOperation({summary: 'Returns previews for campaign content videos'})
-    @ApiResponseDto(CampaignPreviewItemDto, {successStatusCode: 201})
-    @Header('Content-Type', 'image/jpeg')
-    @Header('Cache-Control', 'public, max-age=86400')
+    @ApiOperation({summary: 'Returns preview for campaign content video'})
+    @ApiResponseDto(undefined, {successStatusCode: 200})
     @Post('preview')
-    async getCampaignContentPreview(@Body() data: GetCampaignPreviewItem, @Res() res: Response) {
+    async getCampaignContentPreview(
+        @Body() data: GetCampaignPreviewItem,
+        @Res() res: Response,
+    ) {
         const buffer = await this.fileService.getVideoPreview(data);
 
         if (!buffer) return res.status(404).end();
 
-        return res.send(buffer);
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+
+        return res.status(200).send(buffer);
     }
 
     @Public()
