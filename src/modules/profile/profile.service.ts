@@ -1418,14 +1418,6 @@ ${emailHtml}
             });
         }
 
-        if (filters.currency) {
-            pipeline.push({
-                $match: {
-                    'allAccounts.currency': filters.currency
-                }
-            });
-        }
-
         // musicGenres (and / or)
         if (filters.musicGenres?.length) {
             const normalizedGenres: InfluencerMusicGenre[] = normalizeStringToMusicGenres(filters.musicGenres);

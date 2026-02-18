@@ -114,16 +114,6 @@ export class GetFilteredAccountsBodyDto {
     budget?: number;
 
     @ApiPropertyOptional({
-        name: 'currency',
-        enum: ['EUR', 'USD', 'GBP']
-    })
-    @IsOptional()
-    @IsEnum(['EUR', 'USD', 'GBP'], {
-        message: 'currency must be one of: EUR, USD, GBP'
-    })
-    currency?: 'EUR' | 'USD' | 'GBP';
-
-    @ApiPropertyOptional({
         name: 'musicCategories',
         type: 'string',
         isArray: true,
