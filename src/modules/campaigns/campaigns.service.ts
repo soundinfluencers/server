@@ -732,7 +732,7 @@ export class CampaignsService {
         if (!draftId) throw new BadRequestException('Invalid draftId');
 
         // make sure creator tries to delete his own draft
-        const draftExists = await this.campaignRepo.exists({
+        const draftExists = await this.draftCampaignRepo.exists({
             _id: new Types.ObjectId(draftId),
             clientId: new Types.ObjectId(clientId)
         });
