@@ -1,4 +1,4 @@
-import {Body, Controller, Get, Param, Patch, Post, Query, Req} from '@nestjs/common';
+import {Body, Controller, Delete, Get, Param, Patch, Post, Query, Req} from '@nestjs/common';
 import {ProposalSystemService} from './proposal-system.service';
 import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {Auth} from "../../common/decorators/auth.decorator";
@@ -89,6 +89,30 @@ export class ProposalSystemController {
         @Param('campaignId') campaignId: string,
     ): Promise<ProposalCampaignWithOptionDto> {
         return this.proposalSystemService.getProposalCampaign(
+            {
+                campaignId: campaignId,
+                optionIndex: optionIndex,
+            },
+            request.user
+        );
+    }
+
+    @Auth()
+    @Roles(Role.client, Role.admin)
+    @ApiOperation({summary: 'Deletes selected option from proposal campaign'})
+    @ApiResponseDto()
+    @ApiQuery({
+        name: 'optionIndex',
+        type: 'number',
+        required: true,
+    })
+    @Delete(':campaignId')
+    async deleteProposalCampaignOption(
+        @Req() request: AuthenticatedRequest,
+        @Query('optionIndex') optionIndex: number,
+        @Param('campaignId') campaignId: string,
+    ) {
+        return this.proposalSystemService.deleteProposalCampaignOption(
             {
                 campaignId: campaignId,
                 optionIndex: optionIndex,

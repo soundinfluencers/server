@@ -83,8 +83,10 @@ export class BaseRepository<T> {
         return applyQueryOptions(query, options);
     }
 
-    async deleteById(id: string | Types.ObjectId) {
-        return this.model.findByIdAndDelete(id).exec();
+    async deleteById(id: string | Types.ObjectId, options?: RepoOptions) {
+        const _id = typeof id === 'string' ? new Types.ObjectId(id) : id;
+        const query = this.model.findByIdAndDelete(_id);
+        return applyQueryOptions(query, options);
     }
 
     async findOneAndDelete(filter: FilterQuery<T>, options?: RepoOptions) {

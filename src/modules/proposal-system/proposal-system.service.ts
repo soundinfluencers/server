@@ -1,6 +1,7 @@
 import {
     BadRequestException,
     ConflictException,
+    ForbiddenException,
     Injectable,
     InternalServerErrorException,
     Logger,
@@ -520,5 +521,44 @@ export class ProposalSystemService {
             existingOptions: proposalCampaign.optionsIds.map((option: Types.ObjectId, index: number) => index),
             selectedOption: proposalCampaignOption,
         };
+    }
+
+    // Deletes proposal campaign option
+    async deleteProposalCampaignOption(data: GetProposalCampaignDto, userInfo: UserPayload) {
+        if (!this.checkCanEdit(userInfo)) throw new ForbiddenException("Not enough access");
+
+        const campaign = await this.proposalCampaignRepo.findById(data.campaignId);
+
+        if (!campaign) throw new NotFoundException('Proposal campaign not found');
+
+        if (userInfo.role === Role.client && campaign.creatorId.toString() !== userInfo._id) throw new ForbiddenException('Not enough access to delete this option');
+
+        const session = await this.proposalCampaignRepo.startSession();
+        const selectedOptionId = campaign.optionsIds[data.optionIndex];
+
+        if (!selectedOptionId) throw new BadRequestException('Unexisting option index');
+
+        const optionObj = await this.proposalCampaignOptionRepo.findById(selectedOptionId.toString());
+
+        if (userInfo.role === Role.client && optionObj.creatorId.toString() !== userInfo._id) {
+            throw new ForbiddenException('Not enough access to delete this option');
+        }
+
+        session.startTransaction();
+
+        try {
+            await this.proposalCampaignOptionRepo.deleteById(selectedOptionId, { session });
+
+            campaign.optionsIds.splice(data.optionIndex, 1);
+            await campaign.save({ session });
+
+            await session.commitTransaction();
+        } catch (err) {
+            await session.abortTransaction();
+            this.logger.error('Error deleting proposal campaign option', err);
+            throw new InternalServerErrorException('Error deleting selected option');
+        } finally {
+            await session.endSession();
+        }
     }
 }
