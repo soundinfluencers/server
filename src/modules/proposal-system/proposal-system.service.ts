@@ -487,6 +487,57 @@ export class ProposalSystemService {
 
         if (!proposalCampaignOption) throw new NotFoundException("Selected proposal campaign option not found");
 
+        const influencerIds = [
+            ...new Set(
+                proposalCampaignOption.addedAccounts.map(acc => acc.influencerId)
+            )
+        ];
+
+        const influencers = await this.influencerRepo.findMany(
+            { _id: { $in: influencerIds } },
+            {
+                lean: true,
+                select: [
+                    '_id',
+                    'instagram._id',
+                    'instagram.logoUrl',
+                    'tiktok._id',
+                    'tiktok.logoUrl',
+                    'youtube._id',
+                    'youtube.logoUrl',
+                    'facebook._id',
+                    'facebook.logoUrl',
+                    'spotify._id',
+                    'spotify.logoUrl',
+                    'soundcloud._id',
+                    'soundcloud.logoUrl',
+                    'press._id',
+                    'press.logoUrl',
+                ]
+            }
+        );
+
+        const influencerMap = new Map(
+            influencers.map(inf => [inf._id.toString(), inf])
+        );
+
+        proposalCampaignOption.addedAccounts = proposalCampaignOption.addedAccounts.map(acc => {
+            const influencer = influencerMap.get(acc.influencerId.toString());
+
+            if (!influencer) return acc;
+
+            const accountsArray = influencer[acc.socialMedia] ?? [];
+
+            const matchedAccount = accountsArray.find(
+                a => a._id?.toString() === acc.accountId?.toString()
+            );
+
+            return {
+                ...acc,
+                logoUrl: matchedAccount?.logoUrl ?? null
+            };
+        });
+
         try {
             return {
                 optionIndex: optionIndex,
