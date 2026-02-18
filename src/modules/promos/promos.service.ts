@@ -234,45 +234,86 @@ export class PromosService {
 
         const allSocialMediaAccounts = promos
             .flatMap((item) => {
-                return item.addedAccounts.flatMap((acc): (InfluencerNewPromoRequest & { userId: string })[] => {
-                    if (acc.confirmation !== InfluencerConfirmationStatusEnum.wait || acc.influencerId.toString() !== influencerId) return [];
+                try {
+                    return item.addedAccounts.flatMap(
+                        (acc): (InfluencerNewPromoRequest & { userId: string })[] => {
+                            try {
+                                if (
+                                    acc.confirmation !== InfluencerConfirmationStatusEnum.wait ||
+                                    acc.influencerId.toString() !== influencerId
+                                )
+                                    return [];
 
-                    const {addedAccounts, ...newObject} = item;
-                    const {_id, ...newObjectSocialMediaAccount} = acc;
+                                const {addedAccounts, ...newObject} = item;
+                                const {_id, ...newObjectSocialMediaAccount} = acc;
 
-                    if (acc.selectedContent?.campaignContentItemId) {
-                        const selectedCampaignContentItem = item.campaignContent.find(
-                            (item) => item._id.toString() === acc.selectedContent?.campaignContentItemId.toString(),
-                        );
+                                if (acc.selectedContent?.campaignContentItemId) {
+                                    const selectedCampaignContentItem =
+                                        item.campaignContent.find(
+                                            (contentItem) =>
+                                                contentItem._id.toString() ===
+                                                acc.selectedContent?.campaignContentItemId.toString(),
+                                        );
 
-                        const postDescription = selectedCampaignContentItem?.descriptions?.find(
-                            (pd) => pd._id.toString() === acc.selectedContent?.descriptionId?.toString(),
-                        )?.description ?? "";
+                                    const postDescription =
+                                        selectedCampaignContentItem?.descriptions?.find(
+                                            (pd) =>
+                                                pd._id.toString() ===
+                                                acc.selectedContent?.descriptionId?.toString(),
+                                        )?.description ?? "";
 
-                        return [{
-                            campaignId: newObject._id.toString(),
-                            influencerId: newObjectSocialMediaAccount.influencerId.toString(),
-                            addedAccountsId: acc._id.toString(),
-                            campaignName: newObject.campaignName,
-                            username:
-                                newObjectSocialMediaAccount.username ??
-                                (newObjectSocialMediaAccount as any).socialMediaUsername ??
-                                (newObjectSocialMediaAccount as any).instagramUsername,
-                            accountSocialMedia: acc.socialMedia as SocialMediaType,
-                            dateRequest: newObjectSocialMediaAccount.dateRequest,
-                            createdAt: formatDate(newObject.createdAt),
-                            mainLink: selectedCampaignContentItem.mainLink,
-                            description: postDescription,
-                            taggedUser: selectedCampaignContentItem.taggedUser,
-                            taggedLink: selectedCampaignContentItem.taggedLink,
-                            additionalBrief: selectedCampaignContentItem.additionalBrief,
-                            userId: newObject.clientId || (newObject as any).userId,
-                            clientName: undefined,
-                        }];
-                    }
+                                    return [
+                                        {
+                                            campaignId: newObject._id.toString(),
+                                            influencerId:
+                                                newObjectSocialMediaAccount.influencerId.toString(),
+                                            addedAccountsId: acc._id.toString(),
+                                            campaignName: newObject.campaignName,
+                                            username:
+                                                newObjectSocialMediaAccount.username ??
+                                                (newObjectSocialMediaAccount as any)
+                                                    .socialMediaUsername ??
+                                                (newObjectSocialMediaAccount as any)
+                                                    .instagramUsername,
+                                            accountSocialMedia:
+                                                acc.socialMedia as SocialMediaType,
+                                            dateRequest:
+                                            newObjectSocialMediaAccount.dateRequest,
+                                            createdAt: formatDate(newObject.createdAt),
+                                            mainLink:
+                                                selectedCampaignContentItem?.mainLink ?? "",
+                                            description: postDescription,
+                                            taggedUser:
+                                            selectedCampaignContentItem?.taggedUser,
+                                            taggedLink:
+                                            selectedCampaignContentItem?.taggedLink,
+                                            additionalBrief:
+                                            selectedCampaignContentItem?.additionalBrief,
+                                            userId:
+                                                newObject.clientId ||
+                                                (newObject as any).userId,
+                                            clientName: undefined,
+                                        },
+                                    ];
+                                }
 
+                                return [];
+                            } catch (accError) {
+                                console.error(
+                                    `Error processing account ${acc?._id}`,
+                                    accError,
+                                );
+                                return [];
+                            }
+                        },
+                    );
+                } catch (itemError) {
+                    console.error(
+                        `Error processing promo ${item?._id}`,
+                        itemError,
+                    );
                     return [];
-                });
+                }
             })
             .filter(Boolean);
 
