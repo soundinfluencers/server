@@ -1,7 +1,6 @@
-import puppeteer from "puppeteer";
+import puppeteer, {Browser, Page} from "puppeteer";
 import { UserInvoice } from "../../../../database/schemas/invoices/user-invoice.schema";
 import {Role} from "../../../types/auth.types";
-import {InvoicePaymentMethodEnum} from "../../../types/influencer/invoice.types";
 const fs = require("fs");
 const path = require("path");
 
@@ -13,70 +12,215 @@ export class InvoicePdfBuilderExtraInfoDto {
 }
 
 export class InvoicePdfExporter {
-    private static fontFaceCss: string | null = null; // cache font
+    // ---------- config ----------
+    private static readonly MAX_CONCURRENCY = Number(process.env.PDF_CONCURRENCY ?? 2);
+    private static readonly PDF_TIMEOUT_MS = Number(process.env.PDF_TIMEOUT_MS ?? 30_000);
+
+    // ---------- font cache ----------
+    private static fontFaceCss: string | null = null;
+
+    // ---------- browser singleton ----------
+    private static browser: Browser | null = null;
+    private static browserLaunching: Promise<Browser> | null = null;
+
+    // ---------- simple queue ----------
+    private static active = 0;
+    private static queue: Array<() => void> = [];
 
     static async buildPdfBuffer(
         invoice: UserInvoice,
         extraInfo?: InvoicePdfBuilderExtraInfoDto,
     ): Promise<Buffer> {
-        const html = this.buildHtml(invoice, extraInfo);
-
-        const browser = await puppeteer.launch({
-            headless: true,
-            args: ["--no-sandbox", "--disable-setuid-sandbox", "--font-render-hinting=medium"],
-        });
+        await this.acquire();
 
         try {
+            const html = this.buildHtml(invoice, extraInfo);
+
+            const browser = await this.getBrowser();
             const page = await browser.newPage();
-            page.setDefaultNavigationTimeout(60_000);
-            page.setDefaultTimeout(60_000);
 
-            await page.setContent(html, { waitUntil: "networkidle0" });
+            try {
+                await this.hardenPage(page);
 
-            const pdfUint8 = await page.pdf({
-                format: "A4",
-                printBackground: true,
-                margin: { top: "14mm", right: "10mm", bottom: "14mm", left: "10mm" },
-                preferCSSPageSize: true,
-            });
+                await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 0 });
 
-            return Buffer.from(pdfUint8);
+                // ждать шрифты
+                await page.evaluate(async () => {
+                    if (document.fonts && document.fonts.ready) {
+                        await document.fonts.ready;
+                    }
+                });
+
+                // небольшой reflow buffer
+                await new Promise(resolve => setTimeout(resolve, 25));
+
+                // pdf с таймаутом-охранником
+                const pdfUint8 = await this.withTimeout(
+                    page.pdf({
+                        format: "A4",
+                        printBackground: true,
+                        margin: { top: "14mm", right: "10mm", bottom: "14mm", left: "10mm" },
+                        preferCSSPageSize: true,
+                    }),
+                    this.PDF_TIMEOUT_MS,
+                    "PDF generation timed out",
+                );
+
+                return Buffer.from(pdfUint8);
+            } catch (err) {
+                if (this.isLikelyBrowserCrash(err)) {
+                    await this.resetBrowser();
+                }
+                throw err;
+            } finally {
+                await page.close().catch(() => undefined);
+            }
         } finally {
-            await browser.close();
+            this.release();
         }
     }
+
+    // -------------------- hardening --------------------
+
+    private static async hardenPage(page: Page) {
+        // разумные таймауты
+        page.setDefaultNavigationTimeout(this.PDF_TIMEOUT_MS);
+        page.setDefaultTimeout(this.PDF_TIMEOUT_MS);
+
+        await page.setCacheEnabled(false).catch(() => undefined);
+
+        await page.setRequestInterception(true).catch(() => undefined);
+        page.on("request", (req) => {
+            const url = req.url();
+
+            if (url.startsWith("data:") || url.startsWith("about:")) return req.continue();
+
+            if (url.startsWith("blob:")) return req.continue();
+
+            return req.abort();
+        });
+
+        page.on("requestfailed", (r) => {
+            console.log("[invoice-pdf] requestfailed", r.url(), r.failure()?.errorText);
+        });
+        page.on("pageerror", (_e) => {
+            console.log("[invoice-pdf] pageerror", _e);
+        });
+    }
+
+    private static withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> {
+        let t: NodeJS.Timeout | null = null;
+        const timeout = new Promise<T>((_, reject) => {
+            t = setTimeout(() => reject(new Error(message)), ms);
+        });
+        return Promise.race([p, timeout]).finally(() => {
+            if (t) clearTimeout(t);
+        }) as Promise<T>;
+    }
+
+    private static isLikelyBrowserCrash(err: any) {
+        const msg = String(err?.message ?? err);
+        return (
+            msg.includes("Target closed") ||
+            msg.includes("Session closed") ||
+            msg.includes("Browser has disconnected") ||
+            msg.includes("Protocol error") ||
+            msg.includes("Execution context was destroyed")
+        );
+    }
+
+    // -------------------- queue --------------------
+
+    private static acquire(): Promise<void> {
+        if (this.active < this.MAX_CONCURRENCY) {
+            this.active++;
+            return Promise.resolve();
+        }
+        return new Promise((resolve) => {
+            this.queue.push(() => {
+                this.active++;
+                resolve();
+            });
+        });
+    }
+
+    private static release() {
+        this.active = Math.max(0, this.active - 1);
+        const next = this.queue.shift();
+        if (next) next();
+    }
+
+    // -------------------- browser singleton --------------------
+
+    private static async getBrowser(): Promise<Browser> {
+        if (this.browser) return this.browser;
+
+        if (!this.browserLaunching) {
+            this.browserLaunching = (async () => {
+                const b = await puppeteer.launch({
+                    headless: true,
+                    args: [
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox",
+                        "--font-render-hinting=medium",
+                        "--disable-dev-shm-usage",
+                    ],
+                });
+
+                b.on("disconnected", () => {
+                    this.browser = null;
+                    this.browserLaunching = null;
+                });
+
+                this.browser = b;
+                return b;
+            })().finally(() => {
+                this.browserLaunching = null;
+            });
+        }
+
+        return this.browserLaunching;
+    }
+
+    private static async resetBrowser() {
+        const b = this.browser;
+        this.browser = null;
+        this.browserLaunching = null;
+        if (b) {
+            await b.close().catch(() => undefined);
+        }
+    }
+
+    // -------------------- fonts --------------------
 
     private static getFontFace() {
         if (this.fontFaceCss) return this.fontFaceCss;
 
         const load = (file: string) => {
-            const p = path.join(process.cwd(), "assets", "fonts", file);
+            const p = path.resolve(__dirname, "../../../../../assets/fonts", file);
             return fs.readFileSync(p).toString("base64");
         };
 
         this.fontFaceCss = `
-    @font-face {
-        font-family: 'Satoshi';
-        src: url(data:font/woff2;base64,${load("Satoshi-Regular.woff2")}) format('woff2');
-        font-weight: 400;
-        font-style: normal;
-    }
-
-    @font-face {
-        font-family: 'Satoshi';
-        src: url(data:font/woff2;base64,${load("Satoshi-Medium.woff2")}) format('woff2');
-        font-weight: 500;
-        font-style: normal;
-    }
-
-    @font-face {
-        font-family: 'Satoshi';
-        src: url(data:font/woff2;base64,${load("Satoshi-Bold.woff2")}) format('woff2');
-        font-weight: 700;
-        font-style: normal;
-    }
-    `;
-
+@font-face {
+  font-family: 'Satoshi';
+  src: url(data:font/woff2;base64,${load("Satoshi-Regular.woff2")}) format('woff2');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Satoshi';
+  src: url(data:font/woff2;base64,${load("Satoshi-Medium.woff2")}) format('woff2');
+  font-weight: 500;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Satoshi';
+  src: url(data:font/woff2;base64,${load("Satoshi-Bold.woff2")}) format('woff2');
+  font-weight: 700;
+  font-style: normal;
+}
+`;
         return this.fontFaceCss;
     }
 
