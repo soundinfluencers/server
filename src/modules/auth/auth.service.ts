@@ -303,7 +303,7 @@ export class AuthService {
 
         if (user.statusVerify === 'wait') throw new ForbiddenException('Account not verified');
 
-        if (user.role === Role.influencer && (user as Influencer).agreementStatus) {
+        if (user.role === Role.influencer && (user as Influencer).agreementStatus === InfluencerConfirmationStatusEnum.wait) {
             return;
         }
 
