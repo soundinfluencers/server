@@ -1,12 +1,12 @@
 import {CampaignPaymentLabels, CampaignPaymentMethodEnum, CampaignStatusEnum} from "../types/client/campaign.types";
 
 // Из типа Date в string 'DD.MM.YY'
-export const formatDate = (date: Date): string => {
+export const formatDate = (date: Date, separator: string = '.'): string => {
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = String(date.getFullYear()).slice(-2);
 
-    return `${day}.${month}.${year}`;
+    return `${day}${separator}${month}${separator}${year}`;
 };
 
 export const formatClientCampaignStatus = (status: string): CampaignStatusEnum => {

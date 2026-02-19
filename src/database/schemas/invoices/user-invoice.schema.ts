@@ -85,6 +85,8 @@ export class UserInvoice {
 
     @Prop({ required: false, type: String, default: null })
     vatNumber?: string | null;
+
+    createdAt?: Date;
 }
 
 export const UserInvoiceSchema =

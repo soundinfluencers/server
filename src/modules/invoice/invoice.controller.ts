@@ -1,8 +1,7 @@
-import {Body, Controller, Get, Post, Query, Req, Res, UnauthorizedException} from '@nestjs/common';
+import {Body, Controller, Get, Post, Query, Req, StreamableFile, UnauthorizedException} from '@nestjs/common';
 import {InvoiceService} from './invoice.service';
 import {ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {CreateInvoiceDto} from './dto/create-invoice.dto';
-import {Response} from 'express';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/user.types";
@@ -52,12 +51,12 @@ export class InvoiceController {
     }
 
     @Auth()
-    @Roles(Role.influencer, Role.admin)
+    @Roles(Role.influencer, Role.client, Role.admin)
     @ApiOperation({summary: "Download invoice"})
-    @Get('download')
     @ApiQuery({name: 'invoiceId'})
-    downloadInvoice(@Query() args: { invoiceId: string }, @Res() res: Response) {
-        return this.invoiceService.downloadInvoice(args.invoiceId, res);
+    @Get('download')
+    downloadInvoice(@Query() args: { invoiceId: string }, @Req() req: AuthenticatedRequest): Promise<StreamableFile> {
+        return this.invoiceService.downloadInvoice(args.invoiceId, req.user);
     }
 
     @Auth()

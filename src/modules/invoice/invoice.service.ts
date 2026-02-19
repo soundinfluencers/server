@@ -1,16 +1,19 @@
 import {ClientSession, PipelineStage, Types} from 'mongoose';
 import {CreateCampaignInvoiceDto, CreateInvoiceDto} from './dto/create-invoice.dto';
-import {UserInvoice} from '../../database/schemas/invoices/user-invoice.schema';
-import {BadRequestException, ForbiddenException, Injectable, NotFoundException} from '@nestjs/common';
-import {Response} from 'express';
+import {
+    BadRequestException,
+    ForbiddenException,
+    Injectable, InternalServerErrorException,
+    Logger,
+    NotFoundException,
+    StreamableFile
+} from '@nestjs/common';
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {UserInvoiceRepository} from "../../database/repositories/invoices/user-invoice.repository";
 import {GetInvoicesQueryDto} from "./dto/invoice.dto";
 import {
     InvoiceForDashboard,
-    InvoicePaymentMethodEnum,
-    InvoiceStatusEnum
 } from "../../common/types/influencer/invoice.types";
 import {formatDate} from "../../common/utils/formatters";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
@@ -25,12 +28,8 @@ import {
 import {PaypalDetailsRepository} from "../../database/repositories/invoices/paypal-details.repository";
 import {PaymentMethodRequestEnum} from "../profile/dto/payment-details.dto";
 import {ProfileService} from "../profile/profile.service";
-import {CreateCampaignDto} from "../campaigns/dto/create-campaign.dto";
 import {mapToInvoiceModel} from "../../common/mappers/invoice.mapper";
 import {InvoicePdfExporter} from "../../common/utils/export/pdf/invoice-pdf.exporter";
-
-const fs = require('fs');
-const PDFDocument = require('pdfkit');
 
 @Injectable()
 export class InvoiceService {
@@ -53,95 +52,7 @@ export class InvoiceService {
     ) {
     }
 
-    private async createPDF(data: UserInvoice) {
-        let beneficiary, beneficiaryAddress, paymentMethodDetails;
-
-        switch (data.selectedPaymentMethod) {
-            case InvoicePaymentMethodEnum.internationalBankTransfer:
-                beneficiary = data?.internationalBankTransfer?.beneficiary;
-                beneficiaryAddress = data?.internationalBankTransfer?.beneficiaryAddress;
-                paymentMethodDetails = `Bank Name: ${data?.internationalBankTransfer?.bankName}\nBeneficiary: ${data?.internationalBankTransfer?.beneficiary}\nBeneficiary Address: ${data?.internationalBankTransfer?.beneficiaryAddress}\nIBAN: ${data?.internationalBankTransfer?.iban}\nBank Country: ${data?.internationalBankTransfer?.bankCountry}\nBank Account Currency: ${data?.internationalBankTransfer?.bankAccountCurrency}\nSWIFT/BIC: ${data?.internationalBankTransfer?.swiftBicCode}`;
-                break;
-            case InvoicePaymentMethodEnum.ukBankTransfer:
-                beneficiary = data?.ukBankTransfer?.beneficiary;
-                beneficiaryAddress = data?.ukBankTransfer?.beneficiaryAddress;
-                paymentMethodDetails = `Beneficiary: ${data?.ukBankTransfer?.beneficiary}\nBeneficiary Address: ${data?.ukBankTransfer?.beneficiaryAddress}\nSort Code: ${data?.ukBankTransfer?.sortCode}\nAccount Number: ${data?.ukBankTransfer?.accountNumber}`;
-                break;
-            case InvoicePaymentMethodEnum.paypal:
-                beneficiary = `${data.firstName} ${data.lastName}`;
-                beneficiaryAddress = undefined;
-                paymentMethodDetails = `Paypal Email: ${data?.paypal?.paypalEmail}`;
-                break;
-            default:
-                throw new BadRequestException(`Unsupported payment method: ${String(data.selectedPaymentMethod)}`);
-        }
-
-
-        const pdfFileName = 'invoice.pdf';
-        const doc = new PDFDocument();
-        const writeStream = fs.createWriteStream(pdfFileName);
-        doc.pipe(writeStream);
-
-        // Header
-        doc.fontSize(20).text('INVOICE', 50, 50);
-
-        // Sender's details
-        doc.fontSize(10).text(data.firstName + ' ' + data.lastName, 50, 100);
-        doc.text(data.address, 50, 115);
-        doc.text(`Postcode: ${data.country}`, 50, 130);
-        doc.text(beneficiary, 50, 145);
-        if (beneficiaryAddress) doc.text(beneficiaryAddress, 50, 160);
-
-        // Date and Invoice Number
-        doc.text(`DATE: ${formatDate(new Date())}`, 400, 100);
-        doc.text(`INVOICE NO. ${data?._id}`, 400, 115);
-
-        // Bill To
-        doc.text('BILL TO', 50, 200);
-        doc.text('TECHNO TV LTD', 50, 215);
-        doc.text('Chamber of Commerce: 10458319', 50, 230);
-        doc.text('Email Address: admin@soundinfluencers.com', 50, 245);
-        doc.text('Phone number: +44 7537 129190', 50, 260);
-        doc.text('124 City Road', 50, 275);
-        doc.text('EC1V 2NX – London – England - UK', 50, 290);
-
-        // Table headers
-        doc.text('DESCRIPTION', 50, 330);
-        doc.text('TOTAL', 250, 330);
-
-        // Table content
-        doc.text(beneficiary + ' campaign', 50, 350);
-        doc.text(data.amount + '€', 250, 350);
-
-        // Payment details
-        let currentY = 400;
-        doc.text('SUBTOTAL:', 50, currentY);
-        doc.text(data.amount + '€', 250, currentY);
-
-        currentY += 15;
-        doc.text('BALANCE DUE:', 50, currentY);
-        doc.text(data.amount + '€', 250, currentY);
-
-        currentY += 20;
-        doc.text('Selected Payment Method: ' + data.selectedPaymentMethod, 50, currentY);
-
-        currentY += 20;
-        doc.text(paymentMethodDetails, 50, currentY, {width: 500, continued: false});
-
-        currentY = doc.y + 20;
-        doc.text('Payment Terms: Within 7 business days', 50, currentY);
-
-        doc.end();
-
-        return new Promise<string>((resolve, reject) => {
-            const done = (err?: unknown) => (err ? reject(err) : resolve(pdfFileName));
-
-            writeStream.once('finish', () => done());
-            writeStream.once('error', done);
-
-            doc.once('error', done);
-        });
-    }
+    private readonly logger = new Logger("InvoiceService");
 
     async createInfluencerInvoice(data: CreateInvoiceDto): Promise<void> {
         const influencer = await this.influencerRepo.findById(data.userId);
@@ -353,30 +264,31 @@ export class InvoiceService {
         return this.userInvoiceRepository.aggregate(pipeline);
     }
 
-    async downloadInvoice(invoiceId: string, res: Response) {
-        const invoiceData = await this.userInvoiceRepository.findById(invoiceId);
+    async downloadInvoice(invoiceId: string, userInfo: UserPayload) {
+        const invoice = await this.userInvoiceRepository.findById(invoiceId);
 
-        if (!invoiceData) {
-            return res.status(404).send('Invoice not found');
+        if (!invoice) {
+            throw new NotFoundException('Invoice not found');
         }
 
-        // try {
-        //     const pdfFilePath = await this.createPDF(invoiceData, {});
-        //
-        //     res.setHeader('Content-Type', 'application/pdf');
-        //     res.setHeader('Content-Disposition', `attachment; filename=invoice_${invoiceId}.pdf`);
-        //
-        //     const fileStream = fs.createReadStream(pdfFilePath);
-        //
-        //     fileStream.pipe(res);
-        //
-        //     fileStream.on('end', () => {
-        //         fs.unlinkSync(pdfFilePath);
-        //     });
-        // } catch (error) {
-        //     console.error('Error while generating or sending invoice:', error);
-        //     res.status(500).send('An error occurred while downloading the invoice');
-        // }
+        const isAdmin = userInfo.role === Role.admin;
+        const isOwner = userInfo._id === invoice.userId.toString();
+
+        if (!isAdmin && !isOwner) {
+            throw new ForbiddenException('You can download only your invoices');
+        }
+
+        try {
+            const pdf = await InvoicePdfExporter.buildPdfBuffer(invoice);
+
+            return new StreamableFile(pdf, {
+                type: 'application/pdf',
+                disposition: `attachment; filename=invoice-${formatDate(invoice.createdAt, '-')}.pdf`,
+            });
+        } catch (error) {
+            this.logger.error(`Error build pdf for ${userInfo.role} invoice ${invoiceId}`, error);
+            throw new InternalServerErrorException("Can't build pdf for this invoice");
+        }
     }
 
     async getInvoiceDraft(userInfo: UserPayload): Promise<CreateInvoiceDto> {

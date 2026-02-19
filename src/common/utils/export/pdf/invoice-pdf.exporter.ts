@@ -155,11 +155,13 @@ export class InvoicePdfExporter {
     private static async getBrowser(): Promise<Browser> {
         if (this.browser) return this.browser;
 
+        const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+
         if (!this.browserLaunching) {
             this.browserLaunching = (async () => {
                 const b = await puppeteer.launch({
                     headless: true,
-                    executablePath: "/snap/bin/chromium",
+                    executablePath: executablePath,
                     args: [
                         "--no-sandbox",
                         "--disable-setuid-sandbox",
