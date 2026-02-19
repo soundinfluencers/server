@@ -303,6 +303,10 @@ export class AuthService {
 
         if (user.statusVerify === 'wait') throw new ForbiddenException('Account not verified');
 
+        if (user.role === Role.influencer && (user as Influencer).agreementStatus) {
+            return;
+        }
+
         const accessToken = this.generateAccessToken(user);
         const refreshToken = this.generateRefreshToken(user);
 

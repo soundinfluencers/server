@@ -75,6 +75,7 @@ export class AuthController {
         return this.authService.logout(req.cookies.refreshToken, req?.user?.role, res);
     }
 
+    @Public()
     @ApiOperation({ summary: 'Verify influencer by admin' })
     @ApiQuery({ name: 'verifyId' })
     @ApiQuery({ name: 'responseVerify' })
@@ -83,6 +84,7 @@ export class AuthController {
         return this.authService.verifyAdminInfluencer(args.verifyId, args.responseVerify);
     }
 
+    @Public()
     @ApiOperation({ summary: 'Verify client by admin' })
     @ApiQuery({ name: 'verifyId' })
     @ApiQuery({ name: 'responseVerify' })
