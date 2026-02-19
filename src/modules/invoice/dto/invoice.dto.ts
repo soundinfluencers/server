@@ -21,6 +21,9 @@ export class GetInvoicesQueryDto {
 // dto for one invoice from influencer's dashboard
 export class InvoiceForDashboardDto implements InvoiceForDashboard {
     @ApiProperty({ example: 'a1b2' })
+    invoiceId: string;
+
+    @ApiProperty({ example: 'a1b2' })
     shortInvoiceId: string;
 
     @ApiProperty({ example: '14.01.2026' })

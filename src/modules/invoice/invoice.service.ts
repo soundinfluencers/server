@@ -244,6 +244,7 @@ export class InvoiceService {
             {
                 $project: {
                     _id: 0,
+                    invoiceId: {$toString: '$_id'},
                     shortInvoiceId: { $substr: [{ $toString: '$_id' }, 0, 8] },
                     creationDate: { $dateToString: { date: '$createdAt', format: '%d.%m.%Y' } },
                     paymentMethod: '$selectedPaymentMethod',

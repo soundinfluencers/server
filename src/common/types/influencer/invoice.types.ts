@@ -1,5 +1,6 @@
 // invoice that influencer will see on the invoices dashboard
 export interface InvoiceForDashboard {
+    invoiceId: string;
     shortInvoiceId: string;
     creationDate: string;
     paymentMethod: string;
