@@ -47,7 +47,7 @@ import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details.
 import {PaymentDetailsDto, PaymentMethodRequestEnum, UpdatePaymentDetailsDto} from "./dto/payment-details.dto";
 import {UserNotificationMethods} from "../../database/schemas/users/influencer.schema";
 import {InfluencerConfirmationStatusEnum} from "../../common/types/influencer/promo.types";
-import {GetMeResponseDto} from "../auth/dto/login.dto";
+import {GetMeResponseDto, LoginResponseDto} from "../auth/dto/login.dto";
 import {Response} from "express";
 import {Public} from "../../common/decorators/public.decorator";
 
@@ -173,7 +173,7 @@ export class ProfileController {
         required: true,
         type: String,
     })
-    @Get('social-account/agreement/:influencerId')
+    @Get('agreement/:influencerId')
     getAgreementAccountsList(@Req() request: AuthenticatedRequest, @Param('influencerId') influencerId: string): Promise<AgreementAccountsListDto> {
         if (request.user && request.user._id !== influencerId) throw new ForbiddenException('Not enough access');
 
@@ -185,7 +185,7 @@ export class ProfileController {
 
     @Public()
     @ApiOperation({summary: "Updates influencer's social accounts agreement meta field"})
-    @ApiResponseDto(SocialAccountDetailsDto)
+    @ApiResponseDto(LoginResponseDto)
     @ApiParam({
         name: 'status',
         required: true,
@@ -197,7 +197,7 @@ export class ProfileController {
         required: true,
         type: String,
     })
-    @Patch('social-account/agreement/:status/:influencerId')
+    @Patch('agreement/:status/:influencerId')
     updateSocialAccountsAgreement(
         @Req() request: AuthenticatedRequest,
         @Param('status') status: InfluencerConfirmationStatusEnum,
