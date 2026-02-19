@@ -989,7 +989,7 @@ export class PromosService {
 
         const campaign = await this.campaignRepo.findOne(
             {
-                campaignId: new ObjId(campaignId),
+                _id: new ObjId(campaignId),
                 'addedAccounts._id': new ObjId(addedAccountsId),
                 'addedAccounts.closePromo': InfluencerPromoClosedStatusEnum.wait
             }, {lean: true}
