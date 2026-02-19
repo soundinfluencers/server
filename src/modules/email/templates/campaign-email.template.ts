@@ -174,6 +174,12 @@ export const buildRequestEditTemplate = (data: BuildRequestEditTemplateDto) => {
         <strong>Campaign ID:</strong> ${escapeHtml(data.campaignId)}<br/>
         <strong>Client ID:</strong> ${escapeHtml(data.clientId)}
       </p>
+      
+      ${data.message ? 
+    `      <p>
+        <strong>Message:</strong> ${data.message}
+      </p>`
+    : ''}
 
       <p>Choose an action:</p>
 

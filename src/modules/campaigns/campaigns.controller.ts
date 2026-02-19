@@ -1,4 +1,4 @@
-import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
+import {ApiBody, ApiExcludeEndpoint, ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {
     Body,
     Controller,
@@ -238,10 +238,19 @@ export class CampaignsController {
     @Roles(Role.client)
     @ApiOperation({summary: `Sending email about campaign edit request`})
     @ApiParam({name: 'campaignId', required: true})
+    @ApiBody({
+        required: false,
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'I want to change something' },
+            },
+        },
+    })
     @ApiResponseDto()
     @Post(':campaignId/request-edit')
-    sendEditRequestEmail(@Req() request: AuthenticatedRequest, @Param('campaignId') campaignId: string) {
-        return this.campaignsService.requestCampaignEdit(campaignId, request.user._id);
+    sendEditRequestEmail(@Req() request: AuthenticatedRequest, @Param('campaignId') campaignId: string, @Body() data: {message?: string}) {
+        return this.campaignsService.requestCampaignEdit(campaignId, request.user._id, data.message);
     }
 
     // todo: in future improve logic for accepting/declining from email (а вообще-то нужно сделать возможным только через админку. потому что для этого админка и пишется)

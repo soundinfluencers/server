@@ -1522,7 +1522,7 @@ export class CampaignsService {
     }
 
     // Send email about client's request about editting campaign
-    async requestCampaignEdit(campaignId: string, clientId: string) {
+    async requestCampaignEdit(campaignId: string, clientId: string, message?: string) {
         if (!campaignId || !clientId) {
             throw new BadRequestException('Not enough arguments');
         }
@@ -1557,6 +1557,7 @@ export class CampaignsService {
             campaignName: campaign.campaignName,
             clientEmail: client.email,
             clientName: client.firstName,
+            message: message,
             acceptLink: `${process.env.SERVER}/campaigns/${campaignId}/request-edit/accept`,
             declineLink: `${process.env.SERVER}/campaigns/${campaignId}/request-edit/decline`
         }

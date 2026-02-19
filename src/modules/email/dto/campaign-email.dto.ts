@@ -10,6 +10,8 @@ export class BuildRequestEditTemplateDto {
     clientName: string;
     clientEmail: string;
 
+    message?: string;
+
     acceptLink: string;
     declineLink: string;
 }
