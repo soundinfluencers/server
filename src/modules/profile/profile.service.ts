@@ -1,6 +1,7 @@
 import {
     BadRequestException,
     ConflictException,
+    ForbiddenException,
     Injectable,
     InternalServerErrorException,
     Logger,
@@ -24,7 +25,8 @@ import {
     Influencer,
     InfluencerCountryStats,
     InfluencerMusicGenre,
-    SocialAccount, UserNotificationMethods
+    SocialAccount,
+    UserNotificationMethods
 } from "../../database/schemas/users/influencer.schema";
 import {MigrateAccountDto} from "../migrations/dto/migrate-account.dto";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
@@ -38,6 +40,7 @@ import {mapInfluencerToAccountDetailsDto, mapToSocialAccountDetailsDto} from "..
 import {ClientAccountDetails} from "../../common/types/client/client.types";
 import {mapClientToAccountDetailsDto} from "../../common/mappers/client.mapper";
 import {
+    AgreementAccountsListDto,
     FoundAccountDto,
     GetSocialAccountDetailsParamsDto,
     InfluencerAccountDetailsDto
@@ -50,7 +53,8 @@ import {mapToInvoiceDetailsDto} from "../../common/mappers/invoice.mapper";
 import {
     InternationalBankTransferDto,
     PaymentDetailsDto,
-    PaymentMethodRequestEnum, PayPalDto,
+    PaymentMethodRequestEnum,
+    PayPalDto,
     UKBankTransferDto,
     UpdatePaymentDetailsDto
 } from "./dto/payment-details.dto";
@@ -66,6 +70,11 @@ import {
     mapToUkBankTransferDto
 } from "../../common/mappers/payment-details.mapper";
 import {InvoicePaymentMethodEnum} from "../../common/types/influencer/invoice.types";
+import {InfluencerConfirmationStatusEnum} from "../../common/types/influencer/promo.types";
+import {AuthService} from "../auth/auth.service";
+import {LoginResponseDto} from "../auth/dto/login.dto";
+import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
+import {Response} from "express";
 
 const bcrypt = require('bcryptjs');
 
@@ -75,6 +84,7 @@ export class ProfileService {
 
     constructor(
         private readonly webSocketService: AppGateway,
+        private readonly authService: AuthService,
         // users
         private readonly clientRepo: ClientRepository,
         private readonly influencerRepo: InfluencerRepository,
@@ -645,6 +655,109 @@ export class ProfileService {
         return mapToSocialAccountDetailsDto(updatedInfluencer[data.socialMedia].find((acc) =>
             acc._id.equals(socialAccountId),
         ));
+    }
+
+    // Returns list of social accounts that were verified by admin and need agreement from influencer
+    async getAgreementAccountsList(influencerId: string, role?: Role): Promise<AgreementAccountsListDto> {
+        if (role && role !== Role.influencer) throw new ForbiddenException('Not enough access');
+
+        const influencer = await this.influencerRepo.findById(influencerId, { lean: true });
+
+        if (!influencer) throw new NotFoundException('Influencer not found');
+
+        const result: Partial<AgreementAccountsListDto> = {};
+
+        for (const key of Object.values(SocialMediaEnum) as SocialMediaEnum[]) {
+            const accounts = (influencer as any)[key] as SocialAccount[] | undefined;
+
+            if (!accounts?.length) continue;
+
+            const filtered = accounts
+                .filter(
+                    (acc) =>
+                        acc.agreementStatus == null ||
+                        acc.agreementStatus === InfluencerConfirmationStatusEnum.wait,
+                )
+                .map((acc) => ({
+                    username: acc.username,
+                    price: acc.price,
+                }));
+
+            if (filtered.length) {
+                (result as any)[key] = filtered;
+            }
+        }
+
+        return result as AgreementAccountsListDto;
+    }
+
+    // Updates influencer's agreement response to new social accounts
+    async updateSocialAccountsAgreement(
+        influencerId: string,
+        response: InfluencerConfirmationStatusEnum,
+        res: Response,
+        role?: Role,
+    ): Promise<LoginResponseDto> {
+        if (role && role !== Role.influencer) throw new ForbiddenException('Not enough access');
+
+        const _id = new Types.ObjectId(influencerId);
+
+        const setObj: Record<string, any> = {};
+        for (const key of Object.values(SocialMediaEnum) as SocialMediaEnum[]) {
+            setObj[`${key}.$[acc].agreementStatus`] = response;
+        }
+
+        const session = await this.influencerRepo.startSession();
+        session.startTransaction();
+
+        try {
+            await this.influencerRepo.updateOne(
+                {
+                    _id,
+                    agreementStatus: { $in: [null, InfluencerConfirmationStatusEnum.wait] },
+                },
+                { $set: { agreementStatus: response } },
+                { session },
+            );
+
+            const updateResult = await this.influencerRepo.updateOneWithArrayFilters(
+                { _id },
+                { $set: setObj },
+                {
+                    arrayFilters: [
+                        { 'acc.agreementStatus': { $in: [null, InfluencerConfirmationStatusEnum.wait] } },
+                    ],
+                    session
+                },
+            );
+            if (!updateResult.matchedCount) throw new NotFoundException('Influencer not found');
+
+            await session.commitTransaction();
+        } catch (err) {
+            this.logger.error(`Error updating agreement status for influencer ${influencerId}`, err);
+            await session.abortTransaction();
+            throw new InternalServerErrorException('Something went wrong');
+        } finally {
+            await session.endSession();
+        }
+
+        const updatedInfluencer = await this.influencerRepo.findById(influencerId, { lean: true });
+        const accessToken = this.authService.generateAccessToken(updatedInfluencer);
+        const refreshToken = this.authService.generateRefreshToken(updatedInfluencer);
+
+        await this.authService.saveRefreshToken(updatedInfluencer._id, refreshToken);
+        setRefreshTokenCookie(res, refreshToken);
+
+        return {
+            accessToken,
+            firstName: updatedInfluencer.firstName,
+            role: updatedInfluencer.role as Role,
+            balance: (updatedInfluencer as any).balance ?? undefined,
+            logoUrl: (updatedInfluencer as any).logoUrl ?? undefined,
+            ...(updatedInfluencer.role === Role.influencer
+                ? { agreementStatus: (updatedInfluencer as Influencer).agreementStatus ?? InfluencerConfirmationStatusEnum.wait }
+                : {}),
+        };
     }
 
     // Deletes influencer's social account

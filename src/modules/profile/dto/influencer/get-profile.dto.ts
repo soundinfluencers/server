@@ -221,3 +221,36 @@ export class FoundAccountsDto {
     @ApiProperty({type: FoundAccountDto, isArray: true})
     accounts: FoundAccountDto[];
 }
+
+// account for agreement list
+class AgreementAccountDto {
+    @ApiProperty()
+    username: string;
+
+    @ApiProperty()
+    price: number;
+}
+
+// dto response for getting social accounts list that need influencer's agreement
+export class AgreementAccountsListDto {
+    @ApiPropertyOptional({type: () => [AgreementAccountDto]})
+    instagram?: AgreementAccountDto[];
+
+    @ApiPropertyOptional({type: () => [AgreementAccountDto]})
+    tiktok?: AgreementAccountDto[];
+
+    @ApiPropertyOptional({type: () => [AgreementAccountDto]})
+    facebook?: AgreementAccountDto[];
+
+    @ApiPropertyOptional({type: () => [AgreementAccountDto]})
+    youtube?: AgreementAccountDto[];
+
+    @ApiPropertyOptional({type: () => [AgreementAccountDto]})
+    spotify?: AgreementAccountDto[];
+
+    @ApiPropertyOptional({type: () => [AgreementAccountDto]})
+    soundcloud?: AgreementAccountDto[];
+
+    @ApiPropertyOptional({type: () => [AgreementAccountDto]})
+    press?: AgreementAccountDto[];
+}

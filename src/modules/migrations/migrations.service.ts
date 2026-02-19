@@ -273,6 +273,7 @@ export class MigrationsService {
             price: price ?? 0,
             publicPrice: publicPrice ?? 0,
             musicGenres: this.buildMusicGenres(acc) ?? acc?.musicGenres,
+            agreementStatus: InfluencerConfirmationStatusEnum.accept,
         };
 
         // выпиливаем legacy поля
@@ -661,6 +662,7 @@ export class MigrationsService {
                         whatsapp: true,
                         telegram: true
                     },
+                    agreementStatus: InfluencerConfirmationStatusEnum.accept,
                     updatedAt: new Date()
                 };
                 let touched = false;

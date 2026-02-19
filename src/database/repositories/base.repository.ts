@@ -1,4 +1,4 @@
-import {ClientSession, FilterQuery, Model, PipelineStage, Types, UpdateQuery} from "mongoose";
+import {ClientSession, FilterQuery, Model, PipelineStage, QueryOptions, Types, UpdateQuery} from "mongoose";
 import {RepoOptions} from "../types/repo.types";
 import {applyQueryOptions} from "../utils/apply-query-options.util";
 import {applyAggregateOptions} from "../utils/apply-aggregate-options.util";
@@ -67,6 +67,18 @@ export class BaseRepository<T> {
     async updateOne(filter: FilterQuery<T>, update: UpdateQuery<T>, options?: RepoOptions & { upsert?: boolean }) {
         const query = this.model.updateOne(filter, update, { ...options });
         return applyQueryOptions(query, options);
+    }
+
+    async updateOneWithArrayFilters(
+        filter: FilterQuery<T>,
+        update: UpdateQuery<T>,
+        options?: { session?: any; upsert?: boolean; arrayFilters?: QueryOptions['arrayFilters'] },
+    ) {
+        return this.model.updateOne(filter, update, {
+            session: options?.session,
+            upsert: options?.upsert,
+            arrayFilters: options?.arrayFilters,
+        }).exec();
     }
 
     async findOneAndUpdate(

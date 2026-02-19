@@ -24,6 +24,7 @@ import {getArrayFromMusicGenreDto, normalizeDtoToMusicGenres} from "../../common
 import {AdminRepository} from "../../database/repositories/users/admin.repository";
 import {Role} from "../../common/types/user.types";
 import {Client} from "../../database/schemas/users/client.schema";
+import {InfluencerConfirmationStatusEnum} from "../../common/types/influencer/promo.types";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -315,6 +316,9 @@ export class AuthService {
             role: user.role as Role,
             balance: (user as any).balance ?? undefined,
             logoUrl: (user as any).logoUrl ?? undefined,
+            ...(user.role === Role.influencer
+                ? { agreementStatus: (user as Influencer).agreementStatus ?? InfluencerConfirmationStatusEnum.wait }
+                : {})
         };
     }
 
@@ -380,7 +384,7 @@ export class AuthService {
     }
 
     // Generates access token
-    private generateAccessToken(user: any) {
+    generateAccessToken(user: any) {
         return jwt.sign(
             {
                 _id: user._id,
@@ -394,7 +398,7 @@ export class AuthService {
 
 
     // Generates refresh token
-    private generateRefreshToken(user) {
+    generateRefreshToken(user) {
         return jwt.sign(
             {_id: user._id},
             this.refreshKey,
@@ -403,7 +407,7 @@ export class AuthService {
     }
 
     // Saves refresh token
-    private async saveRefreshToken(userId, token) {
+    async saveRefreshToken(userId, token) {
         await this.clientRepo.updateOne({_id: userId}, {refreshToken: token});
         await this.influencerRepo.updateOne({_id: userId}, {refreshToken: token});
         await this.adminRepo.updateOne({_id: userId}, {refreshToken: token});

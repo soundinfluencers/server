@@ -4,6 +4,7 @@ import {
     InfluencerProfileCategory
 } from "../../../common/types/influencer/influencer.types";
 import {Role} from "../../../common/types/user.types";
+import {InfluencerConfirmationStatusEnum} from "../../../common/types/influencer/promo.types";
 
 @Schema({_id: false})
 export class InfluencerMusicGenre {
@@ -70,15 +71,6 @@ export class SocialAccount {
     })
     countries: InfluencerCountryStats[];
 
-    @Prop({default: false, index: true})
-    isHidden: boolean;
-
-    @Prop({default: false, index: true})
-    isDeleted: boolean;
-
-    @Prop({default: false, index: true})
-    isVerified: boolean;
-
     @Prop({
         type: [InfluencerMusicGenreSchema],
         required: false
@@ -96,6 +88,18 @@ export class SocialAccount {
 
     @Prop({type: Number, required: false})
     averageViews?: number;
+
+    @Prop({default: false, index: true})
+    isHidden: boolean;
+
+    @Prop({default: false, index: true})
+    isDeleted: boolean;
+
+    @Prop({default: false, index: true})
+    isVerified: boolean;
+
+    @Prop({required: false, default: InfluencerConfirmationStatusEnum.wait, enum: InfluencerConfirmationStatusEnum, type: String})
+    agreementStatus?: InfluencerConfirmationStatusEnum;
 }
 
 export const SocialAccountSchema = SchemaFactory.createForClass(SocialAccount);
@@ -187,6 +191,9 @@ export class Influencer extends Document {
 
     @Prop({default: null})
     refreshToken: string | null;
+
+    @Prop({required: false, default: InfluencerConfirmationStatusEnum.wait, enum: InfluencerConfirmationStatusEnum, type: String})
+    agreementStatus?: InfluencerConfirmationStatusEnum;
 }
 
 export const InfluencerSchema = SchemaFactory.createForClass(Influencer);

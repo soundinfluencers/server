@@ -1,6 +1,7 @@
 import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {Role} from "../../../common/types/user.types";
 import {IsEmail, IsEnum, IsString} from "class-validator";
+import {InfluencerConfirmationStatusEnum} from "../../../common/types/influencer/promo.types";
 
 export class LoginDto {
     @ApiProperty({
@@ -45,4 +46,7 @@ export class GetMeResponseDto {
 export class LoginResponseDto extends GetMeResponseDto {
     @ApiProperty()
     accessToken: string;
+
+    @ApiPropertyOptional()
+    agreementStatus?: InfluencerConfirmationStatusEnum; // only for influencers; to understand if need to show new accounts agreement page
 }

@@ -73,6 +73,7 @@ async function bootstrap() {
             },
             'access-token',
         )
+        .addSecurityRequirements('access-token')
         .build();
 
     const document = SwaggerModule.createDocument(app, config);

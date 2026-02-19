@@ -5,10 +5,11 @@ import {InfluencerActionsHistoryService} from "../influencer-actions-history/inf
 import {EmailService} from "../email/email.service";
 import {ProfileService} from "../profile/profile.service";
 import {AppGateway} from "../websocket/app.gateway";
+import {AuthService} from "../auth/auth.service";
 
 @Module({
     controllers: [InvoiceController],
-    providers: [InvoiceService, InfluencerActionsHistoryService, ProfileService, EmailService, AppGateway],
+    providers: [InvoiceService, InfluencerActionsHistoryService, ProfileService, EmailService, AppGateway, AuthService],
     exports: [InvoiceService]
 })
 export class InvoiceModule {

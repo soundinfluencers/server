@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { AuthenticatedRequest, ClientPayload, Role, UserPayload } from '../types/user.types';
 import { PROPOSAL_ACCESS_KEY, ProposalAccessType } from '../decorators/proposal-access.decorator';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 function isClientPayload(user: UserPayload): user is ClientPayload {
     return user.role === Role.client;
@@ -18,6 +19,12 @@ export class ProposalAccessGuard implements CanActivate {
     constructor(private readonly reflector: Reflector) {}
 
     canActivate(context: ExecutionContext): boolean {
+        const isPublic = this.reflector.getAllAndOverride<boolean>(
+            IS_PUBLIC_KEY,
+            [context.getHandler(), context.getClass()],
+        );
+        if (isPublic) return true;
+
         const accessType = this.reflector.getAllAndOverride<ProposalAccessType>(
             PROPOSAL_ACCESS_KEY,
             [context.getHandler(), context.getClass()],
@@ -36,12 +43,12 @@ export class ProposalAccessGuard implements CanActivate {
                 throw new ForbiddenException('Forbidden');
 
             case 'proposalClientOnly':
-                if (isClientPayload(user) && user?.isProposalClient === true) return true;
+                if (isClientPayload(user) && user.isProposalClient === true) return true;
                 throw new ForbiddenException('Forbidden');
 
             case 'adminOrProposalClient':
                 if (user.role === Role.admin) return true;
-                if (isClientPayload(user) && user?.isProposalClient === true) return true;
+                if (isClientPayload(user) && user.isProposalClient === true) return true;
                 throw new ForbiddenException('Forbidden');
 
             default:

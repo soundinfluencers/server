@@ -5,6 +5,8 @@ import {MongooseModule} from '@nestjs/mongoose';
 import {AppGateway} from '../websocket/app.gateway';
 import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
 import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
+import {AuthModule} from "../auth/auth.module";
+import {AuthService} from "../auth/auth.service";
 
 @Module({
     imports: [
@@ -14,7 +16,7 @@ import {Influencer, InfluencerSchema} from "../../database/schemas/users/influen
         ]),
     ],
     controllers: [ProfileController],
-    providers: [ProfileService, AppGateway],
+    providers: [ProfileService, AuthService, AppGateway],
     exports: [ProfileService],
 })
 export class ProfileModule {

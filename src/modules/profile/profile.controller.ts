@@ -1,4 +1,17 @@
-import {Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UnauthorizedException} from '@nestjs/common';
+import {
+    BadRequestException,
+    Body,
+    Controller,
+    Delete, ForbiddenException,
+    Get,
+    Param,
+    Patch,
+    Post,
+    Query,
+    Req,
+    Res,
+    UnauthorizedException
+} from '@nestjs/common';
 import {ProfileService} from './profile.service';
 import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from './dto/client/update-client.dto';
 import {UpdateUserPasswordDto} from './dto/update-password.dto';
@@ -15,7 +28,9 @@ import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, NotificationMethodsEnum, Role} from "../../common/types/user.types";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {
-    ClientAccountDetailsDto, FoundAccountsDto,
+    AgreementAccountsListDto,
+    ClientAccountDetailsDto,
+    FoundAccountsDto,
     GetSocialAccountDetailsParamsDto,
     InfluencerAccountDetailsDto,
     SocialAccountDetailsDto
@@ -30,8 +45,11 @@ import {SocialAccountSortByEnum} from "../../common/types/influencer/influencer.
 import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
 import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details.dto";
 import {PaymentDetailsDto, PaymentMethodRequestEnum, UpdatePaymentDetailsDto} from "./dto/payment-details.dto";
-import {InvoicePaymentMethodEnum} from "../../common/types/influencer/invoice.types";
 import {UserNotificationMethods} from "../../database/schemas/users/influencer.schema";
+import {InfluencerConfirmationStatusEnum} from "../../common/types/influencer/promo.types";
+import {GetMeResponseDto} from "../auth/dto/login.dto";
+import {Response} from "express";
+import {Public} from "../../common/decorators/public.decorator";
 
 @ApiTags('profile')
 @Controller('profile')
@@ -145,6 +163,56 @@ export class ProfileController {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
         return this.profileService.updateUserPassword({...data, _id: request.user._id, role: request.user.role});
+    }
+
+    @Public()
+    @ApiOperation({summary: "Get influencer's social accounts that need agreement"})
+    @ApiResponseDto(AgreementAccountsListDto)
+    @ApiParam({
+        name: 'influencerId',
+        required: true,
+        type: String,
+    })
+    @Get('social-account/agreement/:influencerId')
+    getAgreementAccountsList(@Req() request: AuthenticatedRequest, @Param('influencerId') influencerId: string): Promise<AgreementAccountsListDto> {
+        if (request.user && request.user._id !== influencerId) throw new ForbiddenException('Not enough access');
+
+        return this.profileService.getAgreementAccountsList(
+            request.user ? request.user._id : influencerId,
+            request.user ? request.user.role : undefined
+        );
+    }
+
+    @Public()
+    @ApiOperation({summary: "Updates influencer's social accounts agreement meta field"})
+    @ApiResponseDto(SocialAccountDetailsDto)
+    @ApiParam({
+        name: 'status',
+        required: true,
+        type: String,
+        enum: InfluencerConfirmationStatusEnum,
+    })
+    @ApiParam({
+        name: 'influencerId',
+        required: true,
+        type: String,
+    })
+    @Patch('social-account/agreement/:status/:influencerId')
+    updateSocialAccountsAgreement(
+        @Req() request: AuthenticatedRequest,
+        @Param('status') status: InfluencerConfirmationStatusEnum,
+        @Param('influencerId') influencerId: string,
+        @Res({ passthrough: true }) res: Response,
+    ): Promise<GetMeResponseDto> {
+        if (!status || status === InfluencerConfirmationStatusEnum.wait) throw new BadRequestException('Invalid status value');
+        if (request.user && request.user._id !== influencerId) throw new ForbiddenException('Not enough access');
+
+        return this.profileService.updateSocialAccountsAgreement(
+            request.user ? request.user._id : influencerId,
+            status,
+            res,
+            request.user ? request.user.role : undefined
+        );
     }
 
     @Auth()
