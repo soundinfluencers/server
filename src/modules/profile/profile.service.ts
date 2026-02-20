@@ -276,6 +276,8 @@ export class ProfileService {
         if (invoiceDetails) {
             return mapToInvoiceDetailsDto(invoiceDetails);
         }
+
+        return {};
     }
 
     // Updates user's invoice details {
