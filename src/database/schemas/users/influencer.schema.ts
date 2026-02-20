@@ -186,7 +186,10 @@ export class Influencer extends Document {
     @Prop({type: [SocialAccountSchema], default: []})
     press: SocialAccount[];
 
-    @Prop({type: UserNotificationMethodsSchema, required: false})
+    @Prop({
+        type: UserNotificationMethodsSchema,
+        default: () => ({ whatsapp: false, telegram: false }),
+    })
     notificationMethods: UserNotificationMethods;
 
     @Prop({default: null})

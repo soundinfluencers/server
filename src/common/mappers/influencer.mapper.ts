@@ -1,14 +1,17 @@
 import {Influencer, SocialAccount} from "../../database/schemas/users/influencer.schema";
 import {
-    InfluencerAccountDetailsDto, SocialAccountDetailsDto,
+    InfluencerAccountDetailsDto,
+    SocialAccountDetailsDto,
     SocialAccountForAccountDetailsDto
 } from "../../modules/profile/dto/influencer/get-profile.dto";
+import {InfluencerConfirmationStatusEnum} from "../types/influencer/promo.types";
 
 // Maps social account doc to social account for account details dto
 export const mapSocialAccountToAccountDetailsDto = (account: SocialAccount): SocialAccountForAccountDetailsDto => {
     return {
         accountId: account._id.toString(),
         username: account.username,
+        agreementStatus: account.agreementStatus ?? InfluencerConfirmationStatusEnum.accept
     }
 };
 

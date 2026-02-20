@@ -1544,6 +1544,7 @@ ${emailHtml}
                 'allAccounts.isDeleted': {$ne: true},
                 'allAccounts.isHidden': {$ne: true},
                 'allAccounts.isVerified': true,
+                'allAccounts.agreementStatus': InfluencerConfirmationStatusEnum.accept
             }
         });
 

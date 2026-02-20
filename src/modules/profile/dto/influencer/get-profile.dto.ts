@@ -11,6 +11,7 @@ import {
 } from "../../../../database/schemas/users/influencer.schema";
 import {SocialMediaEnum} from "../../../../common/types/social-media.types";
 import {IsEnum, IsString} from "class-validator";
+import {InfluencerConfirmationStatusEnum} from "../../../../common/types/influencer/promo.types";
 
 export class SocialAccountForAccountDetailsDto implements SocialAccountForAccountDetails {
     @ApiProperty({
@@ -24,6 +25,12 @@ export class SocialAccountForAccountDetailsDto implements SocialAccountForAccoun
         example: 'Techno TV',
     })
     username: string;
+
+    @ApiProperty({
+        example: 'wait',
+        enum: InfluencerConfirmationStatusEnum
+    })
+    agreementStatus: InfluencerConfirmationStatusEnum;
 }
 
 // dto for getting influencer's profile details

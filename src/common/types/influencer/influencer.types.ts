@@ -3,6 +3,7 @@ import {
     InfluencerMusicGenre,
     UserNotificationMethods
 } from "../../../database/schemas/users/influencer.schema";
+import {InfluencerConfirmationStatusEnum} from "./promo.types";
 
 export enum InfluencerProfileCategory {
     community = 'community',
@@ -12,6 +13,7 @@ export enum InfluencerProfileCategory {
 export interface SocialAccountForAccountDetails {
     accountId: string;
     username: string;
+    agreementStatus: InfluencerConfirmationStatusEnum;
 }
 
 // interface for account settings page
