@@ -250,8 +250,8 @@ export class ProfileService {
         };
 
         const influencer = await this.influencerRepo.findOneAndUpdate(
-            { _id: new ObjId(userInfo._id) },
-            { $set: update },
+            {_id: new ObjId(userInfo._id)},
+            {$set: update},
             {
                 new: true,
                 select: ['notificationMethods'],
@@ -273,11 +273,9 @@ export class ProfileService {
             userRole: userRole,
         });
 
-        if (!invoiceDetails) {
-            throw new NotFoundException("Invoice details not found");
+        if (invoiceDetails) {
+            return mapToInvoiceDetailsDto(invoiceDetails);
         }
-
-        return mapToInvoiceDetailsDto(invoiceDetails);
     }
 
     // Updates user's invoice details {
@@ -661,7 +659,7 @@ export class ProfileService {
     async getAgreementAccountsList(influencerId: string, role?: Role): Promise<AgreementAccountsListDto> {
         if (role && role !== Role.influencer) throw new ForbiddenException('Not enough access');
 
-        const influencer = await this.influencerRepo.findById(influencerId, { lean: true });
+        const influencer = await this.influencerRepo.findById(influencerId, {lean: true});
 
         if (!influencer) throw new NotFoundException('Influencer not found');
 
@@ -714,18 +712,18 @@ export class ProfileService {
             await this.influencerRepo.updateOne(
                 {
                     _id,
-                    agreementStatus: { $in: [null, InfluencerConfirmationStatusEnum.wait] },
+                    agreementStatus: {$in: [null, InfluencerConfirmationStatusEnum.wait]},
                 },
-                { $set: { agreementStatus: response } },
-                { session },
+                {$set: {agreementStatus: response}},
+                {session},
             );
 
             const updateResult = await this.influencerRepo.updateOneWithArrayFilters(
-                { _id },
-                { $set: setObj },
+                {_id},
+                {$set: setObj},
                 {
                     arrayFilters: [
-                        { 'acc.agreementStatus': { $in: [null, InfluencerConfirmationStatusEnum.wait] } },
+                        {'acc.agreementStatus': {$in: [null, InfluencerConfirmationStatusEnum.wait]}},
                     ],
                     session
                 },
@@ -741,7 +739,7 @@ export class ProfileService {
             await session.endSession();
         }
 
-        const updatedInfluencer = await this.influencerRepo.findById(influencerId, { lean: true });
+        const updatedInfluencer = await this.influencerRepo.findById(influencerId, {lean: true});
         const accessToken = this.authService.generateAccessToken(updatedInfluencer);
         const refreshToken = this.authService.generateRefreshToken(updatedInfluencer);
 
@@ -755,7 +753,7 @@ export class ProfileService {
             balance: (updatedInfluencer as any).balance ?? undefined,
             logoUrl: (updatedInfluencer as any).logoUrl ?? undefined,
             ...(updatedInfluencer.role === Role.influencer
-                ? { agreementStatus: (updatedInfluencer as Influencer).agreementStatus ?? InfluencerConfirmationStatusEnum.wait }
+                ? {agreementStatus: (updatedInfluencer as Influencer).agreementStatus ?? InfluencerConfirmationStatusEnum.wait}
                 : {}),
         };
     }

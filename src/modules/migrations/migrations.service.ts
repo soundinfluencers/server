@@ -659,8 +659,8 @@ export class MigrationsService {
                 const $set: any = {
                     schemaVersion: 2,
                     notificationMethods: {
-                        whatsapp: true,
-                        telegram: true
+                        whatsapp: false,
+                        telegram: false
                     },
                     agreementStatus: InfluencerConfirmationStatusEnum.accept,
                     updatedAt: new Date()

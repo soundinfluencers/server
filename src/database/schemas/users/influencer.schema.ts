@@ -113,10 +113,10 @@ SocialAccountSchema.index({
 
 @Schema({_id: false})
 export class UserNotificationMethods {
-    @Prop({required: false, default: true, type: Boolean})
+    @Prop({required: false, default: false, type: Boolean})
     whatsapp: boolean;
 
-    @Prop({required: false, default: true, type: Boolean})
+    @Prop({required: false, default: false, type: Boolean})
     telegram: boolean;
 }
 
