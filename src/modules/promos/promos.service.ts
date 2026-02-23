@@ -608,7 +608,7 @@ export class PromosService {
                 },
             },
 
-            {$sort: {createdAt: -1}},
+            { $sort: { 'addedAccounts.updatedAt': -1 } },
             {$skip: skip},
             {$limit: limit},
 
@@ -791,7 +791,7 @@ export class PromosService {
                 },
             },
             {$unwind: {path: '$client', preserveNullAndEmptyArrays: true}},
-            {$sort: {createdAt: -1}},
+            { $sort: { 'addedAccounts.updatedAt': -1 } },
             {$skip: skip},
             {$limit: limit},
             {
