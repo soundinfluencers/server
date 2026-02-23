@@ -226,13 +226,21 @@ export class InfluencerActionsHistoryService {
 
             {
                 $addFields: {
+                    accountsFromCampaign: {
+                        $ifNull: ['$openCampaign.addedAccounts', { $ifNull: ['$closedCampaign.addedAccounts', []] }],
+                    },
+                },
+            },
+
+            {
+                $addFields: {
                     promoFromCampaign: {
                         $let: {
                             vars: {
                                 byAccountId: {
                                     $first: {
                                         $filter: {
-                                            input: { $ifNull: ['$openCampaign.addedAccounts', []] },
+                                            input: '$accountsFromCampaign',
                                             as: 'acc',
                                             cond: {
                                                 $and: [
@@ -247,7 +255,7 @@ export class InfluencerActionsHistoryService {
                                 byUsername: {
                                     $first: {
                                         $filter: {
-                                            input: { $ifNull: ['$openCampaign.addedAccounts', []] },
+                                            input: '$accountsFromCampaign',
                                             as: 'acc',
                                             cond: {
                                                 $and: [
@@ -267,10 +275,23 @@ export class InfluencerActionsHistoryService {
 
             {
                 $addFields: {
+                    actionPromoIdObj: {
+                        $cond: [
+                            { $eq: [{ $type: '$campaigns.actions.addedAccountsId' }, 'objectId'] },
+                            '$campaigns.actions.addedAccountsId',
+                            {
+                                $cond: [
+                                    { $eq: [{ $type: '$campaigns.actions.addedAccountsId' }, 'string'] },
+                                    { $toObjectId: '$campaigns.actions.addedAccountsId' },
+                                    null,
+                                ],
+                            },
+                        ],
+                    },
                     resolvedAddedAccountsId: {
                         $let: {
                             vars: {
-                                actionPromoId: '$campaigns.actions.addedAccountsId',
+                                actionPromoId: '$actionPromoIdObj',
                                 campaignPromoId: '$promoFromCampaign._id',
                             },
                             in: {
