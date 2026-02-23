@@ -463,29 +463,37 @@ export class PromosService {
 
         const base = this.buildInfluencerDashboardPipelineCore(influencerId);
 
+        const includeCompleted =
+            status === InfluencerDashboardPromoStatusRequest.close ||
+            status === InfluencerDashboardPromoStatusRequest.all;
+
         const statusStages = this.buildStatusStages(status);
 
         const completedCollName = 'completedcampaigns';
 
         const pipeline: any[] = [
             ...base,
-            {$addFields: {source: 'campaigns'}},
+            { $addFields: { source: 'campaigns' } },
 
-            {
-                $unionWith: {
-                    coll: completedCollName,
-                    pipeline: [
-                        ...base,
-                        {$addFields: {source: 'completedCampaigns'}},
-                    ],
-                },
-            },
+            ...(includeCompleted
+                ? [
+                    {
+                        $unionWith: {
+                            coll: completedCollName,
+                            pipeline: [
+                                ...base,
+                                { $addFields: { source: 'completedCampaigns' } },
+                            ],
+                        },
+                    },
+                ]
+                : []),
 
             ...statusStages,
 
-            {$sort: {createdAt: -1}},
-            {$skip: skip},
-            {$limit: limit},
+            { $sort: { createdAt: -1 } },
+            { $skip: skip },
+            { $limit: limit },
 
             {
                 $project: {
@@ -507,10 +515,10 @@ export class PromosService {
                 $addFields: {
                     createdAt: {
                         $concat: [
-                            {$dateToString: {date: '$createdAt', format: '%d.%m.'}},
+                            { $dateToString: { date: '$createdAt', format: '%d.%m.' } },
                             {
                                 $substr: [
-                                    {$dateToString: {date: '$createdAt', format: '%Y'}},
+                                    { $dateToString: { date: '$createdAt', format: '%Y' } },
                                     2,
                                     2,
                                 ],
@@ -522,10 +530,9 @@ export class PromosService {
         ];
 
         return this.campaignRepo
-            .aggregate<InfluencerDashboardPromo>(pipeline, {allowDiskUse: true})
+            .aggregate<InfluencerDashboardPromo>(pipeline, { allowDiskUse: true })
             .exec();
     }
-
 
     // [COMPLETED] Returns influencer's detailed completed promos [GET MANY]
     async getCompletedPromos(data: {
