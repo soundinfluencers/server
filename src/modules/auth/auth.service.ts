@@ -25,6 +25,7 @@ import {AdminRepository} from "../../database/repositories/users/admin.repositor
 import {Role} from "../../common/types/user.types";
 import {Client} from "../../database/schemas/users/client.schema";
 import {InfluencerConfirmationStatusEnum} from "../../common/types/influencer/promo.types";
+import {Admin} from "../../database/schemas/users/admin.schema";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -288,12 +289,23 @@ export class AuthService {
 
     // Login
     async login(dto: LoginDto, res: Response): Promise<LoginResponseDto> {
-        const email = dto.email.toLowerCase();
+        const email = dto.email.toLowerCase().trim();
 
-        const user =
-            (await this.influencerRepo.findInfluencerByEmail(email)) ||
-            (await this.clientRepo.findClientByEmail(email)) ||
-            (await this.adminRepo.findAdminByEmail(email));
+        let user: Client | Influencer | Admin = null;
+
+        switch (dto.role) {
+            case Role.client:
+                user = await this.clientRepo.findClientByEmail(email);
+                break;
+            case Role.influencer:
+                user = await this.influencerRepo.findInfluencerByEmail(email);
+                break;
+            case Role.admin:
+                user = await this.adminRepo.findAdminByEmail(email);
+                break;
+            default:
+                throw new BadRequestException('Unsupported role');
+        }
 
         if (!user) throw new UnauthorizedException('User not found');
 
@@ -321,7 +333,7 @@ export class AuthService {
             balance: (user as any).balance ?? undefined,
             logoUrl: (user as any).logoUrl ?? undefined,
             ...(user.role === Role.influencer
-                ? { agreementStatus: (user as Influencer).agreementStatus ?? InfluencerConfirmationStatusEnum.wait }
+                ? {agreementStatus: (user as Influencer).agreementStatus ?? InfluencerConfirmationStatusEnum.wait}
                 : {})
         };
     }
@@ -393,10 +405,10 @@ export class AuthService {
             {
                 _id: user._id,
                 role: user.role,
-                ...(user.role === Role.client ? { isProposalClient: !!user.isProposalClient } : {}),
+                ...(user.role === Role.client ? {isProposalClient: !!user.isProposalClient} : {}),
             },
             this.accessKey,
-            { expiresIn: '30m' },
+            {expiresIn: '30m'},
         );
     }
 

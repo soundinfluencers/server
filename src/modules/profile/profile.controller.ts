@@ -268,6 +268,7 @@ export class ProfileController {
         return await this.profileService.addSocialAccount({...data, influencerId: request.user._id});
     }
 
+    @Public()
     @ApiExcludeEndpoint()
     @Get('influencer/verify-new-accounts')
     verifyNewSocialMediaAccounts(
