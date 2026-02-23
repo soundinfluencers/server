@@ -781,7 +781,7 @@ export class CampaignsService {
                                         updatedCampaignAction: {
                                             addedAccountsId: account._id,
                                             socialAccountId: account._id,
-                                            actionNumber: 1,
+                                            actionNumber: 0,
                                             networkUsername: account.username,
                                             rewardForInfluencer: account.price,
                                             socialMedia: socialMedia
