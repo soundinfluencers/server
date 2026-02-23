@@ -215,49 +215,78 @@ export class InfluencerActionsHistoryService {
             { $unwind: { path: '$openCampaign', preserveNullAndEmptyArrays: true } },
 
             {
+                $lookup: {
+                    from: 'completedcampaigns',
+                    localField: 'campaignIdObj',
+                    foreignField: '_id',
+                    as: 'closedCampaign',
+                },
+            },
+            { $unwind: { path: '$closedCampaign', preserveNullAndEmptyArrays: true } },
+
+            {
                 $addFields: {
-                    // Если в истории action.addedAccountsId отсутствует — пытаемся найти addedAccounts._id
-                    // либо по accountId (предпочтительно), либо по username+socialMedia.
-                    resolvedAddedAccountsId: {
-                        $ifNull: [
-                            '$campaigns.actions.addedAccountsId',
-                            {
-                                $let: {
-                                    vars: {
-                                        byAccountId: {
-                                            $first: {
-                                                $filter: {
-                                                    input: { $ifNull: ['$openCampaign.addedAccounts', []] },
-                                                    as: 'acc',
-                                                    cond: {
-                                                        $and: [
-                                                            { $ne: ['$$acc.accountId', null] },
-                                                            { $ne: ['$socialAccountIdObj', null] },
-                                                            { $eq: ['$$acc.accountId', '$socialAccountIdObj'] },
-                                                        ],
-                                                    },
-                                                },
-                                            },
-                                        },
-                                        byUsername: {
-                                            $first: {
-                                                $filter: {
-                                                    input: { $ifNull: ['$openCampaign.addedAccounts', []] },
-                                                    as: 'acc',
-                                                    cond: {
-                                                        $and: [
-                                                            { $eq: ['$$acc.username', '$campaigns.actions.networkUsername'] },
-                                                            { $eq: ['$$acc.socialMedia', '$campaigns.actions.socialMedia'] },
-                                                        ],
-                                                    },
-                                                },
+                    promoFromCampaign: {
+                        $let: {
+                            vars: {
+                                byAccountId: {
+                                    $first: {
+                                        $filter: {
+                                            input: { $ifNull: ['$openCampaign.addedAccounts', []] },
+                                            as: 'acc',
+                                            cond: {
+                                                $and: [
+                                                    { $ne: ['$$acc.accountId', null] },
+                                                    { $ne: ['$socialAccountIdObj', null] },
+                                                    { $eq: ['$$acc.accountId', '$socialAccountIdObj'] },
+                                                ],
                                             },
                                         },
                                     },
-                                    in: { $ifNull: ['$$byAccountId._id', '$$byUsername._id'] },
+                                },
+                                byUsername: {
+                                    $first: {
+                                        $filter: {
+                                            input: { $ifNull: ['$openCampaign.addedAccounts', []] },
+                                            as: 'acc',
+                                            cond: {
+                                                $and: [
+                                                    { $eq: ['$$acc.username', '$campaigns.actions.networkUsername'] },
+                                                    { $eq: ['$$acc.socialMedia', '$campaigns.actions.socialMedia'] },
+                                                ],
+                                            },
+                                        },
+                                    },
                                 },
                             },
-                        ],
+                            in: { $ifNull: ['$$byAccountId', '$$byUsername'] },
+                        },
+                    },
+                },
+            },
+
+            {
+                $addFields: {
+                    resolvedAddedAccountsId: {
+                        $let: {
+                            vars: {
+                                actionPromoId: '$campaigns.actions.addedAccountsId',
+                                campaignPromoId: '$promoFromCampaign._id',
+                            },
+                            in: {
+                                $cond: [
+                                    {
+                                        $and: [
+                                            { $ne: ['$$campaignPromoId', null] },
+                                            { $ne: ['$$actionPromoId', null] },
+                                            { $eq: ['$$actionPromoId', '$$campaignPromoId'] },
+                                        ],
+                                    },
+                                    '$$actionPromoId',
+                                    '$$campaignPromoId',
+                                ],
+                            },
+                        },
                     },
                 },
             },
@@ -408,6 +437,7 @@ export class InfluencerActionsHistoryService {
 
         return history;
     }
+
     // Return several histories (with limit and page)
     async getAllHistories(data: GetAllHistoriesQueryDto): Promise<InfluencerActionsHistory[]> {
         const limit = Number(data.limit ?? 10);
