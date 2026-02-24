@@ -1,14 +1,27 @@
-import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
+import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
+import {Types} from "mongoose";
+import {Role} from "../../../common/types/user.types";
 
 @Schema({
-  timestamps: true,
+    timestamps: true,
 })
 export class Forgot {
-  @Prop()
-  id: string;
+    @Prop({required: true, type: Types.ObjectId})
+    _id: Types.ObjectId;
 
-  @Prop()
-  code: string;
+    @Prop({required: true, type: Types.ObjectId})
+    userId: Types.ObjectId;
+
+    @Prop({required: true, type: String, enum: Role})
+    userRole: Role;
+
+    @Prop({required: true, type: String})
+    code: string;
+
+    createdAt: Date;
 }
 
 export const ForgotSchema = SchemaFactory.createForClass(Forgot);
+
+ForgotSchema.index({createdAt: 1}, {expireAfterSeconds: 900});
+ForgotSchema.index({ userId: 1, userRole: 1 }, { unique: true });

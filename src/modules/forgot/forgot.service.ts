@@ -1,285 +1,175 @@
-import { Injectable, Query } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import mongoose from 'mongoose';
-import { Forgot } from './schemas/forgot.schema';
+import {
+    BadRequestException,
+    ConflictException,
+    ForbiddenException,
+    Injectable, InternalServerErrorException, Logger,
+    NotFoundException
+} from '@nestjs/common';
 import sendMail from "../../integrations/nodemailer/nodemailer";
 import {Client} from "../../database/schemas/users/client.schema";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
+import {ForgotRepository} from "./repositories/forgot.repository";
+import {ClientRepository} from "../../database/repositories/users/client.repository";
+import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
+import {ObjId} from "../../common/types/base.types";
+import {EmailService} from "../email/email.service";
+import {Role} from "../../common/types/user.types";
+
 const bcrypt = require('bcryptjs');
 
 function generateFourDigitCode() {
-  const code = Math.floor(Math.random() * 9000) + 1000;
-  return String(code);
+    const code = Math.floor(Math.random() * 9000) + 1000;
+    return String(code);
 }
 
 function generateRandomPassword() {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let password = '';
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
 
-  for (let i = 0; i < 8; i++) {
-    const randomIndex = Math.floor(Math.random() * characters.length);
-    password += characters.charAt(randomIndex);
-  }
+    for (let i = 0; i < 8; i++) {
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        password += characters.charAt(randomIndex);
+    }
 
-  return password;
+    return password;
 }
 
 @Injectable()
 export class ForgotService {
-  constructor(
-    @InjectModel(Client.name)
-    private clientModel: mongoose.Model<Client>,
-    @InjectModel(Influencer.name)
-    private influencerModel: mongoose.Model<Influencer>,
-    @InjectModel(Forgot.name)
-    private forgotModel: mongoose.Model<Forgot>,
-  ) {}
-
-  async forgotEmail(email: string) {
-    try {
-      if (!email) {
-        return {
-          status: 400,
-          message: 'Not enough arguments',
-        };
-      }
-
-      const checkUserClient = await this.clientModel.findOne({
-        email: email,
-      });
-
-      const checkUserInfluencer = await this.influencerModel.findOne({
-        email: email,
-      });
-
-      if (!(!checkUserClient && !checkUserInfluencer)) {
-        if (checkUserClient) {
-          const checkForgot = await this.forgotModel.findOne({
-            id: checkUserClient.id,
-          });
-
-          if (checkForgot) {
-            const code = generateFourDigitCode();
-            await this.forgotModel.findOneAndUpdate(
-              { id: checkUserClient.id },
-              {
-                code: code,
-              },
-            );
-            await sendMail(
-              checkUserClient.email,
-              'soundinfluencers',
-              `<p>Dear ${checkUserClient.firstName},</p>
-            <p>It looks like you've requested a password reset for your account. Please use the following confirmation code to reset your password:</p>
-            <p>Confirmation Code: ${code}</p>
-            <p>You can reset your password by clicking on the 'Forgot Password' link on our website and entering this confirmation code when prompted.</p>
-            <p>If you have any questions or encounter any issues, please don't hesitate to contact our support team or reply to this message.</p>
-            <p>Best regards,</p>
-            <p>SoundInfluencers team</p>`,
-              'html',
-            );
-            return {
-              code: 200,
-              message: 'code send',
-            };
-          } else {
-            const code = generateFourDigitCode();
-            await this.forgotModel.create({
-              id: checkUserClient.id,
-              code: code,
-            });
-            await sendMail(
-              checkUserClient.email,
-              'soundinfluencers',
-              `<p>Dear ${checkUserClient.firstName},</p>
-            <p>It looks like you've requested a password reset for your account. Please use the following confirmation code to reset your password:</p>
-            <p>Confirmation Code: ${code}</p>
-            <p>You can reset your password by clicking on the 'Forgot Password' link on our website and entering this confirmation code when prompted.</p>
-            <p>If you have any questions or encounter any issues, please don't hesitate to contact our support team or reply to this message.</p>
-            <p>Best regards,</p>
-            <p>SoundInfluencers team</p>`,
-              'html',
-            );
-            return {
-              code: 200,
-              message: 'code send',
-            };
-          }
-        } else {
-          const checkForgot = await this.forgotModel.findOne({
-            id: checkUserInfluencer.id,
-          });
-          const code = generateFourDigitCode();
-          console.log('====================================');
-          console.log(code);
-          console.log('====================================');
-          if (checkForgot) {
-            await this.forgotModel.findOneAndUpdate(
-              { id: checkUserInfluencer.id },
-              {
-                code: code,
-              },
-            );
-            await sendMail(
-              checkUserInfluencer.email,
-              'soundinfluencers',
-              `<p>Dear ${checkUserInfluencer.firstName},</p>
-            <p>It looks like you've requested a password reset for your account. Please use the following confirmation code to reset your password:</p>
-            <p>Confirmation Code: ${code}</p>
-            <p>You can reset your password by clicking on the 'Forgot Password' link on our website and entering this confirmation code when prompted.</p>
-            <p>If you have any questions or encounter any issues, please don't hesitate to contact our support team or reply to this message.</p>
-            <p>Best regards,</p>
-            <p>SoundInfluencers team</p>`,
-              'html',
-            );
-            return {
-              code: 200,
-              message: 'code send',
-            };
-          } else {
-            await this.forgotModel.create({
-              id: checkUserInfluencer.id,
-              code: code,
-            });
-
-            await sendMail(
-              checkUserInfluencer.email,
-              'soundinfluencers',
-              `<p>Dear ${checkUserInfluencer.firstName},</p>
-            <p>It looks like you've requested a password reset for your account. Please use the following confirmation code to reset your password:</p>
-            <p>Confirmation Code: ${code}</p>
-            <p>You can reset your password by clicking on the 'Forgot Password' link on our website and entering this confirmation code when prompted.</p>
-            <p>If you have any questions or encounter any issues, please don't hesitate to contact our support team or reply to this message.</p>
-            <p>Best regards,</p>
-            <p>SoundInfluencers team</p>`,
-              'html',
-            );
-            return {
-              code: 200,
-              message: 'code send',
-            };
-          }
-        }
-      }
-
-      return {
-        code: 404,
-        message: 'User not found',
-      };
-    } catch (err) {
-      console.log(err);
-      return {
-        code: 500,
-        message: err,
-      };
+    constructor(
+        private readonly forgotRepo: ForgotRepository,
+        private readonly clientRepo: ClientRepository,
+        private readonly influencerRepo: InfluencerRepository,
+        private readonly emailService: EmailService
+    ) {
     }
-  }
 
-  async forgotCode(email: string, code: string) {
-    try {
-      if (!email || !code) {
-        return {
-          status: 400,
-          message: 'Not enough arguments',
-        };
-      }
+    private readonly logger = new Logger('ForgotService');
 
-      const checkUserClient = await this.clientModel.findOne({
-        email: email,
-      });
+    // FIRST STEP: creates request for resetting password and sends email with code
+    async createResetPasswordRequest(email: string, role: Role) {
+        let user: Client | Influencer = undefined;
 
-      const checkUserInfluencer = await this.influencerModel.findOne({
-        email: email,
-      });
+        switch (role) {
+            case Role.client:
+                user = await this.clientRepo.findClientByEmail(email.trim().toLowerCase());
+                break;
+            case Role.influencer:
+                user = await this.influencerRepo.findInfluencerByEmail(email.trim().toLowerCase());
+                break;
+            default:
+                throw new BadRequestException('Unsupported role');
+        }
 
-      if (!(!checkUserClient && !checkUserInfluencer)) {
-        if (checkUserClient) {
-          const checkForgot = await this.forgotModel.findOne({
-            id: checkUserClient.id,
-          });
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
 
-          if (checkForgot) {
-            if (checkForgot.code !== code) {
-              return {
-                code: 400,
-                message: 'code is not correct ',
-              };
+        const checkForgot = await this.forgotRepo.exists({
+            userId: user._id,
+            userRole: user.role
+        });
+
+        if (checkForgot) {
+            throw new ConflictException('Reset code already sent. Please check your email or try again later.');
+        }
+
+        const code = generateFourDigitCode();
+        await this.forgotRepo.create(
+            {
+                _id: new ObjId(),
+                userId: user._id,
+                userRole: user.role,
+                code: code,
+            },
+        );
+
+        await this.emailService.sendForgotPasswordEmail({
+            userFirstName: user.firstName,
+            email: email,
+            code: code,
+        })
+    }
+
+    // SECOND STEP: checks code, sets new auto-generated password and sends email with it
+    async closeResetPasswordRequest(email: string, role: Role, code: string) {
+        let user: Client | Influencer = undefined;
+
+        switch (role) {
+            case Role.client:
+                user = await this.clientRepo.findClientByEmail(email.trim().toLowerCase());
+                break;
+            case Role.influencer:
+                user = await this.influencerRepo.findInfluencerByEmail(email.trim().toLowerCase());
+                break;
+            default:
+                throw new BadRequestException('Unsupported role');
+        }
+
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
+        const checkForgot = await this.forgotRepo.findOne({
+            userId: user._id,
+            userRole: user.role
+        });
+
+        if (!checkForgot) {
+            throw new NotFoundException('Code does not exist or expired');
+        }
+
+        if (code !== checkForgot.code) {
+            throw new ForbiddenException('Invalid code')
+        }
+
+        const newPassword = generateRandomPassword();
+
+        const session = await this.forgotRepo.startSession();
+        session.startTransaction();
+
+        try {
+            await this.forgotRepo.findOneAndDelete({
+                userId: user._id,
+                userRole: user.role
+            }, {session});
+
+            await this.emailService.sendNewPasswordEmail({
+                userFirstName: user.firstName,
+                email: user.email,
+                password: newPassword,
+            })
+
+            switch (user.role) {
+                case Role.client:
+                    await this.clientRepo.findOneAndUpdate(
+                        {_id: user._id},
+                        {
+                            password: bcrypt.hashSync(newPassword),
+                        },
+                        {session}
+                    );
+                    break;
+                case Role.influencer:
+                    await this.influencerRepo.findOneAndUpdate(
+                        {_id: user._id},
+                        {
+                            password: bcrypt.hashSync(newPassword),
+                        },
+                        {session}
+                    );
+                    break;
+                default:
+                    throw new Error(`Tried to reset password for unsupported role ${user.role} ${user._id}`);
             }
 
-            const newPassword = generateRandomPassword();
-            await this.forgotModel.findOneAndDelete({ id: checkUserClient.id });
-
-            await sendMail(
-              checkUserClient.email,
-              'soundinfluencers',
-              `<p>Dear ${checkUserClient.firstName},</p>
-               <p>This is your temporary password: ${newPassword}</p>
-               <p>Best regards,</p>
-               <p>SoundInfluencers team</p>`,
-              'html',
-            );
-            await this.clientModel.findOneAndUpdate(
-              { _id: checkUserClient._id },
-              {
-                password: bcrypt.hashSync(newPassword),
-              },
-            );
-
-            return {
-              code: 200,
-              message: 'password send',
-            };
-          }
-        } else {
-          const checkForgot = await this.forgotModel.findOne({
-            id: checkUserInfluencer.id,
-          });
-          if (checkForgot) {
-            if (checkForgot.code !== code) {
-              return {
-                code: 400,
-                message: 'code is not correct ',
-              };
-            }
-            const newPassword = generateRandomPassword();
-            await this.forgotModel.findOneAndDelete({
-              id: checkUserInfluencer.id,
-            });
-
-            await sendMail(
-              checkUserInfluencer.email,
-              'soundinfluencers',
-              `<p>Dear ${checkUserInfluencer.firstName},</p>
-               <p>This is your temporary password: ${newPassword}</p>
-               <p>Best regards,</p>
-               <p>SoundInfluencers team</p>`,
-              'html',
-            );
-            await this.influencerModel.findOneAndUpdate(
-              { _id: checkUserInfluencer._id },
-              {
-                password: bcrypt.hashSync(newPassword),
-              },
-            );
-
-            return {
-              code: 200,
-              message: 'password send',
-            };
-          }
+            await session.commitTransaction();
+        } catch (err) {
+            await session.abortTransaction();
+            this.logger.error(err);
+            throw new InternalServerErrorException('Something went wrong');
+        } finally {
+            await session.endSession();
         }
-      }
-
-      return {
-        code: 404,
-        message: 'User not found',
-      };
-    } catch (err) {
-      console.log(err);
-      return {
-        code: 500,
-        message: err,
-      };
     }
-  }
 }

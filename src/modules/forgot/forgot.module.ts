@@ -3,18 +3,16 @@ import { ForgotService } from './forgot.service';
 import { ForgotController } from './forgot.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Forgot, ForgotSchema } from './schemas/forgot.schema';
-import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
-import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
+import {ForgotRepository} from "./repositories/forgot.repository";
+import {EmailService} from "../email/email.service";
 
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: Client.name, schema: ClientSchema },
-      { name: Influencer.name, schema: InfluencerSchema },
       { name: Forgot.name, schema: ForgotSchema },
     ]),
   ],
   controllers: [ForgotController],
-  providers: [ForgotService],
+  providers: [ForgotService, ForgotRepository, EmailService],
 })
 export class ForgotModule {}

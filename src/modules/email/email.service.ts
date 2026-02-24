@@ -16,6 +16,8 @@ import {
     buildInfluencerInvoiceResponseEmail
 } from "./templates/invoice-email.template";
 import {CreateBespokeCampaignDto} from "../campaigns/dto/bespoke-request.dto";
+import {ForgotPasswordEmailDto, NewPasswordEmailDto} from "./dto/forgot-email.dto";
+import {buildForgotPasswordEmailTemplate, buildNewPasswordEmailTemplate} from "./templates/forgot-email.template";
 
 @Injectable()
 export class EmailService {
@@ -122,6 +124,30 @@ export class EmailService {
             'nazarkozynets030606@gmail.com',
             // data.email,
             'New promo request',
+            email,
+            'html'
+        )
+    }
+
+    // Sends email to user with forget password code
+    async sendForgotPasswordEmail(data: ForgotPasswordEmailDto) {
+        const email = buildForgotPasswordEmailTemplate(data);
+        return this.safeSend(
+            'nazarkozynets030606@gmail.com',
+            // data.email,
+            'Reset password',
+            email,
+            'html'
+        )
+    }
+
+    // Sends email to user with new password
+    async sendNewPasswordEmail(data: NewPasswordEmailDto) {
+        const email = buildNewPasswordEmailTemplate(data);
+        return this.safeSend(
+            'nazarkozynets030606@gmail.com',
+            // data.email,
+            'New password',
             email,
             'html'
         )
