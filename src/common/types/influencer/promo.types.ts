@@ -45,6 +45,8 @@ export interface InfluencerPromoBase {
     // id of influencer's social account (can be undefined in case of old schema didn't contain this field)
     socialAccountId?: string;
 
+    logoUrl?: string;
+
     // campaignName
     campaignName: string;
 

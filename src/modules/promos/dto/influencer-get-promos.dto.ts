@@ -38,6 +38,9 @@ class InfluencerPromoBaseDto implements InfluencerPromoBase {
     @ApiPropertyOptional({type: String})
     socialAccountId?: string;
 
+    @ApiPropertyOptional({type: String})
+    logoUrl?: string;
+
     @ApiProperty({type: String})
     campaignName: string;
 

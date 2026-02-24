@@ -12,7 +12,7 @@ import {
     InfluencerDetailedPromo,
     InfluencerGetDashboardPromosQueryDto,
     InfluencerGetDetailedPromoParamsDto,
-    InfluencerGetDetailedPromosQueryDto,
+    InfluencerGetDetailedPromosQueryDto, InfluencerNewPromoRequestDto,
     InfluencerUpdatePromoReqBodyDto,
     InfluencerUpdatePromoResponseUpdateDto
 } from "./dto/influencer-get-promos.dto";
@@ -89,16 +89,15 @@ export class PromosService {
     async getDetailedPromoByType(data: InfluencerGetDetailedPromoParamsDto): Promise<InfluencerDetailedPromo> {
         const {status, campaignId, addedAccountsId, influencerId} = data;
 
-        switch (status) {
-            case InfluencerDetailedPromoStatusRequest.new:
-                break;
-            case InfluencerDetailedPromoStatusRequest.ongoing:
-                return await this.getOngoingPromo(influencerId, campaignId, addedAccountsId);
-            case InfluencerDetailedPromoStatusRequest.close:
-                return await this.getCompletedPromo(influencerId, campaignId, addedAccountsId);
-            default:
-                throw new Error('Unsupported promo status')
+        const handlers = {
+            [InfluencerDetailedPromoStatusRequest.new]: () => this.getNewPromo(influencerId, campaignId, addedAccountsId),
+            [InfluencerDetailedPromoStatusRequest.ongoing]: () => this.getOngoingPromo(influencerId, campaignId, addedAccountsId),
+            [InfluencerDetailedPromoStatusRequest.close]: () => this.getCompletedPromo(influencerId, campaignId, addedAccountsId),
         }
+
+        const handler = handlers[status];
+        if (!handler) throw new Error('Unsupported promo status');
+        return handler();
     }
 
 
@@ -344,6 +343,100 @@ export class PromosService {
             .exec();
     }
 
+    // [NEW REQUEST] Gets new promo requests fo influencer (find by id, addedAccountsId) [GET ONE]
+    async getNewPromo(
+        influencerId: string,
+        campaignId: string,
+        addedAccountsId: string,
+    ): Promise<InfluencerNewPromoRequestDto> {
+        if (!campaignId || !addedAccountsId) {
+            throw new BadRequestException('Not enough arguments');
+        }
+
+        const influencer = await this.influencerRepo.findById(influencerId);
+        if (!influencer) {
+            throw new NotFoundException('Influencer not found');
+        }
+
+        const campaign = await this.campaignRepo.findOne(
+            {
+                _id: new ObjId(campaignId),
+                'addedAccounts._id': new ObjId(addedAccountsId),
+                'addedAccounts.confirmation': InfluencerConfirmationStatusEnum.wait,
+                'addedAccounts.closePromo': InfluencerPromoClosedStatusEnum.wait
+            }, {lean: true}
+        );
+        if (!campaign) {
+            throw new NotFoundException('Campaign not found');
+        }
+
+        const client = await this.clientRepo.findById(
+            campaign.clientId.toString(),
+        );
+        if (!client) {
+            throw new NotFoundException('Client not found');
+        }
+
+        const selectedInfluencer = campaign.addedAccounts.find(
+            (item) => item._id.toString() === addedAccountsId,
+        );
+
+        const accountSocialMedia = selectedInfluencer.socialMedia ?? undefined;
+
+        if (!accountSocialMedia) {
+            console.error(`Campaign ${campaignId} doesn't provide social media for promo ${addedAccountsId}`);
+            throw new InternalServerErrorException('Social media for this account was not provided');
+        }
+
+        const accountLogo = influencer[accountSocialMedia].find(
+            (acc) => acc._id.toString() === selectedInfluencer?.accountId?.toString(),
+        )?.logoUrl ?? null;
+
+
+        if (!selectedInfluencer) {
+            throw new NotFoundException('Social account not found');
+        }
+
+        if (!campaign.campaignContent || !selectedInfluencer.selectedContent) {
+            throw new BadRequestException('Campaign content not found');
+        }
+
+        const selectedCampaignContentItem = campaign.campaignContent.find(
+            (item) =>
+                item._id.toString() ===
+                selectedInfluencer.selectedContent.campaignContentItemId.toString(),
+        );
+
+        if (!selectedCampaignContentItem) {
+            throw new NotFoundException('Campaign content item not found');
+        }
+
+        const postDescription =
+            selectedCampaignContentItem.descriptions?.find(
+                (pd) =>
+                    pd._id.toString() ===
+                    selectedInfluencer.selectedContent.descriptionId?.toString(),
+            )?.description ?? '';
+
+        return {
+            campaignId: campaign._id.toString(),
+            influencerId: selectedInfluencer.influencerId.toString(),
+            addedAccountsId: addedAccountsId,
+            socialAccountId: selectedInfluencer?.accountId?.toString() ?? undefined,
+            campaignName: campaign.campaignName,
+            username: selectedInfluencer.username,
+            logoUrl: accountLogo ?? null,
+            accountSocialMedia: selectedInfluencer.socialMedia as SocialMediaType,
+            dateRequest: selectedInfluencer.dateRequest,
+            createdAt: formatDate(campaign.createdAt),
+            mainLink: selectedCampaignContentItem.mainLink,
+            description: postDescription,
+            taggedUser: selectedCampaignContentItem.taggedUser,
+            taggedLink: selectedCampaignContentItem.taggedLink,
+            additionalBrief: selectedCampaignContentItem.additionalBrief,
+            clientName: client.company ?? client.firstName ?? 'Unknown',
+        } satisfies InfluencerNewPromoRequestDto;
+    }
 
     // [NEW REQUEST] Updates confirmation status for new promo request [UPDATE ONE]
     async updateResponseNewCampaign(
@@ -682,13 +775,15 @@ export class PromosService {
             {
                 _id: new Types.ObjectId(campaignId),
                 'addedAccounts._id': new Types.ObjectId(addedAccountsId),
-                'addedAccounts.closePromo': InfluencerPromoClosedStatusEnum.close
+                'addedAccounts.confirmation': 'accept',
+                'addedAccounts.closePromo': 'close'
             }, {lean: true});
         if (!campaign) campaign = await this.campaignRepo.findOne(
             {
                 _id: new Types.ObjectId(campaignId),
                 'addedAccounts._id': new Types.ObjectId(addedAccountsId),
-                'addedAccounts.closePromo': InfluencerPromoClosedStatusEnum.close
+                'addedAccounts.confirmation': 'accept',
+                'addedAccounts.closePromo': 'close'
             }, {lean: true});
 
         if (!campaign) throw new NotFoundException('Campaign not found');
@@ -700,6 +795,17 @@ export class PromosService {
         const selectedAccount = campaign.addedAccounts.find((influencerItem) => influencerItem._id.toString() === addedAccountsId);
 
         if (!selectedAccount) throw new NotFoundException(`Influencer's social account not found in this campaign`);
+
+        const accountSocialMedia = selectedAccount.socialMedia ?? undefined;
+
+        if (!accountSocialMedia) {
+            console.error(`Campaign ${campaignId} doesn't provide social media for promo ${addedAccountsId}`);
+            throw new InternalServerErrorException('Social media for this account was not provided');
+        }
+
+        const accountLogo = influencer[accountSocialMedia].find(
+            (acc) => acc._id.toString() === selectedAccount?.accountId?.toString(),
+        )?.logoUrl ?? null;
 
         let contentItem: {
             _id: string,
@@ -742,6 +848,7 @@ export class PromosService {
             socialAccountId: selectedAccount?.accountId?.toString() ?? undefined,
             campaignName: campaign.campaignName,
             username: selectedAccount.username ?? (selectedAccount as any).socialMediaUsernamea ?? (selectedAccount as any).instagramUsername,
+            logoUrl: accountLogo ?? null,
             createdAt: formatDate(campaign.createdAt),
             postLink: selectedAccount.postLink,
             reward: selectedAccount.price,
@@ -835,7 +942,6 @@ export class PromosService {
         campaignId: string,
         addedAccountsId: string,
     ): Promise<InfluencerOngoingPromo> {
-
         if (!campaignId || !addedAccountsId) {
             throw new BadRequestException('Not enough arguments');
         }
@@ -849,7 +955,8 @@ export class PromosService {
             {
                 _id: new ObjId(campaignId),
                 'addedAccounts._id': new ObjId(addedAccountsId),
-                'addedAccounts.closePromo': InfluencerPromoClosedStatusEnum.wait
+                'addedAccounts.closePromo': InfluencerPromoClosedStatusEnum.wait,
+                'addedAccounts.confirmation': InfluencerConfirmationStatusEnum.accept,
             }, {lean: true}
         );
         if (!campaign) {
@@ -870,6 +977,18 @@ export class PromosService {
         if (!selectedInfluencer) {
             throw new NotFoundException('Social account not found');
         }
+
+        const accountSocialMedia = selectedInfluencer.socialMedia ?? undefined;
+
+        if (!accountSocialMedia) {
+            console.error(`Campaign ${campaignId} doesn't provide social media for promo ${addedAccountsId}`);
+            throw new InternalServerErrorException('Social media for this account was not provided');
+        }
+
+        const accountLogo = influencer[accountSocialMedia].find(
+            (acc) => acc._id.toString() === selectedInfluencer?.accountId?.toString(),
+        )?.logoUrl ?? null;
+
 
         if (!campaign.campaignContent || !selectedInfluencer.selectedContent) {
             throw new BadRequestException('Campaign content not found');
@@ -899,6 +1018,7 @@ export class PromosService {
             socialAccountId: selectedInfluencer?.accountId?.toString() ?? undefined,
             campaignName: campaign.campaignName,
             username: selectedInfluencer.username,
+            logoUrl: accountLogo ?? null,
             accountSocialMedia: selectedInfluencer.socialMedia as SocialMediaType,
             dateRequest: selectedInfluencer.dateRequest,
             createdAt: formatDate(campaign.createdAt),
