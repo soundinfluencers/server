@@ -13,7 +13,8 @@ import {
     InfluencerCompletedPromoDto,
     InfluencerDashboardPromosDto, InfluencerDetailedPromo, InfluencerDetailedPromosDto,
     InfluencerGetDashboardPromosQueryDto, InfluencerGetDetailedPromoParamsDto, InfluencerGetDetailedPromosQueryDto,
-    InfluencerNewPromoRequestsDto, InfluencerOngoingPromoDto, InfluencerUpdatePromoReqBodyDto,
+    InfluencerNewPromoRequestDto,
+    InfluencerOngoingPromoDto, InfluencerUpdatePromoReqBodyDto,
     InfluencerUpdatePromoResponseUpdateDto,
 } from "./dto/influencer-get-promos.dto";
 import {AuthenticatedRequest, Role} from "../../common/types/user.types";
@@ -29,16 +30,6 @@ import {ApiResponseDtoOneOf} from "../../common/decorators/api/response/api-resp
 @Controller('promos')
 export class PromosController {
     constructor(private readonly promosService: PromosService) {
-    }
-
-    @Auth()
-    @Roles(Role.influencer)
-    @ApiOperation({summary: 'Get influencer new promos requests'})
-    @ApiResponseDto(InfluencerNewPromoRequestsDto)
-    @Get('requests')
-    async influencerGetNewPromos(@Req() request: AuthenticatedRequest): Promise<InfluencerNewPromoRequestsDto> {
-        const promos = await this.promosService.getNewPromos(request.user._id);
-        return ({promos});
     }
 
     @Auth()
@@ -94,7 +85,7 @@ export class PromosController {
     @Auth()
     @Roles(Role.influencer)
     @ApiOperation({summary: `Returns influencer's detailed promo of one type`})
-    @ApiResponseDtoOneOf([InfluencerOngoingPromoDto, InfluencerCompletedPromoDto])
+    @ApiResponseDtoOneOf([InfluencerNewPromoRequestDto, InfluencerOngoingPromoDto, InfluencerCompletedPromoDto])
     @ApiParam({
         name: 'status',
         type: 'string',

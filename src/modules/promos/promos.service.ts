@@ -24,7 +24,8 @@ import {
     InfluencerDashboardPromoStatusRequest,
     InfluencerDetailedPromoStatusRequest,
     InfluencerNewPromoRequest,
-    InfluencerOngoingPromo, InfluencerPromoClosedStatusEnum,
+    InfluencerOngoingPromo,
+    InfluencerPromoClosedStatusEnum,
     InfluencerPromoClosedStatusType,
 } from "../../common/types/influencer/promo.types";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
@@ -59,30 +60,29 @@ export class PromosService {
 
     // orchestrator for getting array of detailed promos with specific type (ongoing, completed, etc.)
     async getDetailedPromosByType(data: InfluencerGetDetailedPromosQueryDto): Promise<InfluencerDetailedPromo[]> {
-        let promos: InfluencerDetailedPromo[];
-
         const status = data.status ?? InfluencerDetailedPromoStatusRequest.ongoing;
 
-        switch (status) {
-            case InfluencerDetailedPromoStatusRequest.ongoing:
-                promos = await this.getOngoingPromos({
-                    limit: data.limit,
-                    page: data.page,
-                    influencerId: data.influencerId
-                });
-                break;
-            case InfluencerDetailedPromoStatusRequest.close:
-                promos = await this.getCompletedPromos({
-                    limit: data.limit,
-                    page: data.page,
-                    influencerId: data.influencerId
-                });
-                break;
-            default:
-                throw new Error('Unsupported promo status')
-        }
+        const handlers = {
+            [InfluencerDetailedPromoStatusRequest.new]: () => this.getNewPromos({
+                limit: data.limit,
+                page: data.page,
+                influencerId: data.influencerId,
+            }),
+            [InfluencerDetailedPromoStatusRequest.ongoing]: () => this.getOngoingPromos({
+                limit: data.limit,
+                page: data.page,
+                influencerId: data.influencerId,
+            }),
+            [InfluencerDetailedPromoStatusRequest.close]: () => this.getCompletedPromos({
+                limit: data.limit,
+                page: data.page,
+                influencerId: data.influencerId,
+            }),
+        };
 
-        return promos;
+        const handler = handlers[status];
+        if (!handler) throw new Error('Unsupported promo status');
+        return handler();
     }
 
     // orchestrator for getting one detailed promo with specific type (ongoing, completed, etc.)
@@ -90,6 +90,8 @@ export class PromosService {
         const {status, campaignId, addedAccountsId, influencerId} = data;
 
         switch (status) {
+            case InfluencerDetailedPromoStatusRequest.new:
+                break;
             case InfluencerDetailedPromoStatusRequest.ongoing:
                 return await this.getOngoingPromo(influencerId, campaignId, addedAccountsId);
             case InfluencerDetailedPromoStatusRequest.close:
@@ -103,21 +105,111 @@ export class PromosService {
     /// -------------- UTILS ------------------
 
 
-    // helper for creating pipeline for influencerGetDashboardPromos
-    private buildInfluencerDashboardPipelineCore(influencerId: string): PipelineStage[] {
-        const influencerObjectId = new Types.ObjectId(influencerId);
-
+    // for DESC sorting promos
+    private buildPromoSortPage(skip: number, limit: number) {
         return [
-            {$match: {verifyCampaign: 'accept'}},
-
-            {$match: {'addedAccounts.influencerId': influencerObjectId}},
-
-            {$unwind: '$addedAccounts'},
-
-            {$match: {'addedAccounts.influencerId': influencerObjectId}},
-
-            {$match: {'addedAccounts.isDeleted': {$ne: true}}},
+            { $sort: { 'addedAccounts.updatedAt': -1, createdAt: -1 } },
+            { $skip: skip },
+            { $limit: limit },
         ];
+    }
+
+    // for DESC sorting campaigns
+    private buildCampaignSortPage(skip: number, limit: number) {
+        return [{ $sort: { createdAt: -1 } }, { $skip: skip }, { $limit: limit }];
+    }
+
+    // for searching campaign creator (clientId || userId)
+    private buildClientJoin() {
+        return [
+            { $addFields: { _effectiveClientId: { $ifNull: ['$clientId', '$userId'] } } },
+            {
+                $lookup: {
+                    from: 'clients',
+                    localField: '_effectiveClientId',
+                    foreignField: '_id',
+                    as: 'client',
+                },
+            },
+            { $unwind: { path: '$client', preserveNullAndEmptyArrays: true } },
+        ];
+    }
+
+    // for getting campaign content
+    private buildCampaignContentComputed() {
+        return [
+            {
+                $set: {
+                    _contentItem: {
+                        $arrayElemAt: [
+                            {
+                                $filter: {
+                                    input: { $ifNull: ['$campaignContent', []] },
+                                    as: 'c',
+                                    cond: {
+                                        $eq: ['$$c._id', '$addedAccounts.selectedContent.campaignContentItemId'],
+                                    },
+                                },
+                            },
+                            0,
+                        ],
+                    },
+                },
+            },
+            {
+                $set: {
+                    _descObj: {
+                        $arrayElemAt: [
+                            {
+                                $filter: {
+                                    input: { $ifNull: ['$_contentItem.descriptions', []] },
+                                    as: 'd',
+                                    cond: { $eq: ['$$d._id', '$addedAccounts.selectedContent.descriptionId'] },
+                                },
+                            },
+                            0,
+                        ],
+                    },
+                },
+            },
+        ];
+    }
+
+    // for getting client company / firstName
+    private buildClientNameProjection(defaultValue: string) {
+        return {
+            $ifNull: [
+                {
+                    $cond: {
+                        if: {
+                            $and: [{ $ne: ['$client.company', null] }, { $ne: ['$client.company', ''] }],
+                        },
+                        then: '$client.company',
+                        else: '$client.firstName',
+                    },
+                },
+                defaultValue,
+            ],
+        };
+    }
+
+    // for searching promos with filters
+    private buildPromoBase(influencerId: Types.ObjectId) {
+        return [
+            { $match: { 'addedAccounts.influencerId': influencerId } },
+            { $unwind: '$addedAccounts' },
+            { $match: { 'addedAccounts.influencerId': influencerId } },
+        ];
+    }
+
+    // formatting createdAt field (DD.MM.YYYY)
+    private buildCreatedAtProjection() {
+        return {
+            $concat: [
+                { $dateToString: { date: '$createdAt', format: '%d.%m.' } },
+                { $substr: [{ $dateToString: { date: '$createdAt', format: '%Y' } }, 2, 2] },
+            ],
+        };
     }
 
     private buildStatusStages(status: InfluencerDashboardPromoStatusRequest): PipelineStage[] {
@@ -161,139 +253,96 @@ export class PromosService {
 
 
     // [NEW REQUEST] Gets new promo requests for influencer (find by influencerId) [GET MANY]
-    async getNewPromos(influencerId: string): Promise<InfluencerNewPromoRequest[]> {
+    async getNewPromos(data: { limit: number; page: number; influencerId: string; }): Promise<InfluencerNewPromoRequest[]> {
+        const influencerId = data.influencerId;
+
+        const limit = Number(data.limit ?? 12);
+        const page = Number(data.page ?? 1);
+
+        if (!Number.isInteger(limit) || limit <= 0) {
+            throw new BadRequestException('Invalid limit');
+        }
+        if (!Number.isInteger(page) || page <= 0) {
+            throw new BadRequestException('Invalid page');
+        }
+
+        const skip = (page - 1) * limit;
+
         if (!influencerId) throw new BadRequestException('Not enough arguments');
 
-        const checkInfluencer = await (async () => {
-            const influencer = await this.influencerRepo.findOne({
-                _id: new Types.ObjectId(influencerId),
-            });
+        const influencerExists = await this.influencerRepo.exists({
+            _id: new Types.ObjectId(influencerId),
+        });
+        if (!influencerExists) throw new NotFoundException('Influencer not found');
 
-            if (influencer) {
-                return influencer;
-            }
-        })();
+        const influencerObjectId = new Types.ObjectId(influencerId);
 
-        if (!checkInfluencer) throw new NotFoundException('Influencer not found');
+        const pipeline: PipelineStage[] = [
+                ...this.buildPromoBase(influencerObjectId),
 
-        const promos = await this.campaignRepo
-            .findMany({
-                addedAccounts: {
-                    $elemMatch: {
-                        influencerId: new Types.ObjectId(influencerId),
-                        confirmation: InfluencerConfirmationStatusEnum.wait
+                {
+                    $match: {
+                        verifyCampaign: CampaignConfirmationEnum.accept,
+                        'addedAccounts.confirmation': InfluencerConfirmationStatusEnum.wait,
+                        'addedAccounts.selectedContent.campaignContentItemId': { $exists: true, $ne: null },
                     },
                 },
-                verifyCampaign: CampaignConfirmationEnum.accept,
-            }, {lean: true});
 
-        if (!promos) return [];
+                ...this.buildClientJoin(),
 
-        const allSocialMediaAccounts = promos
-            .flatMap((item) => {
-                try {
-                    return item.addedAccounts.flatMap(
-                        (acc): (InfluencerNewPromoRequest & { userId: string })[] => {
-                            try {
-                                if (
-                                    acc.confirmation !== InfluencerConfirmationStatusEnum.wait ||
-                                    acc.influencerId.toString() !== influencerId
-                                )
-                                    return [];
+                ...this.buildCampaignContentComputed(),
 
-                                const {addedAccounts, ...newObject} = item;
-                                const {_id, ...newObjectSocialMediaAccount} = acc;
+                ...this.buildPromoSortPage(skip, limit),
 
-                                if (acc.selectedContent?.campaignContentItemId) {
-                                    const selectedCampaignContentItem =
-                                        item.campaignContent.find(
-                                            (contentItem) =>
-                                                contentItem._id.toString() ===
-                                                acc.selectedContent?.campaignContentItemId.toString(),
-                                        );
+                {
+                    $project: {
+                        _id: 0,
 
-                                    const postDescription =
-                                        selectedCampaignContentItem?.descriptions?.find(
-                                            (pd) =>
-                                                pd._id.toString() ===
-                                                acc.selectedContent?.descriptionId?.toString(),
-                                        )?.description ?? "";
+                        campaignId: { $toString: '$_id' },
+                        influencerId: { $toString: '$addedAccounts.influencerId' },
+                        addedAccountsId: { $toString: '$addedAccounts._id' },
 
-                                    return [
-                                        {
-                                            campaignId: newObject._id.toString(),
-                                            influencerId:
-                                                newObjectSocialMediaAccount.influencerId.toString(),
-                                            addedAccountsId: acc._id.toString(),
-                                            campaignName: newObject.campaignName,
-                                            username:
-                                                newObjectSocialMediaAccount.username ??
-                                                (newObjectSocialMediaAccount as any)
-                                                    .socialMediaUsername ??
-                                                (newObjectSocialMediaAccount as any)
-                                                    .instagramUsername,
-                                            accountSocialMedia:
-                                                acc.socialMedia as SocialMediaType,
-                                            dateRequest:
-                                            newObjectSocialMediaAccount.dateRequest,
-                                            createdAt: formatDate(newObject.createdAt),
-                                            mainLink:
-                                                selectedCampaignContentItem?.mainLink ?? "",
-                                            description: postDescription,
-                                            taggedUser:
-                                            selectedCampaignContentItem?.taggedUser,
-                                            taggedLink:
-                                            selectedCampaignContentItem?.taggedLink,
-                                            additionalBrief:
-                                            selectedCampaignContentItem?.additionalBrief,
-                                            userId:
-                                                newObject.clientId ||
-                                                (newObject as any).userId,
-                                            clientName: undefined,
-                                        },
-                                    ];
-                                }
+                        campaignName: '$campaignName',
 
-                                return [];
-                            } catch (accError) {
-                                console.error(
-                                    `Error processing account ${acc?._id}`,
-                                    accError,
-                                );
-                                return [];
-                            }
+                        username: {
+                            $ifNull: [
+                                '$addedAccounts.username',
+                                {
+                                    $ifNull: [
+                                        '$addedAccounts.socialMediaUsername',
+                                        '$addedAccounts.instagramUsername',
+                                    ],
+                                },
+                            ],
                         },
-                    );
-                } catch (itemError) {
-                    console.error(
-                        `Error processing promo ${item?._id}`,
-                        itemError,
-                    );
-                    return [];
-                }
-            })
-            .filter(Boolean);
 
-        const filteredByInfluencerId = allSocialMediaAccounts.filter(x => x.influencerId === influencerId);
+                        accountSocialMedia: '$addedAccounts.socialMedia',
 
-        const promosWithClientName: InfluencerNewPromoRequest[] = await Promise.all(
-            filteredByInfluencerId.map(async (item) => {
-                const client = await this.clientRepo.findById(
-                    (item as any).clientId || (item as any).userId,
-                );
-                const clientName = client.company || client.firstName || 'No information';
+                        dateRequest: { $ifNull: ['$addedAccounts.dateRequest', null] },
 
-                return {
-                    ...item,
-                    clientName: clientName,
-                };
-            }),
-        );
+                        createdAt: this.buildCreatedAtProjection(),
 
-        return promosWithClientName.flat().sort(
-            (a, b) =>
-                new Date((b as any).createdAt).getTime() - new Date((a as any).createdAt).getTime())
-    };
+                        mainLink: { $ifNull: ['$_contentItem.mainLink', ''] },
+                        description: { $ifNull: ['$_descObj.description', ''] },
+
+                        taggedUser: { $ifNull: ['$_contentItem.taggedUser', null] },
+                        taggedLink: { $ifNull: ['$_contentItem.taggedLink', null] },
+                        additionalBrief: { $ifNull: ['$_contentItem.additionalBrief', null] },
+
+                        userId: { $toString: { $ifNull: ['$clientId', '$userId'] } },
+
+                        clientName: this.buildClientNameProjection('No information'),
+                    },
+                },
+            ] as PipelineStage[];
+
+        return this.campaignRepo
+            .aggregate<InfluencerNewPromoRequest>(
+                pipeline,
+                { allowDiskUse: true },
+            )
+            .exec();
+    }
 
 
     // [NEW REQUEST] Updates confirmation status for new promo request [UPDATE ONE]
@@ -461,7 +510,19 @@ export class PromosService {
             throw new NotFoundException('Influencer not found');
         }
 
-        const base = this.buildInfluencerDashboardPipelineCore(influencerId);
+        const influencerObjectId = new Types.ObjectId(influencerId);
+
+        const base = [
+            {$match: {verifyCampaign: 'accept'}},
+
+            {$match: {'addedAccounts.influencerId': influencerObjectId}},
+
+            {$unwind: '$addedAccounts'},
+
+            {$match: {'addedAccounts.influencerId': influencerObjectId}},
+
+            {$match: {'addedAccounts.isDeleted': {$ne: true}}},
+        ];
 
         const includeCompleted =
             status === InfluencerDashboardPromoStatusRequest.close ||
@@ -535,11 +596,7 @@ export class PromosService {
     }
 
     // [COMPLETED] Returns influencer's detailed completed promos [GET MANY]
-    async getCompletedPromos(data: {
-        limit: number;
-        page: number;
-        influencerId: string;
-    }): Promise<InfluencerCompletedPromo[]> {
+    async getCompletedPromos(data: { limit: number; page: number; influencerId: string; }): Promise<InfluencerCompletedPromo[]> {
         const influencerId = data.influencerId;
 
         const limit = Number(data.limit ?? 12);
@@ -564,33 +621,13 @@ export class PromosService {
         const influencerObjectId = new Types.ObjectId(influencerId);
 
         const base: any[] = [
-            {$match: {'addedAccounts.influencerId': influencerObjectId}},
-            {
-                $unwind: {
-                    path: '$addedAccounts',
-                    preserveNullAndEmptyArrays: false,
-                },
-            },
+            ...this.buildPromoBase(influencerObjectId),
             {
                 $match: {
-                    'addedAccounts.influencerId': influencerObjectId,
                     'addedAccounts.closePromo': 'close',
                 },
             },
-            {
-                $lookup: {
-                    from: 'clients',
-                    localField: 'clientId',
-                    foreignField: '_id',
-                    as: 'client',
-                },
-            },
-            {
-                $unwind: {
-                    path: '$client',
-                    preserveNullAndEmptyArrays: true,
-                },
-            },
+            ...this.buildClientJoin(),
         ];
 
         const completedCollName =
@@ -598,63 +635,34 @@ export class PromosService {
             (this.completedCampaignRepo as any)?.model?.collection?.name ??
             'completedcampaigns';
 
-        const pipeline: any[] = [
+        const pipeline: PipelineStage[] = [
             ...base,
+            { $unionWith: { coll: completedCollName, pipeline: base } },
 
-            {
-                $unionWith: {
-                    coll: completedCollName,
-                    pipeline: base,
-                },
-            },
-
-            {$sort: {createdAt: -1}},
-            {$skip: skip},
-            {$limit: limit},
+            ...this.buildCampaignSortPage(skip, limit),
 
             {
                 $project: {
                     _id: 0,
-                    campaignId: {$toString: '$_id'},
-                    addedAccountsId: {$toString: '$addedAccounts._id'},
-                    campaignName: '$campaignName',
+                    campaignId: { $toString: '$_id' },
+                    addedAccountsId: { $toString: '$addedAccounts._id' },
 
+                    campaignName: '$campaignName',
                     username: '$addedAccounts.username',
                     accountSocialMedia: '$addedAccounts.socialMedia',
-                    reward: {$toDouble: '$addedAccounts.price'},
+
+                    reward: { $toDouble: '$addedAccounts.price' },
                     postLink: '$addedAccounts.postLink',
 
-                    clientName: {
-                        $cond: {
-                            if: {
-                                $and: [
-                                    {$ne: ['$client.company', null]},
-                                    {$ne: ['$client.company', '']},
-                                ],
-                            },
-                            then: '$client.company',
-                            else: '$client.firstName',
-                        },
-                    },
+                    clientName: this.buildClientNameProjection('Unknown'),
 
-                    createdAt: {
-                        $concat: [
-                            {$dateToString: {date: '$createdAt', format: '%d.%m.'}},
-                            {
-                                $substr: [
-                                    {$dateToString: {date: '$createdAt', format: '%Y'}},
-                                    2,
-                                    2,
-                                ],
-                            },
-                        ],
-                    },
+                    createdAt: this.buildCreatedAtProjection(),
                 },
             },
-        ];
+        ] as PipelineStage[];
 
         return this.campaignRepo
-            .aggregate<InfluencerCompletedPromo>(pipeline, {allowDiskUse: true})
+            .aggregate<InfluencerCompletedPromo>(pipeline, { allowDiskUse: true })
             .exec();
     }
 
@@ -744,11 +752,7 @@ export class PromosService {
 
 
     // [ONGOING] Returns influencer's detailed completed promos [GET MANY]
-    async getOngoingPromos(data: {
-        limit: number,
-        page: number,
-        influencerId: string
-    }): Promise<InfluencerOngoingPromo[]> {
+    async getOngoingPromos(data: { limit: number; page: number; influencerId: string; }): Promise<InfluencerOngoingPromo[]> {
         const influencerId = data.influencerId;
 
         const limit = Number(data.limit ?? 12);
@@ -757,224 +761,71 @@ export class PromosService {
         if (!Number.isInteger(limit) || limit <= 0) {
             throw new BadRequestException('Invalid limit');
         }
-
         if (!Number.isInteger(page) || page <= 0) {
             throw new BadRequestException('Invalid page');
         }
 
-        const skip = (data.page - 1) * limit;
+        const skip = (page - 1) * limit;
 
         const influencerExists = await this.influencerRepo.exists({
             _id: new Types.ObjectId(influencerId),
         });
-
         if (!influencerExists) {
             throw new NotFoundException('Influencer not found');
         }
 
-        return await this.campaignRepo.aggregate<InfluencerOngoingPromo>([
-            {$match: {'addedAccounts.influencerId': new Types.ObjectId(influencerId)}},
-            {$unwind: '$addedAccounts'},
+        const influencerObjectId = new Types.ObjectId(influencerId);
+
+        const pipeline: PipelineStage[] = [
+            ...this.buildPromoBase(influencerObjectId),
+
             {
                 $match: {
-                    'addedAccounts.influencerId': new Types.ObjectId(influencerId),
                     'addedAccounts.confirmation': 'accept',
                     'addedAccounts.closePromo': 'wait',
                 },
             },
-            {
-                $lookup: {
-                    from: 'clients',
-                    localField: 'clientId',
-                    foreignField: '_id',
-                    as: 'client',
-                },
-            },
-            {$unwind: {path: '$client', preserveNullAndEmptyArrays: true}},
-            {$sort: {createdAt: -1}},
-            {$skip: skip},
-            {$limit: limit},
+
+            ...this.buildClientJoin(),
+
+            ...this.buildCampaignContentComputed(),
+
+            ...this.buildPromoSortPage(skip, limit),
+
             {
                 $project: {
                     _id: 0,
-                    campaignId: {$toString: '$_id'},
-                    addedAccountsId: {$toString: '$addedAccounts._id'},
+                    campaignId: { $toString: '$_id' },
+                    addedAccountsId: { $toString: '$addedAccounts._id' },
 
                     campaignName: '$campaignName',
                     username: '$addedAccounts.username',
 
                     accountSocialMedia: '$addedAccounts.socialMedia',
 
-                    // todo: price always 0
                     reward: '$addedAccounts.price',
+                    postLink: { $ifNull: ['$addedAccounts.postLink', null] },
+                    dateRequest: { $ifNull: ['$addedAccounts.dateRequest', null] },
 
-                    postLink: {$ifNull: ['$addedAccounts.postLink', null]},
+                    mainLink: { $ifNull: ['$_contentItem.mainLink', null] },
+                    description: { $ifNull: ['$_descObj.description', null] },
+                    taggedUser: { $ifNull: ['$_contentItem.taggedUser', null] },
+                    taggedLink: { $ifNull: ['$_contentItem.taggedLink', null] },
+                    additionalBrief: { $ifNull: ['$_contentItem.additionalBrief', null] },
 
-                    dateRequest: {$ifNull: ['$addedAccounts.dateRequest', null]},
+                    clientName: this.buildClientNameProjection('Unknown'),
 
-                    mainLink: {
-                        $let: {
-                            vars: {
-                                contentItem: {
-                                    $arrayElemAt: [
-                                        {
-                                            $filter: {
-                                                input: {$ifNull: ['$campaignContent', []]},
-                                                as: 'c',
-                                                cond: {
-                                                    $eq: ['$$c._id', '$addedAccounts.selectedContent.campaignContentItemId'],
-                                                },
-                                            },
-                                        },
-                                        0,
-                                    ],
-                                },
-                            },
-                            in: {$ifNull: ['$$contentItem.mainLink', null]},
-                        },
-                    },
-
-                    description: {
-                        $let: {
-                            vars: {
-                                contentItem: {
-                                    $arrayElemAt: [
-                                        {
-                                            $filter: {
-                                                input: {$ifNull: ['$campaignContent', []]},
-                                                as: 'c',
-                                                cond: {
-                                                    $eq: ['$$c._id', '$addedAccounts.selectedContent.campaignContentItemId'],
-                                                },
-                                            },
-                                        },
-                                        0,
-                                    ],
-                                },
-                            },
-                            in: {
-                                $let: {
-                                    vars: {
-                                        descObj: {
-                                            $arrayElemAt: [
-                                                {
-                                                    $filter: {
-                                                        input: {$ifNull: ['$$contentItem.descriptions', []]},
-                                                        as: 'd',
-                                                        cond: {
-                                                            $eq: ['$$d._id', '$addedAccounts.selectedContent.descriptionId'],
-                                                        },
-                                                    },
-                                                },
-                                                0,
-                                            ],
-                                        },
-                                    },
-                                    in: {$ifNull: ['$$descObj.description', null]},
-                                },
-                            },
-                        },
-                    },
-
-                    taggedUser: {
-                        $let: {
-                            vars: {
-                                contentItem: {
-                                    $arrayElemAt: [
-                                        {
-                                            $filter: {
-                                                input: {$ifNull: ['$campaignContent', []]},
-                                                as: 'c',
-                                                cond: {
-                                                    $eq: ['$$c._id', '$addedAccounts.selectedContent.campaignContentItemId'],
-                                                },
-                                            },
-                                        },
-                                        0,
-                                    ],
-                                },
-                            },
-                            in: {$ifNull: ['$$contentItem.taggedUser', null]},
-                        },
-                    },
-
-                    taggedLink: {
-                        $let: {
-                            vars: {
-                                contentItem: {
-                                    $arrayElemAt: [
-                                        {
-                                            $filter: {
-                                                input: {$ifNull: ['$campaignContent', []]},
-                                                as: 'c',
-                                                cond: {
-                                                    $eq: ['$$c._id', '$addedAccounts.selectedContent.campaignContentItemId'],
-                                                },
-                                            },
-                                        },
-                                        0,
-                                    ],
-                                },
-                            },
-                            in: {$ifNull: ['$$contentItem.taggedLink', null]},
-                        },
-                    },
-
-                    additionalBrief: {
-                        $let: {
-                            vars: {
-                                contentItem: {
-                                    $arrayElemAt: [
-                                        {
-                                            $filter: {
-                                                input: {$ifNull: ['$campaignContent', []]},
-                                                as: 'c',
-                                                cond: {
-                                                    $eq: ['$$c._id', '$addedAccounts.selectedContent.campaignContentItemId'],
-                                                },
-                                            },
-                                        },
-                                        0,
-                                    ],
-                                },
-                            },
-                            in: {$ifNull: ['$$contentItem.additionalBrief', null]},
-                        },
-                    },
-
-                    clientName: {
-                        $ifNull: [
-                            {
-                                $cond: {
-                                    if: {
-                                        $and: [
-                                            {$ne: ['$client.company', null]},
-                                            {$ne: ['$client.company', '']},
-                                        ],
-                                    },
-                                    then: '$client.company',
-                                    else: '$client.firstName',
-                                },
-                            },
-                            'Unknown',
-                        ],
-                    },
-
-                    createdAt: {
-                        $concat: [
-                            {$dateToString: {date: '$createdAt', format: '%d.%m.'}},
-                            {
-                                $substr: [
-                                    {$dateToString: {date: '$createdAt', format: '%Y'}},
-                                    2,
-                                    2,
-                                ],
-                            },
-                        ],
-                    },
+                    createdAt: this.buildCreatedAtProjection(),
                 },
-            },
-        ]).exec();
+            }
+        ] as PipelineStage[];
+
+        return this.campaignRepo
+            .aggregate<InfluencerOngoingPromo>(
+                pipeline,
+                { allowDiskUse: true },
+            )
+            .exec();
     }
 
 

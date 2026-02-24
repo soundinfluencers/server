@@ -26,6 +26,7 @@ export enum InfluencerDashboardPromoStatusRequest {
 
 // enum of statuses for filtering influencer detailed promos
 export enum InfluencerDetailedPromoStatusRequest {
+    new = 'new',
     ongoing = 'ongoing',
     close = 'close',
 }

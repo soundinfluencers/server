@@ -55,7 +55,10 @@ class InfluencerPromoBaseDto implements InfluencerPromoBase {
 }
 
 // type for returning detailed promo with specific type
-export type InfluencerDetailedPromo = | InfluencerOngoingPromoDto | InfluencerCompletedPromoDto;
+export type InfluencerDetailedPromo =
+    | InfluencerNewPromoRequestDto
+    | InfluencerOngoingPromoDto
+    | InfluencerCompletedPromoDto;
 
 
 //  --------------- REQUESTS ------------------
@@ -310,12 +313,6 @@ export class InfluencerNewPromoRequestDto extends InfluencerPromoBaseDto impleme
     additionalBrief?: string;
 }
 
-// dto for returning an array of new promos requests
-export class InfluencerNewPromoRequestsDto {
-    @ApiProperty({type: () => [InfluencerNewPromoRequestDto]})
-    promos: InfluencerNewPromoRequest[];
-}
-
 // dto for returning dashboard promo
 export class InfluencerDashboardPromoDto extends InfluencerPromoBaseDto implements InfluencerDashboardPromo {
     @ApiProperty({type: Number})
@@ -395,8 +392,9 @@ export class InfluencerOngoingPromoDto extends InfluencerPromoBaseDto implements
 export class InfluencerDetailedPromosDto {
     @ApiProperty({
         oneOf: [
+            {$ref: getSchemaPath(InfluencerNewPromoRequestDto)},
             {$ref: getSchemaPath(InfluencerOngoingPromoDto)},
-            {$ref: getSchemaPath(InfluencerCompletedPromoDto)},
+            {$ref: getSchemaPath(InfluencerCompletedPromoDto)}
         ],
         isArray: true,
     })
