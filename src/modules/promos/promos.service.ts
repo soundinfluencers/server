@@ -358,12 +358,16 @@ export class PromosService {
             throw new NotFoundException('Influencer not found');
         }
 
+        const elem = {
+            _id: new Types.ObjectId(addedAccountsId),
+            confirmation: InfluencerConfirmationStatusEnum.wait,
+            closePromo: InfluencerPromoClosedStatusEnum.wait,
+        };
+
         const campaign = await this.campaignRepo.findOne(
             {
                 _id: new ObjId(campaignId),
-                'addedAccounts._id': new ObjId(addedAccountsId),
-                'addedAccounts.confirmation': InfluencerConfirmationStatusEnum.wait,
-                'addedAccounts.closePromo': InfluencerPromoClosedStatusEnum.wait
+                addedAccounts: { $elemMatch: elem },
             }, {lean: true}
         );
         if (!campaign) {
@@ -771,20 +775,30 @@ export class PromosService {
         const influencer = await this.influencerRepo.findById(influencerId);
         if (!influencer) throw new NotFoundException('Influencer not found')
 
-        let campaign: Campaign | CompletedCampaign = await this.completedCampaignRepo.findOne(
-            {
-                _id: new Types.ObjectId(campaignId),
-                'addedAccounts._id': new Types.ObjectId(addedAccountsId),
-                'addedAccounts.confirmation': 'accept',
-                'addedAccounts.closePromo': 'close'
-            }, {lean: true});
-        if (!campaign) campaign = await this.campaignRepo.findOne(
-            {
-                _id: new Types.ObjectId(campaignId),
-                'addedAccounts._id': new Types.ObjectId(addedAccountsId),
-                'addedAccounts.confirmation': 'accept',
-                'addedAccounts.closePromo': 'close'
-            }, {lean: true});
+        const elem = {
+            _id: new Types.ObjectId(addedAccountsId),
+            confirmation: InfluencerConfirmationStatusEnum.accept,
+            closePromo: InfluencerPromoClosedStatusEnum.close,
+        };
+
+        let campaign: Campaign | CompletedCampaign =
+            await this.completedCampaignRepo.findOne(
+                {
+                    _id: new Types.ObjectId(campaignId),
+                    addedAccounts: { $elemMatch: elem },
+                },
+                { lean: true },
+            );
+
+        if (!campaign) {
+            campaign = await this.campaignRepo.findOne(
+                {
+                    _id: new Types.ObjectId(campaignId),
+                    addedAccounts: { $elemMatch: elem },
+                },
+                { lean: true },
+            );
+        }
 
         if (!campaign) throw new NotFoundException('Campaign not found');
 
@@ -793,6 +807,8 @@ export class PromosService {
         if (!client) throw new NotFoundException('Client not found');
 
         const selectedAccount = campaign.addedAccounts.find((influencerItem) => influencerItem._id.toString() === addedAccountsId);
+
+        console.log(selectedAccount);
 
         if (!selectedAccount) throw new NotFoundException(`Influencer's social account not found in this campaign`);
 
@@ -853,7 +869,7 @@ export class PromosService {
             postLink: selectedAccount.postLink,
             reward: selectedAccount.price,
             clientName: client?.company || client?.firstName || 'No information',
-            accountSocialMedia: campaign.socialMedia as SocialMediaType,
+            accountSocialMedia: selectedAccount.socialMedia as SocialMediaType,
         };
     }
 
@@ -951,12 +967,16 @@ export class PromosService {
             throw new NotFoundException('Influencer not found');
         }
 
+        const elem = {
+            _id: new Types.ObjectId(addedAccountsId),
+            confirmation: InfluencerConfirmationStatusEnum.accept,
+            closePromo: InfluencerPromoClosedStatusEnum.wait,
+        };
+
         const campaign = await this.campaignRepo.findOne(
             {
                 _id: new ObjId(campaignId),
-                'addedAccounts._id': new ObjId(addedAccountsId),
-                'addedAccounts.closePromo': InfluencerPromoClosedStatusEnum.wait,
-                'addedAccounts.confirmation': InfluencerConfirmationStatusEnum.accept,
+                addedAccounts: { $elemMatch: elem }
             }, {lean: true}
         );
         if (!campaign) {
