@@ -167,8 +167,6 @@ export class InfluencerActionsHistoryService {
 
         const influencerIdObj = new Types.ObjectId(data.influencerId);
 
-        // 1) Берём последнее действие по каждому промо
-        // Важно: пагинация ПОСЛЕ group, иначе ты пагинируешь actions, а не promos.
         const rawLatestByPromo = await this.influencerHistoryRepo.aggregate([
             { $match: { influencerId: influencerIdObj } },
 
@@ -185,7 +183,6 @@ export class InfluencerActionsHistoryService {
                         ],
                     },
 
-                    // socialAccountId может быть string/objectId/null
                     socialAccountIdObj: {
                         $cond: [
                             { $eq: [{ $type: '$campaigns.actions.socialAccountId' }, 'objectId'] },
@@ -202,8 +199,6 @@ export class InfluencerActionsHistoryService {
                 },
             },
 
-            // Нам нужно уметь вычислить addedAccountsId, если в истории его нет.
-            // Это можно сделать только через openCampaign (в completedcampaigns он тоже есть, но чаще нужнее open).
             {
                 $lookup: {
                     from: 'campaigns',
@@ -226,13 +221,21 @@ export class InfluencerActionsHistoryService {
 
             {
                 $addFields: {
+                    accountsFromCampaign: {
+                        $ifNull: ['$openCampaign.addedAccounts', { $ifNull: ['$closedCampaign.addedAccounts', []] }],
+                    },
+                },
+            },
+
+            {
+                $addFields: {
                     promoFromCampaign: {
                         $let: {
                             vars: {
                                 byAccountId: {
                                     $first: {
                                         $filter: {
-                                            input: { $ifNull: ['$openCampaign.addedAccounts', []] },
+                                            input: '$accountsFromCampaign',
                                             as: 'acc',
                                             cond: {
                                                 $and: [
@@ -247,7 +250,7 @@ export class InfluencerActionsHistoryService {
                                 byUsername: {
                                     $first: {
                                         $filter: {
-                                            input: { $ifNull: ['$openCampaign.addedAccounts', []] },
+                                            input: '$accountsFromCampaign',
                                             as: 'acc',
                                             cond: {
                                                 $and: [
@@ -267,10 +270,23 @@ export class InfluencerActionsHistoryService {
 
             {
                 $addFields: {
+                    actionPromoIdObj: {
+                        $cond: [
+                            { $eq: [{ $type: '$campaigns.actions.addedAccountsId' }, 'objectId'] },
+                            '$campaigns.actions.addedAccountsId',
+                            {
+                                $cond: [
+                                    { $eq: [{ $type: '$campaigns.actions.addedAccountsId' }, 'string'] },
+                                    { $toObjectId: '$campaigns.actions.addedAccountsId' },
+                                    null,
+                                ],
+                            },
+                        ],
+                    },
                     resolvedAddedAccountsId: {
                         $let: {
                             vars: {
-                                actionPromoId: '$campaigns.actions.addedAccountsId',
+                                actionPromoId: '$actionPromoIdObj',
                                 campaignPromoId: '$promoFromCampaign._id',
                             },
                             in: {
@@ -291,10 +307,8 @@ export class InfluencerActionsHistoryService {
                 },
             },
 
-            // Если не смогли резолвнуть промо — выкидываем (иначе group по null склеит всё в один элемент)
             { $match: { resolvedAddedAccountsId: { $ne: null } } },
 
-            // Сортируем по дате действия, чтобы $first в group был "последний"
             { $sort: { 'campaigns.actions.date': -1 } },
 
             {
@@ -313,7 +327,10 @@ export class InfluencerActionsHistoryService {
                 },
             },
 
-            // теперь пагинация по промо
+            {
+                $sort: { 'lastAction.date': -1, _id: 1 }
+            },
+
             { $skip: skip },
             { $limit: limit },
 
@@ -334,7 +351,6 @@ export class InfluencerActionsHistoryService {
                     date: '$lastAction.date',
                     currentBalance: '$lastAction.currentBalance',
 
-                    // если нужно — можно вернуть isStillInCampaign из истории, но "актуальность" будем брать из кампании
                     isStillInCampaignFromHistory: '$lastAction.isStillInCampaign',
                 },
             },
@@ -342,16 +358,13 @@ export class InfluencerActionsHistoryService {
 
         if (!rawLatestByPromo.length) return [];
 
-        // 2) Батчем подтягиваем кампании: сначала open, затем закрытые для тех, кого нет в open.
         const campaignIds: Types.ObjectId[] = rawLatestByPromo
             .map((x: any) => x.campaignIdObj)
             .filter(Boolean);
 
-        // дедуп
         const campaignIdStrSet = new Set(campaignIds.map(id => String(id)));
         const uniqueCampaignIds = Array.from(campaignIdStrSet).map(id => new Types.ObjectId(id));
 
-        // ВАЖНО: берём минимум полей, чтобы не тянуть тяжелый campaignContent и т.п.
         const [openCampaigns, closedCampaigns] = await Promise.all([
             this.campaignRepo.findMany(
                 { _id: { $in: uniqueCampaignIds } },
@@ -373,25 +386,16 @@ export class InfluencerActionsHistoryService {
         const openMap = new Map<string, any>(openCampaigns.map(c => [String(c._id), c]));
         const closedMap = new Map<string, any>(closedCampaigns.map(c => [String(c._id), c]));
 
-        // 3) Мерджим: актуальный статус из кампании, даты/баланс/last action — из истории
         const history: HistoryCampaignItemForProcessedHistory[] = rawLatestByPromo.map((item: any) => {
             const campaignIdKey = String(item.campaignIdObj);
 
-            // промо может быть завершено, но кампания ещё ongoing -> сначала open
             const campaignDoc = openMap.get(campaignIdKey) ?? closedMap.get(campaignIdKey) ?? null;
 
-            // const promo =
-            //     campaignDoc?.addedAccounts?.find((a: any) => String(a._id) === String(item.addedAccountsId)) ??
-            //     null;
-
-            // актуальный статус — из promo (если нашли)
-            // Если promo не найден (редко, но возможно) — фолбэк на то, что есть в истории.
             const processed: any = {
                 addedAccountsId: item.addedAccountsId,
                 campaignId: item.campaignId,
                 campaignName: item.campaignName,
 
-                // social media: сперва то, что сейчас в кампании, если нет — из истории
                 campaignSocialMedia: campaignDoc?.socialMedia ?? item.campaignSocialMediaFromHistory,
 
                 socialAccountId: item.socialAccountId,
@@ -402,35 +406,6 @@ export class InfluencerActionsHistoryService {
 
                 statusLabel: HistoryCampaignActionStatusLabel[item.status as HistoryCampaignActionStatus],
             };
-
-            // сюда добавляй любые поля "актуального статуса промо", которые нужны фронту
-            // (confirmation/closePromo/adminChecked/postLink/datePost/и т.д.)
-            // if (promo) {
-            //     processed.promo = {
-            //         // пример:
-            //         confirmation: promo.confirmation,
-            //         closePromo: promo.closePromo,
-            //         adminChecked: promo.adminChecked,
-            //         rating: promo.rating,
-            //
-            //         dateRequest: promo.dateRequest,
-            //         datePost: promo.datePost,
-            //         postLink: promo.postLink,
-            //         screenshot: promo.screenshot,
-            //
-            //         // если нужно:
-            //         username: promo.username,
-            //         socialMedia: promo.socialMedia,
-            //         accountId: promo.accountId,
-            //     };
-
-                // если тебе нужно именно "актуальный isStillInCampaign" — бери из promo/кампании, если есть такое поле,
-                // иначе оставь из истории.
-                // processed.isStillInCampaign = promo.isStillInCampaign ?? item.isStillInCampaignFromHistory;
-            // } else {
-                // processed.promo = null;
-                // processed.isStillInCampaign = item.isStillInCampaignFromHistory;
-            // }
 
             return processed as HistoryCampaignItemForProcessedHistory;
         });
