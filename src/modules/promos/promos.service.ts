@@ -619,6 +619,8 @@ export class PromosService {
             {$match: {'addedAccounts.influencerId': influencerObjectId}},
 
             {$match: {'addedAccounts.isDeleted': {$ne: true}}},
+
+            {$match: {'addedAccounts.confirmation': {$ne: InfluencerConfirmationStatusEnum.decline}}},
         ];
 
         const includeCompleted =
