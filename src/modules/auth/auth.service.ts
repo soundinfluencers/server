@@ -186,7 +186,7 @@ export class AuthService {
                     _id: new Types.ObjectId(),
                     username: item.username,
                     profileLink: item.profileLink,
-                    followers: item.followers || 0,
+                    followers: item.followers ?? 0,
                     logoUrl: item.logoUrl,
                     price: sanitizedPrice,
                     publicPrice: publicPrice,
