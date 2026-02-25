@@ -16,7 +16,7 @@ export class Forgot {
     userRole: Role;
 
     @Prop({required: true, type: String})
-    code: string;
+    tokenHash: string;
 
     createdAt: Date;
 }

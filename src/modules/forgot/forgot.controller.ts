@@ -16,7 +16,7 @@ export class ForgotController {
     @ApiOperation({summary: 'Creates new reset password request'})
     @Post()
     createResetRequest(@Body() data: CreateNewForgotRequestDto) {
-        return this.forgotService.createResetPasswordRequest(data.email, data.role);
+        return this.forgotService.createResetPasswordRequest(data);
     }
 
     @Public()
@@ -24,6 +24,6 @@ export class ForgotController {
     @ApiOperation({summary: "Closes user's password request"})
     @Patch()
     closeResetRequest(@Body() data: CloseForgotRequestDto) {
-        return this.forgotService.closeResetPasswordRequest(data.email, data.role, data.code);
+        return this.forgotService.closeResetPasswordRequest(data);
     }
 }

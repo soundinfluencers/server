@@ -17,15 +17,12 @@ export class CreateNewForgotRequestDto {
 
 export class CloseForgotRequestDto {
     @ApiProperty({type: String, required: true})
-    @IsEmail()
-    email: string;
-
-    @ApiProperty({type: String, required: true})
-    @IsEnum(Role)
-    role: Role;
+    @IsString()
+    @IsNotEmpty()
+    token: string;
 
     @ApiProperty({type: String, required: true})
     @IsString()
     @IsNotEmpty()
-    code: string;
+    newPassword: string;
 }
