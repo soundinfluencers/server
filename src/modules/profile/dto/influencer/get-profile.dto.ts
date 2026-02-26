@@ -240,6 +240,9 @@ class AgreementAccountDto {
 
 // dto response for getting social accounts list that need influencer's agreement
 export class AgreementAccountsListDto {
+    @ApiProperty({enum: ['profileCreate', 'accountAdd']})
+    agreementType: 'profileCreate' | 'accountAdd';
+
     @ApiPropertyOptional({type: () => [AgreementAccountDto]})
     instagram?: AgreementAccountDto[];
 

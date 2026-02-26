@@ -665,12 +665,21 @@ export class ProfileService {
 
         if (!influencer) throw new NotFoundException('Influencer not found');
 
-        const result: Partial<AgreementAccountsListDto> = {};
+        const result: Partial<AgreementAccountsListDto> = {
+            agreementType: 'profileCreate'
+        };
 
         for (const key of Object.values(SocialMediaEnum) as SocialMediaEnum[]) {
             const accounts = (influencer as any)[key] as SocialAccount[] | undefined;
-
             if (!accounts?.length) continue;
+
+            if (result.agreementType === 'profileCreate') {
+                const hasAccepted = accounts?.some(acc => acc.agreementStatus === InfluencerConfirmationStatusEnum.accept);
+
+                if (hasAccepted) {
+                    result.agreementType = 'accountAdd';
+                }
+            }
 
             const filtered = accounts
                 .filter(
@@ -1170,6 +1179,7 @@ ${emailHtml}
             {
                 $match: {
                     'allAccounts.isVerified': true,
+                    'allAccounts.agreementStatus': InfluencerConfirmationStatusEnum.accept,
                     'allAccounts.isDeleted': {$ne: true},
                     'allAccounts.isHidden': {$ne: true},
                 },
@@ -1463,8 +1473,8 @@ ${emailHtml}
         return {
             filterArr: [
                 platformsBlock,
-                musicGenreBlock,
                 profileTypeBlock,
+                musicGenreBlock,
                 musicCategoriesBlock,
                 countriesBlock,
                 additionalTopicsBlock,
