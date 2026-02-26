@@ -1109,9 +1109,6 @@ ${emailHtml}
 
     // Returns filters for getting filtered social accounts (currently using at create campaign page)
     async getFilterOptions(): Promise<GetFilterOptionsDataDto> {
-        // ----------------------------
-        // 0) Константы/утилиты (внутри метода, как просил)
-        // ----------------------------
         const CANONICAL_ALLOWED_GENRES = [
             'Techno (Melodic, Minimal)',
             'Techno (Hard, Peak)',
@@ -1420,7 +1417,7 @@ ${emailHtml}
             id: 'profile-type',
             title: 'Profile Type',
             filters: (aggBase?.profileTypes ?? []).map(p => ({
-                id: cap(p.id), // UI label
+                id: cap(p.id)?.toLowerCase(), // UI label
                 group: 'profileType',
                 filterName: cap(p.id),
                 count: p.count,
