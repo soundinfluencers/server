@@ -10,6 +10,13 @@ export enum InfluencerProfileCategory {
     creator = 'creator'
 }
 
+export enum SocialAccountVerifiedStatus {
+    accept = 'accept',
+    decline = 'decline',
+    new = 'new',
+    priceChanged = 'priceChanged',
+}
+
 export interface SocialAccountForAccountDetails {
     accountId: string;
     username: string;

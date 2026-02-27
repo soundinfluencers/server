@@ -66,6 +66,7 @@ import {CampaignCsvExporter} from "../../common/utils/export/csv/campaign-csv.ex
 import {CampaignPdfExporter} from "../../common/utils/export/pdf/campaign-pdf.exporter";
 import {MediaService} from "../media/media.service";
 import {InvoiceService} from "../invoice/invoice.service";
+import {SocialAccountVerifiedStatus} from "../../common/types/influencer/influencer.types";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -247,7 +248,7 @@ export class CampaignsService {
             const acc = matched.acc;
 
             // meta validation
-            if (!acc.isVerified) {
+            if (acc.verifiedStatus !== SocialAccountVerifiedStatus.accept) {
                 invalid.push({index: idx, reason: "Account is not verified"});
                 continue;
             }

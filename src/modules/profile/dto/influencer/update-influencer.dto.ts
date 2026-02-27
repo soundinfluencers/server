@@ -110,15 +110,11 @@ export class UpdateSocialMediaAccountDto {
     @IsString()
     logoUrl?: string;
 
-    // @ApiPropertyOptional({ description: "Price", example: 50 })
-    // @IsOptional()
-    // @IsNumber()
-    // price?: number;
-    //
-    // @ApiPropertyOptional({ description: "Public price", example: 55 })
-    // @IsOptional()
-    // @IsNumber()
-    // publicPrice?: number;
+    @ApiPropertyOptional({ description: "Price", example: 50 })
+    @IsOptional()
+    @IsNumber()
+    @Type(() => Number)
+    price?: number;
 
     @ApiPropertyOptional({ description: "Engagement rate", example: 5.3 })
     @IsOptional()

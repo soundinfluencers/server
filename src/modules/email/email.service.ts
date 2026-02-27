@@ -18,6 +18,8 @@ import {
 import {CreateBespokeCampaignDto} from "../campaigns/dto/bespoke-request.dto";
 import {ForgotPasswordEmailDto, NewPasswordEmailDto} from "./dto/forgot-email.dto";
 import {buildForgotPasswordEmailTemplate, buildNewPasswordEmailTemplate} from "./templates/forgot-email.template";
+import {BuildChangePriceRequestTemplateDto} from "./dto/profile-email.dto";
+import {buildPriceChangeRequestTemplate} from "./templates/profile-email.template";
 
 @Injectable()
 export class EmailService {
@@ -147,6 +149,18 @@ export class EmailService {
         return this.safeSend(
             'nazarkozynets030606@gmail.com',
             // data.email,
+            'New password',
+            email,
+            'html'
+        )
+    }
+
+    // Sends email to us about social account's price change request
+    async sendPriceChangeRequestEmail(data: BuildChangePriceRequestTemplateDto) {
+        const email = buildPriceChangeRequestTemplate(data);
+        return this.safeSend(
+            'nazarkozynets030606@gmail.com',
+            // data.influencerEmail,
             'New password',
             email,
             'html'

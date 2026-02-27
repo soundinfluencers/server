@@ -1,5 +1,5 @@
-import {escapeHtml} from "./campaign-email.template";
 import {BuildInvoiceEmailDto} from "../dto/invoice-email.dto";
+import {escapeHtmlForEmail} from "../utils/email.utils";
 
 const listToHtml = (raw?: string, empty = '0 accounts') => {
     const s = (raw ?? '').toString().trim();
@@ -15,13 +15,13 @@ const listToHtml = (raw?: string, empty = '0 accounts') => {
 
     return `
     <ul style="margin:6px 0 12px; padding-left:18px;">
-      ${items.map(i => `<li>${escapeHtml(i)}</li>`).join('')}
+      ${items.map(i => `<li>${escapeHtmlForEmail(i)}</li>`).join('')}
     </ul>
   `;
 };
 
 export const buildInfluencerInvoiceEmail = (invoiceData: BuildInvoiceEmailDto) => {
-    const influencerEmail = escapeHtml(invoiceData.influencerEmail ?? "Invalid email address");
+    const influencerEmail = escapeHtmlForEmail(invoiceData.influencerEmail ?? "Invalid email address");
 
     const instagramHtml = listToHtml(invoiceData.instagramAccounts);
     const tiktokHtml = listToHtml(invoiceData.tiktokAccounts);
@@ -31,7 +31,7 @@ export const buildInfluencerInvoiceEmail = (invoiceData: BuildInvoiceEmailDto) =
     const youtubeHtml = listToHtml(invoiceData.youtubeAccounts);
     const pressHtml = listToHtml(invoiceData.pressAccounts);
 
-    const selectedPaymentMethod = escapeHtml(invoiceData.selectedPaymentMethod ?? "Unknown payment method");
+    const selectedPaymentMethod = escapeHtmlForEmail(invoiceData.selectedPaymentMethod ?? "Unknown payment method");
 
     return `
     <div style="font-family: Arial, sans-serif; font-size: 14px; color:#111; line-height:1.4;">

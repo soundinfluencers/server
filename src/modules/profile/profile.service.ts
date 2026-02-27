@@ -35,7 +35,11 @@ import {ClientRepository} from "../../database/repositories/users/client.reposit
 import {NotificationMethodsEnum, Role, UserPayload} from "../../common/types/user.types";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {normalizeDtoToMusicGenres, normalizeStringToMusicGenres} from "../../common/utils/genres";
-import {InfluencerAccountDetails, SocialAccountDetails} from "../../common/types/influencer/influencer.types";
+import {
+    InfluencerAccountDetails,
+    SocialAccountDetails,
+    SocialAccountVerifiedStatus
+} from "../../common/types/influencer/influencer.types";
 import {mapInfluencerToAccountDetailsDto, mapToSocialAccountDetailsDto} from "../../common/mappers/influencer.mapper";
 import {ClientAccountDetails} from "../../common/types/client/client.types";
 import {mapClientToAccountDetailsDto} from "../../common/mappers/client.mapper";
@@ -75,6 +79,7 @@ import {AuthService} from "../auth/auth.service";
 import {LoginResponseDto} from "../auth/dto/login.dto";
 import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
 import {Response} from "express";
+import {EmailService} from "../email/email.service";
 
 const bcrypt = require('bcryptjs');
 
@@ -85,6 +90,7 @@ export class ProfileService {
     constructor(
         private readonly webSocketService: AppGateway,
         private readonly authService: AuthService,
+        private readonly emailService: EmailService,
         // users
         private readonly clientRepo: ClientRepository,
         private readonly influencerRepo: InfluencerRepository,
@@ -609,6 +615,24 @@ export class ProfileService {
 
         if (accountIndex === -1) throw new NotFoundException(`Social account not found`)
 
+        const socialAccount = influencer[data.socialMedia][accountIndex];
+
+        if (!socialAccount) throw new NotFoundException('Social account not found');
+
+        // for creating change price request
+        if (data.price && data.price !== socialAccount.price) {
+            await this.emailService.sendPriceChangeRequestEmail({
+                influencerName: influencer.firstName,
+                influencerEmail: influencer.email,
+                accountUsername: socialAccount.username,
+                accountSocialMedia: data.socialMedia,
+                oldPrice: socialAccount.price,
+                newPrice: data.price,
+                acceptLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=true`,
+                declineLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=false`,
+            });
+        }
+
         const updateFields: Partial<SocialAccount> = {};
         for (const [key, value] of Object.entries(data)) {
             if (
@@ -652,7 +676,7 @@ export class ProfileService {
             _id: influencer._id,
         });
 
-        return mapToSocialAccountDetailsDto(updatedInfluencer[data.socialMedia].find((acc) =>
+        return mapToSocialAccountDetailsDto(updatedInfluencer[data.socialMedia].find((acc: SocialAccount) =>
             acc._id.equals(socialAccountId),
         ));
     }
@@ -900,7 +924,7 @@ export class ProfileService {
             currency: payload.currency,
             isHidden: false,
             isDeleted: false,
-            isVerified: false,
+            verifiedStatus: SocialAccountVerifiedStatus.new,
         };
 
         influencer[socialMedia] = [
@@ -1018,9 +1042,9 @@ ${emailHtml}
             socialNetworks.forEach((network) => {
                 const accounts = influencer[network] || [];
 
-                accounts.forEach((account) => {
+                accounts.forEach((account: SocialAccount) => {
                     if (accountIds.includes(account._id.toString())) {
-                        account.isVerified = isVerified;
+                        account.verifiedStatus = isVerified === true ? SocialAccountVerifiedStatus.accept : SocialAccountVerifiedStatus.decline;
                         updatedAccounts.push({
                             network,
                             account,
@@ -1178,7 +1202,7 @@ ${emailHtml}
             {$unwind: '$allAccounts'},
             {
                 $match: {
-                    'allAccounts.isVerified': true,
+                    'allAccounts.verifiedStatus': SocialAccountVerifiedStatus.accept,
                     'allAccounts.agreementStatus': InfluencerConfirmationStatusEnum.accept,
                     'allAccounts.isDeleted': {$ne: true},
                     'allAccounts.isHidden': {$ne: true},
@@ -1278,7 +1302,7 @@ ${emailHtml}
             {$unwind: '$allAccounts'},
             {
                 $match: {
-                    'allAccounts.isVerified': true,
+                    'allAccounts.verifiedStatus': SocialAccountVerifiedStatus.accept,
                     'allAccounts.isDeleted': {$ne: true},
                     'allAccounts.isHidden': {$ne: true},
                 },
@@ -1550,7 +1574,7 @@ ${emailHtml}
             $match: {
                 'allAccounts.isDeleted': {$ne: true},
                 'allAccounts.isHidden': {$ne: true},
-                'allAccounts.isVerified': true,
+                'allAccounts.verifiedStatus': SocialAccountVerifiedStatus.accept,
                 'allAccounts.agreementStatus': InfluencerConfirmationStatusEnum.accept
             }
         });
@@ -1770,7 +1794,7 @@ ${emailHtml}
         }));
 
         const matchAcc = {
-            'acc.isVerified': true,
+            'acc.verifiedStatus': SocialAccountVerifiedStatus.accept,
             'acc.isHidden': {$ne: true},
             'acc.isDeleted': {$ne: true},
         };

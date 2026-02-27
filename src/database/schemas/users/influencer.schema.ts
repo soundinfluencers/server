@@ -1,7 +1,7 @@
 import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
 import {Document, Types} from 'mongoose';
 import {
-    InfluencerProfileCategory
+    InfluencerProfileCategory, SocialAccountVerifiedStatus
 } from "../../../common/types/influencer/influencer.types";
 import {Role} from "../../../common/types/user.types";
 import {InfluencerConfirmationStatusEnum} from "../../../common/types/influencer/promo.types";
@@ -95,8 +95,8 @@ export class SocialAccount {
     @Prop({default: false, index: true})
     isDeleted: boolean;
 
-    @Prop({default: false, index: true})
-    isVerified: boolean;
+    @Prop({required: false, default: SocialAccountVerifiedStatus.new, enum: SocialAccountVerifiedStatus, type: String, index: true})
+    verifiedStatus: SocialAccountVerifiedStatus;
 
     @Prop({required: false, default: InfluencerConfirmationStatusEnum.wait, enum: InfluencerConfirmationStatusEnum, type: String})
     agreementStatus?: InfluencerConfirmationStatusEnum;

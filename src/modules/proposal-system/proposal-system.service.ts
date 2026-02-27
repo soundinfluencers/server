@@ -38,6 +38,7 @@ import {uniq} from "../../common/utils/base.util";
 import {ObjId, toObjIdSafe} from "../../common/types/base.types";
 import {UpdateCampaignDto} from "../campaigns/dto/update-campaign.dto";
 import {MediaService} from "../media/media.service";
+import {SocialAccountVerifiedStatus} from "../../common/types/influencer/influencer.types";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -215,7 +216,7 @@ export class ProposalSystemService {
             const acc = matched.acc;
 
             // meta validation
-            if (!acc.isVerified) {
+            if (acc.verifiedStatus !== SocialAccountVerifiedStatus.accept) {
                 invalid.push({index: idx, reason: "Account is not verified"});
                 continue;
             }

@@ -7,6 +7,7 @@ import {Client, ClientSchema} from "../../database/schemas/users/client.schema";
 import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
 import {AuthModule} from "../auth/auth.module";
 import {AuthService} from "../auth/auth.service";
+import {EmailService} from "../email/email.service";
 
 @Module({
     imports: [
@@ -16,7 +17,7 @@ import {AuthService} from "../auth/auth.service";
         ]),
     ],
     controllers: [ProfileController],
-    providers: [ProfileService, AuthService, AppGateway],
+    providers: [ProfileService, AuthService, AppGateway, EmailService],
     exports: [ProfileService],
 })
 export class ProfileModule {

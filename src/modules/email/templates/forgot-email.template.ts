@@ -1,8 +1,8 @@
 import {ForgotPasswordEmailDto, NewPasswordEmailDto} from "../dto/forgot-email.dto";
-import {escapeHtml} from "./campaign-email.template";
+import {escapeHtmlForEmail} from "../utils/email.utils";
 
 export const buildForgotPasswordEmailTemplate = (data: ForgotPasswordEmailDto) => {
-    const firstName = escapeHtml(data.userFirstName ?? "Unknown client");
+    const firstName = escapeHtmlForEmail(data.userFirstName ?? "Unknown client");
 
     return `<p>Dear ${firstName},</p>
             <p>It looks like you've requested a password reset for your account. Please use the following link to reset your password:</p>
@@ -13,7 +13,7 @@ export const buildForgotPasswordEmailTemplate = (data: ForgotPasswordEmailDto) =
 };
 
 export const buildNewPasswordEmailTemplate = (data: NewPasswordEmailDto) => {
-    const firstName = escapeHtml(data.userFirstName ?? "Unknown client");
+    const firstName = escapeHtmlForEmail(data.userFirstName ?? "Unknown client");
 
     return `<p>Dear ${firstName},</p>
                <p>Your password has been updated</p>

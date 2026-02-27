@@ -12,36 +12,21 @@ import {
     OtherBespokeCampaignDto
 } from "../../campaigns/dto/bespoke-request.dto";
 import {BespokeRequestCategory} from "../../../common/types/client/campaign.types";
+import {
+    escapeHtmlForEmail,
+    formatMoneyForEmail,
+    safeLinkForEmail,
+} from "../utils/email.utils";
 
 
 // ------------- UTILS -------------
 
-export const escapeHtml = (v: string) =>
-    v
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#39;");
-
-const formatMoney = (value: unknown) => {
-    const n = typeof value === "number" ? value : Number(value);
-    if (Number.isFinite(n)) return `${n.toLocaleString("en-US")} EUR`;
-    return "—";
-};
-
-const safeLink = (url?: string) => {
-    if (!url) return "—";
-    const u = escapeHtml(url);
-    return `<a href="${u}" style="color:#2563eb; text-decoration:none;">${u}</a>`;
-};
-
 const pickBaseFields = (payload: any) => ({
-    campaignGoal: payload?.campaignGoal ? escapeHtml(payload.campaignGoal) : "—",
-    contentLink: payload?.contentLink ? safeLink(payload.contentLink) : "—",
-    budget: formatMoney(payload?.budget),
-    targetTerritories: payload?.targetTerritories ? escapeHtml(payload.targetTerritories) : "worldwide",
-    extraBriefs: payload?.extraBriefs ? escapeHtml(payload.extraBriefs) : "—",
+    campaignGoal: payload?.campaignGoal ? escapeHtmlForEmail(payload.campaignGoal) : "—",
+    contentLink: payload?.contentLink ? safeLinkForEmail(payload.contentLink) : "—",
+    budget: formatMoneyForEmail(payload?.budget),
+    targetTerritories: payload?.targetTerritories ? escapeHtmlForEmail(payload.targetTerritories) : "worldwide",
+    extraBriefs: payload?.extraBriefs ? escapeHtmlForEmail(payload.extraBriefs) : "—",
 });
 
 const renderCategoryFields = (dto: CreateBespokeCampaignDto) => {
@@ -51,23 +36,23 @@ const renderCategoryFields = (dto: CreateBespokeCampaignDto) => {
         case BespokeRequestCategory.music: {
             const p = payload as MusicBespokeCampaignDto;
             return `
-        <p style="margin:0 0 6px 0;"><strong>Track link:</strong> ${p.trackLink ? safeLink(p.trackLink) : "—"}</p>
-        <p style="margin:0 0 6px 0;"><strong>Release date:</strong> ${p.releaseDate ? escapeHtml(p.releaseDate) : "—"}</p>
-        <p style="margin:0;"><strong>Smart link:</strong> ${p.smartLink ? safeLink(p.smartLink) : "—"}</p>
+        <p style="margin:0 0 6px 0;"><strong>Track link:</strong> ${p.trackLink ? safeLinkForEmail(p.trackLink) : "—"}</p>
+        <p style="margin:0 0 6px 0;"><strong>Release date:</strong> ${p.releaseDate ? escapeHtmlForEmail(p.releaseDate) : "—"}</p>
+        <p style="margin:0;"><strong>Smart link:</strong> ${p.smartLink ? safeLinkForEmail(p.smartLink) : "—"}</p>
       `;
         }
 
         case BespokeRequestCategory.event: {
             const p = payload as EventBespokeCampaignDto;
             return `
-        <p style="margin:0;"><strong>Ticket link:</strong> ${p.ticketLink ? safeLink(p.ticketLink) : "—"}</p>
+        <p style="margin:0;"><strong>Ticket link:</strong> ${p.ticketLink ? safeLinkForEmail(p.ticketLink) : "—"}</p>
       `;
         }
 
         case BespokeRequestCategory.other: {
             const p = payload as OtherBespokeCampaignDto;
             return `
-        <p style="margin:0;"><strong>Brief:</strong> ${p.brief ? escapeHtml(p.brief) : "—"}</p>
+        <p style="margin:0;"><strong>Brief:</strong> ${p.brief ? escapeHtmlForEmail(p.brief) : "—"}</p>
       `;
         }
 
@@ -156,9 +141,9 @@ function formatAccountHTML(acc: AccountObjectForCreateNewPromoRequestMessage): s
 
 
 export const buildRequestEditTemplate = (data: BuildRequestEditTemplateDto) => {
-    const campaignName = escapeHtml(data.campaignName ?? "Unknown campaign");
-    const clientName = escapeHtml(data.clientName ?? "Unknown client");
-    const clientEmail = escapeHtml(data.clientEmail ?? "Unknown email");
+    const campaignName = escapeHtmlForEmail(data.campaignName ?? "Unknown campaign");
+    const clientName = escapeHtmlForEmail(data.clientName ?? "Unknown client");
+    const clientEmail = escapeHtmlForEmail(data.clientEmail ?? "Unknown email");
 
     return `
     <div style="font-family: Arial, sans-serif; font-size: 14px; color:#111; line-height:1.4;">
@@ -171,8 +156,8 @@ export const buildRequestEditTemplate = (data: BuildRequestEditTemplateDto) => {
 
       <p style="margin: 12px 0;">
         <strong>Campaign:</strong> ${campaignName}<br/>
-        <strong>Campaign ID:</strong> ${escapeHtml(data.campaignId)}<br/>
-        <strong>Client ID:</strong> ${escapeHtml(data.clientId)}
+        <strong>Campaign ID:</strong> ${escapeHtmlForEmail(data.campaignId)}<br/>
+        <strong>Client ID:</strong> ${escapeHtmlForEmail(data.clientId)}
       </p>
       
       ${data.message ? 
@@ -199,10 +184,10 @@ export const buildRequestEditTemplate = (data: BuildRequestEditTemplateDto) => {
 };
 
 export const buildClientCreatedCampaignTemplate = (data: BuildClientCreatedCampaignTemplateDto) => {
-    const campaignName = escapeHtml(data.campaignName ?? "Unknown campaign");
-    const clientName = escapeHtml(data.clientName ?? data.clientId ?? "Unknown client");
-    const clientEmail = escapeHtml(data.clientEmail ?? "Unknown email");
-    const campaignSocialMedia = escapeHtml(data.campaignSocialMedia);
+    const campaignName = escapeHtmlForEmail(data.campaignName ?? "Unknown campaign");
+    const clientName = escapeHtmlForEmail(data.clientName ?? data.clientId ?? "Unknown client");
+    const clientEmail = escapeHtmlForEmail(data.clientEmail ?? "Unknown email");
+    const campaignSocialMedia = escapeHtmlForEmail(data.campaignSocialMedia);
     const paymentType = formatCampaignPaymentType(data.paymentType) ?? "Unsupported payment type";
 
     return `
@@ -293,9 +278,9 @@ export const buildNewBespokeCampaignRequestTemplate = (
         clientEmail?: string;
     }
 ) => {
-    const clientName = escapeHtml(data.clientName ?? "Unknown client");
-    const clientEmail = escapeHtml(data.clientEmail ?? "Unknown email");
-    const category = escapeHtml(String(data.category ?? "unknown"));
+    const clientName = escapeHtmlForEmail(data.clientName ?? "Unknown client");
+    const clientEmail = escapeHtmlForEmail(data.clientEmail ?? "Unknown email");
+    const category = escapeHtmlForEmail(String(data.category ?? "unknown"));
 
     const base = pickBaseFields(data.payload);
 

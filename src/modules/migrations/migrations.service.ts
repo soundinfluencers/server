@@ -11,16 +11,15 @@ import {Campaign, CampaignAccount, CampaignContentItem} from "../../database/sch
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {
     InfluencerConfirmationStatusEnum,
-    InfluencerPromoClosedStatusEnum,
-    InfluencerPromoClosedStatusType
+    InfluencerPromoClosedStatusEnum
 } from "../../common/types/influencer/promo.types";
 import {CampaignConfirmationEnum, CampaignStatusEnum} from "../../common/types/client/campaign.types";
-import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
 import {
     ProposalCampaignAccount,
     ProposalCampaignOption
 } from "../../database/schemas/campaign/proposal-campaign-option.schema";
+import {SocialAccountVerifiedStatus} from "../../common/types/influencer/influencer.types";
 
 
 // ------------ LEGACY SCHEMAS ---------------
@@ -273,6 +272,7 @@ export class MigrationsService {
             price: price ?? 0,
             publicPrice: publicPrice ?? 0,
             musicGenres: this.buildMusicGenres(acc) ?? acc?.musicGenres,
+            verifiedStatus: acc.isVerified === true ? SocialAccountVerifiedStatus.accept : SocialAccountVerifiedStatus.new,
             agreementStatus: InfluencerConfirmationStatusEnum.accept,
         };
 

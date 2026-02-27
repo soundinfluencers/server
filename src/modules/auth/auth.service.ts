@@ -26,6 +26,7 @@ import {Role} from "../../common/types/user.types";
 import {Client} from "../../database/schemas/users/client.schema";
 import {InfluencerConfirmationStatusEnum} from "../../common/types/influencer/promo.types";
 import {Admin} from "../../database/schemas/users/admin.schema";
+import {SocialAccountVerifiedStatus} from "../../common/types/influencer/influencer.types";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -201,7 +202,7 @@ export class AuthService {
                     averageViews: null,
                     isHidden: false,
                     isDeleted: false,
-                    isVerified: false,
+                    verifiedStatus: SocialAccountVerifiedStatus.new,
                 };
             });
         }
@@ -454,13 +455,13 @@ export class AuthService {
                     {
                         $set: {
                             'statusVerify': responseVerify,
-                            'instagram.$[].isVerified': true,
-                            'tiktok.$[].isVerified': true,
-                            'spotify.$[].isVerified': true,
-                            'soundcloud.$[].isVerified': true,
-                            'facebook.$[].isVerified': true,
-                            'youtube.$[].isVerified': true,
-                            'press.$[].isVerified': true,
+                            'instagram.$[].verifiedStatus': SocialAccountVerifiedStatus.accept,
+                            'tiktok.$[].verifiedStatus': SocialAccountVerifiedStatus.accept,
+                            'spotify.$[].verifiedStatus': SocialAccountVerifiedStatus.accept,
+                            'soundcloud.$[].verifiedStatus': SocialAccountVerifiedStatus.accept,
+                            'facebook.$[].verifiedStatus': SocialAccountVerifiedStatus.accept,
+                            'youtube.$[].verifiedStatus': SocialAccountVerifiedStatus.accept,
+                            'press.$[].verifiedStatus': SocialAccountVerifiedStatus.accept,
                         },
                     },
                     {session},
