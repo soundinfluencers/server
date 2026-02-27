@@ -619,8 +619,23 @@ export class ProfileService {
 
         if (!socialAccount) throw new NotFoundException('Social account not found');
 
+        const updateFields: Partial<SocialAccount> = {};
+        for (const [key, value] of Object.entries(data)) {
+            if (
+                value !== undefined &&
+                key !== "influencerId" &&
+                key !== "socialAccountId" &&
+                key !== "socialMedia" &&
+                key !== "price"
+            ) {
+                updateFields[key] = value as any;
+            }
+        }
+
+        const isPriceChanged = data.price !== undefined && data.price !== null && data.price !== socialAccount.price;
+
         // for creating change price request
-        if (data.price && data.price !== socialAccount.price) {
+        if (isPriceChanged) {
             try {
                 await this.emailService.sendPriceChangeRequestEmail({
                     influencerName: influencer.firstName,
@@ -632,22 +647,11 @@ export class ProfileService {
                     acceptLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=true&newPrice=${data.price}`,
                     declineLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=false`,
                 });
+
+                updateFields.verifiedStatus = SocialAccountVerifiedStatus.priceChanged;
             } catch (e) {
                 this.logger.error(`Error sending mail about price change for ${data.socialMedia} account ${data.accountId}`, e);
                 throw new InternalServerErrorException("Creating price change request failed. Try again later");
-            }
-        }
-
-        const updateFields: Partial<SocialAccount> = {};
-        for (const [key, value] of Object.entries(data)) {
-            if (
-                value !== undefined &&
-                key !== "influencerId" &&
-                key !== "socialAccountId" &&
-                key !== "socialMedia" &&
-                key !== "price"
-            ) {
-                updateFields[key] = value as any;
             }
         }
 
