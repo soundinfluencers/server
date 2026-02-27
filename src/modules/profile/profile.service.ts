@@ -621,16 +621,21 @@ export class ProfileService {
 
         // for creating change price request
         if (data.price && data.price !== socialAccount.price) {
-            await this.emailService.sendPriceChangeRequestEmail({
-                influencerName: influencer.firstName,
-                influencerEmail: influencer.email,
-                accountUsername: socialAccount.username,
-                accountSocialMedia: data.socialMedia,
-                oldPrice: socialAccount.price,
-                newPrice: data.price,
-                acceptLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=true`,
-                declineLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=false`,
-            });
+            try {
+                await this.emailService.sendPriceChangeRequestEmail({
+                    influencerName: influencer.firstName,
+                    influencerEmail: influencer.email,
+                    accountUsername: socialAccount.username,
+                    accountSocialMedia: data.socialMedia,
+                    oldPrice: socialAccount.price,
+                    newPrice: data.price,
+                    acceptLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=true&newPrice=${data.price}`,
+                    declineLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=false`,
+                });
+            } catch (e) {
+                this.logger.error(`Error sending mail about price change for ${data.socialMedia} account ${data.accountId}`, e);
+                throw new InternalServerErrorException("Creating price change request failed. Try again later");
+            }
         }
 
         const updateFields: Partial<SocialAccount> = {};
@@ -639,7 +644,8 @@ export class ProfileService {
                 value !== undefined &&
                 key !== "influencerId" &&
                 key !== "socialAccountId" &&
-                key !== "socialMedia"
+                key !== "socialMedia" &&
+                key !== "price"
             ) {
                 updateFields[key] = value as any;
             }
@@ -1024,6 +1030,7 @@ ${emailHtml}
         influencerId: string,
         accountIds: string[],
         isVerified: boolean,
+        newPrice?: number,
     ) {
         if (!influencerId || !accountIds || accountIds.length === 0 || isVerified === undefined) throw new BadRequestException("Not enough arguments");
 
@@ -1044,7 +1051,13 @@ ${emailHtml}
 
                 accounts.forEach((account: SocialAccount) => {
                     if (accountIds.includes(account._id.toString())) {
+                        const accountPrice = newPrice ? newPrice : account.price;
+                        const accountPublicPrice = newPrice ? newPrice * 2 : account.publicPrice;
+
                         account.verifiedStatus = isVerified === true ? SocialAccountVerifiedStatus.accept : SocialAccountVerifiedStatus.decline;
+                        account.price = accountPrice;
+                        account.publicPrice = accountPublicPrice;
+
                         updatedAccounts.push({
                             network,
                             account,

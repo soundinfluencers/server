@@ -20,6 +20,7 @@ export enum SocialAccountVerifiedStatus {
 export interface SocialAccountForAccountDetails {
     accountId: string;
     username: string;
+    verifiedStatus: SocialAccountVerifiedStatus;
     agreementStatus: InfluencerConfirmationStatusEnum;
 }
 

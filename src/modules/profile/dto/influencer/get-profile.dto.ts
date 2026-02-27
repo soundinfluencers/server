@@ -1,7 +1,7 @@
 import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {
     InfluencerAccountDetails, InfluencerProfileCategory, SocialAccountDetails,
-    SocialAccountForAccountDetails
+    SocialAccountForAccountDetails, SocialAccountVerifiedStatus
 } from "../../../../common/types/influencer/influencer.types";
 import {ClientAccountDetails} from "../../../../common/types/client/client.types";
 import {
@@ -25,6 +25,12 @@ export class SocialAccountForAccountDetailsDto implements SocialAccountForAccoun
         example: 'Techno TV',
     })
     username: string;
+
+    @ApiProperty({
+        example: 'new',
+        enum: SocialAccountVerifiedStatus
+    })
+    verifiedStatus: SocialAccountVerifiedStatus;
 
     @ApiProperty({
         example: 'wait',

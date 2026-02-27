@@ -272,12 +272,23 @@ export class ProfileController {
     @ApiExcludeEndpoint()
     @Get('influencer/verify-new-accounts')
     verifyNewSocialMediaAccounts(
-        @Query() query: { influencerId: string; accounts: []; isVerified: boolean },
+        @Query() query: { influencerId: string; accounts: []; isVerified: string; newPrice?: string; },
     ) {
+        const isVerified = query.isVerified === 'true';
+        const newPrice =
+            query.newPrice == null || query.newPrice.trim() === ''
+                ? undefined
+                : Number(query.newPrice);
+
+        if (newPrice !== undefined && Number.isNaN(newPrice)) {
+            throw new BadRequestException('Invalid newPrice');
+        }
+
         return this.profileService.verifyNewSocialMediaAccounts(
             query.influencerId,
             query.accounts,
-            query.isVerified,
+            isVerified,
+            newPrice
         );
     }
 
