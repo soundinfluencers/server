@@ -80,6 +80,7 @@ import {LoginResponseDto} from "../auth/dto/login.dto";
 import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
 import {Response} from "express";
 import {EmailService} from "../email/email.service";
+import {areCountriesValid} from "../../common/utils/countries.util";
 
 const bcrypt = require('bcryptjs');
 
@@ -619,6 +620,10 @@ export class ProfileService {
 
         if (!socialAccount) throw new NotFoundException('Social account not found');
 
+        if (!areCountriesValid(data.countries)) {
+            throw new BadRequestException('Countries not valid');
+        }
+
         const updateFields: Partial<SocialAccount> = {};
         for (const [key, value] of Object.entries(data)) {
             if (
@@ -876,6 +881,10 @@ export class ProfileService {
         // ---- DUPLICATE CHECK ----
         if (!payload?.username) {
             throw new BadRequestException('Username is required');
+        }
+
+        if (!areCountriesValid(data.payload.countries)) {
+            throw new BadRequestException('Countries not valid');
         }
 
         const duplicate = await this.influencerRepo.findOne({

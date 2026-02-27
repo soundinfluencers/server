@@ -27,6 +27,7 @@ import {Client} from "../../database/schemas/users/client.schema";
 import {InfluencerConfirmationStatusEnum} from "../../common/types/influencer/promo.types";
 import {Admin} from "../../database/schemas/users/admin.schema";
 import {SocialAccountVerifiedStatus} from "../../common/types/influencer/influencer.types";
+import {areCountriesValid} from "../../common/utils/countries.util";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -177,6 +178,10 @@ export class AuthService {
             const accounts = data[network] || [];
 
             processedData[network] = accounts.map((item: CreateSocialAccountDto): SocialAccount => {
+                if (!areCountriesValid(item.countries)) {
+                    throw new BadRequestException('Countries not valid');
+                }
+
                 const sanitizedPrice = parseFloat(String(item.price).replace(/[^\d.-]/g, '')) || 0;
                 const publicPrice = sanitizedPrice * 2;
                 // const sanitizedInitialPrice = parseInt(String(item.initialPrice).replace(/[^\d.-]/g, '')) || 0;
