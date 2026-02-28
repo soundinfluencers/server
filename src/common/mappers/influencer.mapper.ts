@@ -4,7 +4,7 @@ import {
     SocialAccountDetailsDto,
     SocialAccountForAccountDetailsDto
 } from "../../modules/profile/dto/influencer/get-profile.dto";
-import {InfluencerConfirmationStatusEnum} from "../types/influencer/promo.types";
+import {AccountVerifiedStatus} from "../types/user.types";
 
 // Maps social account doc to social account for account details dto
 export const mapSocialAccountToAccountDetailsDto = (account: SocialAccount): SocialAccountForAccountDetailsDto => {
@@ -12,7 +12,7 @@ export const mapSocialAccountToAccountDetailsDto = (account: SocialAccount): Soc
         accountId: account._id.toString(),
         username: account.username,
         verifiedStatus: account.verifiedStatus,
-        agreementStatus: account.agreementStatus ?? InfluencerConfirmationStatusEnum.accept
+        labelStatus: account.labelStatus
     }
 };
 
@@ -22,7 +22,7 @@ const filterSocialAccounts = (
 ): SocialAccountForAccountDetailsDto[] => {
     return (
         accounts
-            ?.filter(acc => !acc.isDeleted)
+            ?.filter(acc => !acc.isDeleted && acc.verifiedStatus !== AccountVerifiedStatus.decline)
             .map(mapSocialAccountToAccountDetailsDto)
         ?? []
     );

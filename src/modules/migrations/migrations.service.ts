@@ -19,7 +19,8 @@ import {
     ProposalCampaignAccount,
     ProposalCampaignOption
 } from "../../database/schemas/campaign/proposal-campaign-option.schema";
-import {SocialAccountVerifiedStatus} from "../../common/types/influencer/influencer.types";
+import {AccountVerifiedStatus} from "../../common/types/user.types";
+import {SocialAccountLabelStatus} from "../../common/types/influencer/influencer.types";
 
 
 // ------------ LEGACY SCHEMAS ---------------
@@ -272,8 +273,8 @@ export class MigrationsService {
             price: price ?? 0,
             publicPrice: publicPrice ?? 0,
             musicGenres: this.buildMusicGenres(acc) ?? acc?.musicGenres,
-            verifiedStatus: acc.isVerified === true ? SocialAccountVerifiedStatus.accept : SocialAccountVerifiedStatus.new,
-            agreementStatus: InfluencerConfirmationStatusEnum.accept,
+            verifiedStatus: acc.isVerified === true ? AccountVerifiedStatus.accept : AccountVerifiedStatus.waitForAdmin,
+            labelStatus: acc.isVerified === true ? SocialAccountLabelStatus.verified : SocialAccountLabelStatus.new,
         };
 
         // выпиливаем legacy поля
@@ -662,7 +663,7 @@ export class MigrationsService {
                         whatsapp: false,
                         telegram: false
                     },
-                    agreementStatus: InfluencerConfirmationStatusEnum.accept,
+                    verifiedStatus: (doc as any).statusVerify === 'accept' ? AccountVerifiedStatus.accept : AccountVerifiedStatus.waitForAdmin,
                     updatedAt: new Date()
                 };
                 let touched = false;

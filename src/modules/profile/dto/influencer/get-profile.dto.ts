@@ -1,7 +1,8 @@
 import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {
+    AgreementType,
     InfluencerAccountDetails, InfluencerProfileCategory, SocialAccountDetails,
-    SocialAccountForAccountDetails, SocialAccountVerifiedStatus
+    SocialAccountForAccountDetails, SocialAccountLabelStatus
 } from "../../../../common/types/influencer/influencer.types";
 import {ClientAccountDetails} from "../../../../common/types/client/client.types";
 import {
@@ -11,7 +12,9 @@ import {
 } from "../../../../database/schemas/users/influencer.schema";
 import {SocialMediaEnum} from "../../../../common/types/social-media.types";
 import {IsEnum, IsString} from "class-validator";
+import {AccountVerifiedStatus, Role} from "../../../../common/types/user.types";
 import {InfluencerConfirmationStatusEnum} from "../../../../common/types/influencer/promo.types";
+import {Response} from "express";
 
 export class SocialAccountForAccountDetailsDto implements SocialAccountForAccountDetails {
     @ApiProperty({
@@ -27,16 +30,16 @@ export class SocialAccountForAccountDetailsDto implements SocialAccountForAccoun
     username: string;
 
     @ApiProperty({
-        example: 'new',
-        enum: SocialAccountVerifiedStatus
+        example: 'wait',
+        enum: AccountVerifiedStatus
     })
-    verifiedStatus: SocialAccountVerifiedStatus;
+    verifiedStatus: AccountVerifiedStatus;
 
     @ApiProperty({
-        example: 'wait',
-        enum: InfluencerConfirmationStatusEnum
+        example: 'new',
+        enum: SocialAccountLabelStatus
     })
-    agreementStatus: InfluencerConfirmationStatusEnum;
+    labelStatus: SocialAccountLabelStatus;
 }
 
 // dto for getting influencer's profile details
@@ -236,18 +239,21 @@ export class FoundAccountsDto {
 }
 
 // account for agreement list
-class AgreementAccountDto {
+export class AgreementAccountDto {
     @ApiProperty()
     username: string;
 
     @ApiProperty()
     price: number;
+
+    @ApiProperty()
+    agreementStatus: AccountVerifiedStatus
 }
 
 // dto response for getting social accounts list that need influencer's agreement
 export class AgreementAccountsListDto {
-    @ApiProperty({enum: ['profileCreate', 'accountAdd']})
-    agreementType: 'profileCreate' | 'accountAdd';
+    @ApiProperty({enum: AgreementType})
+    agreementType: AgreementType;
 
     @ApiPropertyOptional({type: () => [AgreementAccountDto]})
     instagram?: AgreementAccountDto[];
@@ -269,4 +275,20 @@ export class AgreementAccountsListDto {
 
     @ApiPropertyOptional({type: () => [AgreementAccountDto]})
     press?: AgreementAccountDto[];
+}
+
+// dto request for updating influencer's agreement statuses
+export class UpdateAccountsAgreementDto {
+    @ApiProperty({type: String})
+    influencerId: string;
+
+    @ApiProperty({enum: InfluencerConfirmationStatusEnum})
+    status: InfluencerConfirmationStatusEnum;
+
+    @ApiProperty({enum: AgreementType})
+    agreementType: AgreementType;
+
+    // for service (frontend does not send this data)
+    res: Response;
+    role?: Role;
 }

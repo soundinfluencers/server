@@ -1,5 +1,5 @@
 import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
-import {Role} from "../../../common/types/user.types";
+import {AccountVerifiedStatus, Role} from "../../../common/types/user.types";
 import {IsEmail, IsEnum, IsString} from "class-validator";
 import {InfluencerConfirmationStatusEnum} from "../../../common/types/influencer/promo.types";
 
@@ -34,6 +34,9 @@ export class GetMeResponseDto {
 
     @ApiProperty()
     role: Role;
+
+    @ApiProperty({enum: AccountVerifiedStatus})
+    verifiedStatus: AccountVerifiedStatus;
 
     @ApiPropertyOptional()
     balance?: number;

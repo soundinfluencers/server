@@ -1,6 +1,6 @@
 import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
 import {Types} from "mongoose";
-import {Role} from "../../../common/types/user.types";
+import {AccountVerifiedStatus, Role} from "../../../common/types/user.types";
 
 @Schema({
     timestamps: true,
@@ -42,9 +42,6 @@ export class Client {
     @Prop()
     password: string;
 
-    @Prop({default: 'wait'})
-    statusVerify: string;
-
     @Prop()
     referenceNumber: string;
 
@@ -56,6 +53,9 @@ export class Client {
 
     @Prop({default: false})
     isProposalClient: boolean;
+
+    @Prop({required: false, default: AccountVerifiedStatus.waitForAdmin, enum: AccountVerifiedStatus, type: String})
+    verifiedStatus?: AccountVerifiedStatus;
 
     @Prop({default: ''})
     internalNote: string;

@@ -32,22 +32,25 @@ import {MigrateAccountDto} from "../migrations/dto/migrate-account.dto";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
-import {NotificationMethodsEnum, Role, UserPayload} from "../../common/types/user.types";
+import {AccountVerifiedStatus, NotificationMethodsEnum, Role, UserPayload} from "../../common/types/user.types";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {normalizeDtoToMusicGenres, normalizeStringToMusicGenres} from "../../common/utils/genres";
 import {
+    AgreementType,
     InfluencerAccountDetails,
     SocialAccountDetails,
-    SocialAccountVerifiedStatus
+    SocialAccountLabelStatus,
 } from "../../common/types/influencer/influencer.types";
 import {mapInfluencerToAccountDetailsDto, mapToSocialAccountDetailsDto} from "../../common/mappers/influencer.mapper";
 import {ClientAccountDetails} from "../../common/types/client/client.types";
 import {mapClientToAccountDetailsDto} from "../../common/mappers/client.mapper";
 import {
+    AgreementAccountDto,
     AgreementAccountsListDto,
     FoundAccountDto,
     GetSocialAccountDetailsParamsDto,
-    InfluencerAccountDetailsDto
+    InfluencerAccountDetailsDto,
+    UpdateAccountsAgreementDto
 } from "./dto/influencer/get-profile.dto";
 import {GetFilteredAccountsBodyDto, SearchSocialAccountsDto} from "./dto/client/search-social-accounts.dto";
 import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
@@ -78,7 +81,6 @@ import {InfluencerConfirmationStatusEnum} from "../../common/types/influencer/pr
 import {AuthService} from "../auth/auth.service";
 import {LoginResponseDto} from "../auth/dto/login.dto";
 import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
-import {Response} from "express";
 import {EmailService} from "../email/email.service";
 import {areCountriesValid} from "../../common/utils/countries.util";
 
@@ -620,6 +622,8 @@ export class ProfileService {
 
         if (!socialAccount) throw new NotFoundException('Social account not found');
 
+        if (socialAccount.verifiedStatus !== AccountVerifiedStatus.accept) throw new ForbiddenException("Wait admin approve to update account, that requested price change");
+
         if (!areCountriesValid(data.countries)) {
             throw new BadRequestException('Countries not valid');
         }
@@ -653,7 +657,8 @@ export class ProfileService {
                     declineLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=false`,
                 });
 
-                updateFields.verifiedStatus = SocialAccountVerifiedStatus.priceChanged;
+                updateFields.verifiedStatus = AccountVerifiedStatus.waitForAdmin;
+                updateFields.labelStatus = SocialAccountLabelStatus.priceChanged;
             } catch (e) {
                 this.logger.error(`Error sending mail about price change for ${data.socialMedia} account ${data.accountId}`, e);
                 throw new InternalServerErrorException("Creating price change request failed. Try again later");
@@ -705,30 +710,29 @@ export class ProfileService {
         if (!influencer) throw new NotFoundException('Influencer not found');
 
         const result: Partial<AgreementAccountsListDto> = {
-            agreementType: 'profileCreate'
+            agreementType: AgreementType.profileCreate
         };
 
         for (const key of Object.values(SocialMediaEnum) as SocialMediaEnum[]) {
             const accounts = (influencer as any)[key] as SocialAccount[] | undefined;
             if (!accounts?.length) continue;
 
-            if (result.agreementType === 'profileCreate') {
-                const hasAccepted = accounts?.some(acc => acc.agreementStatus === InfluencerConfirmationStatusEnum.accept);
+            if (result.agreementType === AgreementType.profileCreate) {
+                const hasAccepted = accounts?.some(acc => acc.verifiedStatus === AccountVerifiedStatus.accept && acc.labelStatus === SocialAccountLabelStatus.verified);
 
                 if (hasAccepted) {
-                    result.agreementType = 'accountAdd';
+                    result.agreementType = AgreementType.accountAdd;
                 }
             }
 
             const filtered = accounts
                 .filter(
-                    (acc) =>
-                        acc.agreementStatus == null ||
-                        acc.agreementStatus === InfluencerConfirmationStatusEnum.wait,
+                    (acc) => ![AccountVerifiedStatus.accept, AccountVerifiedStatus.decline, AccountVerifiedStatus.waitForAdmin].includes(acc.verifiedStatus),
                 )
-                .map((acc) => ({
+                .map((acc): AgreementAccountDto => ({
                     username: acc.username,
                     price: acc.price,
+                    agreementStatus: acc.verifiedStatus
                 }));
 
             if (filtered.length) {
@@ -740,40 +744,43 @@ export class ProfileService {
     }
 
     // Updates influencer's agreement response to new social accounts
-    async updateSocialAccountsAgreement(
-        influencerId: string,
-        response: InfluencerConfirmationStatusEnum,
-        res: Response,
-        role?: Role,
-    ): Promise<LoginResponseDto> {
+    async updateSocialAccountsAgreement(data: UpdateAccountsAgreementDto): Promise<LoginResponseDto> {
+        const {influencerId, status, agreementType, res, role} = data;
+
         if (role && role !== Role.influencer) throw new ForbiddenException('Not enough access');
+
+        const isAccepted = status === 'accept';
 
         const _id = new Types.ObjectId(influencerId);
 
         const setObj: Record<string, any> = {};
         for (const key of Object.values(SocialMediaEnum) as SocialMediaEnum[]) {
-            setObj[`${key}.$[acc].agreementStatus`] = response;
+            setObj[`${key}.$[acc].verifiedStatus`] = isAccepted ? AccountVerifiedStatus.accept : AccountVerifiedStatus.negotiation;
+
+            if (isAccepted) setObj[`${key}.$[acc].labelStatus`] = SocialAccountLabelStatus.verified;
         }
 
         const session = await this.influencerRepo.startSession();
         session.startTransaction();
 
         try {
-            await this.influencerRepo.updateOne(
-                {
-                    _id,
-                    agreementStatus: {$in: [null, InfluencerConfirmationStatusEnum.wait]},
-                },
-                {$set: {agreementStatus: response}},
-                {session},
-            );
+            if (agreementType === AgreementType.profileCreate) {
+                await this.influencerRepo.updateOne(
+                    {
+                        _id,
+                        verifiedStatus: {$in: [null, AccountVerifiedStatus.waitForUser, AccountVerifiedStatus.negotiation]},
+                    },
+                    {$set: {verifiedStatus: isAccepted ? AccountVerifiedStatus.accept : AccountVerifiedStatus.negotiation}},
+                    {session},
+                );
+            }
 
             const updateResult = await this.influencerRepo.updateOneWithArrayFilters(
                 {_id},
                 {$set: setObj},
                 {
                     arrayFilters: [
-                        {'acc.agreementStatus': {$in: [null, InfluencerConfirmationStatusEnum.wait]}},
+                        {'acc.verifiedStatus': {$in: [null, AccountVerifiedStatus.waitForUser, AccountVerifiedStatus.negotiation]}},
                     ],
                     session
                 },
@@ -789,23 +796,23 @@ export class ProfileService {
             await session.endSession();
         }
 
-        const updatedInfluencer = await this.influencerRepo.findById(influencerId, {lean: true});
-        const accessToken = this.authService.generateAccessToken(updatedInfluencer);
-        const refreshToken = this.authService.generateRefreshToken(updatedInfluencer);
+        if (isAccepted) {
+            const updatedInfluencer = await this.influencerRepo.findById(influencerId, {lean: true});
+            const accessToken = this.authService.generateAccessToken(updatedInfluencer);
+            const refreshToken = this.authService.generateRefreshToken(updatedInfluencer);
 
-        await this.authService.saveRefreshToken(updatedInfluencer._id, refreshToken);
-        setRefreshTokenCookie(res, refreshToken);
+            await this.authService.saveRefreshToken(updatedInfluencer._id, refreshToken);
+            setRefreshTokenCookie(res, refreshToken);
 
-        return {
-            accessToken,
-            firstName: updatedInfluencer.firstName,
-            role: updatedInfluencer.role as Role,
-            balance: (updatedInfluencer as any).balance ?? undefined,
-            logoUrl: (updatedInfluencer as any).logoUrl ?? undefined,
-            ...(updatedInfluencer.role === Role.influencer
-                ? {agreementStatus: (updatedInfluencer as Influencer).agreementStatus ?? InfluencerConfirmationStatusEnum.wait}
-                : {}),
-        };
+            return {
+                accessToken,
+                firstName: updatedInfluencer.firstName,
+                role: updatedInfluencer.role as Role,
+                verifiedStatus: updatedInfluencer.verifiedStatus,
+                balance: (updatedInfluencer as any).balance ?? undefined,
+                logoUrl: (updatedInfluencer as any).logoUrl ?? undefined,
+            };
+        }
     }
 
     // Deletes influencer's social account
@@ -943,7 +950,8 @@ export class ProfileService {
             currency: payload.currency,
             isHidden: false,
             isDeleted: false,
-            verifiedStatus: SocialAccountVerifiedStatus.new,
+            verifiedStatus: AccountVerifiedStatus.waitForAdmin,
+            labelStatus: SocialAccountLabelStatus.new,
         };
 
         influencer[socialMedia] = [
@@ -1066,10 +1074,12 @@ ${emailHtml}
                     if (accountIds.includes(account._id.toString())) {
                         const accountPrice = newPrice ? newPrice : account.price;
                         const accountPublicPrice = newPrice ? newPrice * 2 : account.publicPrice;
+                        const labelStatus = newPrice ? SocialAccountLabelStatus.verified : account.labelStatus;
 
-                        account.verifiedStatus = isVerified === true ? SocialAccountVerifiedStatus.accept : SocialAccountVerifiedStatus.decline;
                         account.price = accountPrice;
                         account.publicPrice = accountPublicPrice;
+                        account.verifiedStatus = isVerified === true ? AccountVerifiedStatus.accept : AccountVerifiedStatus.decline;
+                        account.labelStatus = labelStatus;
 
                         updatedAccounts.push({
                             network,
@@ -1228,8 +1238,8 @@ ${emailHtml}
             {$unwind: '$allAccounts'},
             {
                 $match: {
-                    'allAccounts.verifiedStatus': SocialAccountVerifiedStatus.accept,
-                    'allAccounts.agreementStatus': InfluencerConfirmationStatusEnum.accept,
+                    'allAccounts.verifiedStatus': AccountVerifiedStatus.accept,
+                    'allAccounts.labelStatus': SocialAccountLabelStatus.verified,
                     'allAccounts.isDeleted': {$ne: true},
                     'allAccounts.isHidden': {$ne: true},
                 },
@@ -1328,7 +1338,8 @@ ${emailHtml}
             {$unwind: '$allAccounts'},
             {
                 $match: {
-                    'allAccounts.verifiedStatus': SocialAccountVerifiedStatus.accept,
+                    'allAccounts.verifiedStatus': AccountVerifiedStatus.accept,
+                    'allAccounts.labelStatus': SocialAccountLabelStatus.verified,
                     'allAccounts.isDeleted': {$ne: true},
                     'allAccounts.isHidden': {$ne: true},
                 },
@@ -1600,8 +1611,8 @@ ${emailHtml}
             $match: {
                 'allAccounts.isDeleted': {$ne: true},
                 'allAccounts.isHidden': {$ne: true},
-                'allAccounts.verifiedStatus': SocialAccountVerifiedStatus.accept,
-                'allAccounts.agreementStatus': InfluencerConfirmationStatusEnum.accept
+                'allAccounts.verifiedStatus': AccountVerifiedStatus.accept,
+                'allAccounts.labelStatus': SocialAccountLabelStatus.verified
             }
         });
 
@@ -1820,7 +1831,8 @@ ${emailHtml}
         }));
 
         const matchAcc = {
-            'acc.verifiedStatus': SocialAccountVerifiedStatus.accept,
+            'acc.verifiedStatus': AccountVerifiedStatus.accept,
+            'acc.labelStatus': SocialAccountLabelStatus.verified,
             'acc.isHidden': {$ne: true},
             'acc.isDeleted': {$ne: true},
         };

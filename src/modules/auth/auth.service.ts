@@ -12,7 +12,7 @@ import {CreateInfluencerDto, CreateSocialAccountDto} from './dto/create-influenc
 import {ClientSession, Types} from 'mongoose';
 import {Response} from "express";
 import sendMail from "../../integrations/nodemailer/nodemailer";
-import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
+import {clearRefreshTokenCookie, setRefreshTokenCookie} from "../../common/utils/cookie.util";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {VerifyClientRepository} from "../../database/repositories/verify-users/verify-client.repository";
@@ -22,12 +22,11 @@ import {Influencer, SocialAccount} from "../../database/schemas/users/influencer
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {getArrayFromMusicGenreDto, normalizeDtoToMusicGenres} from "../../common/utils/genres";
 import {AdminRepository} from "../../database/repositories/users/admin.repository";
-import {Role} from "../../common/types/user.types";
+import {AccountVerifiedStatus, Role} from "../../common/types/user.types";
 import {Client} from "../../database/schemas/users/client.schema";
-import {InfluencerConfirmationStatusEnum} from "../../common/types/influencer/promo.types";
 import {Admin} from "../../database/schemas/users/admin.schema";
-import {SocialAccountVerifiedStatus} from "../../common/types/influencer/influencer.types";
 import {areCountriesValid} from "../../common/utils/countries.util";
+import {SocialAccountLabelStatus} from "../../common/types/influencer/influencer.types";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -207,7 +206,8 @@ export class AuthService {
                     averageViews: null,
                     isHidden: false,
                     isDeleted: false,
-                    verifiedStatus: SocialAccountVerifiedStatus.new,
+                    verifiedStatus: AccountVerifiedStatus.waitForAdmin,
+                    labelStatus: SocialAccountLabelStatus.new
                 };
             });
         }
@@ -319,11 +319,7 @@ export class AuthService {
 
         if (!isPassword) throw new UnauthorizedException('Wrong password');
 
-        if (user.statusVerify === 'wait') throw new ForbiddenException('Account not verified');
-
-        if (user.role === Role.influencer && (user as Influencer).agreementStatus === InfluencerConfirmationStatusEnum.wait) {
-            return;
-        }
+        if (![AccountVerifiedStatus.accept, AccountVerifiedStatus.waitForUser].includes(user.verifiedStatus)) throw new ForbiddenException('Account not verified by admin');
 
         const accessToken = this.generateAccessToken(user);
         const refreshToken = this.generateRefreshToken(user);
@@ -336,11 +332,9 @@ export class AuthService {
             accessToken: accessToken,
             firstName: user.firstName,
             role: user.role as Role,
+            verifiedStatus: user.verifiedStatus,
             balance: (user as any).balance ?? undefined,
             logoUrl: (user as any).logoUrl ?? undefined,
-            ...(user.role === Role.influencer
-                ? {agreementStatus: (user as Influencer).agreementStatus ?? InfluencerConfirmationStatusEnum.wait}
-                : {})
         };
     }
 
@@ -353,6 +347,7 @@ export class AuthService {
         try {
             payload = jwt.verify(refreshToken, this.refreshKey);
         } catch {
+            clearRefreshTokenCookie(res);
             throw new UnauthorizedException('Invalid refresh token');
         }
 
@@ -361,8 +356,10 @@ export class AuthService {
             (await this.influencerRepo.findById(payload._id)) ||
             (await this.adminRepo.findById(payload._id));
 
-        if (!user || (user as any).refreshToken !== refreshToken)
+        if (!user || (user as any).refreshToken !== refreshToken) {
+            clearRefreshTokenCookie(res);
             throw new UnauthorizedException('Invalid refresh token');
+        }
 
         const newRefreshToken = this.generateRefreshToken(user);
         await this.saveRefreshToken(user._id, newRefreshToken);
@@ -399,7 +396,7 @@ export class AuthService {
                 default:
                     throw new BadRequestException('Unsupported role');
             }
-            res.clearCookie('refreshToken', {path: '/auth/refresh'});
+            clearRefreshTokenCookie(res);
         } else {
             throw new UnauthorizedException('Invalid refresh token');
         }
@@ -417,7 +414,6 @@ export class AuthService {
             {expiresIn: '30m'},
         );
     }
-
 
     // Generates refresh token
     generateRefreshToken(user) {
@@ -459,14 +455,14 @@ export class AuthService {
                     {_id: new Types.ObjectId(checkInfluencer._id)},
                     {
                         $set: {
-                            'statusVerify': responseVerify,
-                            'instagram.$[].verifiedStatus': SocialAccountVerifiedStatus.accept,
-                            'tiktok.$[].verifiedStatus': SocialAccountVerifiedStatus.accept,
-                            'spotify.$[].verifiedStatus': SocialAccountVerifiedStatus.accept,
-                            'soundcloud.$[].verifiedStatus': SocialAccountVerifiedStatus.accept,
-                            'facebook.$[].verifiedStatus': SocialAccountVerifiedStatus.accept,
-                            'youtube.$[].verifiedStatus': SocialAccountVerifiedStatus.accept,
-                            'press.$[].verifiedStatus': SocialAccountVerifiedStatus.accept,
+                            'verifiedStatus': AccountVerifiedStatus.waitForUser,
+                            'instagram.$[].verifiedStatus': AccountVerifiedStatus.waitForUser,
+                            'tiktok.$[].verifiedStatus': AccountVerifiedStatus.waitForUser,
+                            'spotify.$[].verifiedStatus': AccountVerifiedStatus.waitForUser,
+                            'soundcloud.$[].verifiedStatus': AccountVerifiedStatus.waitForUser,
+                            'facebook.$[].verifiedStatus': AccountVerifiedStatus.waitForUser,
+                            'youtube.$[].verifiedStatus': AccountVerifiedStatus.waitForUser,
+                            'press.$[].verifiedStatus': AccountVerifiedStatus.waitForUser,
                         },
                     },
                     {session},
@@ -476,7 +472,7 @@ export class AuthService {
                     {_id: new Types.ObjectId(checkInfluencer._id)},
                     {
                         $set: {
-                            'statusVerify': responseVerify,
+                            'verifiedStatus': AccountVerifiedStatus.decline,
                         },
                     },
                     {session},
@@ -548,7 +544,7 @@ export class AuthService {
         if (responseVerify === 'accept') {
             await this.clientRepo.findOneAndUpdate(
                 {_id: checkClient._id},
-                {statusVerify: responseVerify},
+                {verifiedStatus: AccountVerifiedStatus.accept},
             );
 
             await this.verifyClientRepo.findOneAndDelete({verifyId: verifyId});
@@ -568,7 +564,7 @@ export class AuthService {
         } else if (responseVerify === 'cancel') {
             await this.clientRepo.findOneAndUpdate(
                 {_id: checkClient._id},
-                {statusVerify: responseVerify},
+                {verifiedStatus: AccountVerifiedStatus.decline},
             );
 
             await this.verifyClientRepo.findOneAndDelete({verifyId: verifyId});
@@ -588,7 +584,7 @@ export class AuthService {
     }
 
     // Returns current user info (same with login response but without accessToken)
-    async getMe(userId: string, userRole: Role): Promise<GetMeResponseDto> {
+    async getMe(userId: string, userRole: Role, res: Response): Promise<GetMeResponseDto> {
         let user: Client | Influencer;
         switch (userRole) {
             case Role.client:
@@ -603,11 +599,15 @@ export class AuthService {
 
         if (!user) throw new UnauthorizedException('User not found');
 
-        if (user.statusVerify === 'wait') throw new ForbiddenException('Account not verified');
+        if (user.verifiedStatus !== AccountVerifiedStatus.accept) {
+            clearRefreshTokenCookie(res);
+            throw new ForbiddenException('Account not verified')
+        };
 
         return {
             firstName: user.firstName,
             role: user.role as Role,
+            verifiedStatus: user.verifiedStatus as AccountVerifiedStatus,
             balance: (user as any).balance ?? undefined,
             logoUrl: (user as any).logoUrl ?? undefined,
         };

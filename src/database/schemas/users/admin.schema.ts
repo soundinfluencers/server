@@ -1,6 +1,6 @@
 import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
 import {Types} from "mongoose";
-import {Role} from "../../../common/types/user.types";
+import {AccountVerifiedStatus, Role} from "../../../common/types/user.types";
 
 @Schema({
     timestamps: true,
@@ -21,8 +21,8 @@ export class Admin {
     @Prop()
     password: string;
 
-    @Prop({default: 'wait'})
-    statusVerify: string;
+    @Prop({required: false, default: AccountVerifiedStatus.waitForAdmin, enum: AccountVerifiedStatus, type: String, index: true})
+    verifiedStatus: AccountVerifiedStatus;
 
     @Prop({default: null})
     refreshToken: string | null;

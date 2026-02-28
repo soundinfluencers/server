@@ -26,6 +26,7 @@ import {
 } from "../../common/types/influencer/promo.types";
 import {ApiResponseDtoOneOf} from "../../common/decorators/api/response/api-response-one-of.decorator";
 
+
 @ApiTags('promos')
 @Controller('promos')
 export class PromosController {

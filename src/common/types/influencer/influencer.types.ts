@@ -4,31 +4,29 @@ import {
     UserNotificationMethods
 } from "../../../database/schemas/users/influencer.schema";
 import {InfluencerConfirmationStatusEnum} from "./promo.types";
+import {AccountVerifiedStatus} from "../user.types";
 
 export enum InfluencerProfileCategory {
     community = 'community',
     creator = 'creator'
 }
 
-export enum AccountVerifiedStatus {
-    accept = 'accept',
-    decline = 'decline',
-    waitForAdmin = 'waitForAdmin',
-    waitForUser = 'waitForUser',
-    negotiation = 'negotiation',
-}
-
-export enum AccountLabelStatus {
+export enum SocialAccountLabelStatus {
     verified = 'verified',
     new = 'new',
     priceChanged = 'priceChanged',
+}
+
+export enum AgreementType {
+    profileCreate = 'profileCreate',
+    accountAdd = 'accountAdd',
 }
 
 export interface SocialAccountForAccountDetails {
     accountId: string;
     username: string;
     verifiedStatus: AccountVerifiedStatus;
-    agreementStatus: InfluencerConfirmationStatusEnum;
+    labelStatus: SocialAccountLabelStatus;
 }
 
 // interface for account settings page

@@ -98,7 +98,7 @@ export class AuthController {
     @ApiOperation({summary: "Returns current user base info (for home page)"})
     @ApiResponseDto(GetMeResponseDto)
     @Get('/me')
-    getClientProfileDetails(@Req() req: AuthenticatedRequest): Promise<GetMeResponseDto> {
-        return this.authService.getMe(req.user._id, req.user.role);
+    getClientProfileDetails(@Req() req: AuthenticatedRequest, @Res({ passthrough: true }) res: Response): Promise<GetMeResponseDto> {
+        return this.authService.getMe(req.user._id, req.user.role, res);
     }
 }

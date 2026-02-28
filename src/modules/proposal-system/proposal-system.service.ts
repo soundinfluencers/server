@@ -10,7 +10,7 @@ import {
 import {Types} from 'mongoose';
 import {ProposalCampaignRepository} from "../../database/repositories/campaigns/proposal-campaign.repository";
 import {CampaignContentItemDto, CreateCampaignDto, SelectInfluencerDto} from "../campaigns/dto/create-campaign.dto";
-import {ClientPayload, Role, UserPayload} from "../../common/types/user.types";
+import {AccountVerifiedStatus, ClientPayload, Role, UserPayload} from "../../common/types/user.types";
 import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
 import {CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
 import {
@@ -38,7 +38,7 @@ import {uniq} from "../../common/utils/base.util";
 import {ObjId, toObjIdSafe} from "../../common/types/base.types";
 import {UpdateCampaignDto} from "../campaigns/dto/update-campaign.dto";
 import {MediaService} from "../media/media.service";
-import {SocialAccountVerifiedStatus} from "../../common/types/influencer/influencer.types";
+import {SocialAccountLabelStatus} from "../../common/types/influencer/influencer.types";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -216,7 +216,7 @@ export class ProposalSystemService {
             const acc = matched.acc;
 
             // meta validation
-            if (acc.verifiedStatus !== SocialAccountVerifiedStatus.accept) {
+            if (acc.verifiedStatus !== AccountVerifiedStatus.accept || acc.labelStatus !== SocialAccountLabelStatus.verified) {
                 invalid.push({index: idx, reason: "Account is not verified"});
                 continue;
             }

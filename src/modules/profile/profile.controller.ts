@@ -33,7 +33,7 @@ import {
     FoundAccountsDto,
     GetSocialAccountDetailsParamsDto,
     InfluencerAccountDetailsDto,
-    SocialAccountDetailsDto
+    SocialAccountDetailsDto, UpdateAccountsAgreementDto
 } from "./dto/influencer/get-profile.dto";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
 import {
@@ -41,7 +41,7 @@ import {
     GetFilteredAccountsQueryDto,
     SearchSocialAccountsDto
 } from "./dto/client/search-social-accounts.dto";
-import {SocialAccountSortByEnum} from "../../common/types/influencer/influencer.types";
+import {AgreementType, SocialAccountSortByEnum} from "../../common/types/influencer/influencer.types";
 import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
 import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details.dto";
 import {PaymentDetailsDto, PaymentMethodRequestEnum, UpdatePaymentDetailsDto} from "./dto/payment-details.dto";
@@ -197,22 +197,29 @@ export class ProfileController {
         required: true,
         type: String,
     })
-    @Patch('agreement/:status/:influencerId')
+    @ApiParam({
+        name: 'agreementType',
+        required: true,
+        type: String,
+        enum: AgreementType,
+    })
+    @Patch('agreement/:status/:influencerId/:agreementType')
     updateSocialAccountsAgreement(
         @Req() request: AuthenticatedRequest,
-        @Param('status') status: InfluencerConfirmationStatusEnum,
-        @Param('influencerId') influencerId: string,
+        @Param() params: UpdateAccountsAgreementDto,
         @Res({ passthrough: true }) res: Response,
     ): Promise<GetMeResponseDto> {
-        if (!status || status === InfluencerConfirmationStatusEnum.wait) throw new BadRequestException('Invalid status value');
-        if (request.user && request.user._id !== influencerId) throw new ForbiddenException('Not enough access');
+        if (!params.status || params.status === InfluencerConfirmationStatusEnum.wait) throw new BadRequestException('Invalid status value');
+        if (!params.agreementType || !Object.values(AgreementType).includes(params.agreementType)) throw new BadRequestException('Invalid agreement type');
+        if (request.user && request.user._id !== params.influencerId) throw new ForbiddenException('Not enough access');
 
-        return this.profileService.updateSocialAccountsAgreement(
-            request.user ? request.user._id : influencerId,
-            status,
-            res,
-            request.user ? request.user.role : undefined
-        );
+        return this.profileService.updateSocialAccountsAgreement({
+            influencerId: request.user ? request.user._id : params.influencerId,
+            status: params.status,
+            agreementType: params.agreementType,
+            res: res,
+            role: request.user ? request.user.role : undefined
+        });
     }
 
     @Auth()

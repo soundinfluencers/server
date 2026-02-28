@@ -1,12 +1,10 @@
 import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
 import {Document, Types} from 'mongoose';
 import {
-    AccountLabelStatus,
-    AccountVerifiedStatus,
-    InfluencerProfileCategory, InfluencerVerifiedStatus, SocialAccountAgreementStatus, SocialAccountVerifiedStatus
+    InfluencerProfileCategory,
+    SocialAccountLabelStatus,
 } from "../../../common/types/influencer/influencer.types";
-import {Role} from "../../../common/types/user.types";
-import {InfluencerConfirmationStatusEnum} from "../../../common/types/influencer/promo.types";
+import {AccountVerifiedStatus, Role} from "../../../common/types/user.types";
 
 @Schema({_id: false})
 export class InfluencerMusicGenre {
@@ -100,8 +98,8 @@ export class SocialAccount {
     @Prop({required: false, default: AccountVerifiedStatus.waitForAdmin, enum: AccountVerifiedStatus, type: String, index: true})
     verifiedStatus: AccountVerifiedStatus;
 
-    @Prop({required: false, default: AccountLabelStatus.new, enum: AccountLabelStatus, type: String})
-    labelStatus?: AccountLabelStatus;
+    @Prop({required: false, default: SocialAccountLabelStatus.new, enum: SocialAccountLabelStatus, type: String})
+    labelStatus: SocialAccountLabelStatus;
 }
 
 export const SocialAccountSchema = SchemaFactory.createForClass(SocialAccount);
@@ -193,9 +191,6 @@ export class Influencer extends Document {
 
     @Prop({default: null})
     refreshToken: string | null;
-
-    @Prop({default: 'wait'})
-    statusVerify: string;
 
     @Prop({required: false, default: AccountVerifiedStatus.waitForAdmin, enum: AccountVerifiedStatus, type: String})
     verifiedStatus?: AccountVerifiedStatus;

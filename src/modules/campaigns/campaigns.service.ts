@@ -52,7 +52,7 @@ import {
 import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
 import {FoundAccountDto} from "../profile/dto/influencer/get-profile.dto";
 import {EmailService} from "../email/email.service";
-import {Role, UserPayload} from "../../common/types/user.types";
+import {AccountVerifiedStatus, Role, UserPayload} from "../../common/types/user.types";
 import {UpdateCampaignDto} from "./dto/update-campaign.dto";
 import {mapContentItemDtoToModel, mapToClientCampaignForTable} from "../../common/mappers/campaign.mapper";
 import {buildSafeFileName, uniq} from "../../common/utils/base.util";
@@ -66,7 +66,7 @@ import {CampaignCsvExporter} from "../../common/utils/export/csv/campaign-csv.ex
 import {CampaignPdfExporter} from "../../common/utils/export/pdf/campaign-pdf.exporter";
 import {MediaService} from "../media/media.service";
 import {InvoiceService} from "../invoice/invoice.service";
-import {SocialAccountVerifiedStatus} from "../../common/types/influencer/influencer.types";
+import {SocialAccountLabelStatus} from "../../common/types/influencer/influencer.types";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -248,7 +248,7 @@ export class CampaignsService {
             const acc = matched.acc;
 
             // meta validation
-            if (acc.verifiedStatus !== SocialAccountVerifiedStatus.accept) {
+            if (acc.verifiedStatus !== AccountVerifiedStatus.accept || acc.labelStatus !== SocialAccountLabelStatus.verified) {
                 invalid.push({index: idx, reason: "Account is not verified"});
                 continue;
             }
