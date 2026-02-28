@@ -1,7 +1,9 @@
 import {Schema, Prop, SchemaFactory} from '@nestjs/mongoose';
 import {Document, Types} from 'mongoose';
 import {
-    InfluencerProfileCategory, SocialAccountVerifiedStatus
+    AccountLabelStatus,
+    AccountVerifiedStatus,
+    InfluencerProfileCategory, InfluencerVerifiedStatus, SocialAccountAgreementStatus, SocialAccountVerifiedStatus
 } from "../../../common/types/influencer/influencer.types";
 import {Role} from "../../../common/types/user.types";
 import {InfluencerConfirmationStatusEnum} from "../../../common/types/influencer/promo.types";
@@ -95,11 +97,11 @@ export class SocialAccount {
     @Prop({default: false, index: true})
     isDeleted: boolean;
 
-    @Prop({required: false, default: SocialAccountVerifiedStatus.new, enum: SocialAccountVerifiedStatus, type: String, index: true})
-    verifiedStatus: SocialAccountVerifiedStatus;
+    @Prop({required: false, default: AccountVerifiedStatus.waitForAdmin, enum: AccountVerifiedStatus, type: String, index: true})
+    verifiedStatus: AccountVerifiedStatus;
 
-    @Prop({required: false, default: InfluencerConfirmationStatusEnum.wait, enum: InfluencerConfirmationStatusEnum, type: String})
-    agreementStatus?: InfluencerConfirmationStatusEnum;
+    @Prop({required: false, default: AccountLabelStatus.new, enum: AccountLabelStatus, type: String})
+    labelStatus?: AccountLabelStatus;
 }
 
 export const SocialAccountSchema = SchemaFactory.createForClass(SocialAccount);
@@ -156,9 +158,6 @@ export class Influencer extends Document {
     @Prop()
     password: string;
 
-    @Prop({default: 'wait'})
-    statusVerify: string;
-
     @Prop({default: ''})
     internalNote: string;
 
@@ -195,8 +194,11 @@ export class Influencer extends Document {
     @Prop({default: null})
     refreshToken: string | null;
 
-    @Prop({required: false, default: InfluencerConfirmationStatusEnum.wait, enum: InfluencerConfirmationStatusEnum, type: String})
-    agreementStatus?: InfluencerConfirmationStatusEnum;
+    @Prop({default: 'wait'})
+    statusVerify: string;
+
+    @Prop({required: false, default: AccountVerifiedStatus.waitForAdmin, enum: AccountVerifiedStatus, type: String})
+    verifiedStatus?: AccountVerifiedStatus;
 }
 
 export const InfluencerSchema = SchemaFactory.createForClass(Influencer);

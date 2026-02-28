@@ -10,9 +10,16 @@ export enum InfluencerProfileCategory {
     creator = 'creator'
 }
 
-export enum SocialAccountVerifiedStatus {
+export enum AccountVerifiedStatus {
     accept = 'accept',
     decline = 'decline',
+    waitForAdmin = 'waitForAdmin',
+    waitForUser = 'waitForUser',
+    negotiation = 'negotiation',
+}
+
+export enum AccountLabelStatus {
+    verified = 'verified',
     new = 'new',
     priceChanged = 'priceChanged',
 }
@@ -20,7 +27,7 @@ export enum SocialAccountVerifiedStatus {
 export interface SocialAccountForAccountDetails {
     accountId: string;
     username: string;
-    verifiedStatus: SocialAccountVerifiedStatus;
+    verifiedStatus: AccountVerifiedStatus;
     agreementStatus: InfluencerConfirmationStatusEnum;
 }
 
