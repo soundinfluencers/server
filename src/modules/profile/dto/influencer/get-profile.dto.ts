@@ -279,8 +279,8 @@ export class AgreementAccountsListDto {
 
 // dto request for updating influencer's agreement statuses
 export class UpdateAccountsAgreementDto {
-    @ApiProperty({type: String})
-    influencerId: string;
+    @ApiPropertyOptional({type: String})
+    influencerId?: string;
 
     @ApiProperty({enum: InfluencerConfirmationStatusEnum})
     status: InfluencerConfirmationStatusEnum;

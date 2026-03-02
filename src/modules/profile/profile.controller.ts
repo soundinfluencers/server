@@ -194,7 +194,7 @@ export class ProfileController {
     })
     @ApiParam({
         name: 'influencerId',
-        required: true,
+        required: false,
         type: String,
     })
     @ApiParam({
@@ -203,7 +203,7 @@ export class ProfileController {
         type: String,
         enum: AgreementType,
     })
-    @Patch('agreement/:status/:influencerId/:agreementType')
+    @Patch('agreement/:status/:agreementType/:influencerId')
     updateSocialAccountsAgreement(
         @Req() request: AuthenticatedRequest,
         @Param() params: UpdateAccountsAgreementDto,
@@ -211,7 +211,7 @@ export class ProfileController {
     ): Promise<GetMeResponseDto> {
         if (!params.status || params.status === InfluencerConfirmationStatusEnum.wait) throw new BadRequestException('Invalid status value');
         if (!params.agreementType || !Object.values(AgreementType).includes(params.agreementType)) throw new BadRequestException('Invalid agreement type');
-        if (request.user && request.user._id !== params.influencerId) throw new ForbiddenException('Not enough access');
+        if (!request.user && !params.influencerId) throw new ForbiddenException('Not enough access');
 
         return this.profileService.updateSocialAccountsAgreement({
             influencerId: request.user ? request.user._id : params.influencerId,
