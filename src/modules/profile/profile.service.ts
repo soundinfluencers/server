@@ -806,11 +806,6 @@ export class ProfileService {
 
             return {
                 accessToken,
-                firstName: updatedInfluencer.firstName,
-                role: updatedInfluencer.role as Role,
-                verifiedStatus: updatedInfluencer.verifiedStatus,
-                balance: (updatedInfluencer as any).balance ?? undefined,
-                logoUrl: (updatedInfluencer as any).logoUrl ?? undefined,
             };
         }
     }

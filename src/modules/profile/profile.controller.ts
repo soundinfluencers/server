@@ -208,7 +208,7 @@ export class ProfileController {
         @Req() request: AuthenticatedRequest,
         @Param() params: UpdateAccountsAgreementDto,
         @Res({ passthrough: true }) res: Response,
-    ): Promise<GetMeResponseDto> {
+    ): Promise<LoginResponseDto> {
         if (!params.status || params.status === InfluencerConfirmationStatusEnum.wait) throw new BadRequestException('Invalid status value');
         if (!params.agreementType || !Object.values(AgreementType).includes(params.agreementType)) throw new BadRequestException('Invalid agreement type');
         if (!request.user && !params.influencerId) throw new ForbiddenException('Not enough access');

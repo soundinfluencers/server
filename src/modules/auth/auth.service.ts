@@ -322,29 +322,6 @@ export class AuthService {
 
         if (![AccountVerifiedStatus.accept, AccountVerifiedStatus.waitForUser].includes(user.verifiedStatus)) throw new ForbiddenException('Account not verified by admin');
 
-        let dataToReturn: LoginResponseDto = {
-            accessToken: undefined,
-            firstName: user.firstName,
-            role: user.role as Role,
-            verifiedStatus: user.verifiedStatus,
-            balance: (user as any).balance ?? undefined,
-            logoUrl: (user as any).logoUrl ?? undefined,
-        };
-
-        if (user.role === Role.influencer) {
-            for (const key of Object.values(SocialMediaEnum) as SocialMediaEnum[]) {
-                const accounts = (user as Influencer)[key] as SocialAccount[] | undefined;
-                if (!accounts?.length) continue;
-
-                const needAgreementRedirect = accounts?.some((acc: SocialAccount) => acc.verifiedStatus === AccountVerifiedStatus.waitForUser && acc.labelStatus === SocialAccountLabelStatus.new);
-
-                if (needAgreementRedirect) {
-                    dataToReturn.needAgreementRedirect = true;
-                    break;
-                }
-            }
-        }
-
         const accessToken = this.generateAccessToken(user);
         const refreshToken = this.generateRefreshToken(user);
 
@@ -352,9 +329,9 @@ export class AuthService {
 
         setRefreshTokenCookie(res, refreshToken);
 
-        dataToReturn.accessToken = accessToken;
-
-        return dataToReturn;
+        return {
+            accessToken,
+        };
     }
 
     // refresh and token replace
@@ -618,18 +595,33 @@ export class AuthService {
 
         if (!user) throw new UnauthorizedException('User not found');
 
-        if (user.verifiedStatus !== AccountVerifiedStatus.accept) {
+        if (![AccountVerifiedStatus.accept, AccountVerifiedStatus.waitForUser].includes(user.verifiedStatus)) {
             clearRefreshTokenCookie(res);
             throw new ForbiddenException('Account not verified')
         }
-        ;
 
-        return {
+        let dataToReturn: GetMeResponseDto = {
             firstName: user.firstName,
             role: user.role as Role,
             verifiedStatus: user.verifiedStatus as AccountVerifiedStatus,
             balance: (user as any).balance ?? undefined,
             logoUrl: (user as any).logoUrl ?? undefined,
         };
+
+        if (user.role === Role.influencer) {
+            for (const key of Object.values(SocialMediaEnum) as SocialMediaEnum[]) {
+                const accounts = (user as Influencer)[key] as SocialAccount[] | undefined;
+                if (!accounts?.length) continue;
+
+                const needAgreementRedirect = accounts?.some((acc: SocialAccount) => acc.verifiedStatus === AccountVerifiedStatus.waitForUser && acc.labelStatus === SocialAccountLabelStatus.new);
+
+                if (needAgreementRedirect) {
+                    dataToReturn.needAgreementRedirect = true;
+                    break;
+                }
+            }
+        }
+
+        return dataToReturn;
     }
 }

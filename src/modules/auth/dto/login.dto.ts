@@ -48,8 +48,8 @@ export class GetMeResponseDto {
     needAgreementRedirect?: boolean;
 }
 
-// dto for login response (adds accessToken to get/me)
-export class LoginResponseDto extends GetMeResponseDto {
+// dto for login response
+export class LoginResponseDto {
     @ApiProperty()
     accessToken: string;
 }
