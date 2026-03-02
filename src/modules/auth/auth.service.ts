@@ -494,7 +494,7 @@ export class AuthService {
                         `<p>Dear ${checkInfluencer.firstName},</p>
         <p>Thank you for confirming your information with us. Your account details have been successfully verified.</p> 
         <p>You can now access your personal account by clicking on the link below:</p>
-        <a href="${process.env.SERVER_CLIENT}/profile/agreement/${checkInfluencer._id}" style="font-weight: 600">*Access Link*</a>
+        <a href="${process.env.SERVER_CLIENT}/influencer/profile/agreement/${checkInfluencer._id}" style="font-weight: 600">*Access Link*</a>
         <p>If you have any questions or encounter any issues, please don't hesitate to contact our support team or reply to this message.</p>
         <p>Best regards,</p>
         <p>SoundInfluencers team</p>`,

@@ -161,7 +161,7 @@ export class EmailService {
         return this.safeSend(
             'nazarkozynets030606@gmail.com',
             // data.influencerEmail,
-            'New password',
+            'Price change request',
             email,
             'html'
         )

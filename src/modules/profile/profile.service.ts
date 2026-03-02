@@ -1069,11 +1069,14 @@ ${emailHtml}
                     if (accountIds.includes(account._id.toString())) {
                         const accountPrice = newPrice ? newPrice : account.price;
                         const accountPublicPrice = newPrice ? newPrice * 2 : account.publicPrice;
+                        const verified = newPrice
+                            ? isVerified === true ? AccountVerifiedStatus.accept : AccountVerifiedStatus.decline
+                            : isVerified === true ? AccountVerifiedStatus.waitForUser : AccountVerifiedStatus.decline;
                         const labelStatus = newPrice ? SocialAccountLabelStatus.verified : account.labelStatus;
 
                         account.price = accountPrice;
                         account.publicPrice = accountPublicPrice;
-                        account.verifiedStatus = isVerified === true ? AccountVerifiedStatus.waitForUser : AccountVerifiedStatus.decline;
+                        account.verifiedStatus = verified
                         account.labelStatus = labelStatus;
 
                         updatedAccounts.push({
