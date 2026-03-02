@@ -1078,7 +1078,7 @@ ${emailHtml}
 
                         account.price = accountPrice;
                         account.publicPrice = accountPublicPrice;
-                        account.verifiedStatus = isVerified === true ? AccountVerifiedStatus.accept : AccountVerifiedStatus.decline;
+                        account.verifiedStatus = isVerified === true ? AccountVerifiedStatus.waitForUser : AccountVerifiedStatus.decline;
                         account.labelStatus = labelStatus;
 
                         updatedAccounts.push({
