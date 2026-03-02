@@ -43,13 +43,13 @@ export class GetMeResponseDto {
 
     @ApiPropertyOptional()
     logoUrl?: string;
+
+    @ApiPropertyOptional()
+    needAgreementRedirect?: boolean;
 }
 
 // dto for login response (adds accessToken to get/me)
 export class LoginResponseDto extends GetMeResponseDto {
     @ApiProperty()
     accessToken: string;
-
-    @ApiPropertyOptional()
-    agreementStatus?: InfluencerConfirmationStatusEnum; // only for influencers; to understand if need to show new accounts agreement page
 }
