@@ -166,20 +166,20 @@ export class ProfileController {
     }
 
     @Public()
-    @ApiOperation({summary: "Get influencer's social accounts that need agreement"})
+    @ApiOperation({ summary: "Get influencer's social accounts that need agreement" })
     @ApiResponseDto(AgreementAccountsListDto)
-    @ApiParam({
-        name: 'influencerId',
-        required: true,
-        type: String,
-    })
-    @Get('agreement/:influencerId')
-    getAgreementAccountsList(@Req() request: AuthenticatedRequest, @Param('influencerId') influencerId: string): Promise<AgreementAccountsListDto> {
-        if (request.user && request.user._id !== influencerId) throw new ForbiddenException('Not enough access');
+    @ApiParam({ name: 'influencerId', required: false, type: String })
+    @Get(['agreement', 'agreement/:influencerId'])
+    getAgreementAccountsList(
+        @Req() request: AuthenticatedRequest,
+        @Param('influencerId') influencerId?: string,
+    ): Promise<AgreementAccountsListDto> {
+        const id = request.user?._id ?? influencerId;
+        if (!id) throw new ForbiddenException('Not enough access');
 
         return this.profileService.getAgreementAccountsList(
-            request.user ? request.user._id : influencerId,
-            request.user ? request.user.role : undefined
+            id,
+            request.user?.role,
         );
     }
 
@@ -203,7 +203,7 @@ export class ProfileController {
         type: String,
         enum: AgreementType,
     })
-    @Patch('agreement/:status/:agreementType/:influencerId')
+    @Patch(['agreement/:status/:agreementType', 'agreement/:status/:agreementType/:influencerId'])
     updateSocialAccountsAgreement(
         @Req() request: AuthenticatedRequest,
         @Param() params: UpdateAccountsAgreementDto,
