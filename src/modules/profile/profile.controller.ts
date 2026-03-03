@@ -47,7 +47,7 @@ import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details.
 import {PaymentDetailsDto, PaymentMethodRequestEnum, UpdatePaymentDetailsDto} from "./dto/payment-details.dto";
 import {UserNotificationMethods} from "../../database/schemas/users/influencer.schema";
 import {InfluencerConfirmationStatusEnum} from "../../common/types/influencer/promo.types";
-import {GetMeResponseDto, LoginResponseDto} from "../auth/dto/login.dto";
+import {LoginResponseDto} from "../auth/dto/login.dto";
 import {Response} from "express";
 import {Public} from "../../common/decorators/public.decorator";
 

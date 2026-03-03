@@ -76,7 +76,6 @@ import {
     mapToUkBankTransferDto
 } from "../../common/mappers/payment-details.mapper";
 import {InvoicePaymentMethodEnum} from "../../common/types/influencer/invoice.types";
-import {InfluencerConfirmationStatusEnum} from "../../common/types/influencer/promo.types";
 import {AuthService} from "../auth/auth.service";
 import {LoginResponseDto} from "../auth/dto/login.dto";
 import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
@@ -730,6 +729,7 @@ export class ProfileService {
                     (acc) => ![AccountVerifiedStatus.accept, AccountVerifiedStatus.decline, AccountVerifiedStatus.waitForAdmin].includes(acc.verifiedStatus),
                 )
                 .map((acc): AgreementAccountDto => ({
+                    accountId: acc._id.toString(),
                     username: acc.username,
                     price: acc.price,
                     agreementStatus: acc.verifiedStatus
@@ -1059,7 +1059,9 @@ export class ProfileService {
                         const verified = newPrice
                             ? isVerified === true ? AccountVerifiedStatus.accept : AccountVerifiedStatus.decline
                             : isVerified === true ? AccountVerifiedStatus.waitForUser : AccountVerifiedStatus.decline;
-                        const labelStatus = newPrice ? SocialAccountLabelStatus.accept : account.labelStatus;
+                        const labelStatus = newPrice
+                            ? isVerified === true ? SocialAccountLabelStatus.accept : SocialAccountLabelStatus.decline
+                            : isVerified === true ? SocialAccountLabelStatus.waitForUser : SocialAccountLabelStatus.decline;
 
                         account.price = accountPrice;
                         account.publicPrice = accountPublicPrice;

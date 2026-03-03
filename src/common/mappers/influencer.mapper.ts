@@ -11,7 +11,6 @@ export const mapSocialAccountToAccountDetailsDto = (account: SocialAccount): Soc
     return {
         accountId: account._id.toString(),
         username: account.username,
-        verifiedStatus: account.verifiedStatus,
         labelStatus: account.labelStatus
     }
 };

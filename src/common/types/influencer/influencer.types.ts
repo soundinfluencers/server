@@ -28,7 +28,6 @@ export enum AgreementType {
 export interface SocialAccountForAccountDetails {
     accountId: string;
     username: string;
-    verifiedStatus: AccountVerifiedStatus;
     labelStatus: SocialAccountLabelStatus;
 }
 

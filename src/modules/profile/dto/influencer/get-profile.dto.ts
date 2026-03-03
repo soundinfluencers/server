@@ -30,12 +30,6 @@ export class SocialAccountForAccountDetailsDto implements SocialAccountForAccoun
     username: string;
 
     @ApiProperty({
-        example: 'wait',
-        enum: AccountVerifiedStatus
-    })
-    verifiedStatus: AccountVerifiedStatus;
-
-    @ApiProperty({
         example: 'new',
         enum: SocialAccountLabelStatus
     })
@@ -240,6 +234,9 @@ export class FoundAccountsDto {
 
 // account for agreement list
 export class AgreementAccountDto {
+    @ApiProperty()
+    accountId: string;
+
     @ApiProperty()
     username: string;
 
