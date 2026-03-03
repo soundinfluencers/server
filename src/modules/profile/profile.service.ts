@@ -20,7 +20,6 @@ import {
 } from './dto/influencer/update-influencer.dto';
 import * as process from 'node:process';
 import {AppGateway} from '../websocket/app.gateway';
-import sendMail from "../../integrations/nodemailer/nodemailer";
 import {
     Influencer,
     InfluencerCountryStats,
@@ -81,8 +80,9 @@ import {InfluencerConfirmationStatusEnum} from "../../common/types/influencer/pr
 import {AuthService} from "../auth/auth.service";
 import {LoginResponseDto} from "../auth/dto/login.dto";
 import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
-import {EmailService} from "../email/email.service";
+import {EmailService} from "../../integrations/email/email.service";
 import {areCountriesValid} from "../../common/utils/countries.util";
+import {InfluencerToAdminEmails} from "../../integrations/email/email.templates";
 
 const bcrypt = require('bcryptjs');
 
@@ -646,7 +646,7 @@ export class ProfileService {
         // for creating change price request
         if (isPriceChanged) {
             try {
-                await this.emailService.sendPriceChangeRequestEmail({
+                await this.emailService.send(InfluencerToAdminEmails.priceChangeRequest({
                     influencerName: influencer.firstName,
                     influencerEmail: influencer.email,
                     accountUsername: socialAccount.username,
@@ -655,7 +655,7 @@ export class ProfileService {
                     newPrice: data.price,
                     acceptLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=true&newPrice=${data.price}`,
                     declineLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=false`,
-                });
+                }));
 
                 updateFields.verifiedStatus = AccountVerifiedStatus.waitForAdmin;
                 updateFields.labelStatus = SocialAccountLabelStatus.priceChanged;
@@ -854,12 +854,14 @@ export class ProfileService {
         ${data.deleteReason ? `<p><strong>Reason:</strong> ${data.deleteReason}</p>` : ''}
     `;
 
-            await sendMail(
-                process.env.EMAIL_USER,
-                'soundinfluencers',
-                emailContent,
-                'html',
-            );
+
+            // todo: delete account
+            // await sendMail(
+            //     process.env.EMAIL_USER,
+            //     'soundinfluencers',
+            //     emailContent,
+            //     'html',
+            // );
         } catch (err) {
             this.logger.warn(`${data.socialMedia} ${socialMediaAccounts[accountIndex].username} deleted status updated but email failed`, err);
         }
@@ -1006,30 +1008,15 @@ export class ProfileService {
 </ul>`;
             }
 
-            await sendMail(
-                process.env.EMAIL_USER,
-                'soundinfluencers',
-                `
-<p>Request from ${influencer.firstName} (${influencer.email})</p>
+            // ${process.env.SERVER}/profile/influencer/verify-new-accounts
+            // ?influencerId=${influencerId}
+            // &accounts=${encodeURIComponent(JSON.stringify([accountId]))}
+            // &isVerified=true
 
-<p><strong>Network:</strong> ${socialMedia}</p>
-
-${emailHtml}
-
-<h2>Do you want to verify this account?</h2>
-
-<a href="${process.env.SERVER}/profile/influencer/verify-new-accounts
-?influencerId=${influencerId}
-&accounts=${encodeURIComponent(JSON.stringify([accountId]))}
-&isVerified=true">ACCEPT</a>
-
-<a href="${process.env.SERVER}/profile/influencer/verify-new-accounts
-?influencerId=${influencerId}
-&accounts=${encodeURIComponent(JSON.stringify([accountId]))}
-&isVerified=false">DECLINE</a>
-`,
-                'html',
-            );
+            // ${process.env.SERVER}/profile/influencer/verify-new-accounts
+            // ?influencerId=${influencerId}
+            // &accounts=${encodeURIComponent(JSON.stringify([accountId]))}
+            // &isVerified=false
         } catch (err) {
             this.logger.warn(
                 `Account ${accountId.toString()} added but email failed`,

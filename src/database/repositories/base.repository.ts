@@ -3,7 +3,18 @@ import {RepoOptions} from "../types/repo.types";
 import {applyQueryOptions} from "../utils/apply-query-options.util";
 import {applyAggregateOptions} from "../utils/apply-aggregate-options.util";
 
-export class BaseRepository<T> {
+// Interface for base repository with default mongo methods
+export interface IBaseRepository<T> {
+    findById(id: string, options?: RepoOptions & { select?: string[] }): any;
+    findOne(filter: FilterQuery<T>, options?: RepoOptions & { select?: string[] }): Promise<T | null>;
+    findMany(filter?: FilterQuery<T>, options?: RepoOptions & { select?: string[] }): Promise<T[]>;
+    create<U>(data: U, options?: { session?: any }): Promise<T>;
+    updateById(id: string | Types.ObjectId, data: Partial<T>, options?: RepoOptions): any;
+    updateOne(filter: FilterQuery<T>, update: UpdateQuery<T>, options?: RepoOptions & { upsert?: boolean }): any;
+    deleteById(id: string | Types.ObjectId, options?: RepoOptions): any;
+}
+
+export class BaseRepository<T> implements IBaseRepository<T> {
     constructor(protected readonly model: Model<T>) {}
 
     findById(id: string, options?: RepoOptions & { select?: string[] }) {

@@ -8,7 +8,7 @@ import {CompletedCampaignSchema, CompletedCampaign} from "../../database/schemas
 import {Campaign, CampaignSchema} from "../../database/schemas/campaign/campaign.schema";
 import {ProposalCampaign, ProposalCampaignSchema} from "../../database/schemas/campaign/proposal-campaign.schema";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
-import {EmailService} from "../email/email.service";
+import {EmailService} from "../../integrations/email/email.service";
 import {MediaModule} from "../media/media.module";
 import {InvoiceService} from "../invoice/invoice.service";
 import {InvoiceModule} from "../invoice/invoice.module";
@@ -16,7 +16,7 @@ import {InvoiceModule} from "../invoice/invoice.module";
 @Module({
     imports: [MediaModule, InvoiceModule],
     controllers: [CampaignsController],
-    providers: [CampaignsService, InfluencerActionsHistoryService, EmailService],
+    providers: [CampaignsService, InfluencerActionsHistoryService],
     exports: [CampaignsService],
 })
 export class CampaignsModule {}

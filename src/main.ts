@@ -8,6 +8,7 @@ import {AllExceptionsFilter} from "./common/filters/exceptions.filter";
 import {ValidationPipe} from "@nestjs/common";
 import {RolesGuard} from "./common/guards/roles.guard";
 import {JwtGuard} from "./common/guards/jwt.guard";
+import * as dotenv from 'dotenv';
 
 function parseOrigins(env?: string): string[] {
     return (env ?? '')
@@ -17,6 +18,7 @@ function parseOrigins(env?: string): string[] {
 }
 
 async function bootstrap() {
+    dotenv.config();
     const app = await NestFactory.create(AppModule);
 
     const allowedOrigins = parseOrigins(process.env.CORS_ORIGINS);

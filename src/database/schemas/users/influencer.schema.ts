@@ -5,6 +5,7 @@ import {
     SocialAccountLabelStatus,
 } from "../../../common/types/influencer/influencer.types";
 import {AccountVerifiedStatus, Role} from "../../../common/types/user.types";
+import {CurrencyCode} from "../../../common/types/finance.types";
 
 @Schema({_id: false})
 export class InfluencerMusicGenre {
@@ -53,17 +54,17 @@ export class SocialAccount {
     })
     profileCategory: InfluencerProfileCategory;
 
-    @Prop({type: Number, min: 0})
-    price: number;
+    @Prop({type: Number, min: 0, required: true})
+    price: number; // price in EUR
 
-    @Prop({type: Number, min: 0})
-    publicPrice: number;
+    @Prop({type: Number, min: 0, required: true})
+    publicPrice: number; // price in EUR that we're showing up clients (by default price * 2)
 
-    @Prop({type: String, default: null})
-    currency: string | null;
+    @Prop({type: String, required: false, default: CurrencyCode.EUR})
+    currency: CurrencyCode; // на сайте всё в EUR, а это поле нужно чтобы получать exchangeRate в формате account.currency -> EUR
 
-    @Prop({type: Number, min: 0, default: 0})
-    initialPrice: number;
+    @Prop({type: Number, min: 0, required: true})
+    initialPrice: number; // цена до умножения на exchangeRate
 
     @Prop({
         type: [InfluencerCountryStatsSchema],

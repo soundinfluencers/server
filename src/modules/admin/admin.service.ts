@@ -16,7 +16,7 @@
 // import * as process from 'node:process';
 // import {AdminSendMailToInfluencerDto} from './dto/admin-send-mail-to-influencer.dto';
 // import {AppGateway} from '../websocket/app.gateway';
-// import sendMail from "../../integrations/nodemailer/nodemailer";
+// import sendMail from "../../integrations/email/email";
 // import {
 //     AccountObjectForCreateNewPromoRequestMessage, createNewPromoRequestHTMLMessage,
 //     createNewPromoRequestTextMessage

@@ -4,7 +4,7 @@ import { ForgotController } from './forgot.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Forgot, ForgotSchema } from './schemas/forgot.schema';
 import {ForgotRepository} from "./repositories/forgot.repository";
-import {EmailService} from "../email/email.service";
+import {EmailService} from "../../integrations/email/email.service";
 
 @Module({
   imports: [
@@ -13,6 +13,6 @@ import {EmailService} from "../email/email.service";
     ]),
   ],
   controllers: [ForgotController],
-  providers: [ForgotService, ForgotRepository, EmailService],
+  providers: [ForgotService, ForgotRepository],
 })
 export class ForgotModule {}

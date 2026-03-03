@@ -17,7 +17,7 @@ import {
 } from "../../common/types/influencer/invoice.types";
 import {formatDate} from "../../common/utils/formatters";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
-import {EmailService} from "../email/email.service";
+import {EmailService} from "../../integrations/email/email.service";
 import {InvoiceDetailsRepository} from "../../database/repositories/invoices/invoice-details.repository";
 import {Role, UserPayload} from "../../common/types/user.types";
 import {ObjId} from "../../common/types/base.types";
@@ -30,6 +30,7 @@ import {PaymentMethodRequestEnum} from "../profile/dto/payment-details.dto";
 import {ProfileService} from "../profile/profile.service";
 import {mapToInvoiceModel} from "../../common/mappers/invoice.mapper";
 import {InvoicePdfExporter} from "../../common/utils/export/pdf/invoice-pdf.exporter";
+import {AdminToClientEmails, InfluencerToAdminEmails} from "../../integrations/email/email.templates";
 
 @Injectable()
 export class InvoiceService {
@@ -120,7 +121,7 @@ export class InvoiceService {
 
             // Creating and sending email
             const pdfInvoice = await InvoicePdfExporter.buildPdfBuffer(invoice)
-            await this.emailService.sendNewInfluencerInvoiceEmail({
+            await this.emailService.send(InfluencerToAdminEmails.newInvoice({
                 influencerEmail: influencer.email,
                 instagramAccounts,
                 tiktokAccounts,
@@ -130,7 +131,7 @@ export class InvoiceService {
                 youtubeAccounts,
                 pressAccounts,
                 selectedPaymentMethod: data.selectedPaymentMethod
-            }, pdfInvoice);
+            }, pdfInvoice));
 
             await session.commitTransaction();
         } catch (err) {
@@ -150,7 +151,7 @@ export class InvoiceService {
         await this.userInvoiceRepository.create(invoice, {session});
 
         const pdfInvoice = await InvoicePdfExporter.buildPdfBuffer(invoice)
-        await this.emailService.sendClientCampaignInvoiceEmail(pdfInvoice);
+        await this.emailService.send(AdminToClientEmails.campaignInvoice(process.env.EMAIL_USER, pdfInvoice));
     }
 
     async getInvoices(

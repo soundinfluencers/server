@@ -22,14 +22,26 @@ import {HealthController} from "../health/health.controller";
 import {DatabaseModule} from "../../database/database.module";
 import {CampaignsModule} from "../campaigns/campaigns.module";
 import {MigrationsModule} from "../migrations/migrations.module";
-import {EmailModule} from "../email/email.module";
+import {EmailModule} from "../../integrations/email/email.module";
 import {MediaModule} from "../media/media.module";
+import {ExchangeRateModule} from "../../integrations/exchange-rate/exchange-rate.module";
+import {ScheduleModule} from "@nestjs/schedule";
+import {JobsModule} from "../../jobs/jobs.module";
+import {ConfigModule} from "@nestjs/config";
 
 @Module({
     imports: [
+        ConfigModule.forRoot({
+            isGlobal: true,
+        }),
         MongooseModule.forRoot(
             process.env.DATABASE_ROOT
         ),
+        ScheduleModule.forRoot(),
+        ServeStaticModule.forRoot({
+            rootPath: join(__dirname, '..', 'uploads'),
+            serveRoot: '/uploads',
+        }),
         AuthModule,
         ForgotModule,
         ProfileModule,
@@ -49,10 +61,8 @@ import {MediaModule} from "../media/media.module";
         MediaModule,
         EmailModule,
         DatabaseModule,
-        ServeStaticModule.forRoot({
-            rootPath: join(__dirname, '..', 'uploads'),
-            serveRoot: '/uploads',
-        }),
+        ExchangeRateModule,
+        JobsModule,
     ],
     controllers: [AppController, HealthController],
     providers: [AppService],

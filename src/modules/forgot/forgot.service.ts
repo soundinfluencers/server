@@ -1,23 +1,22 @@
 import {
     BadRequestException,
     ConflictException,
-    ForbiddenException,
     Injectable, InternalServerErrorException, Logger,
     NotFoundException
 } from '@nestjs/common';
-import sendMail from "../../integrations/nodemailer/nodemailer";
 import {Client} from "../../database/schemas/users/client.schema";
 import {Influencer} from "../../database/schemas/users/influencer.schema";
 import {ForgotRepository} from "./repositories/forgot.repository";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {ObjId} from "../../common/types/base.types";
-import {EmailService} from "../email/email.service";
+import {EmailService} from "../../integrations/email/email.service";
 import {Role} from "../../common/types/user.types";
 import {createHash, randomBytes} from "node:crypto";
 import {ClientSession} from "mongoose";
 import {CloseForgotRequestDto, CreateNewForgotRequestDto} from "./dto/forgot.dto";
 import {Forgot} from "./schemas/forgot.schema";
+import {AdminToClientEmails, ClientToAdminEmails} from "../../integrations/email/email.templates";
 
 const bcrypt = require('bcryptjs');
 
@@ -25,18 +24,6 @@ function generateResetToken() {
     const token = randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(token).digest('hex');
     return {token, tokenHash};
-}
-
-function generateRandomPassword() {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let password = '';
-
-    for (let i = 0; i < 8; i++) {
-        const randomIndex = Math.floor(Math.random() * characters.length);
-        password += characters.charAt(randomIndex);
-    }
-
-    return password;
 }
 
 @Injectable()
@@ -118,11 +105,11 @@ export class ForgotService {
         });
 
         try {
-            await this.emailService.sendForgotPasswordEmail({
+            await this.emailService.send(AdminToClientEmails.forgotPassword({
                 userFirstName: user.firstName,
                 email,
                 link: `${process.env.SERVER_CLIENT}/reset-password/${token}`,
-            });
+            }));
         } catch (err) {
             await this.forgotRepo.findOneAndDelete({_id: forgotRequestId});
 
@@ -170,10 +157,10 @@ export class ForgotService {
         );
 
         try {
-            await this.emailService.sendNewPasswordEmail({
+            await this.emailService.send(AdminToClientEmails.newPassword({
                 userFirstName: user.firstName,
                 email: user.email,
-            })
+            }))
         } catch (err) {
             this.logger.warn(`User ${user.role} ${user._id} reset his password, but email failed`)
         }

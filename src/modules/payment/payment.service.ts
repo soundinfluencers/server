@@ -5,7 +5,6 @@ import mongoose from 'mongoose';
 import { Payment } from './schemas/payment.entity';
 import { Response } from 'express';
 import {InvoiceDetails} from "../../database/schemas/invoices/invoice-details.schema";
-import sendMail from "../../integrations/nodemailer/nodemailer";
 import {Client} from "../../database/schemas/users/client.schema";
 
 const fs = require('fs');
@@ -261,18 +260,6 @@ export class PaymentService {
       await this.createPDF(result, data)
         .then(async (pdfPath) => {
           const emailToSend = data.emailForSendingInvoice || clientDetail.email;
-
-          await sendMail(
-            emailToSend,
-            'Invoice',
-            `<p>Hello,</p>
-          <p>Please find attached the invoice for your SoundInfluencers campaign.</p><br/>
-          <p> To monitor the progress of your campaign, please visit the <a href="https://go.soundinfluencers.com/account/client/ongoing-promos">"Ongoing Promo"</a>  section in the homepage in <a href="https://go.soundinfluencers.com">go.soundinfluencers.com</a></p><br/>
-          <p>Best regards,
-          SoundInfluencers Team</p>`,
-            'pdf',
-            pdfPath as string,
-          );
         })
         .catch((error) => {
           console.error('Error creating PDF:', error);
@@ -359,23 +346,23 @@ export class PaymentService {
         vatNumber: invoiceDetail[0]?.vatNumber || '',
       };
 
-      await this.createPDF(result, res)
-        .then(async (pdfPath) => {
-          await sendMail(
-            clientDetail.email,
-            'Invoice',
-            `<p>Hello,</p>
-            <p>Please find attached the invoice for your SoundInfluencers campaign.</p><br/>
-            <p> To monitor the progress of your campaign, please visit the <a href="https://go.soundinfluencers.com/account/client/ongoing-promos">"Ongoing Promo"</a>  section in the homepage in <a href="https://go.soundinfluencers.com">go.soundinfluencers.com</a></p><br/>
-            <p>Best regards,
-            SoundInfluencers Team</p>`,
-            'pdf',
-            pdfPath as string,
-          );
-        })
-        .catch((error) => {
-          console.error('Error creating PDF:', error);
-        });
+      // await this.createPDF(result, res)
+      //   .then(async (pdfPath) => {
+      //     await sendMail(
+      //       clientDetail.email,
+      //       'Invoice',
+      //       `<p>Hello,</p>
+      //       <p>Please find attached the invoice for your SoundInfluencers campaign.</p><br/>
+      //       <p> To monitor the progress of your campaign, please visit the <a href="https://go.soundinfluencers.com/account/client/ongoing-promos">"Ongoing Promo"</a>  section in the homepage in <a href="https://go.soundinfluencers.com">go.soundinfluencers.com</a></p><br/>
+      //       <p>Best regards,
+      //       SoundInfluencers Team</p>`,
+      //       'pdf',
+      //       pdfPath as string,
+      //     );
+      //   })
+      //   .catch((error) => {
+      //     console.error('Error creating PDF:', error);
+      //   });
 
       res.redirect(`${process.env.SERVER_CLIENT}/account/client`);
 

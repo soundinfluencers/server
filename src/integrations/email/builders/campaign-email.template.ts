@@ -10,7 +10,7 @@ import {
     CreateBespokeCampaignDto,
     EventBespokeCampaignDto, MusicBespokeCampaignDto,
     OtherBespokeCampaignDto
-} from "../../campaigns/dto/bespoke-request.dto";
+} from "../../../modules/campaigns/dto/bespoke-request.dto";
 import {BespokeRequestCategory} from "../../../common/types/client/campaign.types";
 import {
     escapeHtmlForEmail,

@@ -51,7 +51,7 @@ import {
 } from "../../common/types/influencer/promo.types";
 import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
 import {FoundAccountDto} from "../profile/dto/influencer/get-profile.dto";
-import {EmailService} from "../email/email.service";
+import {EmailService} from "../../integrations/email/email.service";
 import {AccountVerifiedStatus, Role, UserPayload} from "../../common/types/user.types";
 import {UpdateCampaignDto} from "./dto/update-campaign.dto";
 import {mapContentItemDtoToModel, mapToClientCampaignForTable} from "../../common/mappers/campaign.mapper";
@@ -60,13 +60,14 @@ import {ObjId, toObjIdSafe} from "../../common/types/base.types";
 import {
     AccountObjectForCreateNewPromoRequestMessage,
     BuildRequestEditTemplateDto
-} from "../email/dto/campaign-email.dto";
+} from "../../integrations/email/dto/campaign-email.dto";
 import {BespokeCampaignRepository} from "../../database/repositories/campaigns/bespoke-campaign.repository";
 import {CampaignCsvExporter} from "../../common/utils/export/csv/campaign-csv.exporter";
 import {CampaignPdfExporter} from "../../common/utils/export/pdf/campaign-pdf.exporter";
 import {MediaService} from "../media/media.service";
 import {InvoiceService} from "../invoice/invoice.service";
 import {SocialAccountLabelStatus} from "../../common/types/influencer/influencer.types";
+import {AdminToInfluencerEmails, ClientToAdminEmails} from "../../integrations/email/email.templates";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -538,7 +539,7 @@ export class CampaignsService {
             await session.endSession();
         }
 
-        await this.emailService.sendCampaignCreatedEmail({
+        await this.emailService.send(ClientToAdminEmails.campaignCreated({
             campaignId: campaignId.toString(),
             clientId: data.clientId,
             campaignSocialMedia: data.socialMedia as SocialMediaEnum,
@@ -548,7 +549,7 @@ export class CampaignsService {
             clientEmail: client.email,
             acceptLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=accept`,
             declineLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=decline`,
-        })
+        }))
     }
 
     // Returns detailed draft
@@ -825,11 +826,11 @@ export class CampaignsService {
 
                 // todo: user email service and create query of emails
                 try {
-                    await this.emailService.sendInfluencerNewPromoRequestEmail({
+                    await this.emailService.send(AdminToInfluencerEmails.newPromoRequest({
                         firstName: influencer.firstName,
                         email: influencer.email,
                         accountsAndDetails: accountDetails,
-                    });
+                    }));
                 } catch (err) {
                     this.logger.warn(`${checkCampaign.campaignName} new promo request email failed for influencer ${influencer._id} - ${influencer.email}`, err);
                 }
@@ -1364,11 +1365,11 @@ export class CampaignsService {
                 userId: new ObjId(userInfo._id),
             }, {session});
 
-            await this.emailService.sendBespokeCampaignRequestEmail({
+            await this.emailService.send(ClientToAdminEmails.bespokeCampaignRequest({
                 ...data,
                 clientName: creatorInfo.firstName,
                 clientEmail: creatorInfo.email
-            })
+            }))
 
             await session.commitTransaction();
         } catch (error) {
@@ -1563,7 +1564,7 @@ export class CampaignsService {
             declineLink: `${process.env.SERVER}/campaigns/${campaignId}/request-edit/decline`
         }
 
-        await this.emailService.sendNewEditRequestEmail(dataForEmail);
+        await this.emailService.send(ClientToAdminEmails.campaignEditRequest(dataForEmail));
     }
 
     // todo: in future remove to admin module

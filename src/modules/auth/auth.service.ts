@@ -11,7 +11,6 @@ import {CreateClientDto} from './dto/create-client.dto';
 import {CreateInfluencerDto, CreateSocialAccountDto} from './dto/create-influencer.dto';
 import {ClientSession, Types} from 'mongoose';
 import {Response} from "express";
-import sendMail from "../../integrations/nodemailer/nodemailer";
 import {clearRefreshTokenCookie, setRefreshTokenCookie} from "../../common/utils/cookie.util";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
@@ -20,14 +19,18 @@ import {VerifyInfluencerRepository} from "../../database/repositories/verify-use
 import {GetMeResponseDto, LoginDto, LoginResponseDto} from "./dto/login.dto";
 import {Influencer, SocialAccount} from "../../database/schemas/users/influencer.schema";
 import {SocialMediaEnum} from "../../common/types/social-media.types";
-import {getArrayFromMusicGenreDto, normalizeDtoToMusicGenres} from "../../common/utils/genres";
+import {normalizeDtoToMusicGenres} from "../../common/utils/genres";
 import {AdminRepository} from "../../database/repositories/users/admin.repository";
 import {AccountVerifiedStatus, Role} from "../../common/types/user.types";
 import {Client} from "../../database/schemas/users/client.schema";
 import {Admin} from "../../database/schemas/users/admin.schema";
 import {areCountriesValid} from "../../common/utils/countries.util";
-import {AgreementType, SocialAccountLabelStatus} from "../../common/types/influencer/influencer.types";
-import {AgreementAccountDto} from "../profile/dto/influencer/get-profile.dto";
+import {SocialAccountLabelStatus} from "../../common/types/influencer/influencer.types";
+import {ExchangeRateService} from "../../integrations/exchange-rate/exchange-rate.service";
+import {CurrencyCode, getAvailableCurrenciesLabel} from "../../common/types/finance.types";
+import {EmailService} from "../../integrations/email/email.service";
+import {AdminToInfluencerEmails, InfluencerToAdminEmails} from "../../integrations/email/email.templates";
+import {mapCreateInfluencerToSignupEmailDto} from "../../integrations/email/mappers/profile-email.mapper";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -48,7 +51,11 @@ export class AuthService {
         private readonly influencerRepo: InfluencerRepository,
         private readonly adminRepo: AdminRepository,
         private readonly verifyClientRepo: VerifyClientRepository,
-        private readonly verifyInfluencerRepo: VerifyInfluencerRepository
+        private readonly verifyInfluencerRepo: VerifyInfluencerRepository,
+        // For parsing currencies
+        private readonly exchangeRateService: ExchangeRateService,
+        // For sending emails
+        private readonly emailService: EmailService
     ) {
     }
 
@@ -109,36 +116,36 @@ export class AuthService {
             await session.endSession();
         }
 
-        try {
-            await sendMail(
-                process.env.EMAIL_USER,
-                'SoundInfluencers',
-                `<p>Request from a new client ${data.company}</p><b>Details:</b><br/><br/><p>First Name: ${data.firstName}</p>
-        <p>Company: ${data.company}</p>
-        <p>Company Type: ${data.companyType}</p>
-        <p>Instagram: ${data.instagramUsername}</p>
-        <p>Email: ${data.email}</p>
-        <p>Phone: ${data.phone}</p>
-        <p>Referal Code: ${data.referalCode}</p>
-        <h2>Do you want to verify this account?</h2>
-        <a href="${process.env.SERVER}/auth/verify/client?verifyId=${verifyId.toString()}&responseVerify=accept">ACCEPT</a>
-        <a href="${process.env.SERVER}/auth/verify/client?verifyId=${verifyId.toString()}&responseVerify=cancel">CANCEL</a>
-        `,
-                'html',
-            );
-            await sendMail(
-                data.email,
-                'SoundInfluencers',
-                `<p>Dear ${data.firstName},</p>
-      <p>Hello,</p>
-      <p>Thank you for submitting your account request. We will inform you of the outcome shortly.</p>
-      <p>Best regards,</p>
-      <p>The SoundInfluencers.com Team</p>`,
-                'html',
-            );
-        } catch (err) {
-            this.logger.warn(`Client ${userId.toString()} created but email failed`, err);
-        }
+        // try {
+      //       await sendMail(
+      //           process.env.EMAIL_USER,
+      //           'SoundInfluencers',
+      //           `<p>Request from a new client ${data.company}</p><b>Details:</b><br/><br/><p>First Name: ${data.firstName}</p>
+      //   <p>Company: ${data.company}</p>
+      //   <p>Company Type: ${data.companyType}</p>
+      //   <p>Instagram: ${data.instagramUsername}</p>
+      //   <p>Email: ${data.email}</p>
+      //   <p>Phone: ${data.phone}</p>
+      //   <p>Referal Code: ${data.referalCode}</p>
+      //   <h2>Do you want to verify this account?</h2>
+      //   <a href="${process.env.SERVER}/auth/verify/client?verifyId=${verifyId.toString()}&responseVerify=accept">ACCEPT</a>
+      //   <a href="${process.env.SERVER}/auth/verify/client?verifyId=${verifyId.toString()}&responseVerify=cancel">CANCEL</a>
+      //   `,
+      //           'html',
+      //       );
+      //       await sendMail(
+      //           data.email,
+      //           'SoundInfluencers',
+      //           `<p>Dear ${data.firstName},</p>
+      // <p>Hello,</p>
+      // <p>Thank you for submitting your account request. We will inform you of the outcome shortly.</p>
+      // <p>Best regards,</p>
+      // <p>The SoundInfluencers.com Team</p>`,
+      //           'html',
+      //       );
+      //   } catch (err) {
+      //       this.logger.warn(`Client ${userId.toString()} created but email failed`, err);
+      //   }
     };
 
     // Signup influencer
@@ -174,43 +181,61 @@ export class AuthService {
 
         const processedData: { [key: string]: SocialAccount[] } = {};
 
+        // cycle for proceeding each social media accounts list
         for (const network of socialNetworks) {
             const accounts = data[network] || [];
 
-            processedData[network] = accounts.map((item: CreateSocialAccountDto): SocialAccount => {
-                if (!areCountriesValid(item.countries)) {
-                    throw new BadRequestException('Countries not valid');
-                }
+            processedData[network] = await Promise.all(
+                accounts.map(async (item: CreateSocialAccountDto): Promise<SocialAccount> => {
+                    if (!areCountriesValid(item.countries)) {
+                        throw new BadRequestException('Countries not valid');
+                    }
 
-                const sanitizedPrice = parseFloat(String(item.price).replace(/[^\d.-]/g, '')) || 0;
-                const publicPrice = sanitizedPrice * 2;
-                // const sanitizedInitialPrice = parseInt(String(item.initialPrice).replace(/[^\d.-]/g, '')) || 0;
+                    if (!Object.values(CurrencyCode).includes(item.currency)) {
+                        throw new BadRequestException(
+                            `Currency for ${network} account ${item.username} is not valid. ` +
+                            `Try to use one of these: ${getAvailableCurrenciesLabel()}`
+                        );
+                    }
 
-                // TODO: initial price, parsing currency
+                    const exchangeRate: number =
+                        item.currency !== CurrencyCode.EUR
+                            ? await this.exchangeRateService.getRate(
+                                item.currency.toString(),
+                                'EUR'
+                            )
+                            : 1;
 
-                return {
-                    _id: new Types.ObjectId(),
-                    username: item.username,
-                    profileLink: item.profileLink,
-                    followers: item.followers ?? 0,
-                    logoUrl: item.logoUrl,
-                    price: sanitizedPrice,
-                    publicPrice: publicPrice,
-                    initialPrice: sanitizedPrice,
-                    currency: item.currency ?? 'EUR',
-                    profileCategory: item.profileCategory,
-                    musicGenres: normalizeDtoToMusicGenres(item.musicGenres) ?? [],
-                    creatorCategories: item.creatorCategories ?? [],
-                    countries: item.countries ?? [],
-                    categories: item.categories ?? [],
-                    engagementRate: null,
-                    averageViews: null,
-                    isHidden: false,
-                    isDeleted: false,
-                    verifiedStatus: AccountVerifiedStatus.waitForAdmin,
-                    labelStatus: SocialAccountLabelStatus.new
-                };
-            });
+                    const sanitizedPrice =
+                        parseFloat(String(item.price).replace(/[^\d.-]/g, '')) || 0;
+
+                    const price = Math.round(sanitizedPrice * exchangeRate);
+                    const publicPrice = price * 2;
+
+                    return {
+                        _id: new Types.ObjectId(),
+                        username: item.username,
+                        profileLink: item.profileLink,
+                        followers: item.followers ?? 0,
+                        logoUrl: item.logoUrl,
+                        price,
+                        publicPrice,
+                        initialPrice: sanitizedPrice,
+                        currency: item.currency,
+                        profileCategory: item.profileCategory,
+                        musicGenres: normalizeDtoToMusicGenres(item.musicGenres) ?? [],
+                        creatorCategories: item.creatorCategories ?? [],
+                        countries: item.countries ?? [],
+                        categories: item.categories ?? [],
+                        engagementRate: null,
+                        averageViews: null,
+                        isHidden: false,
+                        isDeleted: false,
+                        verifiedStatus: AccountVerifiedStatus.waitForAdmin,
+                        labelStatus: SocialAccountLabelStatus.new
+                    };
+                })
+            );
         }
 
         const userId = new Types.ObjectId();
@@ -244,51 +269,22 @@ export class AuthService {
         }
 
         try {
-            // todo: parsing initial price
-            await sendMail(
-                process.env.EMAIL_USER,
-                'SoundInfluencers',
-                `<p>Request from a new partner ${data.firstName}</p>
-            <b>Details:</b><br/><p>First Name: ${data.firstName}</p>
-            <p>Email: ${data.email}</p>
-            <p>Phone: ${data.phone}</p>
-            <br/>
-            ${socialNetworks
-                    .map((network) =>
-                        data[network]
-                            ?.map(
-                                (item, index) => `
-                <p><strong>Network: ${network} (${index + 1} account)</strong></p>
-
-            <ul>
-            <li><strong>Username: ${item.username}</strong></li>
-            <li><strong>Link: ${item.profileLink}</strong></li>
-            <li><strong>Followers: ${item.followers}</strong></li>
-            <li><strong>Logo: ${item.logoUrl}</strong></li>
-            <li><strong>Music genres: ${getArrayFromMusicGenreDto(item.musicGenres)}</strong></li>
-            <li><strong>Price: ${item.price}€</strong></li>
-            <li><strong>Initial Price: ${item.price}</strong></li>
-</ul>`,
-                            )
-                            .join(''),
+            // Send email to admin with verify links
+            await this.emailService.send(
+                InfluencerToAdminEmails.influencerSignup(
+                    mapCreateInfluencerToSignupEmailDto(
+                        data,
+                        {
+                            acceptLink: `${process.env.SERVER}/auth/verify/influencer?verifyId=${verifyId.toString()}&responseVerify=accept`,
+                            declineLink: `${process.env.SERVER}/auth/verify/influencer?verifyId=${verifyId.toString()}&responseVerify=cancel`,
+                            negotiateLink: ``
+                        }
                     )
-                    .join('')}
-            <h2>Do you want to verify your account?</h2>
-            <a href="${process.env.SERVER}/auth/verify/influencer?verifyId=${verifyId.toString()}&responseVerify=accept">ACCEPT</a>
-            <a href="${process.env.SERVER}/auth/verify/influencer?verifyId=${verifyId.toString()}&responseVerify=cancel">CANCEL</a>`,
-                'html',
-            );
+                )
+            )
 
-            await sendMail(
-                data.email,
-                'SoundInfluencers',
-                `<p>Dear ${data.firstName},</p>
-            <p>Thank you for submitting your subscription request.</p>
-            <p>We will send you an email with a status update shortly.</p>
-            <p>Best regards,</p>
-            <p>The SoundInfluencers Team</p>`,
-                'html',
-            );
+            // Auto-reply to influencer
+            await this.emailService.send(AdminToInfluencerEmails.influencerSignupAutoReply(data.email?.trim()?.toLowerCase(), data.firstName?.trim()))
         } catch (err) {
             this.logger.warn(`Influencer ${userId.toString()} created but email failed`, err);
         }
@@ -328,6 +324,10 @@ export class AuthService {
         await this.saveRefreshToken(user._id, refreshToken);
 
         setRefreshTokenCookie(res, refreshToken);
+
+        if (AccountVerifiedStatus.waitForUser === user.verifiedStatus) {
+            res.redirect(`${process.env.SERVER_CLIENT}/influencer/profile/agreement/:${user._id.toString()}`);
+        }
 
         return {
             accessToken,
@@ -485,40 +485,40 @@ export class AuthService {
             await session.endSession();
         }
 
-        try {
-            switch (responseVerify) {
-                case 'accept':
-                    await sendMail(
-                        checkInfluencer.email,
-                        'SoundInfluencers',
-                        `<p>Dear ${checkInfluencer.firstName},</p>
-        <p>Thank you for confirming your information with us. Your account details have been successfully verified.</p> 
-        <p>You can now access your personal account by clicking on the link below:</p>
-        <a href="${process.env.SERVER_CLIENT}/influencer/profile/agreement/${checkInfluencer._id}" style="font-weight: 600">*Access Link*</a>
-        <p>If you have any questions or encounter any issues, please don't hesitate to contact our support team or reply to this message.</p>
-        <p>Best regards,</p>
-        <p>SoundInfluencers team</p>`,
-                        'html',
-                    );
-                    break;
-                case 'cancel':
-                    await sendMail(
-                        checkInfluencer.email,
-                        'SoundInfluencers',
-                        `<p>Hi,</p>
-      <p>thanks for the application!</p>
-      <p>Unfortunately we're not sure there's a good fit for us right now.</p>
-      <p>We suggest trying again in the future 🙂</p> 
-      <p>Best Regards</p><p>SoundInfluencers Team</p>`,
-                        'html',
-                    );
-                    break;
-                default:
-                    break;
-            }
-        } catch (err) {
-            this.logger.warn(`Influencer ${checkVerifyAdmin.influencerId} was verified but failed email`, err);
-        }
+      //   try {
+      //       switch (responseVerify) {
+      //           case 'accept':
+      //               await sendMail(
+      //                   checkInfluencer.email,
+      //                   'SoundInfluencers',
+      //                   `<p>Dear ${checkInfluencer.firstName},</p>
+      //   <p>Thank you for confirming your information with us. Your account details have been successfully verified.</p>
+      //   <p>You can now access your personal account by clicking on the link below:</p>
+      //   <a href="${process.env.SERVER_CLIENT}/influencer/profile/agreement/${checkInfluencer._id}" style="font-weight: 600">*Access Link*</a>
+      //   <p>If you have any questions or encounter any issues, please don't hesitate to contact our support team or reply to this message.</p>
+      //   <p>Best regards,</p>
+      //   <p>SoundInfluencers team</p>`,
+      //                   'html',
+      //               );
+      //               break;
+      //           case 'cancel':
+      //               await sendMail(
+      //                   checkInfluencer.email,
+      //                   'SoundInfluencers',
+      //                   `<p>Hi,</p>
+      // <p>thanks for the application!</p>
+      // <p>Unfortunately we're not sure there's a good fit for us right now.</p>
+      // <p>We suggest trying again in the future 🙂</p>
+      // <p>Best Regards</p><p>SoundInfluencers Team</p>`,
+      //                   'html',
+      //               );
+      //               break;
+      //           default:
+      //               break;
+      //       }
+      //   } catch (err) {
+      //       this.logger.warn(`Influencer ${checkVerifyAdmin.influencerId} was verified but failed email`, err);
+      //   }
     }
 
     // Verify client with sending mail
@@ -545,18 +545,18 @@ export class AuthService {
 
             await this.verifyClientRepo.findOneAndDelete({verifyId: verifyId});
 
-            await sendMail(
-                checkClient.email,
-                'SoundInfluencers',
-                `<p>Dear ${checkClient.firstName},</p>
-<p>Thank you for confirming your information with us. Your account details have been successfully verified.</p>
-<p>You can now access your personal account by clicking on the link below:</p>
-<a href="${process.env.SERVER_CLIENT}/login/client" style="font-weight: 600">*Access Link*</a>
-<p>If you have any questions or encounter any issues, please don't hesitate to contact our support team or reply to this message.</p>
-<p>Best regards,</p>
-<p>SoundInfluencers team</p>`,
-                'html',
-            );
+            // await sendMail(
+            //     checkClient.email,
+            //     'SoundInfluencers',
+            //     `<p>Dear ${checkClient.firstName},</p>
+// <p>Thank you for confirming your information with us. Your account details have been successfully verified.</p>
+// <p>You can now access your personal account by clicking on the link below:</p>
+// <a href="${process.env.SERVER_CLIENT}/login/client" style="font-weight: 600">*Access Link*</a>
+// <p>If you have any questions or encounter any issues, please don't hesitate to contact our support team or reply to this message.</p>
+// <p>Best regards,</p>
+// <p>SoundInfluencers team</p>`,
+//                 'html',
+//             );
         } else if (responseVerify === 'cancel') {
             await this.clientRepo.findOneAndUpdate(
                 {_id: checkClient._id},
@@ -564,16 +564,10 @@ export class AuthService {
             );
 
             await this.verifyClientRepo.findOneAndDelete({verifyId: verifyId});
-            await sendMail(
-                checkClient.email,
-                'SoundInfluencers',
-                `<p>Hi,</p>
-      <p>thanks for the application!</p>
-      <p>Unfortunately we're not sure there's a good fit for us right now.</p>
-      <p>We suggest trying again in the future 🙂</p> 
-      <p>Best Regards</p><p>SoundInfluencers Team</p>`,
-                'html',
-            );
+            // await sendMail(
+            //     checkClient.email,
+            //     'SoundInfluencers',
+             // send email about declining account
         } else {
             throw new BadRequestException("Response can be 'accept' or 'cancel'");
         }

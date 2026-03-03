@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNumber, IsOptional, IsEnum, IsArray, ValidateNested, Min, Max, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 import { InfluencerProfileCategory } from '../../../common/types/influencer/influencer.types';
+import {CurrencyCode, CurrencyMeta} from "../../../common/types/finance.types";
 
 export class MusicGenreDto {
     @ApiProperty()
@@ -51,9 +52,9 @@ export class CreateSocialAccountDto {
     @IsNumber()
     price: number;
 
-    @ApiProperty({ required: true, default: 'EUR' })
-    @IsString()
-    currency: string | null;
+    @ApiProperty({ required: true, enum: CurrencyCode })
+    @IsEnum(CurrencyCode)
+    currency: CurrencyCode;
 
     @ApiProperty({ type: [CountryStatsDto], required: true })
     @IsArray()

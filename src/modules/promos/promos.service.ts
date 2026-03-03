@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import mongoose, {ClientSession, PipelineStage, Types} from 'mongoose';
 import {SocialMediaEnum, SocialMediaType} from "../../common/types/social-media.types";
-import sendMail from "../../integrations/nodemailer/nodemailer";
 import {
     InfluencerDetailedPromo,
     InfluencerGetDashboardPromosQueryDto,
@@ -621,35 +620,37 @@ export class PromosService {
                                 selectedAcc.selectedContent?.descriptionId?.toString(),
                         )?.description ?? '';
 
-                    await sendMail(
-                        'admin@soundinfluencers.com',
-                        'SoundInfluencers',
-                        `<p>${influencer.email} accepted the offer for ${client.email}'s campaign</p>
-         <p><b>Campaign:</b> ${campaign.campaignName}</p>
-         ${
-                            contentItem
-                                ? `
-           <a href="${contentItem.mainLink}">${contentItem.mainLink}</a>
-           ${postDescription ? `<p><b>Description:</b> ${postDescription}</p>` : ''}
-           ${contentItem.taggedUser ? `<p><b>Story Tag:</b> ${contentItem.taggedUser}</p>` : ''}
-           ${contentItem.taggedLink ? `<p><b>Swipe Up Link:</b> ${contentItem.taggedLink}</p>` : ''}
-           ${contentItem.additionalBrief ? `<p><b>Special Wishes:</b> ${contentItem.additionalBrief}</p>` : ''}
-         `
-                                : ''
-                        }`,
-                        'html',
-                    );
+                    // todo: rework
+
+         //            await sendMail(
+         //                'admin@soundinfluencers.com',
+         //                'SoundInfluencers',
+         //                `<p>${influencer.email} accepted the offer for ${client.email}'s campaign</p>
+         // <p><b>Campaign:</b> ${campaign.campaignName}</p>
+         // ${
+         //                    contentItem
+         //                        ? `
+         //   <a href="${contentItem.mainLink}">${contentItem.mainLink}</a>
+         //   ${postDescription ? `<p><b>Description:</b> ${postDescription}</p>` : ''}
+         //   ${contentItem.taggedUser ? `<p><b>Story Tag:</b> ${contentItem.taggedUser}</p>` : ''}
+         //   ${contentItem.taggedLink ? `<p><b>Swipe Up Link:</b> ${contentItem.taggedLink}</p>` : ''}
+         //   ${contentItem.additionalBrief ? `<p><b>Special Wishes:</b> ${contentItem.additionalBrief}</p>` : ''}
+         // `
+         //                        : ''
+         //                }`,
+         //                'html',
+         //            );
                     break;
                 }
 
                 case InfluencerConfirmationStatusEnum.decline: {
-                    await sendMail(
-                        'admin@soundinfluencers.com',
-                        'SoundInfluencers',
-                        `<p>${influencer.email} declined the offer for ${client.email}'s campaign</p>
-         <p><b>Campaign:</b> ${campaign.campaignName}</p>`,
-                        'html',
-                    );
+         //            await sendMail(
+         //                'admin@soundinfluencers.com',
+         //                'SoundInfluencers',
+         //                `<p>${influencer.email} declined the offer for ${client.email}'s campaign</p>
+         // <p><b>Campaign:</b> ${campaign.campaignName}</p>`,
+         //                'html',
+         //            );
                     break;
                 }
 
