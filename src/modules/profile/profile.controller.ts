@@ -170,7 +170,7 @@ export class ProfileController {
     @ApiOperation({ summary: "Get influencer's social accounts that need agreement" })
     @ApiResponseDto(AgreementAccountsListDto)
     @ApiParam({ name: 'influencerId', required: false, type: String })
-    @Get('agreement/:influencerId')
+    @Get('signup-agreement/:influencerId')
     getAgreementAccountsList(
         @Req() request: AuthenticatedRequest,
         @Param('influencerId') influencerId?: string,
@@ -188,7 +188,7 @@ export class ProfileController {
     @ApiOperation({ summary: "Get one social account that need agreement" })
     @ApiResponseDto(AgreementAccountDto)
     @ApiParam({ name: 'socialAccountId', required: true, type: String })
-    @Get('agreement/:socialAccountId')
+    @Get('account-agreement/:socialAccountId')
     getAgreementAccount(
         @Req() request: AuthenticatedRequest,
         @Param('socialAccountId') socialAccountId: string,
