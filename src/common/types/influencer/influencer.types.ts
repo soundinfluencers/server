@@ -59,7 +59,7 @@ export interface SocialAccountDetails {
     followers: number;
     logoUrl: string;
     profileCategory: InfluencerProfileCategory;
-    price: number;
+    initialPrice: number;
     currency: CurrencyCode;
     musicGenres: InfluencerMusicGenre[];
     creatorCategories: string[];

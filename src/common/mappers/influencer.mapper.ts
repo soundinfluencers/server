@@ -59,7 +59,7 @@ export const mapToSocialAccountDetailsDto = (account: SocialAccount): SocialAcco
         followers: account.followers,
         logoUrl: account.logoUrl,
         profileCategory: account.profileCategory,
-        price: account.price,
+        initialPrice: account.initialPrice ?? null,
         currency: account.currency || CurrencyCode.EUR,
         musicGenres: account.musicGenres,
         creatorCategories: account.creatorCategories,

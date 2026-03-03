@@ -167,7 +167,7 @@ export class SocialAccountDetailsDto implements SocialAccountDetails {
     profileCategory: InfluencerProfileCategory;
 
     @ApiProperty({example: 60})
-    price: number;
+    initialPrice: number;
 
     @ApiProperty({example: 'EUR', enum: CurrencyCode})
     @IsEnum(CurrencyCode)
