@@ -1,4 +1,5 @@
 import {CreateSocialAccountDto} from "../../../modules/auth/dto/create-influencer.dto";
+import {CurrencyCode} from "../../../common/types/finance.types";
 
 export const escapeHtmlForEmail = (v: string) =>
     v
@@ -8,10 +9,10 @@ export const escapeHtmlForEmail = (v: string) =>
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#39;");
 
-export const formatMoneyForEmail = (value: unknown) => {
+export const formatMoneyForEmail = (value: unknown, currency: CurrencyCode = CurrencyCode.EUR) => {
     if (!value) return '-';
     const n = typeof value === "number" ? value : Number(value);
-    if (Number.isFinite(n)) return `${n.toLocaleString("en-US")} EUR`;
+    if (Number.isFinite(n)) return `${n.toLocaleString("en-US")} ${currency}`;
     return "—";
 };
 

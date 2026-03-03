@@ -51,6 +51,7 @@ import {InfluencerConfirmationStatusEnum} from "../../common/types/influencer/pr
 import {LoginResponseDto} from "../auth/dto/login.dto";
 import {Response} from "express";
 import {Public} from "../../common/decorators/public.decorator";
+import {CurrencyCode} from "../../common/types/finance.types";
 
 @ApiTags('profile')
 @Controller('profile')
@@ -325,7 +326,7 @@ export class ProfileController {
     @ApiExcludeEndpoint()
     @Get('influencer/verify-new-accounts')
     verifyNewSocialMediaAccounts(
-        @Query() query: { influencerId: string; accounts: []; isVerified: string; newPrice?: string; },
+        @Query() query: { influencerId: string; accounts: []; isVerified: string; newPrice?: string; currency?: CurrencyCode },
     ) {
         const isVerified = query.isVerified === 'true';
         const newPrice =
@@ -337,11 +338,16 @@ export class ProfileController {
             throw new BadRequestException('Invalid newPrice');
         }
 
+        if (newPrice !== undefined && (!query.currency || !Object.values(CurrencyCode).includes(query.currency))) {
+            throw new BadRequestException('Invalid currency');
+        }
+
         return this.profileService.verifyNewSocialMediaAccounts(
             query.influencerId,
             query.accounts,
             isVerified,
-            newPrice
+            newPrice,
+            query.currency
         );
     }
 

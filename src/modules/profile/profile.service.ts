@@ -638,7 +638,8 @@ export class ProfileService {
                 key !== "influencerId" &&
                 key !== "socialAccountId" &&
                 key !== "socialMedia" &&
-                key !== "price"
+                key !== "price" &&
+                key !== "currency"
             ) {
                 updateFields[key] = value as any;
             }
@@ -655,19 +656,6 @@ export class ProfileService {
                 );
             }
 
-            const exchangeRate: number =
-                data.currency !== CurrencyCode.EUR
-                    ? await this.exchangeRateService.getRate(
-                        data.currency.toString(),
-                        'EUR'
-                    )
-                    : 1;
-
-            const sanitizedPrice =
-                parseFloat(String(data.price).replace(/[^\d.-]/g, '')) || 0;
-
-            const price = Math.round(sanitizedPrice * exchangeRate);
-
             try {
                 await this.emailService.send(InfluencerToAdminEmails.priceChangeRequest({
                     influencerName: influencer.firstName,
@@ -675,8 +663,9 @@ export class ProfileService {
                     accountUsername: socialAccount.username,
                     accountSocialMedia: data.socialMedia,
                     oldPrice: socialAccount.price,
-                    newPrice: price,
-                    acceptLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=true&newPrice=${data.price}`,
+                    newPrice: data.price,
+                    currency: data.currency,
+                    acceptLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=true&newPrice=${data.price}&currency=${data.currency}`,
                     declineLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=false`,
                 }));
 
@@ -1154,6 +1143,7 @@ export class ProfileService {
         accountIds: string[],
         isVerified: boolean,
         newPrice?: number,
+        newCurrency?: CurrencyCode
     ) {
         if (!influencerId || !accountIds || accountIds.length === 0 || isVerified === undefined) throw new BadRequestException("Not enough arguments");
 
@@ -1169,23 +1159,50 @@ export class ProfileService {
         session.startTransaction();
 
         try {
-            socialNetworks.forEach((network) => {
+            let exchangeRate = 1;
+
+            if (newPrice && newCurrency !== CurrencyCode.EUR) {
+                exchangeRate = await this.exchangeRateService.getRate(newCurrency, 'EUR');
+            }
+
+            for (const network of socialNetworks) {
                 const accounts = influencer[network] || [];
 
-                accounts.forEach((account: SocialAccount) => {
+                for (const account of accounts) {
                     if (accountIds.includes(account._id.toString())) {
-                        const accountPrice = newPrice ? newPrice : account.price;
-                        const accountPublicPrice = newPrice ? newPrice * 2 : account.publicPrice;
+
                         const verified = newPrice
-                            ? isVerified === true ? AccountVerifiedStatus.accept : AccountVerifiedStatus.decline
-                            : isVerified === true ? AccountVerifiedStatus.waitForUser : AccountVerifiedStatus.decline;
+                            ? isVerified === true
+                                ? AccountVerifiedStatus.accept
+                                : AccountVerifiedStatus.decline
+                            : isVerified === true
+                                ? AccountVerifiedStatus.waitForUser
+                                : AccountVerifiedStatus.decline;
+
                         const labelStatus = newPrice
-                            ? isVerified === true ? SocialAccountLabelStatus.accept : SocialAccountLabelStatus.decline
-                            : isVerified === true ? SocialAccountLabelStatus.waitForUser : SocialAccountLabelStatus.decline;
+                            ? isVerified === true
+                                ? SocialAccountLabelStatus.accept
+                                : SocialAccountLabelStatus.decline
+                            : isVerified === true
+                                ? SocialAccountLabelStatus.waitForUser
+                                : SocialAccountLabelStatus.decline;
+
+                        const accountPrice = newPrice
+                            ? Math.round(newPrice * exchangeRate)
+                            : account.price;
+
+                        const accountPublicPrice = newPrice
+                            ? Math.round(newPrice * exchangeRate * 2)
+                            : account.publicPrice;
+
+                        const initialPrice = newPrice ? newPrice : account.initialPrice ?? account.price;
+                        const currency = newPrice ? newCurrency : account.currency;
 
                         account.price = accountPrice;
                         account.publicPrice = accountPublicPrice;
-                        account.verifiedStatus = verified
+                        account.initialPrice = initialPrice;
+                        account.currency = currency;
+                        account.verifiedStatus = verified;
                         account.labelStatus = labelStatus;
 
                         updatedAccounts.push({
@@ -1193,17 +1210,11 @@ export class ProfileService {
                             account,
                         });
                     }
-                });
-            });
+                }
+            }
 
             await influencer.save({session});
             await session.commitTransaction();
-
-            this.webSocketService.server.emit('brands approved', {
-                influencerId,
-                updatedAccounts,
-                isVerified,
-            });
         } catch (err) {
             await session.abortTransaction();
             throw err;

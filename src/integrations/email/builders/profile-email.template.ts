@@ -9,7 +9,7 @@ import {
 import {CreateSocialAccountDto} from "../../../modules/auth/dto/create-influencer.dto";
 
 export const buildPriceChangeRequestTemplate = (data: BuildChangePriceRequestTemplateDto) => {
-    const newPrice = formatMoneyForEmail(data.newPrice);
+    const newPrice = formatMoneyForEmail(data.newPrice, data.currency);
     const oldPrice = formatMoneyForEmail(data.oldPrice);
 
     const name = escapeHtmlForEmail(data.influencerName);

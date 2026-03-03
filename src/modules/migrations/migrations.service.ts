@@ -263,6 +263,7 @@ export class MigrationsService {
 
         const price = this.parsePrice(acc?.price);
         const publicPrice = this.parsePrice(acc?.publicPrice);
+        const initialPrice = this.parsePrice(acc?.initialPrice) ?? price;
 
         const mapped: any = {
             ...acc, // сохраняем поля типа countries/categories/engagementRate/...
@@ -272,6 +273,7 @@ export class MigrationsService {
             logoUrl,
             price: price ?? 0,
             publicPrice: publicPrice ?? 0,
+            initialPrice: initialPrice ?? 0,
             musicGenres: this.buildMusicGenres(acc) ?? acc?.musicGenres,
             verifiedStatus: acc.isVerified === true ? AccountVerifiedStatus.accept : AccountVerifiedStatus.waitForAdmin,
             labelStatus: acc.isVerified === true ? SocialAccountLabelStatus.accept : SocialAccountLabelStatus.waitForAdmin,

@@ -2,6 +2,7 @@ import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {ApiProperty} from "@nestjs/swagger";
 import {IsObject, IsOptional, IsString} from "class-validator";
 import {CreateSocialAccountDto} from "../../../modules/auth/dto/create-influencer.dto";
+import {CurrencyCode} from "../../../common/types/finance.types";
 
 // dto for building email template about some influencer requesting to change price for one of his social accounts
 export class BuildChangePriceRequestTemplateDto {
@@ -16,6 +17,7 @@ export class BuildChangePriceRequestTemplateDto {
     // prices
     oldPrice: number;
     newPrice: number;
+    currency: CurrencyCode;
 
     // links
     acceptLink: string;
