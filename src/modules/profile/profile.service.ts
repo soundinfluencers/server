@@ -1000,9 +1000,16 @@ export class ProfileService {
             throw new BadRequestException('Countries not valid');
         }
 
+
         const duplicate = await this.influencerRepo.findOne({
             [`${socialMedia}.username`]: payload.username,
         });
+        if (!Object.values(CurrencyCode).includes(payload.currency)) {
+            throw new BadRequestException(
+                `Currency for ${data.socialMedia} account ${payload.username} is not valid. ` +
+                `Try to use one of these: ${getAvailableCurrenciesLabel()}`
+            );
+        }
 
         if (duplicate) {
             throw new ConflictException({
@@ -1032,6 +1039,22 @@ export class ProfileService {
                     }))
                 : [];
 
+        // ---- PRICE PARSING ----
+
+        const exchangeRate: number =
+            payload.currency !== CurrencyCode.EUR
+                ? await this.exchangeRateService.getRate(
+                    payload.currency.toString(),
+                    'EUR'
+                )
+                : 1;
+
+        const sanitizedPrice =
+            parseFloat(String(payload.price).replace(/[^\d.-]/g, '')) || 0;
+
+        const price = Math.round(sanitizedPrice * exchangeRate);
+        const publicPrice = price * 2;
+
         // ---- CREATE ACCOUNT ----
         const accountId = new Types.ObjectId();
 
@@ -1045,15 +1068,15 @@ export class ProfileService {
             followers: payload.followers,
             logoUrl: payload.logoUrl,
             profileCategory: payload.profileCategory,
-            price: payload.price,
+            price: price,
+            publicPrice: publicPrice,
             initialPrice: payload.price,
-            publicPrice: payload.price * 2,
+            currency: payload.currency,
             musicGenres,
             countries,
             categories: payload.categories,
             engagementRate: null,
             averageViews: null,
-            currency: payload.currency,
             isHidden: false,
             isDeleted: false,
             verifiedStatus: AccountVerifiedStatus.waitForAdmin,
