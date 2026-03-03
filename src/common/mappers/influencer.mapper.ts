@@ -5,6 +5,7 @@ import {
     SocialAccountForAccountDetailsDto
 } from "../../modules/profile/dto/influencer/get-profile.dto";
 import {AccountVerifiedStatus} from "../types/user.types";
+import {CurrencyCode} from "../types/finance.types";
 
 // Maps social account doc to social account for account details dto
 export const mapSocialAccountToAccountDetailsDto = (account: SocialAccount): SocialAccountForAccountDetailsDto => {
@@ -59,7 +60,7 @@ export const mapToSocialAccountDetailsDto = (account: SocialAccount): SocialAcco
         logoUrl: account.logoUrl,
         profileCategory: account.profileCategory,
         price: account.price,
-        currency: account.currency ?? 'EUR',
+        currency: account.currency || CurrencyCode.EUR,
         musicGenres: account.musicGenres,
         creatorCategories: account.creatorCategories,
         countries: account.countries,

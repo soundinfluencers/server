@@ -15,6 +15,7 @@ import {IsEnum, IsString} from "class-validator";
 import {AccountVerifiedStatus, Role} from "../../../../common/types/user.types";
 import {InfluencerConfirmationStatusEnum} from "../../../../common/types/influencer/promo.types";
 import {Response} from "express";
+import {CurrencyCode} from "../../../../common/types/finance.types";
 
 export class SocialAccountForAccountDetailsDto implements SocialAccountForAccountDetails {
     @ApiProperty({
@@ -168,8 +169,9 @@ export class SocialAccountDetailsDto implements SocialAccountDetails {
     @ApiProperty({example: 60})
     price: number;
 
-    @ApiProperty({example: 'EUR', nullable: true})
-    currency: string | null;
+    @ApiProperty({example: 'EUR', enum: CurrencyCode})
+    @IsEnum(CurrencyCode)
+    currency: CurrencyCode;
 
     @ApiProperty({isArray: true})
     musicGenres: InfluencerMusicGenre[];

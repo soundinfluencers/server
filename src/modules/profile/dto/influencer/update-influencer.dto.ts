@@ -5,6 +5,7 @@ import {CreateSocialAccountDto, MusicGenreDto} from "../../../auth/dto/create-in
 import {SocialMediaEnum, SocialMediaType} from "../../../../common/types/social-media.types";
 import {InfluencerCountryStats, SocialAccount} from "../../../../database/schemas/users/influencer.schema";
 import {InfluencerProfileCategory} from "../../../../common/types/influencer/influencer.types";
+import {CurrencyCode} from "../../../../common/types/finance.types";
 
 // DTO for updating personal details
 export class UpdateInfluencerPersonalDetailsDto {
@@ -115,6 +116,11 @@ export class UpdateSocialMediaAccountDto {
     @IsNumber()
     @Type(() => Number)
     price?: number;
+
+    @ApiPropertyOptional({example: 'EUR', enum: CurrencyCode})
+    @IsOptional()
+    @IsEnum(CurrencyCode)
+    currency?: CurrencyCode;
 
     @ApiPropertyOptional({ description: "Engagement rate", example: 5.3 })
     @IsOptional()

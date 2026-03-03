@@ -28,6 +28,7 @@ import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, NotificationMethodsEnum, Role} from "../../common/types/user.types";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {
+    AgreementAccountDto,
     AgreementAccountsListDto,
     ClientAccountDetailsDto,
     FoundAccountsDto,
@@ -169,7 +170,7 @@ export class ProfileController {
     @ApiOperation({ summary: "Get influencer's social accounts that need agreement" })
     @ApiResponseDto(AgreementAccountsListDto)
     @ApiParam({ name: 'influencerId', required: false, type: String })
-    @Get(['agreement', 'agreement/:influencerId'])
+    @Get('agreement/:influencerId')
     getAgreementAccountsList(
         @Req() request: AuthenticatedRequest,
         @Param('influencerId') influencerId?: string,
@@ -179,6 +180,24 @@ export class ProfileController {
 
         return this.profileService.getAgreementAccountsList(
             id,
+            request.user?.role,
+        );
+    }
+
+    @Auth()
+    @ApiOperation({ summary: "Get one social account that need agreement" })
+    @ApiResponseDto(AgreementAccountDto)
+    @ApiParam({ name: 'socialAccountId', required: true, type: String })
+    @Get('agreement/:socialAccountId')
+    getAgreementAccount(
+        @Req() request: AuthenticatedRequest,
+        @Param('socialAccountId') socialAccountId: string,
+    ): Promise<AgreementAccountDto> {
+        if (!socialAccountId) throw new BadRequestException('Invalid arguments');
+
+        return this.profileService.getAgreementAccount(
+            socialAccountId,
+            request.user?._id,
             request.user?.role,
         );
     }

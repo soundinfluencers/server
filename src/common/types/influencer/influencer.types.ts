@@ -5,6 +5,7 @@ import {
 } from "../../../database/schemas/users/influencer.schema";
 import {InfluencerConfirmationStatusEnum} from "./promo.types";
 import {AccountVerifiedStatus} from "../user.types";
+import {CurrencyCode} from "../finance.types";
 
 export enum InfluencerProfileCategory {
     community = 'community',
@@ -59,7 +60,7 @@ export interface SocialAccountDetails {
     logoUrl: string;
     profileCategory: InfluencerProfileCategory;
     price: number;
-    currency: string | null;
+    currency: CurrencyCode;
     musicGenres: InfluencerMusicGenre[];
     creatorCategories: string[];
     countries: InfluencerCountryStats[];

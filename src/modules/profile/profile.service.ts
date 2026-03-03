@@ -82,6 +82,8 @@ import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
 import {EmailService} from "../../integrations/email/email.service";
 import {areCountriesValid} from "../../common/utils/countries.util";
 import {InfluencerToAdminEmails} from "../../integrations/email/email.templates";
+import {ExchangeRateService} from "../../integrations/exchange-rate/exchange-rate.service";
+import {CurrencyCode, getAvailableCurrenciesLabel} from "../../common/types/finance.types";
 
 const bcrypt = require('bcryptjs');
 
@@ -93,6 +95,7 @@ export class ProfileService {
         private readonly webSocketService: AppGateway,
         private readonly authService: AuthService,
         private readonly emailService: EmailService,
+        private readonly exchangeRateService: ExchangeRateService,
         // users
         private readonly clientRepo: ClientRepository,
         private readonly influencerRepo: InfluencerRepository,
@@ -644,6 +647,13 @@ export class ProfileService {
 
         // for creating change price request
         if (isPriceChanged) {
+            if (!Object.values(CurrencyCode).includes(data.currency)) {
+                throw new BadRequestException(
+                    `Currency for ${data.socialMedia} account ${socialAccount.username} is not valid. ` +
+                    `Try to use one of these: ${getAvailableCurrenciesLabel()}`
+                );
+            }
+
             try {
                 await this.emailService.send(InfluencerToAdminEmails.priceChangeRequest({
                     influencerName: influencer.firstName,
@@ -741,6 +751,35 @@ export class ProfileService {
         }
 
         return result as AgreementAccountsListDto;
+    }
+
+    // Returns one social account that was verified by admin and need agreement from influencer
+    async getAgreementAccount(
+        socialAccountId: string,
+        influencerId: string,
+        role?: Role,
+    ): Promise<AgreementAccountDto> {
+        if (role && role !== Role.influencer) throw new ForbiddenException('Not enough access');
+
+        const influencer = await this.influencerRepo.findById(influencerId, { lean: true });
+        if (!influencer) throw new NotFoundException('Influencer not found');
+
+        for (const key of Object.values(SocialMediaEnum)) {
+            const accounts = (influencer as any)[key] as SocialAccount[] | undefined;
+            if (!accounts?.length) continue;
+
+            const account = accounts.find(a => a._id?.toString() === socialAccountId);
+            if (account) {
+                return {
+                    accountId: socialAccountId,
+                    username: account.username,
+                    price: account.price,
+                    agreementStatus: account.verifiedStatus,
+                };
+            }
+        }
+
+        throw new NotFoundException('Social account not found');
     }
 
     // Updates influencer's agreement response to new social accounts
