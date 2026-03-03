@@ -128,7 +128,11 @@ export class ProfileController {
     @ApiResponseDto(InvoiceDetailsDto)
     @Patch('/invoice-details')
     updateInvoiceDetails(@Req() request: AuthenticatedRequest, @Body() data: UpdateInvoiceDetailsDto): Promise<InvoiceDetailsDto> {
-        return this.profileService.updateInvoiceDetails({...data, userId: request.user._id, userRole: request.user.role});
+        return this.profileService.updateInvoiceDetails({
+            ...data,
+            userId: request.user._id,
+            userRole: request.user.role
+        });
     }
 
     @Auth()
@@ -167,9 +171,9 @@ export class ProfileController {
     }
 
     @Public()
-    @ApiOperation({ summary: "Get influencer's social accounts that need agreement" })
+    @ApiOperation({summary: "Get influencer's social accounts that need agreement"})
     @ApiResponseDto(AgreementAccountsListDto)
-    @ApiParam({ name: 'influencerId', required: false, type: String })
+    @ApiParam({name: 'influencerId', required: false, type: String})
     @Get('signup-agreement/:influencerId')
     getAgreementAccountsList(
         @Req() request: AuthenticatedRequest,
@@ -185,9 +189,9 @@ export class ProfileController {
     }
 
     @Auth()
-    @ApiOperation({ summary: "Get one social account that need agreement" })
+    @ApiOperation({summary: "Get one social account that need agreement"})
     @ApiResponseDto(AgreementAccountDto)
-    @ApiParam({ name: 'socialAccountId', required: true, type: String })
+    @ApiParam({name: 'socialAccountId', required: true, type: String})
     @Get('account-agreement/:socialAccountId')
     getAgreementAccount(
         @Req() request: AuthenticatedRequest,
@@ -216,27 +220,50 @@ export class ProfileController {
         required: false,
         type: String,
     })
-    @ApiParam({
-        name: 'agreementType',
-        required: true,
-        type: String,
-        enum: AgreementType,
-    })
-    @Patch(['agreement/:status/:agreementType', 'agreement/:status/:agreementType/:influencerId'])
+    @Patch('signup-agreement/:status/:influencerId')
     updateSocialAccountsAgreement(
         @Req() request: AuthenticatedRequest,
         @Param() params: UpdateAccountsAgreementDto,
-        @Res({ passthrough: true }) res: Response,
+        @Res({passthrough: true}) res: Response,
     ): Promise<LoginResponseDto> {
         if (!params.status || params.status === InfluencerConfirmationStatusEnum.wait) throw new BadRequestException('Invalid status value');
-        if (!params.agreementType || !Object.values(AgreementType).includes(params.agreementType)) throw new BadRequestException('Invalid agreement type');
         if (!request.user && !params.influencerId) throw new ForbiddenException('Not enough access');
 
         return this.profileService.updateSocialAccountsAgreement({
             influencerId: request.user ? request.user._id : params.influencerId,
             status: params.status,
-            agreementType: params.agreementType,
             res: res,
+            role: request.user ? request.user.role : undefined
+        });
+    }
+
+    @Auth()
+    @ApiOperation({summary: "Updates influencer's social account agreement meta field"})
+    @ApiResponseDto()
+    @ApiParam({
+        name: 'status',
+        required: true,
+        type: String,
+        enum: InfluencerConfirmationStatusEnum,
+    })
+    @ApiParam({
+        name: 'socialAccountId',
+        required: true,
+        type: String,
+    })
+    @Patch('account-agreement/:status/:socialAccountId')
+    updateSocialAccountAgreement(
+        @Req() request: AuthenticatedRequest,
+        @Param('status') status: InfluencerConfirmationStatusEnum,
+        @Param('socialAccountId') socialAccountId: string,
+    ): Promise<void
+    > {
+        if (!status || status === InfluencerConfirmationStatusEnum.wait) throw new BadRequestException('Invalid status value');
+
+        return this.profileService.updateSocialAccountAgreement({
+            influencerId: request.user._id,
+            status: status,
+            socialAccountId: socialAccountId,
             role: request.user ? request.user.role : undefined
         });
     }

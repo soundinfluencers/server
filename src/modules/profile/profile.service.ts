@@ -49,6 +49,7 @@ import {
     FoundAccountDto,
     GetSocialAccountDetailsParamsDto,
     InfluencerAccountDetailsDto,
+    UpdateAccountAgreementDto,
     UpdateAccountsAgreementDto
 } from "./dto/influencer/get-profile.dto";
 import {GetFilteredAccountsBodyDto, SearchSocialAccountsDto} from "./dto/client/search-social-accounts.dto";
@@ -654,6 +655,19 @@ export class ProfileService {
                 );
             }
 
+            const exchangeRate: number =
+                data.currency !== CurrencyCode.EUR
+                    ? await this.exchangeRateService.getRate(
+                        data.currency.toString(),
+                        'EUR'
+                    )
+                    : 1;
+
+            const sanitizedPrice =
+                parseFloat(String(data.price).replace(/[^\d.-]/g, '')) || 0;
+
+            const price = Math.round(sanitizedPrice * exchangeRate);
+
             try {
                 await this.emailService.send(InfluencerToAdminEmails.priceChangeRequest({
                     influencerName: influencer.firstName,
@@ -661,7 +675,7 @@ export class ProfileService {
                     accountUsername: socialAccount.username,
                     accountSocialMedia: data.socialMedia,
                     oldPrice: socialAccount.price,
-                    newPrice: data.price,
+                    newPrice: price,
                     acceptLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=true&newPrice=${data.price}`,
                     declineLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=false`,
                 }));
@@ -761,7 +775,7 @@ export class ProfileService {
     ): Promise<AgreementAccountDto> {
         if (role && role !== Role.influencer) throw new ForbiddenException('Not enough access');
 
-        const influencer = await this.influencerRepo.findById(influencerId, { lean: true });
+        const influencer = await this.influencerRepo.findById(influencerId, {lean: true});
         if (!influencer) throw new NotFoundException('Influencer not found');
 
         for (const key of Object.values(SocialMediaEnum)) {
@@ -784,7 +798,7 @@ export class ProfileService {
 
     // Updates influencer's agreement response to new social accounts
     async updateSocialAccountsAgreement(data: UpdateAccountsAgreementDto): Promise<LoginResponseDto> {
-        const {influencerId, status, agreementType, res, role} = data;
+        const {influencerId, status, res, role} = data;
 
         if (role && role !== Role.influencer) throw new ForbiddenException('Not enough access');
 
@@ -803,16 +817,14 @@ export class ProfileService {
         session.startTransaction();
 
         try {
-            if (agreementType === AgreementType.profileCreate) {
-                await this.influencerRepo.updateOne(
-                    {
-                        _id,
-                        verifiedStatus: {$in: [null, AccountVerifiedStatus.waitForUser, AccountVerifiedStatus.negotiation]},
-                    },
-                    {$set: {verifiedStatus: isAccepted ? AccountVerifiedStatus.accept : AccountVerifiedStatus.negotiation}},
-                    {session},
-                );
-            }
+            await this.influencerRepo.updateOne(
+                {
+                    _id,
+                    verifiedStatus: {$in: [null, AccountVerifiedStatus.waitForUser, AccountVerifiedStatus.negotiation]},
+                },
+                {$set: {verifiedStatus: isAccepted ? AccountVerifiedStatus.accept : AccountVerifiedStatus.negotiation}},
+                {session},
+            );
 
             const updateResult = await this.influencerRepo.updateOneWithArrayFilters(
                 {_id},
@@ -847,6 +859,75 @@ export class ProfileService {
                 accessToken,
             };
         }
+    }
+
+    // Updates influencer's agreement response to one account
+    async updateSocialAccountAgreement(data: UpdateAccountAgreementDto): Promise<void> {
+        const {socialAccountId, influencerId, status, role} = data;
+
+        if (role && role !== Role.influencer) {
+            throw new ForbiddenException('Not enough access');
+        }
+
+        const isAccepted = status === 'accept';
+        const _id = new Types.ObjectId(influencerId);
+        const accId = new Types.ObjectId(socialAccountId);
+
+        const socialKeys = Object.values(SocialMediaEnum) as SocialMediaEnum[];
+
+        const influencer = await this.influencerRepo.findOne(
+            {_id},
+            {
+                lean: true,
+                select: ['_id', ...socialKeys],
+            },
+        );
+
+        if (!influencer) throw new NotFoundException('Influencer not found');
+
+        let foundKey: SocialMediaEnum | null = null;
+        let foundIndex = -1;
+        let foundVerifiedStatus: AccountVerifiedStatus | null | undefined;
+
+        for (const key of socialKeys) {
+            const arr = (influencer as any)[key] as { _id: Types.ObjectId; verifiedStatus?: any }[] | undefined;
+            if (!arr?.length) continue;
+
+            const idx = arr.findIndex((a) => a?._id?.toString() === accId.toString());
+            if (idx !== -1) {
+                foundKey = key;
+                foundIndex = idx;
+                foundVerifiedStatus = arr[idx]?.verifiedStatus;
+                break;
+            }
+        }
+
+        if (!foundKey) throw new NotFoundException('Social account not found');
+
+        const allowed = [null, AccountVerifiedStatus.waitForUser, AccountVerifiedStatus.negotiation];
+        if (!allowed.includes(foundVerifiedStatus as any)) {
+            return;
+        }
+
+        const setObj: Record<string, any> = {
+            [`${foundKey}.${foundIndex}.verifiedStatus`]: isAccepted
+                ? AccountVerifiedStatus.accept
+                : AccountVerifiedStatus.negotiation,
+            [`${foundKey}.${foundIndex}.labelStatus`]: isAccepted
+                ? SocialAccountLabelStatus.accept
+                : SocialAccountLabelStatus.negotiation
+        };
+
+        if (isAccepted) {
+            setObj[`${foundKey}.${foundIndex}.labelStatus`] = SocialAccountLabelStatus.accept;
+        }
+
+        const res = await this.influencerRepo.updateOne(
+            {_id},
+            {$set: setObj},
+        );
+
+        if (!res.matchedCount) throw new NotFoundException('Influencer not found');
     }
 
     // Deletes influencer's social account

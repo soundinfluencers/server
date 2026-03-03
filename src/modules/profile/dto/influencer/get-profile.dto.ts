@@ -284,10 +284,20 @@ export class UpdateAccountsAgreementDto {
     @ApiProperty({enum: InfluencerConfirmationStatusEnum})
     status: InfluencerConfirmationStatusEnum;
 
-    @ApiProperty({enum: AgreementType})
-    agreementType: AgreementType;
-
     // for service (frontend does not send this data)
     res: Response;
+    role?: Role;
+}
+
+// dto request for updating influencer's one agreement status
+export class UpdateAccountAgreementDto {
+    @ApiProperty({type: String})
+    socialAccountId: string;
+
+    @ApiProperty({enum: InfluencerConfirmationStatusEnum})
+    status: InfluencerConfirmationStatusEnum;
+
+    // for service (frontend does not send this data)
+    influencerId?: string;
     role?: Role;
 }
