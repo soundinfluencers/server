@@ -249,7 +249,7 @@ export class CampaignsService {
             const acc = matched.acc;
 
             // meta validation
-            if (acc.verifiedStatus !== AccountVerifiedStatus.accept || acc.labelStatus !== SocialAccountLabelStatus.verified) {
+            if (acc.verifiedStatus !== AccountVerifiedStatus.accept) {
                 invalid.push({index: idx, reason: "Account is not verified"});
                 continue;
             }

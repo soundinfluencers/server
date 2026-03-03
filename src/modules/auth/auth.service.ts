@@ -232,7 +232,7 @@ export class AuthService {
                         isHidden: false,
                         isDeleted: false,
                         verifiedStatus: AccountVerifiedStatus.waitForAdmin,
-                        labelStatus: SocialAccountLabelStatus.new
+                        labelStatus: SocialAccountLabelStatus.waitForAdmin
                     };
                 })
             );
@@ -603,7 +603,7 @@ export class AuthService {
                 const accounts = (user as Influencer)[key] as SocialAccount[] | undefined;
                 if (!accounts?.length) continue;
 
-                const needAgreementRedirect = accounts?.some((acc: SocialAccount) => acc.verifiedStatus === AccountVerifiedStatus.waitForUser && acc.labelStatus === SocialAccountLabelStatus.new);
+                const needAgreementRedirect = accounts?.some((acc: SocialAccount) => acc.verifiedStatus === AccountVerifiedStatus.waitForUser);
 
                 if (needAgreementRedirect) {
                     dataToReturn.needAgreementRedirect = true;

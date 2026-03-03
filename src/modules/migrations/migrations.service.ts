@@ -274,7 +274,7 @@ export class MigrationsService {
             publicPrice: publicPrice ?? 0,
             musicGenres: this.buildMusicGenres(acc) ?? acc?.musicGenres,
             verifiedStatus: acc.isVerified === true ? AccountVerifiedStatus.accept : AccountVerifiedStatus.waitForAdmin,
-            labelStatus: acc.isVerified === true ? SocialAccountLabelStatus.verified : SocialAccountLabelStatus.new,
+            labelStatus: acc.isVerified === true ? SocialAccountLabelStatus.accept : SocialAccountLabelStatus.waitForAdmin,
         };
 
         // выпиливаем legacy поля

@@ -12,8 +12,11 @@ export enum InfluencerProfileCategory {
 }
 
 export enum SocialAccountLabelStatus {
-    verified = 'verified',
-    new = 'new',
+    accept = 'accept',
+    decline = 'decline',
+    waitForAdmin = 'waitForAdmin',
+    waitForUser = 'waitForUser',
+    negotiation = 'negotiation',
     priceChanged = 'priceChanged',
 }
 

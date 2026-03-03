@@ -718,7 +718,7 @@ export class ProfileService {
             if (!accounts?.length) continue;
 
             if (result.agreementType === AgreementType.profileCreate) {
-                const hasAccepted = accounts?.some(acc => acc.verifiedStatus === AccountVerifiedStatus.accept && acc.labelStatus === SocialAccountLabelStatus.verified);
+                const hasAccepted = accounts?.some(acc => acc.verifiedStatus === AccountVerifiedStatus.accept && acc.labelStatus === SocialAccountLabelStatus.accept);
 
                 if (hasAccepted) {
                     result.agreementType = AgreementType.accountAdd;
@@ -757,7 +757,7 @@ export class ProfileService {
         for (const key of Object.values(SocialMediaEnum) as SocialMediaEnum[]) {
             setObj[`${key}.$[acc].verifiedStatus`] = isAccepted ? AccountVerifiedStatus.accept : AccountVerifiedStatus.negotiation;
 
-            if (isAccepted) setObj[`${key}.$[acc].labelStatus`] = SocialAccountLabelStatus.verified;
+            if (isAccepted) setObj[`${key}.$[acc].labelStatus`] = SocialAccountLabelStatus.accept;
         }
 
         const session = await this.influencerRepo.startSession();
@@ -948,7 +948,7 @@ export class ProfileService {
             isHidden: false,
             isDeleted: false,
             verifiedStatus: AccountVerifiedStatus.waitForAdmin,
-            labelStatus: SocialAccountLabelStatus.new,
+            labelStatus: SocialAccountLabelStatus.waitForAdmin,
         };
 
         influencer[socialMedia] = [
@@ -1059,7 +1059,7 @@ export class ProfileService {
                         const verified = newPrice
                             ? isVerified === true ? AccountVerifiedStatus.accept : AccountVerifiedStatus.decline
                             : isVerified === true ? AccountVerifiedStatus.waitForUser : AccountVerifiedStatus.decline;
-                        const labelStatus = newPrice ? SocialAccountLabelStatus.verified : account.labelStatus;
+                        const labelStatus = newPrice ? SocialAccountLabelStatus.accept : account.labelStatus;
 
                         account.price = accountPrice;
                         account.publicPrice = accountPublicPrice;
@@ -1224,7 +1224,6 @@ export class ProfileService {
             {
                 $match: {
                     'allAccounts.verifiedStatus': AccountVerifiedStatus.accept,
-                    'allAccounts.labelStatus': SocialAccountLabelStatus.verified,
                     'allAccounts.isDeleted': {$ne: true},
                     'allAccounts.isHidden': {$ne: true},
                 },
@@ -1324,7 +1323,6 @@ export class ProfileService {
             {
                 $match: {
                     'allAccounts.verifiedStatus': AccountVerifiedStatus.accept,
-                    'allAccounts.labelStatus': SocialAccountLabelStatus.verified,
                     'allAccounts.isDeleted': {$ne: true},
                     'allAccounts.isHidden': {$ne: true},
                 },
@@ -1597,7 +1595,6 @@ export class ProfileService {
                 'allAccounts.isDeleted': {$ne: true},
                 'allAccounts.isHidden': {$ne: true},
                 'allAccounts.verifiedStatus': AccountVerifiedStatus.accept,
-                'allAccounts.labelStatus': SocialAccountLabelStatus.verified
             }
         });
 
@@ -1817,7 +1814,6 @@ export class ProfileService {
 
         const matchAcc = {
             'acc.verifiedStatus': AccountVerifiedStatus.accept,
-            'acc.labelStatus': SocialAccountLabelStatus.verified,
             'acc.isHidden': {$ne: true},
             'acc.isDeleted': {$ne: true},
         };

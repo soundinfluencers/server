@@ -99,7 +99,7 @@ export class SocialAccount {
     @Prop({required: false, default: AccountVerifiedStatus.waitForAdmin, enum: AccountVerifiedStatus, type: String, index: true})
     verifiedStatus: AccountVerifiedStatus;
 
-    @Prop({required: false, default: SocialAccountLabelStatus.new, enum: SocialAccountLabelStatus, type: String})
+    @Prop({required: false, default: SocialAccountLabelStatus.waitForAdmin, enum: SocialAccountLabelStatus, type: String})
     labelStatus: SocialAccountLabelStatus;
 }
 
