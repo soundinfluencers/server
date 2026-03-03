@@ -291,7 +291,7 @@ export class AuthService {
     }
 
     // Login
-    async login(dto: LoginDto, res: Response): Promise<any> {
+    async login(dto: LoginDto, res: Response): Promise<LoginResponseDto> {
         const email = dto.email.toLowerCase().trim();
 
         let user: Client | Influencer | Admin = null;
@@ -323,14 +323,11 @@ export class AuthService {
 
         await this.saveRefreshToken(user._id, refreshToken);
 
-
-        if (AccountVerifiedStatus.waitForUser === user.verifiedStatus) {
-            setRefreshTokenCookie(res, refreshToken);
-            return res.redirect(`${process.env.SERVER_CLIENT}/influencer/profile/agreement/:${user._id.toString()}`);
-        }
-
         setRefreshTokenCookie(res, refreshToken);
-        return res.json({ accessToken });
+
+        return {
+            accessToken,
+        };
     }
 
     // refresh and token replace
