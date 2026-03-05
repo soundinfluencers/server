@@ -4,6 +4,7 @@ import {
     EXCHANGE_RATE_REPOSITORY,
     IExchangeRateRepository
 } from "./database/repositories/exchange-rate.repository";
+import {CurrencyCode} from "../../common/types/finance.types";
 
 @Injectable()
 export class ExchangeRateService {
@@ -54,7 +55,7 @@ export class ExchangeRateService {
         return { date, base, requested: symbols.length, saved };
     }
 
-    // Returns exchange rate
+    // Returns exchange rate for one currency
     async getRate(from: string, to: string): Promise<number> {
         from = from.toUpperCase();
         to = to.toUpperCase();
@@ -69,5 +70,24 @@ export class ExchangeRateService {
         }
 
         return toRate.rate / fromRate.rate;
+    }
+
+    // Returns exchange rate for all of available currencies
+    async getAllRates(): Promise<Record<CurrencyCode, number>> {
+        const availableCurrencies = Object.values(CurrencyCode) as CurrencyCode[];
+
+        const result = {} as Record<CurrencyCode, number>;
+
+        for (const currency of availableCurrencies) {
+            const exchangeRate = await this.exchangeRateRepository.findLatestByCurrency(currency);
+
+            if (!exchangeRate) {
+                throw new Error(`Exchange rate not found for ${currency}`);
+            }
+
+            result[currency] = exchangeRate.rate;
+        }
+
+        return result;
     }
 }

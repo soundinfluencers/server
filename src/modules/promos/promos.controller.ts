@@ -117,9 +117,9 @@ export class PromosController {
     @Get('/detailed/:status/:campaignId/:addedAccountsId')
     async getDetailedPromo(@Req() request: AuthenticatedRequest, @Param() params: InfluencerGetDetailedPromoParamsDto): Promise<InfluencerDetailedPromo> {
         throw new ForbiddenException("Outdated resource");
-        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
-
-        return await this.promosService.getDetailedPromoByType({...params, influencerId: request.user._id});
+        // if (!request.user._id) throw new UnauthorizedException('Unauthorized');
+        //
+        // return await this.promosService.getDetailedPromoByType({...params, influencerId: request.user._id});
     }
 
     @Auth()

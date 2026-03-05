@@ -1715,6 +1715,11 @@ export class ProfileService {
             v: `$${f}`
         }));
 
+        // Getting latest exchanging rates for available currencies
+        const exchangeRates: Record<CurrencyCode, number> = await this.exchangeRateService.getAllRates();
+
+        const eurPriceExpr = { $ifNull: ['$allAccounts.publicPrice', 0] };
+
         pipeline.push({
             $project: {
                 influencerId: '$_id',
@@ -1859,9 +1864,21 @@ export class ProfileService {
                 logoUrl: '$allAccounts.logoUrl',
                 followers: '$allAccounts.followers',
                 prices: {
-                    EUR: {$ifNull: ['$allAccounts.publicPrice', 0]},
-                    USD: {$multiply: [{$ifNull: ['$allAccounts.publicPrice', 0]}, 1.08]},
-                    GBP: {$multiply: [{$ifNull: ['$allAccounts.publicPrice', 0]}, 0.92]}
+                    EUR: eurPriceExpr,
+
+                    USD: {
+                        $round: [
+                            { $multiply: [eurPriceExpr, exchangeRates[CurrencyCode.USD] ?? 1.08] },
+                            0
+                        ]
+                    },
+
+                    GBP: {
+                        $round: [
+                            { $multiply: [eurPriceExpr, exchangeRates[CurrencyCode.GBP] ?? 0.92] },
+                            0
+                        ]
+                    },
                 },
                 socialMedia: '$allAccounts.socialMedia',
                 countries: {
