@@ -57,6 +57,21 @@ export class PromosService {
     /// -------------- ORCHESTRATORS ----------------
 
 
+    // orchestrator for getting one detailed promo with specific type (ongoing, completed, etc.)
+    async getDetailedPromoByType(data: InfluencerGetDetailedPromoParamsDto): Promise<InfluencerDetailedPromo> {
+        const {status, campaignId, addedAccountsId, influencerId} = data;
+
+        const handlers = {
+            [InfluencerDetailedPromoStatusRequest.new]: () => this.getNewPromo(influencerId, campaignId, addedAccountsId),
+            [InfluencerDetailedPromoStatusRequest.ongoing]: () => this.getOngoingPromo(influencerId, campaignId, addedAccountsId),
+            [InfluencerDetailedPromoStatusRequest.close]: () => this.getCompletedPromo(influencerId, campaignId, addedAccountsId),
+        }
+
+        const handler = handlers[status];
+        if (!handler) throw new Error('Unsupported promo status');
+        return handler();
+    }
+
     // orchestrator for getting array of detailed promos with specific type (ongoing, completed, etc.)
     async getDetailedPromosByType(data: InfluencerGetDetailedPromosQueryDto): Promise<InfluencerDetailedPromo[]> {
         const status = data.status ?? InfluencerDetailedPromoStatusRequest.ongoing;
@@ -81,21 +96,27 @@ export class PromosService {
 
         const handler = handlers[status];
         if (!handler) throw new Error('Unsupported promo status');
-        return handler();
-    }
 
-    // orchestrator for getting one detailed promo with specific type (ongoing, completed, etc.)
-    async getDetailedPromoByType(data: InfluencerGetDetailedPromoParamsDto): Promise<InfluencerDetailedPromo> {
-        const {status, campaignId, addedAccountsId, influencerId} = data;
+        // If user selected promo on dashboard we need to show him this promo as first element of list
+        if (data.addedAccountsId && data.campaignId) {
+            let promos: InfluencerDetailedPromo[] = await handler();
+            const selectedPromo: InfluencerDetailedPromo = await this.getDetailedPromoByType({
+                status: status,
+                campaignId: data.campaignId,
+                addedAccountsId: data.addedAccountsId,
+                influencerId: data.influencerId,
+            })
 
-        const handlers = {
-            [InfluencerDetailedPromoStatusRequest.new]: () => this.getNewPromo(influencerId, campaignId, addedAccountsId),
-            [InfluencerDetailedPromoStatusRequest.ongoing]: () => this.getOngoingPromo(influencerId, campaignId, addedAccountsId),
-            [InfluencerDetailedPromoStatusRequest.close]: () => this.getCompletedPromo(influencerId, campaignId, addedAccountsId),
+            if (!selectedPromo) {
+                throw new NotFoundException('Selected promo not found');
+            }
+
+            promos = promos.filter((promo: InfluencerDetailedPromo): boolean => promo.campaignId !== data.campaignId);
+            promos.unshift(selectedPromo);
+
+            return promos;
         }
 
-        const handler = handlers[status];
-        if (!handler) throw new Error('Unsupported promo status');
         return handler();
     }
 

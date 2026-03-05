@@ -909,6 +909,8 @@ export class ProfileService {
 
         if (isAccepted) {
             setObj[`${foundKey}.${foundIndex}.labelStatus`] = SocialAccountLabelStatus.accept;
+        } else {
+            
         }
 
         const res = await this.influencerRepo.updateOne(

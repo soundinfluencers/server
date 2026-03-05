@@ -1,6 +1,6 @@
 import {
     Body,
-    Controller,
+    Controller, ForbiddenException,
     Get, Param,
     Patch,
     Query,
@@ -8,7 +8,7 @@ import {
     UnauthorizedException,
 } from '@nestjs/common';
 import {PromosService} from './promos.service';
-import {ApiOperation, ApiParam, ApiQuery, ApiTags} from '@nestjs/swagger';
+import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {
     InfluencerCompletedPromoDto,
     InfluencerDashboardPromosDto, InfluencerDetailedPromo, InfluencerDetailedPromosDto,
@@ -63,6 +63,16 @@ export class PromosController {
     @ApiOperation({summary: `Returns influencer's detailed promos of one type`})
     @ApiResponseDto(InfluencerDetailedPromosDto)
     @ApiQuery({
+        name: 'campaignId',
+        type: 'string',
+        required: false,
+    })
+    @ApiQuery({
+        name: 'addedAccountsId',
+        type: 'string',
+        required: false,
+    })
+    @ApiQuery({
         name: 'status',
         required: false,
         enum: InfluencerDetailedPromoStatusRequest,
@@ -83,6 +93,7 @@ export class PromosController {
         return ({promos});
     }
 
+    @ApiExcludeEndpoint()
     @Auth()
     @Roles(Role.influencer)
     @ApiOperation({summary: `Returns influencer's detailed promo of one type`})
@@ -105,6 +116,7 @@ export class PromosController {
     })
     @Get('/detailed/:status/:campaignId/:addedAccountsId')
     async getDetailedPromo(@Req() request: AuthenticatedRequest, @Param() params: InfluencerGetDetailedPromoParamsDto): Promise<InfluencerDetailedPromo> {
+        throw new ForbiddenException("Outdated resource");
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
         return await this.promosService.getDetailedPromoByType({...params, influencerId: request.user._id});

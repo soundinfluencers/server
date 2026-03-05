@@ -242,6 +242,16 @@ export class InfluencerGetDashboardPromosQueryDto {
 
 // dto request for getting detailed promos
 export class InfluencerGetDetailedPromosQueryDto {
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsMongoId()
+    campaignId: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsMongoId()
+    addedAccountsId: string;
+
     @ApiProperty({
         description: 'Type of promos returned',
         enum: InfluencerDetailedPromoStatusRequest,
