@@ -111,7 +111,7 @@ export class PromosService {
                 throw new NotFoundException('Selected promo not found');
             }
 
-            promos = promos.filter((promo: InfluencerDetailedPromo): boolean => promo.campaignId !== data.campaignId);
+            promos = promos.filter((promo: InfluencerDetailedPromo): boolean => promo.addedAccountsId !== data.addedAccountsId);
             promos.unshift(selectedPromo);
 
             return promos;
