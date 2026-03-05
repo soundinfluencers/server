@@ -52,6 +52,13 @@ import {BespokeRequestCategory} from "../common/types/client/campaign.types";
 import {BespokeCampaignRepository} from "./repositories/campaigns/bespoke-campaign.repository";
 import { Schema as MongooseSchema } from 'mongoose';
 import {UserInvoiceRepository} from "./repositories/invoices/user-invoice.repository";
+import {
+    Negotiation,
+    NegotiationOffer,
+    NegotiationOfferSchema,
+    NegotiationSchema
+} from "./schemas/negotiation/negotiation.schema";
+import {NegotiationRepository} from "./repositories/negotiation/negotiation.repository";
 
 @Global()
 @Module({
@@ -74,6 +81,8 @@ import {UserInvoiceRepository} from "./repositories/invoices/user-invoice.reposi
             { name: InternationalBankTransferDetails.name, schema: InternationalBankTransferDetailsSchema },
             { name: PayPalDetails.name, schema: PayPalDetailsSchema },
             { name: ReportSizes.name, schema: ReportSizesSchema },
+            { name: Negotiation.name, schema: NegotiationSchema },
+            { name: NegotiationOffer.name, schema: NegotiationOfferSchema },
         ]),
         MongooseModule.forFeatureAsync([
             {
@@ -113,6 +122,7 @@ import {UserInvoiceRepository} from "./repositories/invoices/user-invoice.reposi
         InternationalBankTransferDetailsRepository,
         PaypalDetailsRepository,
         ReportSizeRepository,
+        NegotiationRepository,
     ],
     exports: [
         ClientRepository,
@@ -133,6 +143,7 @@ import {UserInvoiceRepository} from "./repositories/invoices/user-invoice.reposi
         InternationalBankTransferDetailsRepository,
         PaypalDetailsRepository,
         ReportSizeRepository,
+        NegotiationRepository,
     ],
 })
 export class DatabaseModule {}

@@ -1,4 +1,4 @@
-import {BuildInvoiceEmailDto} from "../dto/invoice-email.dto";
+import {BuildInvoiceEmailDto} from "../dto/templates/invoice-email.dto";
 import {escapeHtmlForEmail} from "../utils/email.utils";
 
 const listToHtml = (raw?: string, empty = '0 accounts') => {

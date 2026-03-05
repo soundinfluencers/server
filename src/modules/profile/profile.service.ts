@@ -85,6 +85,7 @@ import {areCountriesValid} from "../../common/utils/countries.util";
 import {InfluencerToAdminEmails} from "../../integrations/email/email.templates";
 import {ExchangeRateService} from "../../integrations/exchange-rate/exchange-rate.service";
 import {CurrencyCode, getAvailableCurrenciesLabel} from "../../common/types/finance.types";
+import {NegotiationRepository} from "../../database/repositories/negotiation/negotiation.repository";
 
 const bcrypt = require('bcryptjs');
 
@@ -105,7 +106,9 @@ export class ProfileService {
         // payment details
         private readonly ukTransferDetailsRepo: UkBankTransferDetailsRepository,
         private readonly internationalTransferDetailsRepo: InternationalBankTransferDetailsRepository,
-        private readonly paypalDetailsRepo: PaypalDetailsRepository
+        private readonly paypalDetailsRepo: PaypalDetailsRepository,
+        // negotiation
+        private readonly negotiationRepo: NegotiationRepository,
     ) {
     }
 
@@ -852,7 +855,7 @@ export class ProfileService {
 
     // Updates influencer's agreement response to one account
     async updateSocialAccountAgreement(data: UpdateAccountAgreementDto): Promise<void> {
-        const {socialAccountId, influencerId, status, role} = data;
+        const {socialAccountId, influencerId, status, role, messageToAdmin} = data;
 
         if (role && role !== Role.influencer) {
             throw new ForbiddenException('Not enough access');
@@ -884,9 +887,9 @@ export class ProfileService {
 
             const idx = arr.findIndex((a) => a?._id?.toString() === accId.toString());
             if (idx !== -1) {
-                foundKey = key;
-                foundIndex = idx;
-                foundVerifiedStatus = arr[idx]?.verifiedStatus;
+                foundKey = key; // account social media
+                foundIndex = idx; // account index in social media account list array
+                foundVerifiedStatus = arr[idx]?.verifiedStatus; // account verified status
                 break;
             }
         }
@@ -907,10 +910,23 @@ export class ProfileService {
                 : SocialAccountLabelStatus.negotiation
         };
 
-        if (isAccepted) {
-            setObj[`${foundKey}.${foundIndex}.labelStatus`] = SocialAccountLabelStatus.accept;
-        } else {
-            
+        if (!isAccepted) {
+            try {
+                await this.negotiationRepo.startNegotiation({
+                    userId: _id,
+                    accountId: accId,
+                    socialMedia: foundKey,
+                    offerPayload: {
+                        role: Role.influencer,
+                        offeredPrice: influencer[foundKey][foundIndex].initialPrice,
+                        currencyCode: influencer[foundKey][foundIndex].currency,
+                        email: "" // put template here
+                    }
+                })
+            } catch (err) {
+                this.logger.error(err);
+                throw new InternalServerErrorException(`Can't start negotiation about this account now. Try again later or contact us.`)
+            }
         }
 
         const res = await this.influencerRepo.updateOne(

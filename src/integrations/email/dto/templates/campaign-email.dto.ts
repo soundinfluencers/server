@@ -1,6 +1,6 @@
 // dto for building 'request edit' email template
-import {SocialMediaEnum} from "../../../common/types/social-media.types";
-import {CampaignPaymentMethodEnum} from "../../../common/types/client/campaign.types";
+import {SocialMediaEnum} from "../../../../common/types/social-media.types";
+import {CampaignPaymentMethodEnum} from "../../../../common/types/client/campaign.types";
 
 export class BuildRequestEditTemplateDto {
     campaignId: string;

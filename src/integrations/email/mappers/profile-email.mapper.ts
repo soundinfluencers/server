@@ -1,5 +1,5 @@
 import {CreateInfluencerDto, CreateSocialAccountDto} from "../../../modules/auth/dto/create-influencer.dto";
-import {BuildInfluencerSignupRequestTemplateDto} from "../dto/profile-email.dto";
+import {BuildInfluencerSignupRequestTemplateDto} from "../dto/templates/profile-email.dto";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 
 type SignupMapperOptions = {

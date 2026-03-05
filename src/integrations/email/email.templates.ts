@@ -1,4 +1,4 @@
-import {BuildInvoiceEmailDto} from "./dto/invoice-email.dto";
+import {BuildInvoiceEmailDto} from "./dto/templates/invoice-email.dto";
 import {EmailMessage} from "./types/email.types";
 import {
     buildClientCampaignInvoiceTemplate,
@@ -8,7 +8,7 @@ import {
 import {
     BuildChangePriceRequestTemplateDto,
     BuildInfluencerSignupRequestTemplateDto
-} from "./dto/profile-email.dto";
+} from "./dto/templates/profile-email.dto";
 import {
     buildInfluencerSignupAutoReplyTemplate,
     buildInfluencerSignupRequestTemplate,
@@ -17,13 +17,13 @@ import {
 import {
     BuildClientCreatedCampaignTemplateDto,
     BuildInfluencerNewPromoRequestTemplateDto, BuildRequestEditTemplateDto
-} from "./dto/campaign-email.dto";
+} from "./dto/templates/campaign-email.dto";
 import {
     buildClientCreatedCampaignTemplate,
     buildInfluencerNewPromoRequestTemplate, buildNewBespokeCampaignRequestTemplate, buildRequestEditTemplate
 } from "./builders/campaign-email.template";
 import {CreateBespokeCampaignDto} from "../../modules/campaigns/dto/bespoke-request.dto";
-import {ForgotPasswordEmailDto, NewPasswordEmailDto} from "./dto/forgot-email.dto";
+import {ForgotPasswordEmailDto, NewPasswordEmailDto} from "./dto/templates/forgot-email.dto";
 import {buildForgotPasswordEmailTemplate, buildNewPasswordEmailTemplate} from "./builders/forgot-email.template";
 
 const ADMIN_EMAIL = process.env.EMAIL_USER;

@@ -257,8 +257,8 @@ export class ProfileController {
         @Req() request: AuthenticatedRequest,
         @Param('status') status: InfluencerConfirmationStatusEnum,
         @Param('socialAccountId') socialAccountId: string,
-    ): Promise<void
-    > {
+        @Body() messageToAdmin?: string,
+    ): Promise<void> {
         if (!status || status === InfluencerConfirmationStatusEnum.wait) throw new BadRequestException('Invalid status value');
 
         return this.profileService.updateSocialAccountAgreement({

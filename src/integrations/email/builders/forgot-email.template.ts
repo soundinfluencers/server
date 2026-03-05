@@ -1,4 +1,4 @@
-import {ForgotPasswordEmailDto, NewPasswordEmailDto} from "../dto/forgot-email.dto";
+import {ForgotPasswordEmailDto, NewPasswordEmailDto} from "../dto/templates/forgot-email.dto";
 import {escapeHtmlForEmail} from "../utils/email.utils";
 
 export const buildForgotPasswordEmailTemplate = (data: ForgotPasswordEmailDto) => {

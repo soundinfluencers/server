@@ -3,7 +3,7 @@ import {
     BuildClientCreatedCampaignTemplateDto,
     BuildInfluencerNewPromoRequestTemplateDto,
     BuildRequestEditTemplateDto
-} from "../dto/campaign-email.dto";
+} from "../dto/templates/campaign-email.dto";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {formatCampaignPaymentType} from "../../../common/utils/formatters";
 import {

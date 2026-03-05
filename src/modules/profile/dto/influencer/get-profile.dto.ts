@@ -297,6 +297,9 @@ export class UpdateAccountAgreementDto {
     @ApiProperty({enum: InfluencerConfirmationStatusEnum})
     status: InfluencerConfirmationStatusEnum;
 
+    @ApiPropertyOptional({type: String})
+    messageToAdmin?: string;
+
     // for service (frontend does not send this data)
     influencerId?: string;
     role?: Role;

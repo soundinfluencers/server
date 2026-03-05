@@ -60,7 +60,7 @@ import {ObjId, toObjIdSafe} from "../../common/types/base.types";
 import {
     AccountObjectForCreateNewPromoRequestMessage,
     BuildRequestEditTemplateDto
-} from "../../integrations/email/dto/campaign-email.dto";
+} from "../../integrations/email/dto/templates/campaign-email.dto";
 import {BespokeCampaignRepository} from "../../database/repositories/campaigns/bespoke-campaign.repository";
 import {CampaignCsvExporter} from "../../common/utils/export/csv/campaign-csv.exporter";
 import {CampaignPdfExporter} from "../../common/utils/export/pdf/campaign-pdf.exporter";

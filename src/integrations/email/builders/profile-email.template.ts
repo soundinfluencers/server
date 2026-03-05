@@ -1,4 +1,4 @@
-import {BuildChangePriceRequestTemplateDto, BuildInfluencerSignupRequestTemplateDto} from "../dto/profile-email.dto";
+import {BuildChangePriceRequestTemplateDto, BuildInfluencerSignupRequestTemplateDto} from "../dto/templates/profile-email.dto";
 import {
     escapeHtmlForEmail,
     formatMoneyForEmail,
