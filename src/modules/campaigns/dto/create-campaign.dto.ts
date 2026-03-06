@@ -4,7 +4,7 @@ import {IsArray, IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString, 
 import {Type} from "class-transformer";
 import {CreateCampaignInvoiceDto, CreateInvoiceDto} from "../../invoice/dto/create-invoice.dto";
 import {InvoicePaymentMethodEnum} from "../../../common/types/influencer/invoice.types";
-import {CampaignPaymentMethodEnum} from "../../../common/types/client/campaign.types";
+import {CampaignDraftLatestStep, CampaignPaymentMethodEnum} from "../../../common/types/client/campaign.types";
 
 export class SelectedCampaignContentItemDto {
     @ApiProperty()
@@ -134,7 +134,7 @@ export class CreateCampaignDto {
     paymentDetails?: CreateCampaignInvoiceDto;
 }
 
-export class DraftCampaignAccountDto {
+export class DraftCampaignNewAccountDto {
     @ApiProperty({example: '6659bd485bc4317ed7c73555'})
     @IsMongoId()
     influencerId: string;
@@ -147,31 +147,16 @@ export class DraftCampaignAccountDto {
     @IsEnum(SocialMediaEnum)
     socialMedia: SocialMediaEnum;
 
-    @ApiProperty({description: 'Selected content configuration', type: SelectedCampaignContentItemDto})
+    @ApiPropertyOptional({description: 'Selected content configuration', type: SelectedCampaignContentItemDto})
+    @IsOptional()
     @ValidateNested()
     @Type(() => SelectedCampaignContentItemDto)
-    selectedContent: SelectedCampaignContentItemDto;
+    selectedContent?: SelectedCampaignContentItemDto;
 }
 
 // dto for creating campaign draft
-export class CreateDraftCampaignDto {
+export class SaveDraftCampaignDto {
     clientId?: string;
-
-    @ApiProperty({type: [DraftCampaignAccountDto]})
-    @IsArray()
-    @ValidateNested({each: true})
-    @Type(() => DraftCampaignAccountDto)
-    addedAccounts: DraftCampaignAccountDto[];
-
-    @ApiProperty({type: [CampaignContentItemDto]})
-    @IsArray()
-    @ValidateNested({each: true})
-    @Type(() => CampaignContentItemDto)
-    campaignContent: CampaignContentItemDto[];
-
-    @ApiProperty({example: 'My first draft campaign'})
-    @IsString()
-    campaignName: string;
 
     @ApiProperty({
         enum: [...Object.values(SocialMediaEnum), 'multipromo'],
@@ -179,4 +164,31 @@ export class CreateDraftCampaignDto {
     })
     @IsEnum([...Object.values(SocialMediaEnum), 'multipromo'])
     socialMedia: SocialMediaEnum | 'multipromo';
+
+    @ApiProperty({enum: CampaignDraftLatestStep})
+    @IsEnum(CampaignDraftLatestStep)
+    step: CampaignDraftLatestStep;
+
+    @ApiProperty({type: [DraftCampaignNewAccountDto]})
+    @IsArray()
+    @ValidateNested({each: true})
+    @Type(() => DraftCampaignNewAccountDto)
+    addedAccounts: DraftCampaignNewAccountDto[];
+
+    @ApiPropertyOptional({type: String})
+    @IsOptional()
+    @IsString()
+    draftId: string;
+
+    @ApiPropertyOptional({type: [CampaignContentItemDto]})
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({each: true})
+    @Type(() => CampaignContentItemDto)
+    campaignContent?: CampaignContentItemDto[];
+
+    @ApiPropertyOptional({example: 'My first draft campaign'})
+    @IsOptional()
+    @IsString()
+    campaignName?: string;
 }

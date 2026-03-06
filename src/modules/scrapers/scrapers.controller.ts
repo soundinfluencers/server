@@ -44,7 +44,6 @@ export class ScrapersController {
 
     @Auth()
     @ApiOperation({summary: "Updates all accounts for one social media"})
-    // Using undefined in ApiResponseDto because client will get all data through socket
     @ApiResponseDto(undefined, { successStatusCode: 201 })
     @Patch('account-details/all')
     async updateAllAccountsDetails(@Req() req: AuthenticatedRequest, @Body() data: ReqUpdateAllAccountsDto): Promise<UpdateAllAccountsResponseDto> {

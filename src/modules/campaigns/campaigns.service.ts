@@ -22,7 +22,7 @@ import {formatClientCampaignStatus, formatDate} from "../../common/utils/formatt
 import {
     CampaignContentItemDto,
     CreateCampaignDto,
-    CreateDraftCampaignDto,
+    SaveDraftCampaignDto,
     SelectInfluencerDto
 } from "./dto/create-campaign.dto";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
@@ -553,180 +553,27 @@ export class CampaignsService {
     }
 
     // Returns detailed draft
-    async getDraftCampaign(draftId: string): Promise<DetailedDraftCampaignDto> {
-        if (!draftId || !Types.ObjectId.isValid(draftId)) {
+    async getDraftCampaign(draftId: string, clientId: string): Promise<DetailedDraftCampaignDto> {
+        if (!draftId || !ObjId.isValid(draftId)) {
             throw new BadRequestException('Invalid draftId');
         }
 
-        const draft = await this.draftCampaignRepo.findById(draftId).lean();
-        if (!draft) throw new NotFoundException('Draft not found');
-
-        try {
-            const added = draft.addedAccounts ?? [];
-            if (added.length === 0) {
-                return {
-                    _id: draft._id.toString(),
-                    campaignName: draft.campaignName,
-                    socialMedia: draft.socialMedia,
-                    addedAccounts: [],
-                    campaignContent: draft.campaignContent as any,
-                };
-            }
-
-            const influencerIds: Types.ObjectId[] = [];
-            const accountIds: Types.ObjectId[] = [];
-            const socialMediasSet = new Set<string>();
-
-            const inflSeen = new Set<string>();
-            const accSeen = new Set<string>();
-
-            for (const a of added) {
-                const inflId = a.influencerId;
-                const accId = a.accountId;
-                if (inflId && !inflSeen.has(inflId.toString())) {
-                    inflSeen.add(inflId.toString());
-                    influencerIds.push(inflId);
-                }
-                if (accId && !accSeen.has(accId.toString())) {
-                    accSeen.add(accId.toString());
-                    accountIds.push(accId);
-                }
-                if (a.socialMedia) socialMediasSet.add(a.socialMedia);
-            }
-
-            const socialMedias = Array.from(socialMediasSet);
-            if (socialMedias.length === 0) {
-                throw new BadRequestException('Draft has no socialMedia in addedAccounts');
-            }
-
-            const concatParts = socialMedias.map((sm) => ({
-                $map: {
-                    input: `$${sm}`,
-                    as: 'a',
-                    in: {$mergeObjects: ['$$a', {socialMedia: sm}]},
-                },
-            }));
-
-            const pipeline: any[] = [
-                {$match: {_id: {$in: influencerIds}}},
-                {
-                    $project: {
-                        influencerId: '$_id',
-                        accAll: {$concatArrays: concatParts},
-                    },
-                },
-                {$unwind: '$accAll'},
-                {$set: {acc: '$accAll'}},
-                {$match: {'acc.isHidden': {$ne: true}, 'acc.isDeleted': {$ne: true}}},
-                {$match: {'acc._id': {$in: accountIds}}},
-
-                {
-                    $project: {
-                        _id: 0,
-                        accountId: {$toString: '$acc._id'},
-                        influencerId: {$toString: '$influencerId'},
-                        username: '$acc.username',
-                        logoUrl: '$acc.logoUrl',
-                        followers: '$acc.followers',
-                        socialMedia: '$acc.socialMedia',
-                        countries: {$ifNull: ['$acc.countries', []]},
-
-                        musicGenres: {
-                            $cond: [
-                                {$isArray: '$acc.musicGenres'},
-                                {$map: {input: '$acc.musicGenres', as: 'g', in: '$$g.genre'}},
-                                '$$REMOVE',
-                            ],
-                        },
-                        creatorCategories: {$ifNull: ['$acc.creatorCategories', '$$REMOVE']},
-                        categories: {$ifNull: ['$acc.categories', '$$REMOVE']},
-
-                        // todo: convert price
-                        prices: {
-                            EUR: {$ifNull: ['$acc.publicPrice', {$literal: 0}]},
-                            USD: {$literal: 0},
-                            GBP: {$literal: 0},
-                        },
-                    },
-                },
-            ];
-
-            const rows = await this.influencerRepo
-                .aggregate<FoundAccountDto>(pipeline)
-                .allowDiskUse(true);
-
-            const byAccountId = new Map<string, FoundAccountDto>();
-            for (const r of rows) byAccountId.set(r.accountId, r);
-
-            const addedAccountsDetailed = draft.addedAccounts.map((a) => {
-                const key = a.accountId.toString();
-                const full = byAccountId.get(key);
-
-                if (!full) {
-                    return {
-                        accountId: key,
-                        influencerId: a.influencerId.toString(),
-                        username: '[not found]',
-                        logoUrl: '',
-                        followers: 0,
-                        prices: {EUR: 0, USD: 0, GBP: 0},
-                        socialMedia: a.socialMedia,
-                        countries: [],
-                        selectedContent: a.selectedContent,
-                    } as any;
-                }
-
-                return {
-                    ...full,
-                    selectedContent: a.selectedContent,
-                } as any;
-            });
-
-            return {
-                _id: draft._id.toString(),
-                campaignName: draft.campaignName,
-                socialMedia: draft.socialMedia,
-                addedAccounts: addedAccountsDetailed,
-                campaignContent: draft.campaignContent as any,
-            };
-        } catch (err) {
-            throw new InternalServerErrorException(
-                `Draft ${draftId} found, but can't build detailed response`,
-                err as any,
-            );
+        if (!clientId || !ObjId.isValid(clientId)) {
+            throw new BadRequestException('Invalid clientId');
         }
+
+        const draft = await this.draftCampaignRepo.getDetailedDraftCampaign(draftId, clientId);
+
+        if (!draft) {
+            throw new NotFoundException('Draft not found');
+        }
+
+        return draft;
     }
 
-    // Creates new campaign draft
-    async createDraftCampaign(data: CreateDraftCampaignDto): Promise<void> {
-        await this.draftCampaignRepo.create<DraftCampaign>({
-            ...data,
-            _id: new Types.ObjectId(),
-            clientId: new Types.ObjectId(data.clientId),
-            addedAccounts: data.addedAccounts.map((acc) => ({
-                _id: new Types.ObjectId(),
-                influencerId: new Types.ObjectId(acc.influencerId),
-                accountId: new Types.ObjectId(acc.socialAccountId),
-                socialMedia: acc.socialMedia,
-                selectedContent: {
-                    campaignContentItemId: new Types.ObjectId(acc.selectedContent.campaignContentItemId),
-                    descriptionId: new Types.ObjectId(acc.selectedContent.descriptionId)
-                } as SelectedContent,
-            })),
-            campaignContent: data.campaignContent.map((c: CampaignContentItemDto): CampaignContentItem => ({
-                _id: new Types.ObjectId(c._id),
-                socialMedia: c.socialMedia,
-                socialMediaGroup: c.socialMediaGroup,
-                mainLink: c.mainLink,
-                descriptions: c?.descriptions?.map((d) => ({
-                    _id: new Types.ObjectId(d._id),
-                    description: d.description
-                })) ?? undefined,
-                taggedUser: c.taggedUser ?? undefined,
-                taggedLink: c.taggedLink ?? undefined,
-                additionalBrief: c.additionalBrief ?? undefined
-            }))
-        });
+    // Save campaign draft
+    async createDraftCampaign(data: SaveDraftCampaignDto): Promise<void> {
+        await this.draftCampaignRepo.saveDraftCampaign(data);
     }
 
     // Deletes draft campaign (by id)

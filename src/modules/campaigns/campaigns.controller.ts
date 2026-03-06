@@ -24,7 +24,7 @@ import {ApiResponseDto} from "../../common/decorators/api/response/api-response.
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Public} from "../../common/decorators/public.decorator";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
-import {CreateCampaignDto, CreateDraftCampaignDto} from "./dto/create-campaign.dto";
+import {CreateCampaignDto, SaveDraftCampaignDto} from "./dto/create-campaign.dto";
 import {Response} from 'express';
 import {CampaignTypeEnumForDevelopment, PublicCampaignForTable} from "../../common/types/client/campaign.types";
 import {Roles} from "../../common/decorators/roles.decorator";
@@ -91,7 +91,7 @@ export class CampaignsController {
     getDraftCampaign(@Req() req: AuthenticatedRequest, @Param('draftId') draftId: string): Promise<DetailedDraftCampaignDto> {
         if (!req.user._id) throw new UnauthorizedException('Unauthorized');
 
-        return this.campaignsService.getDraftCampaign(draftId);
+        return this.campaignsService.getDraftCampaign(draftId, req.user._id);
     }
 
     @Auth()
@@ -99,7 +99,7 @@ export class CampaignsController {
     @ApiOperation({summary: 'Saves new campaign draft'})
     @ApiResponseDto(undefined, {successStatusCode: 201})
     @Post('draft')
-    createDraftCampaign(@Req() req: AuthenticatedRequest, @Body() data: CreateDraftCampaignDto) {
+    createDraftCampaign(@Req() req: AuthenticatedRequest, @Body() data: SaveDraftCampaignDto) {
         if (!req.user._id) throw new UnauthorizedException('Unauthorized');
 
         return this.campaignsService.createDraftCampaign({...data, clientId: req.user._id});

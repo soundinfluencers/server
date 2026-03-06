@@ -64,6 +64,13 @@ export const CampaignPaymentLabels: Record<CampaignPaymentMethodEnum, string> = 
     [CampaignPaymentMethodEnum.crypto]: 'Crypto',
 };
 
+// last saved step of creating campaign
+export enum CampaignDraftLatestStep {
+    addAccounts = 'addAccounts',
+    addContent = 'addContent',
+    strategyTable = 'strategyTable',
+}
+
 // Using at home page
 export interface ClientGetCampaignForList {
     _id: string;

@@ -475,19 +475,19 @@ export class ScrapersService {
 
         // Settings for batches
         const BATCH_SIZE = 10;
-        const MAX_PARALLEL = 15;
-        // const MAX_PARALLEL = 7;
+        // const MAX_PARALLEL = 15;
+        const MAX_PARALLEL = 7;
 
         // Arrays for processed accounts
         const failed: typeof accounts = [];
         const active: Promise<void>[] = [];
 
         try {
-            this.scrapersGateway.startAccountAccountsUpdate(
-                socketId,
-                socialMedia,
-                accounts.map(a => (a as any)._id.toString())
-            );
+            // this.scrapersGateway.startAccountAccountsUpdate(
+            //     socketId,
+            //     socialMedia,
+            //     accounts.map(a => (a as any)._id.toString())
+            // );
 
             // Func for processing one batch of accounts
             const processBatch = async (batch: typeof accounts) => {
@@ -517,11 +517,11 @@ export class ScrapersService {
                     acc.engagementRate = result?.newEngagementRate ?? acc.engagementRate;
                     acc.averageViews = result?.newAverageViews ?? 0;
 
-                    this.scrapersGateway.finishAccountAccountsUpdate(
-                        socketId,
-                        socialMedia,
-                        [acc._id.toString()]
-                    );
+                    // this.scrapersGateway.finishAccountAccountsUpdate(
+                    //     socketId,
+                    //     socialMedia,
+                    //     [acc._id.toString()]
+                    // );
                 }
             };
 
@@ -567,10 +567,10 @@ export class ScrapersService {
                 );
             }
 
-            this.scrapersGateway.notificationFinishedRefreshingAccounts(socketId, {
-                socialMedia,
-                statusCode: 201,
-            });
+            // this.scrapersGateway.notificationFinishedRefreshingAccounts(socketId, {
+            //     socialMedia,
+            //     statusCode: 201,
+            // });
 
             const duration = ((Date.now() - startTime) / 1000).toFixed(2);
             this.logger.log(`[SCRAPER] updateAllAccountsDetails completed in ${duration}s`);
@@ -579,10 +579,10 @@ export class ScrapersService {
                 message: `Processed ${accounts.length} ${socialMedia} accounts in batches of ${BATCH_SIZE}`,
             };
         } catch (e) {
-            this.scrapersGateway.notificationFinishedRefreshingAccounts(data.socketId, {
-                socialMedia: data.socialMedia,
-                statusCode: 500,
-            });
+            // this.scrapersGateway.notificationFinishedRefreshingAccounts(data.socketId, {
+            //     socialMedia: data.socialMedia,
+            //     statusCode: 500,
+            // });
             throw e;
         } finally {
             this.areAccountsRefreshing = false;

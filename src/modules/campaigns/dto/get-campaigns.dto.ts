@@ -1,14 +1,14 @@
 import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {
+    CampaignDraftLatestStep,
     CampaignStatusEnum,
     CampaignTypeEnumForDevelopment,
     ClientCampaignForTable,
     ClientGetCampaignForList,
     SafeCampaignContent,
-    SafeSelectedContent
 } from "../../../common/types/client/campaign.types";
 import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
-import {FoundAccountDto} from "../../profile/dto/influencer/get-profile.dto";
+import {DraftCampaignNewAccountDto} from "./create-campaign.dto";
 
 export class ClientGetDashboardCampaignsQueryDto {
     @ApiPropertyOptional({
@@ -123,36 +123,39 @@ export class ClientCampaignForTableDto implements ClientCampaignForTable {
     cpm?: number;
 }
 
-export class DetailedDraftCampaignAccountDto {
+export class DraftCampaignAccountDto extends DraftCampaignNewAccountDto {
     @ApiProperty()
-    _id: string;
+    username: string;
 
     @ApiProperty()
-    influencerId: string;
+    logoUrl: string;
 
     @ApiProperty()
-    accountId: string;
+    followers: number;
 
     @ApiProperty()
-    socialMedia: SocialMediaEnum;
-
-    @ApiProperty({type: SafeSelectedContent})
-    selectedContent: SafeSelectedContent;
+    price: number;
 }
 
 export class DetailedDraftCampaignDto {
     @ApiProperty()
     _id: string;
 
-    @ApiProperty()
-    campaignName: string;
+    @ApiProperty({enum: CampaignDraftLatestStep})
+    step: CampaignDraftLatestStep;
 
     @ApiProperty({enum: [...Object.values(SocialMediaEnum), 'multipromo']})
     socialMedia: SocialMediaType | 'multipromo';
 
-    @ApiProperty({type: FoundAccountDto, isArray: true})
-    addedAccounts: FoundAccountDto[];
+    @ApiProperty({type: DraftCampaignAccountDto, isArray: true})
+    addedAccounts: DraftCampaignAccountDto[];
 
-    @ApiProperty({type: SafeCampaignContent, isArray: true})
-    campaignContent: SafeCampaignContent[];
+    @ApiPropertyOptional()
+    campaignName?: string;
+
+    @ApiPropertyOptional({type: SafeCampaignContent, isArray: true})
+    campaignContent?: SafeCampaignContent[];
+
+    @ApiProperty()
+    totalPrice: number;
 }
