@@ -1,51 +1,32 @@
 import {ClientSession, PipelineStage, Types} from 'mongoose';
 import {CreateCampaignInvoiceDto, CreateInvoiceDto} from './dto/create-invoice.dto';
-import {
-    BadRequestException,
-    ForbiddenException,
-    Injectable, InternalServerErrorException,
-    Logger,
-    NotFoundException,
-    StreamableFile
-} from '@nestjs/common';
+import {BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException} from '@nestjs/common';
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {UserInvoiceRepository} from "../../database/repositories/invoices/user-invoice.repository";
 import {GetInvoicesQueryDto} from "./dto/invoice.dto";
-import {
-    InvoiceForDashboard,
-} from "../../common/types/influencer/invoice.types";
-import {formatDate} from "../../common/utils/formatters";
-import {ClientRepository} from "../../database/repositories/users/client.repository";
+import {InvoiceForDashboard, InvoiceStatusEnum,} from "../../common/types/influencer/invoice.types";
 import {EmailService} from "../../integrations/email/email.service";
 import {InvoiceDetailsRepository} from "../../database/repositories/invoices/invoice-details.repository";
 import {Role, UserPayload} from "../../common/types/user.types";
 import {ObjId} from "../../common/types/base.types";
-import {UkBankTransferDetailsRepository} from "../../database/repositories/invoices/uk-transfer-details.repository";
-import {
-    InternationalBankTransferDetailsRepository
-} from "../../database/repositories/invoices/international-transfer-details.repository";
-import {PaypalDetailsRepository} from "../../database/repositories/invoices/paypal-details.repository";
 import {PaymentMethodRequestEnum} from "../profile/dto/payment-details.dto";
 import {ProfileService} from "../profile/profile.service";
-import {mapToInvoiceModel} from "../../common/mappers/invoice.mapper";
 import {InvoicePdfExporter} from "../../common/utils/export/pdf/invoice-pdf.exporter";
 import {AdminToClientEmails, InfluencerToAdminEmails} from "../../integrations/email/email.templates";
+import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
+import {mapPromosToInvoiceLinkedPromos} from "../../common/mappers/invoice.mapper";
+import {InfluencerInvoiceDocument} from "../../database/schemas/invoices/user-invoice.schema";
 
 @Injectable()
 export class InvoiceService {
     constructor(
-        // users
+        // repositories
         private readonly influencerRepo: InfluencerRepository,
-        private readonly clientRepo: ClientRepository,
-        // invoices
         private readonly userInvoiceRepository: UserInvoiceRepository,
-        // invoice details
         private readonly invoiceDetailsRepo: InvoiceDetailsRepository,
-        // payment details
-        private readonly ukTransferDetailsRepo: UkBankTransferDetailsRepository,
-        private readonly internationalTransferDetailsRepo: InternationalBankTransferDetailsRepository,
-        private readonly paypalDetailsRepo: PaypalDetailsRepository,
+        private readonly campaignRepo: CampaignRepository,
+
         // services
         private readonly influencerHistoryService: InfluencerActionsHistoryService,
         private readonly profileService: ProfileService,
@@ -55,34 +36,59 @@ export class InvoiceService {
 
     private readonly logger = new Logger("InvoiceService");
 
+    // Creates new influencer invoice
     async createInfluencerInvoice(data: CreateInvoiceDto): Promise<void> {
-        const influencer = await this.influencerRepo.findById(data.userId);
-
-        if (!influencer) throw new NotFoundException('Influencer not found');
-
         const session = await this.influencerRepo.startSession();
         session.startTransaction();
 
         try {
-            const amount = Number(data.amount);
+            // Getting influencer
+            const influencerForPayment = await this.influencerRepo.findById(data.userId, { session, select: ['balance'] });
+
+            if (!influencerForPayment) {
+                throw new NotFoundException('Influencer not found');
+            }
+
+            // Saving old balance
+            const oldBalance = Number(influencerForPayment.balance);
+
+            if (oldBalance <= 0) {
+                throw new BadRequestException('Insufficient balance');
+            }
+
+            // Searching promos that were closed and waiting for payment
+            const promosWaitForPayment = await this.campaignRepo.findAllWaitingForPayment(data.userId, InvoiceStatusEnum.wait, session);
+
+            if (!promosWaitForPayment || promosWaitForPayment.length === 0) {
+                throw new NotFoundException(`Can't find any promo that is waiting for payment`);
+            }
+
+            // Updating invoice status in these promos
+            await this.campaignRepo.updateManyInvoiceStatuses(data.userId, InvoiceStatusEnum.wait, InvoiceStatusEnum.submitted, session);
 
             const updatedInfluencer = await this.influencerRepo.findOneAndUpdate(
                 {
                     _id: new Types.ObjectId(data.userId),
-                    balance: {$gte: amount},
+                    balance: oldBalance, // defend from races
                 },
-                {$inc: {balance: -amount}},
-                {new: true, session}
+                {
+                    $set: { balance: 0 }, // set zero
+                },
+                { new: true, session }
             );
 
-            if (!updatedInfluencer) {
-                throw new BadRequestException('Insufficient balance');
+            if (!updatedInfluencer || updatedInfluencer.balance !== 0) {
+                throw new BadRequestException('Failed to update balance');
             }
 
             const newBalance = Number(updatedInfluencer.balance);
 
             // Creating invoice
-            const invoice = await this.userInvoiceRepository.create(mapToInvoiceModel(data), {session});
+            const invoice: InfluencerInvoiceDocument = await this.userInvoiceRepository.createInfluencerInvoice({
+                ...data,
+                linkedPromos: mapPromosToInvoiceLinkedPromos(promosWaitForPayment),
+                amount: oldBalance
+            }, session);
 
             // Updating influencer's actions history
             await this.influencerHistoryService.upsertInfluencerInvoiceHistory(
@@ -91,38 +97,38 @@ export class InvoiceService {
                     invoiceId: invoice._id.toString(),
                     paymentMethod: data.selectedPaymentMethod,
                     currentBalance: newBalance,
-                    amount: data.amount,
+                    amount: oldBalance,
                 },
                 session
             );
 
             // Mapping accounts name for email
-            const instagramAccounts = influencer.instagram
+            const instagramAccounts = updatedInfluencer.instagram
                 .map((account) => `<br /> - ${account.username}`)
                 .join('');
-            const tiktokAccounts = influencer.tiktok
+            const tiktokAccounts = updatedInfluencer.tiktok
                 .map((account) => `<br /> - ${account.username}`)
                 .join('');
-            const spotifyAccounts = influencer.spotify
+            const spotifyAccounts = updatedInfluencer.spotify
                 .map((account) => `<br /> - ${account.username}`)
                 .join('');
-            const soundcloudAccounts = influencer.soundcloud
+            const soundcloudAccounts = updatedInfluencer.soundcloud
                 .map((account) => `<br /> - ${account.username}`)
                 .join('');
-            const facebookAccounts = influencer.facebook
+            const facebookAccounts = updatedInfluencer.facebook
                 .map((account) => `<br /> - ${account.username}`)
                 .join('');
-            const youtubeAccounts = influencer.youtube
+            const youtubeAccounts = updatedInfluencer.youtube
                 .map((account) => `<br /> - ${account.username}`)
                 .join('');
-            const pressAccounts = influencer.press
+            const pressAccounts = updatedInfluencer.press
                 .map((account) => `<br /> - ${account.username}`)
                 .join('');
 
             // Creating and sending email
             const pdfInvoice = await InvoicePdfExporter.buildPdfBuffer(invoice)
             await this.emailService.send(InfluencerToAdminEmails.newInvoice({
-                influencerEmail: influencer.email,
+                influencerEmail: updatedInfluencer.email,
                 instagramAccounts,
                 tiktokAccounts,
                 spotifyAccounts,
@@ -142,15 +148,10 @@ export class InvoiceService {
         }
     }
 
-    // todo: update after designer finish design for invoices
+    // Creates new client invoice (after creating new campaign)
     async createClientCampaignInvoice(data: CreateCampaignInvoiceDto, session?: ClientSession): Promise<void> {
-        const invoice = mapToInvoiceModel(data);
-
-        if (!invoice) throw new BadRequestException('Invalid payment details');
-
-        await this.userInvoiceRepository.create(invoice, {session});
-
-        const pdfInvoice = await InvoicePdfExporter.buildPdfBuffer(invoice)
+        const invoice = await this.userInvoiceRepository.createClientInvoice(data, session);
+        const pdfInvoice = await InvoicePdfExporter.buildPdfBuffer(invoice);
         await this.emailService.send(AdminToClientEmails.campaignInvoice(process.env.EMAIL_USER, pdfInvoice));
     }
 
@@ -266,31 +267,32 @@ export class InvoiceService {
         return this.userInvoiceRepository.aggregate(pipeline);
     }
 
+    // todo: finish
     async downloadInvoice(invoiceId: string, userInfo: UserPayload) {
-        const invoice = await this.userInvoiceRepository.findById(invoiceId);
-
-        if (!invoice) {
-            throw new NotFoundException('Invoice not found');
-        }
-
-        const isAdmin = userInfo.role === Role.admin;
-        const isOwner = userInfo._id === invoice.userId.toString();
-
-        if (!isAdmin && !isOwner) {
-            throw new ForbiddenException('You can download only your invoices');
-        }
-
-        try {
-            const pdf = await InvoicePdfExporter.buildPdfBuffer(invoice);
-
-            return new StreamableFile(pdf, {
-                type: 'application/pdf',
-                disposition: `attachment; filename=invoice-${formatDate(invoice.createdAt, '-')}.pdf`,
-            });
-        } catch (error) {
-            this.logger.error(`Error build pdf for ${userInfo.role} invoice ${invoiceId}`, error);
-            throw new InternalServerErrorException("Can't build pdf for this invoice");
-        }
+        // const invoice: ClientInvoiceDocument | InfluencerInvoiceDocument = await this.userInvoiceRepository.findById(invoiceId);
+        //
+        // if (!invoice) {
+        //     throw new NotFoundException('Invoice not found');
+        // }
+        //
+        // const isAdmin = userInfo.role === Role.admin;
+        // const isOwner = userInfo._id === invoice.userId.toString();
+        //
+        // if (!isAdmin && !isOwner) {
+        //     throw new ForbiddenException('You can download only your invoices');
+        // }
+        //
+        // try {
+        //     const pdf = await InvoicePdfExporter.buildPdfBuffer(invoice);
+        //
+        //     return new StreamableFile(pdf, {
+        //         type: 'application/pdf',
+        //         disposition: `attachment; filename=invoice-${formatDate(invoice.createdAt, '-')}.pdf`,
+        //     });
+        // } catch (error) {
+        //     this.logger.error(`Error build pdf for ${userInfo.role} invoice ${invoiceId}`, error);
+        //     throw new InternalServerErrorException("Can't build pdf for this invoice");
+        // }
     }
 
     async getInvoiceDraft(userInfo: UserPayload): Promise<CreateInvoiceDto> {

@@ -16,6 +16,7 @@ import {Type} from "class-transformer";
 import {InternationalBankTransferDto, PayPalDto, UKBankTransferDto} from "../../profile/dto/payment-details.dto";
 import {Role} from "../../../common/types/user.types";
 import {CampaignPaymentMethodEnum} from "../../../common/types/client/campaign.types";
+import {InfluencerInvoiceLinkedPromo} from "../../../database/schemas/invoices/user-invoice.schema";
 
 // dto for creating new influencer's invoice
 export class CreateInvoiceDto {
@@ -23,12 +24,8 @@ export class CreateInvoiceDto {
     userId?: string;
     // front does not send this. this field is setting and using only by backend
     userRole?: Role;
-    // only for client campaign invoice
     // front does not send this. this field is setting and using only by backend
-    campaignId?: string;
-    // only for client campaign invoice
-    // front does not send this. this field is setting and using only by backend
-    campaignName?: string;
+    linkedPromos?: InfluencerInvoiceLinkedPromo[];
 
     @ApiProperty()
     @IsString()
@@ -50,10 +47,7 @@ export class CreateInvoiceDto {
     @IsNotEmpty()
     country: string;
 
-    @ApiProperty()
-    @IsNumber()
-    @Min(1)
-    amount: number;
+    amount?: number;
 
     @ApiPropertyOptional()
     @IsOptional()

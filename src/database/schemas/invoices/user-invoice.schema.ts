@@ -1,5 +1,5 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
-import { Types } from 'mongoose';
+import {HydratedDocument, Types} from 'mongoose';
 import {
     InvoicePaymentMethodEnum,
     InvoiceStatusEnum,
@@ -13,8 +13,64 @@ import {
 } from "./payment-details.schema";
 import {CampaignPaymentMethodEnum} from "../../../common/types/client/campaign.types";
 
+export type UserInvoiceDocument = HydratedDocument<UserInvoice>;
+export type ClientInvoiceDocument = HydratedDocument<UserInvoice & ClientInvoice>;
+export type InfluencerInvoiceDocument = HydratedDocument<UserInvoice & InfluencerInvoice>;
+
+// Subscheme for client invoice
+@Schema({timestamps: true})
+export class ClientInvoice {
+    @Prop({ type: Types.ObjectId, required: false })
+    campaignId: Types.ObjectId;
+
+    @Prop({ type: String, required: false })
+    campaignName: string;
+
+    @Prop({
+        required: true,
+        type: String,
+        enum: CampaignPaymentMethodEnum,
+    })
+    selectedPaymentMethod: CampaignPaymentMethodEnum;
+}
+
+export const ClientInvoiceSchema = SchemaFactory.createForClass(ClientInvoice);
+
+// Subscheme for influencer invoice linked promos
+@Schema({timestamps: true})
+export class InfluencerInvoiceLinkedPromo {
+    @Prop({required: true, type: Types.ObjectId})
+    campaignId: Types.ObjectId;
+
+    @Prop({required: true, type: Types.ObjectId})
+    promoId: Types.ObjectId;
+
+    @Prop({ required: true, type: Number })
+    reward: number;
+}
+
+export const InfluencerInvoiceLinkedPromoSchema = SchemaFactory.createForClass(InfluencerInvoiceLinkedPromo);
+
+// Subscheme for influencer invoice
+@Schema({timestamps: true})
+export class InfluencerInvoice {
+    @Prop({ required: true, type: [InfluencerInvoiceLinkedPromoSchema], default: [] })
+    linkedPromos: InfluencerInvoiceLinkedPromo[]; // list of closed promos that are waiting for payment
+
+    @Prop({
+        required: true,
+        type: String,
+        enum: InvoicePaymentMethodEnum,
+    })
+    selectedPaymentMethod: InvoicePaymentMethodEnum;
+}
+
+export const InfluencerInvoiceSchema = SchemaFactory.createForClass(InfluencerInvoice);
+
+// Main scheme for invoices
 @Schema({
     timestamps: true,
+    discriminatorKey: 'userRole'
 })
 export class UserInvoice {
     @Prop({ type: Types.ObjectId, required: true })
@@ -28,12 +84,6 @@ export class UserInvoice {
 
     @Prop({ type: String, required: true, enum: Role })
     userRole: Role;
-
-    @Prop({ type: Types.ObjectId, required: false })
-    campaignId?: Types.ObjectId; // only for client's invoice
-
-    @Prop({ type: String, required: false })
-    campaignName?: string; // only for client's invoice
 
     @Prop({
         required: true,
@@ -57,16 +107,6 @@ export class UserInvoice {
 
     @Prop({ required: true, type: Number })
     amount: number;
-
-    @Prop({
-        required: true,
-        type: String,
-        enum: [
-            ...Object.values(InvoicePaymentMethodEnum),
-            ...Object.values(CampaignPaymentMethodEnum),
-        ],
-    })
-    selectedPaymentMethod: InvoicePaymentMethodEnum | CampaignPaymentMethodEnum;
 
     @Prop({ required: false, type: UKBankTransferDetailsSchema})
     ukBankTransfer?: UKBankTransferDetails;

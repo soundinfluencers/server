@@ -1,5 +1,9 @@
 import puppeteer, {Browser, Page} from "puppeteer";
-import { UserInvoice } from "../../../../database/schemas/invoices/user-invoice.schema";
+import {
+    ClientInvoiceDocument,
+    InfluencerInvoiceDocument,
+    UserInvoice
+} from "../../../../database/schemas/invoices/user-invoice.schema";
 import {Role} from "../../../types/user.types";
 const fs = require("fs");
 const path = require("path");
@@ -28,7 +32,7 @@ export class InvoicePdfExporter {
     private static queue: Array<() => void> = [];
 
     static async buildPdfBuffer(
-        invoice: UserInvoice,
+        invoice: ClientInvoiceDocument | InfluencerInvoiceDocument,
         extraInfo?: InvoicePdfBuilderExtraInfoDto,
     ): Promise<Buffer> {
         await this.acquire();
@@ -233,7 +237,7 @@ export class InvoicePdfExporter {
         return this.fontFaceCss;
     }
 
-    private static buildHtml(invoice: UserInvoice, extraInfo?: InvoicePdfBuilderExtraInfoDto) {
+    private static buildHtml(invoice: ClientInvoiceDocument | InfluencerInvoiceDocument, extraInfo?: InvoicePdfBuilderExtraInfoDto) {
         const isClientInvoice = invoice.userRole === Role.client;
 
         const invoiceDate = this.formatDate(
@@ -292,7 +296,7 @@ export class InvoicePdfExporter {
 
         const amountStr = this.formatMoneyEUR(invoice.amount);
 
-        const campaignName = extraInfo?.campaignName ?? invoice.campaignName ?? (invoice.campaignId ? "Campaign" : "Influencer Marketing Campaign");
+        const campaignName = (invoice as ClientInvoiceDocument).campaignName ?? extraInfo?.campaignName ?? "Influencer Marketing Campaign"
         const brandName = extraInfo?.brandName ?? "—";
         const poNumber = extraInfo?.poNumber ?? "—";
         const reach = extraInfo?.reach ?? "—";
@@ -610,7 +614,7 @@ export class InvoicePdfExporter {
 
     // ---------------- helpers ----------------
 
-    private static renderPaymentInfo(invoice: UserInvoice, isClientInvoice: boolean) {
+    private static renderPaymentInfo(invoice: ClientInvoiceDocument | InfluencerInvoiceDocument, isClientInvoice: boolean) {
         const method = invoice.selectedPaymentMethod as any;
 
         if (isClientInvoice) {

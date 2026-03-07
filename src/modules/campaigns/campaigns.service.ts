@@ -529,7 +529,7 @@ export class CampaignsService {
             data.paymentDetails.campaignName = data.campaignName.trim();
 
             // create and send invoice to client
-            await this.invoiceService.createClientCampaignInvoice(data.paymentDetails);
+            await this.invoiceService.createClientCampaignInvoice(data.paymentDetails, session);
 
             await session.commitTransaction();
         } catch (err) {

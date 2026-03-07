@@ -1,10 +1,29 @@
 import {InvoiceDetailsDto} from "../../modules/profile/dto/invoice-details.dto";
 import {InvoiceDetails} from "../../database/schemas/invoices/invoice-details.schema";
 import {CreateCampaignInvoiceDto, CreateInvoiceDto} from "../../modules/invoice/dto/create-invoice.dto";
-import {UserInvoice} from "../../database/schemas/invoices/user-invoice.schema";
+import {
+    ClientInvoice,
+    ClientInvoiceDocument, InfluencerInvoice,
+    InfluencerInvoiceDocument, InfluencerInvoiceLinkedPromo,
+    UserInvoice
+} from "../../database/schemas/invoices/user-invoice.schema";
 import {ObjId} from "../types/base.types";
 import {Role} from "../types/user.types";
 import {InvoiceStatusEnum} from "../types/influencer/invoice.types";
+import {SelectInfluencerDto} from "../../modules/campaigns/dto/create-campaign.dto";
+import {CampaignAccount} from "../../database/schemas/campaign/campaign.schema";
+
+// Repository create client invoice input
+export type CreateClientInvoiceDbShape = Omit<
+    UserInvoice & ClientInvoice,
+    'createdAt'
+>;
+
+// Repository create influencer invoice input
+export type CreateInfluencerInvoiceDbShape = Omit<
+    UserInvoice & InfluencerInvoice,
+    'createdAt'
+>;
 
 export const mapToInvoiceDetailsDto = (data: InvoiceDetails): InvoiceDetailsDto => {
     return {
@@ -17,10 +36,10 @@ export const mapToInvoiceDetailsDto = (data: InvoiceDetails): InvoiceDetailsDto 
     }
 };
 
-// map dto to ready-to-go model
-export const mapToInvoiceModel = (data: CreateInvoiceDto | CreateCampaignInvoiceDto): UserInvoice => {
-    const isInfluencerInvoice = data.userRole === Role.influencer;
-
+// Maps create campaign invoice dto to repository create input
+export const mapDtoToClientInvoice = (
+    data: CreateCampaignInvoiceDto
+): CreateClientInvoiceDbShape => {
     return {
         _id: new ObjId(),
         schemaVersion: 2,
@@ -33,33 +52,71 @@ export const mapToInvoiceModel = (data: CreateInvoiceDto | CreateCampaignInvoice
         country: data.country,
         amount: data.amount,
         selectedPaymentMethod: data.selectedPaymentMethod,
-        ...(isInfluencerInvoice && (data as CreateInvoiceDto).ukBankTransfer ? {
+        campaignId: new ObjId(data.campaignId),
+        campaignName: data.campaignName,
+        ...(data.company ? { company: data.company } : {}),
+        ...(data.vatNumber ? { vatNumber: data.vatNumber } : {}),
+    } satisfies CreateClientInvoiceDbShape;
+};
+
+// Maps promo to InfluencerInvoiceLinkedPromo
+export const mapPromoToInvoiceLinkedPromo = (
+    payload: (CampaignAccount & { campaignId: ObjId }),
+): InfluencerInvoiceLinkedPromo => {
+    return {
+        campaignId: payload.campaignId,
+        promoId: payload._id,
+        reward: payload.price,
+    } satisfies InfluencerInvoiceLinkedPromo;
+};
+
+// Maps promos array to InfluencerInvoiceLinkedPromo[]
+export const mapPromosToInvoiceLinkedPromos = (
+    payload: (CampaignAccount & { campaignId: ObjId })[],
+): InfluencerInvoiceLinkedPromo[] => {
+    return payload.map(mapPromoToInvoiceLinkedPromo) satisfies InfluencerInvoiceLinkedPromo[];
+};
+
+// Maps create influencer invoice dto to repository create input
+export const mapDtoToInfluencerInvoice = (data: CreateInvoiceDto): CreateInfluencerInvoiceDbShape => {
+    return {
+        _id: new ObjId(),
+        schemaVersion: 2,
+        userId: new ObjId(data.userId),
+        userRole: data.userRole,
+        status: InvoiceStatusEnum.submitted,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        address: data.address,
+        country: data.country,
+        amount: data.amount,
+        linkedPromos: data.linkedPromos,
+        selectedPaymentMethod: data.selectedPaymentMethod,
+        ...(data as CreateInvoiceDto).ukBankTransfer ? {
             ukBankTransfer: {
                 ...(data as CreateInvoiceDto).ukBankTransfer,
                 _id: new ObjId(),
                 userId: new ObjId(data.userId),
                 userRole: Role.influencer
             }
-        } : {}),
-        ...(isInfluencerInvoice && (data as CreateInvoiceDto).internationalBankTransfer ? {
+        } : {},
+        ...(data as CreateInvoiceDto).internationalBankTransfer ? {
             internationalBankTransfer: {
                 ...(data as CreateInvoiceDto).internationalBankTransfer,
                 _id: new ObjId(),
                 userId: new ObjId(data.userId),
                 userRole: Role.influencer
             }
-        } : {}),
-        ...(isInfluencerInvoice && (data as CreateInvoiceDto).paypal ? {
+        } : {},
+        ...(data as CreateInvoiceDto).paypal ? {
             paypal: {
                 ...(data as CreateInvoiceDto).paypal,
                 _id: new ObjId(),
                 userId: new ObjId(data.userId),
                 userRole: Role.influencer
             }
-        } : {}),
+        } : {},
         ...(data.company ? {company: data.company} : {}),
         ...(data.vatNumber ? {vatNumber: data.vatNumber} : {}),
-        ...(!isInfluencerInvoice && (data as CreateCampaignInvoiceDto).campaignId ? {campaignId: new ObjId(data.campaignId)} : {}),
-        ...(!isInfluencerInvoice && (data as CreateCampaignInvoiceDto).campaignName ? {campaignName: data.campaignName} : {}),
-    } satisfies UserInvoice;
+    } satisfies CreateInfluencerInvoiceDbShape;
 }

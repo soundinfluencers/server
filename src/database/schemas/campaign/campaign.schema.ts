@@ -11,6 +11,7 @@ import {
     InfluencerPromoClosedStatusEnum
 } from "../../../common/types/influencer/promo.types";
 import {MediaKindEnum, MediaProviderEnum} from "../../../common/types/file/file.types";
+import {InvoiceStatusEnum} from "../../../common/types/influencer/invoice.types";
 
 @Schema({_id: false, timestamps: false})
 export class SelectedContent {
@@ -57,6 +58,9 @@ export class CampaignAccount {
 
     @Prop({required: true, type: String, enum: InfluencerPromoClosedStatusEnum, default: 'wait'})
     closePromo: InfluencerPromoClosedStatusEnum;
+
+    @Prop({required: false, type: String, enum: InvoiceStatusEnum})
+    invoiceStatus?: InvoiceStatusEnum;
 
     @Prop({required: false, type: String})
     dateRequest?: string;

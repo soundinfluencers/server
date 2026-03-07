@@ -22,6 +22,7 @@ import {ProposalCampaignRepository} from "./repositories/campaigns/proposal-camp
 import {Admin, AdminSchema} from "./schemas/users/admin.schema";
 import {AdminRepository} from "./repositories/users/admin.repository";
 import {
+    ClientInvoiceSchema, InfluencerInvoiceSchema,
     UserInvoice,
     UserInvoiceSchema
 } from "./schemas/invoices/user-invoice.schema";
@@ -59,6 +60,7 @@ import {
     NegotiationSchema
 } from "./schemas/negotiation/negotiation.schema";
 import {NegotiationRepository} from "./repositories/negotiation/negotiation.repository";
+import {Role} from "../common/types/user.types";
 
 @Global()
 @Module({
@@ -83,6 +85,14 @@ import {NegotiationRepository} from "./repositories/negotiation/negotiation.repo
             { name: ReportSizes.name, schema: ReportSizesSchema },
             { name: Negotiation.name, schema: NegotiationSchema },
             { name: NegotiationOffer.name, schema: NegotiationOfferSchema },
+            {
+                name: UserInvoice.name,
+                schema: UserInvoiceSchema,
+                discriminators: [
+                    { name: Role.client, schema: ClientInvoiceSchema },
+                    { name: Role.influencer, schema: InfluencerInvoiceSchema },
+                ],
+            },
         ]),
         MongooseModule.forFeatureAsync([
             {
@@ -99,7 +109,7 @@ import {NegotiationRepository} from "./repositories/negotiation/negotiation.repo
                     baseSchema.discriminator(BespokeRequestCategory.other, OtherSchema);
 
                     return baseSchema;
-                }
+                },
             }
         ])
     ],

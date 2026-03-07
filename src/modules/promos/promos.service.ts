@@ -39,6 +39,7 @@ import {CampaignConfirmationEnum, CampaignStatusEnum} from "../../common/types/c
 import {ObjId} from "../../common/types/base.types";
 import {Campaign} from "../../database/schemas/campaign/campaign.schema";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
+import {InvoiceStatusEnum} from "../../common/types/influencer/invoice.types";
 
 mongoose.Promise = global.Promise;
 
@@ -1237,7 +1238,8 @@ export class PromosService {
             const updatePayload = Object.fromEntries(
                 Object.entries({
                     ...postDetails,
-                    closePromo: "close",
+                    closePromo: InfluencerPromoClosedStatusEnum.close,
+                    invoiceStatus: InvoiceStatusEnum.wait,
                     screenshot: postDetails?.screenshotUrl ?? null,
                 }).map(([key, value]) => [`addedAccounts.$.${key}`, value]),
             );

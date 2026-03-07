@@ -11,6 +11,7 @@ export interface InvoiceForDashboard {
 
 // enum for influencer's invoice status
 export enum InvoiceStatusEnum {
+    wait = 'wait',
     submitted = 'submitted',
     paid = 'paid',
     cancelled = 'cancelled',
