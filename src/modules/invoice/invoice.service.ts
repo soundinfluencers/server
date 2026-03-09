@@ -1,6 +1,13 @@
 import {ClientSession, PipelineStage, Types} from 'mongoose';
 import {CreateCampaignInvoiceDto, CreateInvoiceDto} from './dto/create-invoice.dto';
-import {BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException} from '@nestjs/common';
+import {
+    BadRequestException,
+    ForbiddenException,
+    Injectable, InternalServerErrorException,
+    Logger,
+    NotFoundException,
+    StreamableFile
+} from '@nestjs/common';
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {UserInvoiceRepository} from "../../database/repositories/invoices/user-invoice.repository";
@@ -16,7 +23,8 @@ import {InvoicePdfExporter} from "../../common/utils/export/pdf/invoice-pdf.expo
 import {AdminToClientEmails, InfluencerToAdminEmails} from "../../integrations/email/email.templates";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
 import {mapPromosToInvoiceLinkedPromos} from "../../common/mappers/invoice.mapper";
-import {InfluencerInvoiceDocument} from "../../database/schemas/invoices/user-invoice.schema";
+import {ClientInvoiceDocument, InfluencerInvoiceDocument} from "../../database/schemas/invoices/user-invoice.schema";
+import {formatDate} from "../../common/utils/formatters";
 
 @Injectable()
 export class InvoiceService {
@@ -267,32 +275,31 @@ export class InvoiceService {
         return this.userInvoiceRepository.aggregate(pipeline);
     }
 
-    // todo: finish
     async downloadInvoice(invoiceId: string, userInfo: UserPayload) {
-        // const invoice: ClientInvoiceDocument | InfluencerInvoiceDocument = await this.userInvoiceRepository.findById(invoiceId);
-        //
-        // if (!invoice) {
-        //     throw new NotFoundException('Invoice not found');
-        // }
-        //
-        // const isAdmin = userInfo.role === Role.admin;
-        // const isOwner = userInfo._id === invoice.userId.toString();
-        //
-        // if (!isAdmin && !isOwner) {
-        //     throw new ForbiddenException('You can download only your invoices');
-        // }
-        //
-        // try {
-        //     const pdf = await InvoicePdfExporter.buildPdfBuffer(invoice);
-        //
-        //     return new StreamableFile(pdf, {
-        //         type: 'application/pdf',
-        //         disposition: `attachment; filename=invoice-${formatDate(invoice.createdAt, '-')}.pdf`,
-        //     });
-        // } catch (error) {
-        //     this.logger.error(`Error build pdf for ${userInfo.role} invoice ${invoiceId}`, error);
-        //     throw new InternalServerErrorException("Can't build pdf for this invoice");
-        // }
+        const invoice: ClientInvoiceDocument | InfluencerInvoiceDocument = await this.userInvoiceRepository.findInvoiceById(invoiceId);
+
+        if (!invoice) {
+            throw new NotFoundException('Invoice not found');
+        }
+
+        const isAdmin = userInfo.role === Role.admin;
+        const isOwner = userInfo._id === invoice.userId.toString();
+
+        if (!isAdmin && !isOwner) {
+            throw new ForbiddenException('You can download only your invoices');
+        }
+
+        try {
+            const pdf = await InvoicePdfExporter.buildPdfBuffer(invoice);
+
+            return new StreamableFile(pdf, {
+                type: 'application/pdf',
+                disposition: `attachment; filename=invoice-${formatDate(invoice.createdAt, '-')}.pdf`,
+            });
+        } catch (error) {
+            this.logger.error(`Error build pdf for ${userInfo.role} invoice ${invoiceId}`, error);
+            throw new InternalServerErrorException("Can't build pdf for this invoice");
+        }
     }
 
     async getInvoiceDraft(userInfo: UserPayload): Promise<CreateInvoiceDto> {

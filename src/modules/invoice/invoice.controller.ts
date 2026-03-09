@@ -56,8 +56,7 @@ export class InvoiceController {
     @ApiQuery({name: 'invoiceId'})
     @Get('download')
     downloadInvoice(@Query() args: { invoiceId: string }, @Req() req: AuthenticatedRequest): Promise<StreamableFile> {
-        return null;
-        // return this.invoiceService.downloadInvoice(args.invoiceId, req.user);
+        return this.invoiceService.downloadInvoice(args.invoiceId, req.user);
     }
 
     @Auth()

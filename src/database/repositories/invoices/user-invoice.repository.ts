@@ -15,14 +15,18 @@ import {
     CreateClientInvoiceDbShape,
     mapDtoToClientInvoice, mapDtoToInfluencerInvoice,
 } from "../../../common/mappers/invoice.mapper";
+import {ObjId} from "../../../common/types/base.types";
 
 // Interface for UserInvoiceRepository
 export interface IUserInvoiceRepository {
     // Creates new client invoice (after creating new campaign). support client session
     createClientInvoice(payload: CreateCampaignInvoiceDto, session?: ClientSession): Promise<ClientInvoiceDocument>;
 
-    //Creates new influencer invoice (with linked promos). support influencer session
+    // Creates new influencer invoice (with linked promos). support influencer session
     createInfluencerInvoice(payload: CreateInvoiceDto, session?: ClientSession): Promise<InfluencerInvoiceDocument>;
+
+    // Returns one invoice that was found by _id
+    findInvoiceById(invoiceId: string): Promise<ClientInvoiceDocument | InfluencerInvoiceDocument | null>;
 }
 
 @Injectable()
@@ -62,11 +66,10 @@ export class UserInvoiceRepository extends BaseRepository<UserInvoiceDocument> i
         return doc;
     }
 
-    async findClientInvoices(): Promise<ClientInvoiceDocument[]> {
-        return this.clientInvoiceModel.find().exec();
-    }
-
-    async findInfluencerInvoices(): Promise<InfluencerInvoiceDocument[]> {
-        return this.influencerInvoiceModel.find().exec();
+    async findInvoiceById(
+        invoiceId: string
+    ): Promise<ClientInvoiceDocument | InfluencerInvoiceDocument | null> {
+        return await this.userInvoiceModel.findById(new ObjId(invoiceId)).exec() as unknown as
+            ClientInvoiceDocument | InfluencerInvoiceDocument | null;
     }
 }
