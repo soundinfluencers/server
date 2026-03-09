@@ -11,7 +11,7 @@ import {
     InfluencerPromoClosedStatusEnum
 } from "../../../common/types/influencer/promo.types";
 import {MediaKindEnum, MediaProviderEnum} from "../../../common/types/file/file.types";
-import {InvoiceStatusEnum} from "../../../common/types/influencer/invoice.types";
+import {InvoiceStatusEnum} from "../../../common/types/invoice.types";
 
 @Schema({_id: false, timestamps: false})
 export class SelectedContent {

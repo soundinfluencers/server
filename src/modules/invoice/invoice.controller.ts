@@ -1,12 +1,25 @@
-import {Body, Controller, Get, Post, Query, Req, StreamableFile, UnauthorizedException} from '@nestjs/common';
+import {
+    Body,
+    Controller,
+    Get, NotFoundException,
+    Param,
+    Patch,
+    Post,
+    Query,
+    Req,
+    StreamableFile,
+    UnauthorizedException
+} from '@nestjs/common';
 import {InvoiceService} from './invoice.service';
-import {ApiOperation, ApiQuery, ApiTags} from '@nestjs/swagger';
+import {ApiOperation, ApiParam, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {CreateInvoiceDto} from './dto/create-invoice.dto';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/user.types";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
-import {GetInvoicesQueryDto, InvoicesForDashboardDto} from "./dto/invoice.dto";
+import {ClientDetailedInvoiceDto, GetInvoicesQueryDto, InvoicesForDashboardDto} from "./dto/invoice.dto";
+import {ClientInvoice} from "../../database/schemas/invoices/user-invoice.schema";
+import {UpdateClientInvoiceDto} from "./dto/update-invoice.dto";
 
 @ApiTags('invoice')
 @Controller('invoice')
@@ -51,6 +64,32 @@ export class InvoiceController {
     }
 
     @Auth()
+    @Roles(Role.client, Role.admin)
+    @ApiOperation({summary: "Gets detailed invoice"})
+    @ApiResponseDto(ClientDetailedInvoiceDto)
+    @ApiParam({
+        name: 'invoiceId',
+        required: true,
+    })
+    @Get(':invoiceId')
+    getDetailedInvoice(@Param('invoiceId') invoiceId: string, @Req() request: AuthenticatedRequest): Promise<ClientDetailedInvoiceDto> {
+        return this.invoiceService.getDetailedInvoice(invoiceId, request.user);
+    }
+
+    @Auth()
+    @Roles(Role.client, Role.admin)
+    @ApiOperation({summary: "Updates invoice"})
+    @ApiResponseDto()
+    @ApiParam({
+        name: 'invoiceId',
+        required: true,
+    })
+    @Patch(':invoiceId')
+    updateInvoice(@Param('invoiceId') invoiceId: string, @Req() request: AuthenticatedRequest, @Body() data: UpdateClientInvoiceDto): Promise<void> {
+        return this.invoiceService.updateInvoice(invoiceId, data, request.user);
+    }
+
+    @Auth()
     @Roles(Role.influencer, Role.client, Role.admin)
     @ApiOperation({summary: "Download invoice"})
     @ApiQuery({name: 'invoiceId'})
@@ -64,7 +103,7 @@ export class InvoiceController {
     @ApiOperation({summary: "Returns influencer's invoice draft values"})
     @ApiResponseDto(CreateInvoiceDto)
     @Get('draft')
-    getDraft(@Req() req: AuthenticatedRequest) {
+    getDraft(@Req() req: AuthenticatedRequest): Promise<CreateInvoiceDto> {
         return this.invoiceService.getInvoiceDraft(req.user);
     }
 }

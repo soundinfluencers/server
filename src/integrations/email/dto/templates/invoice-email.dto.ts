@@ -1,5 +1,5 @@
 // dto for building 'influencer invoice' email template
-import {InvoicePaymentMethodEnum} from "../../../../common/types/influencer/invoice.types";
+import {InvoicePaymentMethodEnum} from "../../../../common/types/invoice.types";
 
 export class BuildInvoiceEmailDto {
     influencerEmail: string;

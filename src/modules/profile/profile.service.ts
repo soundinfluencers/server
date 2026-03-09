@@ -76,7 +76,7 @@ import {
     mapToPayPalDto,
     mapToUkBankTransferDto
 } from "../../common/mappers/payment-details.mapper";
-import {InvoicePaymentMethodEnum} from "../../common/types/influencer/invoice.types";
+import {InvoicePaymentMethodEnum} from "../../common/types/invoice.types";
 import {AuthService} from "../auth/auth.service";
 import {LoginResponseDto} from "../auth/dto/login.dto";
 import {setRefreshTokenCookie} from "../../common/utils/cookie.util";

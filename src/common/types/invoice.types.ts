@@ -9,6 +9,17 @@ export interface InvoiceForDashboard {
     campaignName?: string;
 }
 
+// detailed invoice
+export interface BaseDetailedInvoice {
+    invoiceId: string;
+    creationDate: string;
+    amount: number;
+    fullName: string;
+    country: string;
+    address: string;
+    company?: string;
+}
+
 // enum for influencer's invoice status
 export enum InvoiceStatusEnum {
     wait = 'wait',
@@ -22,4 +33,10 @@ export enum InvoicePaymentMethodEnum {
     ukBankTransfer = 'ukBankTransfer',
     internationalBankTransfer = 'internationalBankTransfer',
     paypal = 'paypal',
+}
+
+// client detailed invoice
+export interface ClientDetailedInvoice extends BaseDetailedInvoice {
+    campaignName: string;
+    poNumber?: string;
 }

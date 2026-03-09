@@ -1,7 +1,7 @@
 import {ValidateNested, IsString, IsNumber, IsOptional, IsMongoId, IsEnum} from 'class-validator';
 import { Type } from 'class-transformer';
 import {Types} from "mongoose";
-import {InvoicePaymentMethodEnum} from "../../../common/types/influencer/invoice.types";
+import {InvoicePaymentMethodEnum} from "../../../common/types/invoice.types";
 
 export class NewCampaignActionDto {
     addedAccountsId: Types.ObjectId;

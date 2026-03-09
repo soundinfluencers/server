@@ -9,9 +9,10 @@ import {
 } from "../../database/schemas/invoices/user-invoice.schema";
 import {ObjId} from "../types/base.types";
 import {Role} from "../types/user.types";
-import {InvoiceStatusEnum} from "../types/influencer/invoice.types";
+import {BaseDetailedInvoice, ClientDetailedInvoice, InvoiceStatusEnum} from "../types/invoice.types";
 import {SelectInfluencerDto} from "../../modules/campaigns/dto/create-campaign.dto";
 import {CampaignAccount} from "../../database/schemas/campaign/campaign.schema";
+import {formatDate} from "../utils/formatters";
 
 // Repository create client invoice input
 export type CreateClientInvoiceDbShape = Omit<
@@ -54,8 +55,8 @@ export const mapDtoToClientInvoice = (
         selectedPaymentMethod: data.selectedPaymentMethod,
         campaignId: new ObjId(data.campaignId),
         campaignName: data.campaignName,
-        ...(data.company ? { company: data.company } : {}),
-        ...(data.vatNumber ? { vatNumber: data.vatNumber } : {}),
+        ...(data.company ? {company: data.company} : {}),
+        ...(data.vatNumber ? {vatNumber: data.vatNumber} : {}),
     } satisfies CreateClientInvoiceDbShape;
 };
 
@@ -119,4 +120,25 @@ export const mapDtoToInfluencerInvoice = (data: CreateInvoiceDto): CreateInfluen
         ...(data.company ? {company: data.company} : {}),
         ...(data.vatNumber ? {vatNumber: data.vatNumber} : {}),
     } satisfies CreateInfluencerInvoiceDbShape;
+}
+
+// Maps invoice model to ClientDetailedInvoice / InfluencerDetailedInvoice (for influencer need to add)
+export const mapToDetailedInvoice = (data: ClientInvoiceDocument | InfluencerInvoiceDocument): ClientDetailedInvoice => {
+    // Map to BaseDetailedInvoice
+    const baseDetailedInvoice: BaseDetailedInvoice | ClientDetailedInvoice = {
+        invoiceId: data._id.toString(),
+        creationDate: formatDate(data.createdAt),
+        amount: data.amount,
+        fullName: `${data.firstName} ${data.lastName}`?.trim() ?? "Unknown",
+        company: data.company,
+        country: data.country,
+        address: data.address,
+    } satisfies BaseDetailedInvoice;
+
+    if (data.userRole === Role.client || data.userRole === Role.admin) {
+        (baseDetailedInvoice as ClientDetailedInvoice).campaignName = (data as ClientInvoice).campaignName ?? "Unknown";
+        (baseDetailedInvoice as ClientDetailedInvoice).poNumber = (data as ClientInvoice).poNumber;
+    }
+
+    return baseDetailedInvoice as ClientDetailedInvoice;
 }

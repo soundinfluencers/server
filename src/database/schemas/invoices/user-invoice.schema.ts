@@ -3,7 +3,7 @@ import {HydratedDocument, Types} from 'mongoose';
 import {
     InvoicePaymentMethodEnum,
     InvoiceStatusEnum,
-} from '../../../common/types/influencer/invoice.types';
+} from '../../../common/types/invoice.types';
 import {Role} from "../../../common/types/user.types";
 import {
     InternationalBankTransferDetails,
@@ -32,6 +32,9 @@ export class ClientInvoice {
         enum: CampaignPaymentMethodEnum,
     })
     selectedPaymentMethod: CampaignPaymentMethodEnum;
+
+    @Prop({required: false, type: String})
+    poNumber?: string;
 }
 
 export const ClientInvoiceSchema = SchemaFactory.createForClass(ClientInvoice);

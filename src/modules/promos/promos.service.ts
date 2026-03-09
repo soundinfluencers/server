@@ -39,7 +39,7 @@ import {CampaignConfirmationEnum, CampaignStatusEnum} from "../../common/types/c
 import {ObjId} from "../../common/types/base.types";
 import {Campaign} from "../../database/schemas/campaign/campaign.schema";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
-import {InvoiceStatusEnum} from "../../common/types/influencer/invoice.types";
+import {InvoiceStatusEnum} from "../../common/types/invoice.types";
 
 mongoose.Promise = global.Promise;
 

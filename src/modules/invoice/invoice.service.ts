@@ -3,7 +3,8 @@ import {CreateCampaignInvoiceDto, CreateInvoiceDto} from './dto/create-invoice.d
 import {
     BadRequestException,
     ForbiddenException,
-    Injectable, InternalServerErrorException,
+    Injectable,
+    InternalServerErrorException,
     Logger,
     NotFoundException,
     StreamableFile
@@ -12,7 +13,7 @@ import {InfluencerActionsHistoryService} from "../influencer-actions-history/inf
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {UserInvoiceRepository} from "../../database/repositories/invoices/user-invoice.repository";
 import {GetInvoicesQueryDto} from "./dto/invoice.dto";
-import {InvoiceForDashboard, InvoiceStatusEnum,} from "../../common/types/influencer/invoice.types";
+import {ClientDetailedInvoice, InvoiceForDashboard, InvoiceStatusEnum,} from "../../common/types/invoice.types";
 import {EmailService} from "../../integrations/email/email.service";
 import {InvoiceDetailsRepository} from "../../database/repositories/invoices/invoice-details.repository";
 import {Role, UserPayload} from "../../common/types/user.types";
@@ -22,9 +23,14 @@ import {ProfileService} from "../profile/profile.service";
 import {InvoicePdfExporter} from "../../common/utils/export/pdf/invoice-pdf.exporter";
 import {AdminToClientEmails, InfluencerToAdminEmails} from "../../integrations/email/email.templates";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
-import {mapPromosToInvoiceLinkedPromos} from "../../common/mappers/invoice.mapper";
-import {ClientInvoiceDocument, InfluencerInvoiceDocument} from "../../database/schemas/invoices/user-invoice.schema";
+import {mapPromosToInvoiceLinkedPromos, mapToDetailedInvoice} from "../../common/mappers/invoice.mapper";
+import {
+    ClientInvoice,
+    ClientInvoiceDocument,
+    InfluencerInvoiceDocument
+} from "../../database/schemas/invoices/user-invoice.schema";
 import {formatDate} from "../../common/utils/formatters";
+import {UpdateClientInvoiceDto} from "./dto/update-invoice.dto";
 
 @Injectable()
 export class InvoiceService {
@@ -163,6 +169,7 @@ export class InvoiceService {
         await this.emailService.send(AdminToClientEmails.campaignInvoice(process.env.EMAIL_USER, pdfInvoice));
     }
 
+    // Returns list of invoices (sorted from newest)
     async getInvoices(
         data: GetInvoicesQueryDto,
         userInfo: UserPayload,
@@ -275,6 +282,7 @@ export class InvoiceService {
         return this.userInvoiceRepository.aggregate(pipeline);
     }
 
+    // Downloads user's invoice
     async downloadInvoice(invoiceId: string, userInfo: UserPayload) {
         const invoice: ClientInvoiceDocument | InfluencerInvoiceDocument = await this.userInvoiceRepository.findInvoiceById(invoiceId);
 
@@ -302,6 +310,7 @@ export class InvoiceService {
         }
     }
 
+    // Returns draft values for invoice fields
     async getInvoiceDraft(userInfo: UserPayload): Promise<CreateInvoiceDto> {
         const influencerId = userInfo._id;
 
@@ -346,5 +355,47 @@ export class InvoiceService {
             internationalBankTransfer: paymentDetails.internationalBankTransfer ?? latestInvoice?.internationalBankTransfer ?? null,
             paypal: paymentDetails.paypal ?? latestInvoice?.paypal ?? null
         }
+    }
+
+    // Updates user's invoice
+    async updateInvoice(invoiceId: string, data: UpdateClientInvoiceDto, userInfo: UserPayload): Promise<void> {
+        if (!data.poNumber && !data.company && !data.address) {
+            throw new BadRequestException('Nothing to update');
+        }
+
+        const invoiceToUpdate = await this.userInvoiceRepository.findInvoiceById(invoiceId);
+
+        if (!invoiceToUpdate) {
+            throw new NotFoundException('Invoice not found');
+        }
+
+        if (invoiceToUpdate.userId.toString() !== userInfo._id && userInfo.role !== Role.admin) {
+            throw new ForbiddenException("You don't have permission to update this invoice");
+        }
+
+        const updatedInvoice = await this.userInvoiceRepository.updateClientInvoiceById(invoiceId, data);
+
+        if (!updatedInvoice) {
+            throw new InternalServerErrorException('Something went wrong. Try again later');
+        }
+    }
+
+    // Returns detailed invoice
+    async getDetailedInvoice(invoiceId: string, userInfo: UserPayload): Promise<ClientDetailedInvoice> {
+        if (userInfo.role === Role.influencer) {
+            throw new ForbiddenException('Not enough access');
+        }
+
+        const invoice = await this.userInvoiceRepository.findInvoiceById(invoiceId);
+
+        if (!invoice) {
+            throw new NotFoundException('Invoice not found');
+        }
+
+        if (invoice.userId.toString() !== userInfo._id && userInfo.role !== Role.admin) {
+            throw new ForbiddenException('Not enough access');
+        }
+
+        return mapToDetailedInvoice(invoice);
     }
 }

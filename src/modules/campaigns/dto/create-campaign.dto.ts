@@ -3,7 +3,7 @@ import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {IsArray, IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested} from "class-validator";
 import {Type} from "class-transformer";
 import {CreateCampaignInvoiceDto, CreateInvoiceDto} from "../../invoice/dto/create-invoice.dto";
-import {InvoicePaymentMethodEnum} from "../../../common/types/influencer/invoice.types";
+import {InvoicePaymentMethodEnum} from "../../../common/types/invoice.types";
 import {CampaignDraftLatestStep, CampaignPaymentMethodEnum} from "../../../common/types/client/campaign.types";
 
 export class SelectedCampaignContentItemDto {

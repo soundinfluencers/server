@@ -11,7 +11,7 @@ import {
     IsUUID,
     Length, IsEnum, ValidateIf, ValidateNested, Min,
 } from 'class-validator';
-import {InvoicePaymentMethodEnum} from "../../../common/types/influencer/invoice.types";
+import {InvoicePaymentMethodEnum} from "../../../common/types/invoice.types";
 import {Type} from "class-transformer";
 import {InternationalBankTransferDto, PayPalDto, UKBankTransferDto} from "../../profile/dto/payment-details.dto";
 import {Role} from "../../../common/types/user.types";

@@ -16,6 +16,7 @@ import {
     mapDtoToClientInvoice, mapDtoToInfluencerInvoice,
 } from "../../../common/mappers/invoice.mapper";
 import {ObjId} from "../../../common/types/base.types";
+import {UpdateClientInvoiceDto} from "../../../modules/invoice/dto/update-invoice.dto";
 
 // Interface for UserInvoiceRepository
 export interface IUserInvoiceRepository {
@@ -27,6 +28,9 @@ export interface IUserInvoiceRepository {
 
     // Returns one invoice that was found by _id
     findInvoiceById(invoiceId: string): Promise<ClientInvoiceDocument | InfluencerInvoiceDocument | null>;
+
+    // Updates client's invoice fields. Finds invoice by _id and userId.
+    updateClientInvoiceById(invoiceId: string, payload: UpdateClientInvoiceDto): Promise<ClientInvoiceDocument | null>;
 }
 
 @Injectable()
@@ -69,7 +73,19 @@ export class UserInvoiceRepository extends BaseRepository<UserInvoiceDocument> i
     async findInvoiceById(
         invoiceId: string
     ): Promise<ClientInvoiceDocument | InfluencerInvoiceDocument | null> {
-        return await this.userInvoiceModel.findById(new ObjId(invoiceId)).exec() as unknown as
+        const invoice = await this.userInvoiceModel.findById(new ObjId(invoiceId)).exec() as unknown as
             ClientInvoiceDocument | InfluencerInvoiceDocument | null;
+        return invoice;
+    }
+
+    async updateClientInvoiceById(
+        invoiceId: string,
+        payload: UpdateClientInvoiceDto
+    ): Promise<ClientInvoiceDocument | null> {
+        return this.clientInvoiceModel.findByIdAndUpdate(
+            new ObjId(invoiceId),
+            { $set: payload },
+            { new: true, runValidators: true }
+        ).exec();
     }
 }

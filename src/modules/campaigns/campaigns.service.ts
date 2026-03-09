@@ -527,6 +527,7 @@ export class CampaignsService {
             data.paymentDetails.userRole = Role.client;
             data.paymentDetails.campaignId = campaignId.toString();
             data.paymentDetails.campaignName = data.campaignName.trim();
+            data.paymentDetails.company = client.company;
 
             // create and send invoice to client
             await this.invoiceService.createClientCampaignInvoice(data.paymentDetails, session);

@@ -11,7 +11,7 @@ import {
     InfluencerConfirmationStatusEnum,
     InfluencerPromoClosedStatusEnum
 } from "../../../common/types/influencer/promo.types";
-import {InvoiceStatusEnum} from "../../../common/types/influencer/invoice.types";
+import {InvoiceStatusEnum} from "../../../common/types/invoice.types";
 
 // Interface for campaign repository
 export interface ICampaignRepository {

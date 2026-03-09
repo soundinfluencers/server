@@ -1,5 +1,5 @@
 import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
-import {InvoicePaymentMethodEnum} from "../../../common/types/influencer/invoice.types";
+import {InvoicePaymentMethodEnum} from "../../../common/types/invoice.types";
 import {IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateIf, ValidateNested} from "class-validator";
 import {Type} from "class-transformer";
 
