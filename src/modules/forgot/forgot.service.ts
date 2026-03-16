@@ -105,9 +105,8 @@ export class ForgotService {
         });
 
         try {
-            await this.emailService.send(AdminToClientEmails.forgotPassword({
-                userFirstName: user.firstName,
-                email,
+            await this.emailService.send(AdminToClientEmails.resetPassword(email, {
+                firstName: user.firstName,
                 link: `${process.env.SERVER_CLIENT}/reset-password/${token}`,
             }));
         } catch (err) {
@@ -155,14 +154,5 @@ export class ForgotService {
             newPassword,
             session
         );
-
-        try {
-            await this.emailService.send(AdminToClientEmails.newPassword({
-                userFirstName: user.firstName,
-                email: user.email,
-            }))
-        } catch (err) {
-            this.logger.warn(`User ${user.role} ${user._id} reset his password, but email failed`)
-        }
     }
 }

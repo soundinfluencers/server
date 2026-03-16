@@ -82,7 +82,7 @@ import {LoginResponseDto} from "../auth/dto/login.dto";
 import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
 import {EmailService} from "../../integrations/email/email.service";
 import {areCountriesValid} from "../../common/utils/countries.util";
-import {InfluencerToAdminEmails} from "../../integrations/email/email.templates";
+import {AdminToInfluencerEmails, InfluencerToAdminEmails} from "../../integrations/email/email.templates";
 import {ExchangeRateService} from "../../integrations/exchange-rate/exchange-rate.service";
 import {CurrencyCode, getAvailableCurrenciesLabel} from "../../common/types/finance.types";
 import {NegotiationRepository} from "../../database/repositories/negotiation/negotiation.repository";
@@ -669,7 +669,7 @@ export class ProfileService {
                     newPrice: data.price,
                     currency: data.currency,
                     acceptLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=true&newPrice=${data.price}&currency=${data.currency}`,
-                    declineLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=false`,
+                    declineLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=false&newPrice=${data.price}&currency=${data.currency}`,
                 }));
 
                 updateFields.verifiedStatus = AccountVerifiedStatus.waitForAdmin;
@@ -1211,11 +1211,10 @@ export class ProfileService {
 
                 for (const account of accounts) {
                     if (accountIds.includes(account._id.toString())) {
-
                         const verified = newPrice
                             ? isVerified === true
                                 ? AccountVerifiedStatus.accept
-                                : AccountVerifiedStatus.decline
+                                : AccountVerifiedStatus.accept // even if admin does not accept new price, we need to set status as accepted, so user can still use this account
                             : isVerified === true
                                 ? AccountVerifiedStatus.waitForUser
                                 : AccountVerifiedStatus.decline;
@@ -1223,21 +1222,21 @@ export class ProfileService {
                         const labelStatus = newPrice
                             ? isVerified === true
                                 ? SocialAccountLabelStatus.accept
-                                : SocialAccountLabelStatus.decline
+                                : SocialAccountLabelStatus.accept // even if admin does not accept new price, we need to set status as accepted, so user can still use this account
                             : isVerified === true
                                 ? SocialAccountLabelStatus.waitForUser
                                 : SocialAccountLabelStatus.decline;
 
-                        const accountPrice = newPrice
+                        const accountPrice = newPrice && isVerified === true
                             ? Math.round(newPrice * exchangeRate)
                             : account.price;
 
-                        const accountPublicPrice = newPrice
+                        const accountPublicPrice = newPrice && isVerified === true
                             ? Math.round(newPrice * exchangeRate * 2)
                             : account.publicPrice;
 
-                        const initialPrice = newPrice ? newPrice : account.initialPrice ?? account.price;
-                        const currency = newPrice ? newCurrency : account.currency;
+                        const initialPrice = newPrice && isVerified === true ? newPrice : account.initialPrice ?? account.price;
+                        const currency = newPrice && isVerified === true ? newCurrency : account.currency;
 
                         account.price = accountPrice;
                         account.publicPrice = accountPublicPrice;
@@ -1261,6 +1260,40 @@ export class ProfileService {
             throw err;
         } finally {
             await session.endSession();
+        }
+
+        try {
+            if (newPrice && isVerified === true) {
+                await this.emailService.send(AdminToInfluencerEmails.priceChangeRequestApproved(
+                    influencer.email,
+                    {
+                        firstName: influencer.firstName ?? influencer.email,
+                    }
+                ));
+            } else if (newPrice && isVerified === false) {
+                await this.emailService.send(AdminToInfluencerEmails.priceChangeRequestDeclined(
+                    influencer.email,
+                    {
+                        firstName: influencer.firstName ?? influencer.email,
+                    }
+                ));
+            } else if (!newPrice && isVerified === true) {
+                await this.emailService.send(AdminToInfluencerEmails.socialAccountApproved(
+                    influencer.email,
+                    {
+                        firstName: influencer.firstName ?? influencer.email,
+                    }
+                ));
+            } else if (!newPrice && isVerified === false) {
+                await this.emailService.send(AdminToInfluencerEmails.socialAccountDeclined(
+                    influencer.email,
+                    {
+                        firstName: influencer.firstName ?? influencer.email,
+                    }
+                ));
+            }
+        } catch (err) {
+            this.logger.error(`Price for account ${accountIds[0]} was updated but email failed`, err);
         }
     }
 
@@ -1734,7 +1767,7 @@ export class ProfileService {
         // Getting latest exchanging rates for available currencies
         const exchangeRates: Record<CurrencyCode, number> = await this.exchangeRateService.getAllRates();
 
-        const eurPriceExpr = { $ifNull: ['$allAccounts.publicPrice', 0] };
+        const eurPriceExpr = {$ifNull: ['$allAccounts.publicPrice', 0]};
 
         pipeline.push({
             $project: {
@@ -1884,14 +1917,14 @@ export class ProfileService {
 
                     USD: {
                         $round: [
-                            { $multiply: [eurPriceExpr, exchangeRates[CurrencyCode.USD] ?? 1.08] },
+                            {$multiply: [eurPriceExpr, exchangeRates[CurrencyCode.USD] ?? 1.08]},
                             0
                         ]
                     },
 
                     GBP: {
                         $round: [
-                            { $multiply: [eurPriceExpr, exchangeRates[CurrencyCode.GBP] ?? 0.92] },
+                            {$multiply: [eurPriceExpr, exchangeRates[CurrencyCode.GBP] ?? 0.92]},
                             0
                         ]
                     },

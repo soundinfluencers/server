@@ -32,7 +32,7 @@ export class EmailService {
                     : message.to;
 
             return await this.transporter.sendMail({
-                from: this.config.get<string>('EMAIL_USER'),
+                from: `"SoundInfluencers" <${this.config.get<string>('EMAIL_USER')}>`,
                 ...message,
                 to,
             });

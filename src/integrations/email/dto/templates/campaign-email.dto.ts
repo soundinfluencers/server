@@ -1,7 +1,7 @@
-// dto for building 'request edit' email template
 import {SocialMediaEnum} from "../../../../common/types/social-media.types";
 import {CampaignPaymentMethodEnum} from "../../../../common/types/client/campaign.types";
 
+// dto for building 'request edit' email template
 export class BuildRequestEditTemplateDto {
     campaignId: string;
     clientId: string;
@@ -36,7 +36,7 @@ export interface AccountObjectForCreateNewPromoRequestMessage {
     pageName: string;
     dateRequest?: string;
     reward: string;
-    socialMedia: string;
+    socialMedia: SocialMediaEnum;
     mainLink: string;
     description?: string;
     taggedUser?: string;

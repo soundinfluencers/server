@@ -1,14 +1,15 @@
-export type EmailAttachment =
-    | { filename: string; content: Buffer; contentType?: string }
-    | { filename: string; path: string; contentType?: string };
+export type EmailAttachment = {
+    filename: string;
+    content?: Buffer;
+    contentType?: string;
+    path?: string;
+    cid?: string;
+};
 
 export type EmailMessage = {
-    to: string | string[];
+    to: string;
     subject: string;
-    html?: string;
+    html: string;
     text?: string;
     attachments?: EmailAttachment[];
-    replyTo?: string;
-    cc?: string | string[];
-    bcc?: string | string[];
 };

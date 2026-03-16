@@ -1,10 +1,10 @@
 export class ForgotPasswordEmailDto {
-    userFirstName: string;
-    email: string;
+    firstName: string;
     link: string
 }
 
-export class NewPasswordEmailDto {
-    userFirstName: string;
+export class ConfirmNewEmailDto {
+    firstName: string;
     email: string;
+    link: string
 }

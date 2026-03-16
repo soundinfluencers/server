@@ -349,9 +349,7 @@ export class InvoicePdfExporter {
           </div>
       `;
 
-        const paymentHint = isClientInvoice
-            ? "Please make payment via bank transfer to:"
-            : null;
+        const paymentHint = null;
 
         return `<!doctype html>
 <html>
@@ -550,6 +548,95 @@ export class InvoicePdfExporter {
     .payment .kv{ display:flex; gap:8px; }
     .payment .k{ min-width: 140px; color:#0f172a; font-weight:400;}
     .payment .v{ color: black; }
+
+    .paymentGrid{
+      display:grid;
+      gap:14px;
+    }
+    .paymentGrid--3{
+      grid-template-columns: repeat(3, 1fr);
+      margin-top:14px;
+    }
+    .paymentGrid--2{
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .paymentGrid--bottom{
+      margin-top:14px;
+    }
+
+    .paymentCard{
+      border:1px solid #d7e4ff;
+      border-radius:14px;
+      background:#ffffff;
+      padding:16px 18px;
+    }
+    .paymentCard--main{
+      background:rgba(255,255,255,0.72);
+    }
+    .paymentCard--active,
+    .paymentMiniCard--active{
+      border-color:#c8dafd;
+      background:#f7faff;
+    }
+
+    .paymentCard__title{
+      font-size:12px;
+      font-weight:600;
+      color:#1f2937;
+      margin-bottom:12px;
+    }
+    .paymentCard__text{
+      font-size:11px;
+      color:#374151;
+      line-height:1.45;
+    }
+    .paymentCard__strong{
+      font-weight:500;
+      color:#111827;
+    }
+
+    .paymentTopInfo{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .paymentTopInfo__row{
+      display:flex;
+      gap:8px;
+      font-size:11px;
+      line-height:1.45;
+    }
+    .paymentTopInfo__label{
+      min-width:150px;
+      color:#374151;
+      font-weight:500;
+    }
+    .paymentTopInfo__value{
+      color:#111827;
+    }
+
+    .paymentMiniCard{
+      border:1px solid #d7e4ff;
+      border-radius:12px;
+      background:#f8faff;
+      padding:14px 14px 12px;
+    }
+    .paymentMiniCard__title{
+      font-size:11px;
+      font-weight:600;
+      color:#1f2937;
+      margin-bottom:8px;
+    }
+    .paymentMiniCard__line{
+      font-size:10.5px;
+      color:#374151;
+      line-height:1.45;
+    }
+    .paymentMiniCard__line strong{
+      color:#111827;
+      font-weight:500;
+      margin-left:4px;
+    }
     .footerSpace{height:6mm;}
   </style>
 </head>
@@ -618,90 +705,78 @@ export class InvoicePdfExporter {
         const method = invoice.selectedPaymentMethod as any;
 
         if (isClientInvoice) {
-            switch (method) {
+            return `
+          <div class="paymentCard paymentCard--main">
+            <div class="paymentCard__title">Bank Transfer details:</div>
 
-                case 'bank_card': {
-                    return `
-        <div class="kv"><div class="k">Go to:</div><div class="v">https://revolut.me/technotvltd</div></div>
-        <div class="kv"><div class="k">Currency:</div><div class="v">EUR</div></div>
-        <div class="kv"><div class="k">Reference:</div><div class="v">C935872</div></div>
-        <div class="kv"><div class="k">Instructions:</div>
-            <div class="v">
-                1. Enter amount shown above<br/>
-                2. In "NOTE" section enter reference: C935872<br/>
-                3. Click "Pay"<br/>
-                4. Pay by card<br/>
-                5. Add reference again if requested
+            <div class="paymentTopInfo">
+              <div class="paymentTopInfo__row">
+                <span class="paymentTopInfo__label">Recipient:</span>
+                <span class="paymentTopInfo__value">TECHNO TV LTD</span>
+              </div>
+              <div class="paymentTopInfo__row">
+                <span class="paymentTopInfo__label">Recipient address:</span>
+                <span class="paymentTopInfo__value">124 City Road, City Road, EC1V 2NX, London, United Kingdom</span>
+              </div>
             </div>
-        </div>
-        `;
-                }
 
-                case 'paypal': {
-                    return `
-        <div class="kv"><div class="k">Total Due:</div><div class="v">96€</div></div>
-        <div class="kv"><div class="k">Reference ID:</div><div class="v">P935872</div></div>
-        <div class="kv"><div class="k">Send funds to:</div><div class="v">technotvchannel@gmail.com</div></div>
-        <div class="kv"><div class="k">Note:</div>
-            <div class="v">
-                Enter reference in "NOTE" section.<br/>
-                If possible, send as "Friends & Family".
+            <div class="paymentGrid paymentGrid--3">
+              <div class="paymentMiniCard ${method === 'bank_transfer_international' ? 'paymentMiniCard--active' : ''}">
+                <div class="paymentMiniCard__title">USA</div>
+                <div class="paymentMiniCard__line">
+                  <span>Account number:</span>
+                  <strong>210854303917</strong>
+                </div>
+                <div class="paymentMiniCard__line">
+                  <span>Routing number:</span>
+                  <strong>101019644</strong>
+                </div>
+              </div>
+
+              <div class="paymentMiniCard ${method === 'bank_transfer_uk' ? 'paymentMiniCard--active' : ''}">
+                <div class="paymentMiniCard__title">UK</div>
+                <div class="paymentMiniCard__line">
+                  <span>Account number:</span>
+                  <strong>17299128</strong>
+                </div>
+                <div class="paymentMiniCard__line">
+                  <span>Sort code:</span>
+                  <strong>04-00-75</strong>
+                </div>
+              </div>
+
+              <div class="paymentMiniCard ${(method === 'bank_transfer_eu' || method === 'bank_transfer_international') ? 'paymentMiniCard--active' : ''}">
+                <div class="paymentMiniCard__title">EU / International</div>
+                <div class="paymentMiniCard__line">
+                  <span>IBAN:</span>
+                  <strong>GB47REVO00996994280983</strong>
+                </div>
+                <div class="paymentMiniCard__line">
+                  <span>BIC:</span>
+                  <strong>REVOGB21</strong>
+                </div>
+              </div>
             </div>
-        </div>
-        `;
-                }
+          </div>
 
-                case 'bank_transfer_uk': {
-                    return `
-        <div class="kv"><div class="k">Total Due:</div><div class="v">96€</div></div>
-        <div class="kv"><div class="k">Beneficiary:</div><div class="v">Techno TV LTD</div></div>
-        <div class="kv"><div class="k">Beneficiary address:</div><div class="v">124 City Road, EC1V 2NX, London, United Kingdom</div></div>
-        <div class="kv"><div class="k">Account number:</div><div class="v">17299128</div></div>
-        <div class="kv"><div class="k">Sort code:</div><div class="v">04-00-75</div></div>
-        <div class="kv"><div class="k">Payment method:</div><div class="v">Revolut Ltd</div></div>
-        <div class="kv"><div class="k">Bank address:</div><div class="v">7 Westferry Circus, E14 4HD, London, United Kingdom</div></div>
-        <div class="kv"><div class="k">Reference ID:</div><div class="v">935872</div></div>
-        <div class="kv"><div class="k">Note:</div><div class="v">If possible, send payment as "Friends & Family".</div></div>
-        `;
-                }
+          <div class="paymentGrid paymentGrid--2 paymentGrid--bottom">
+            <div class="paymentCard ${method === 'bank_card' ? 'paymentCard--active' : ''}">
+              <div class="paymentCard__title">Card Payments details:</div>
+              <div class="paymentCard__text">
+                Revolut link:
+                <span class="paymentCard__strong">https://revolut.me/technotvltd</span>
+              </div>
+            </div>
 
-                case 'bank_transfer_eu': {
-                    return `
-        <div class="kv"><div class="k">Total Due:</div><div class="v">96€</div></div>
-        <div class="kv"><div class="k">Beneficiary:</div><div class="v">Techno TV LTD</div></div>
-        <div class="kv"><div class="k">Beneficiary address:</div><div class="v">124 City Road, EC1V 2NX, London, United Kingdom</div></div>
-        <div class="kv"><div class="k">IBAN:</div><div class="v">GB91REVO00997094280983</div></div>
-        <div class="kv"><div class="k">BIC:</div><div class="v">REVOGB21</div></div>
-        <div class="kv"><div class="k">Payment method:</div><div class="v">Revolut Ltd</div></div>
-        <div class="kv"><div class="k">Bank address:</div><div class="v">7 Westferry Circus, E14 4HD, London, United Kingdom</div></div>
-        <div class="kv"><div class="k">Reference ID:</div><div class="v">935872</div></div>
+            <div class="paymentCard ${method === 'paypal' ? 'paymentCard--active' : ''}">
+              <div class="paymentCard__title">Paypal Payment details:</div>
+              <div class="paymentCard__text">
+                Paypal Email:
+                <span class="paymentCard__strong">admin@soundinfluencers.com</span>
+              </div>
+            </div>
+          </div>
         `;
-                }
-
-                case 'bank_transfer_international': {
-                    return `
-        <div class="kv"><div class="k">Beneficiary:</div><div class="v">Techno TV LTD</div></div>
-        <div class="kv"><div class="k">Beneficiary address:</div><div class="v">124 City Road, EC1V 2NX, London, United Kingdom</div></div>
-        <div class="kv"><div class="k">IBAN:</div><div class="v">GB91REVO00997094280983</div></div>
-        <div class="kv"><div class="k">BIC:</div><div class="v">REVOGB21</div></div>
-        <div class="kv"><div class="k">Intermediary BIC:</div><div class="v">CHASDEFX</div></div>
-        <div class="kv"><div class="k">Payment method:</div><div class="v">Revolut Ltd</div></div>
-        <div class="kv"><div class="k">Bank address:</div><div class="v">7 Westferry Circus, E14 4HD, London, United Kingdom</div></div>
-        <div class="kv"><div class="k">Reference:</div><div class="v">935872</div></div>
-        `;
-                }
-
-                case 'crypto': {
-                    return `
-        <div class="kv"><div class="k">Payment method:</div><div class="v">Crypto</div></div>
-        <div class="kv"><div class="k">Note:</div><div class="v">Wallet details will be provided separately.</div></div>
-        `;
-                }
-
-                default: {
-                    return `<div class="v">Payment method: ${this.escapeHtml(String(method))}</div>`;
-                }
-            }
         }
 
         // ---------- INFLUENCER INVOICE ----------

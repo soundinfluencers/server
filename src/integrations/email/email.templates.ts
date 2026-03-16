@@ -6,25 +6,36 @@ import {
     buildInfluencerInvoiceResponseEmail
 } from "./builders/invoice-email.template";
 import {
+    BuildAccountNegotiationTemplateDto,
     BuildChangePriceRequestTemplateDto,
     BuildInfluencerSignupRequestTemplateDto
 } from "./dto/templates/profile-email.dto";
 import {
+    buildClientApprovedEmailTemplate, buildClientDeclinedEmailTemplate, buildClientSignupRequestTemplate,
+    buildInfluencerApprovedEmailTemplate, buildInfluencerDeclinedEmailTemplate,
     buildInfluencerSignupAutoReplyTemplate,
-    buildInfluencerSignupRequestTemplate,
-    buildPriceChangeRequestTemplate
+    buildInfluencerSignupRequestTemplate, buildPriceChangeApprovedEmailTemplate, buildPriceChangeDeclinedEmailTemplate,
+    buildPriceChangeRequestTemplate, buildSocialAccountApprovedEmailTemplate, buildSocialAccountDeclinedEmailTemplate
 } from "./builders/profile-email.template";
 import {
     BuildClientCreatedCampaignTemplateDto,
     BuildInfluencerNewPromoRequestTemplateDto, BuildRequestEditTemplateDto
 } from "./dto/templates/campaign-email.dto";
 import {
-    buildClientCreatedCampaignTemplate,
+    buildAgencyApprovedEmailTemplate, buildAgencyDeclinedEmailTemplate, buildApprovedEditRequestEmailTemplate,
+    buildCampaignApprovedEmailTemplate, buildCampaignDeclinedEmailTemplate,
+    buildClientCreatedCampaignTemplate, buildDeclinedEditRequestEmailTemplate,
     buildInfluencerNewPromoRequestTemplate, buildNewBespokeCampaignRequestTemplate, buildRequestEditTemplate
 } from "./builders/campaign-email.template";
 import {CreateBespokeCampaignDto} from "../../modules/campaigns/dto/bespoke-request.dto";
-import {ForgotPasswordEmailDto, NewPasswordEmailDto} from "./dto/templates/forgot-email.dto";
-import {buildForgotPasswordEmailTemplate, buildNewPasswordEmailTemplate} from "./builders/forgot-email.template";
+import {ConfirmNewEmailDto, ForgotPasswordEmailDto} from "./dto/templates/forgot-email.dto";
+import {getEmailAttachments} from "./core/email.utils";
+import {SocialMediaEnum} from "../../common/types/social-media.types";
+import {
+    buildConfirmNewEmailTemplate,
+    buildNewEmailConfirmedTemplate,
+    buildResetPasswordEmailTemplate
+} from "./builders/system-email.template";
 
 const ADMIN_EMAIL = process.env.EMAIL_USER;
 
@@ -54,25 +65,155 @@ export const InfluencerToAdminEmails = {
 
 // Emails from us to influencers
 export const AdminToInfluencerEmails = {
-    newPromoRequest: (data: BuildInfluencerNewPromoRequestTemplateDto): EmailMessage => ({
-        // to: data.email,
-        to: ADMIN_EMAIL,
-        subject: 'New promo request',
-        html: buildInfluencerNewPromoRequestTemplate(data),
-    }),
+    // Approve new influencer account (after signup)
+    influencerApproved: (
+        to: string,
+        data: { firstName: string }
+    ): EmailMessage => {
+        const template = buildInfluencerApprovedEmailTemplate(data);
 
-    invoiceInvoiceReceivedAutoReply: (to: string = ADMIN_EMAIL): EmailMessage => ({
-        to,
-        subject: 'SoundInfluencers',
-        html: buildInfluencerInvoiceResponseEmail(),
-    }),
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: true,
+                withInfoQuestion: true,
+                withList: true
+            }),
+        };
+    },
 
-    influencerSignupAutoReply: (to: string = ADMIN_EMAIL, firstName: string): EmailMessage => ({
-        to,
-        subject: 'SoundInfluencers',
-        html: buildInfluencerSignupAutoReplyTemplate(to, firstName),
-    })
+    // Decline new influencer account (after signup)
+    influencerDeclined: (
+        to: string,
+        data: { firstName: string }
+    ): EmailMessage => {
+        const template = buildInfluencerDeclinedEmailTemplate(data);
 
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: false,
+                withInfoQuestion: false,
+            }),
+        };
+    },
+
+    // Approve new social account
+    socialAccountApproved: (
+        to: string,
+        data: { firstName: string }
+    ): EmailMessage => {
+        const template = buildSocialAccountApprovedEmailTemplate(data);
+
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: true,
+                withInfoQuestion: true,
+                withList: true
+            }),
+        };
+    },
+
+    // Decline new social account
+    socialAccountDeclined: (
+        to: string,
+        data: { firstName: string }
+    ): EmailMessage => {
+        const template = buildSocialAccountDeclinedEmailTemplate(data);
+
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: false,
+                withInfoQuestion: false,
+            }),
+        };
+    },
+
+    // Approve social account's price change request
+    priceChangeRequestApproved: (
+        to: string,
+        data: { firstName: string }
+    ): EmailMessage => {
+        const template = buildPriceChangeApprovedEmailTemplate(data);
+
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: false,
+                withInfoQuestion: false,
+            }),
+        };
+    },
+
+    // Decline social account's price change request
+    priceChangeRequestDeclined: (
+        to: string,
+        data: { firstName: string }
+    ): EmailMessage => {
+        const template = buildPriceChangeDeclinedEmailTemplate(data);
+
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: false,
+                withInfoQuestion: false,
+            }),
+        };
+    },
+
+    // After approving campaign - influencer receives new promo requests
+    newPromoRequest: (
+        data: BuildInfluencerNewPromoRequestTemplateDto
+    ): EmailMessage => {
+        const template = buildInfluencerNewPromoRequestTemplate(data);
+
+        const socialMedias: SocialMediaEnum[] = [
+            ...new Set(
+                data.accountsAndDetails.map(
+                    (item) => item.socialMedia as SocialMediaEnum,
+                ),
+            ),
+        ];
+
+        return {
+            to: data.email,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: false,
+                withInfoQuestion: false,
+                withSocialIcons: socialMedias
+            }),
+        };
+    },
 } as const;
 
 // Emails from to us about client side updates
@@ -96,10 +237,136 @@ export const ClientToAdminEmails = {
         subject: 'Campaign edit request',
         html: buildRequestEditTemplate(data),
     }),
+
+    clientSignup: (data: BuildAccountNegotiationTemplateDto): EmailMessage => ({
+        to: ADMIN_EMAIL,
+        subject: 'Verify new client',
+        html: buildClientSignupRequestTemplate(data),
+    })
 } as const;
 
 // Emails from us to clients
 export const AdminToClientEmails = {
+    clientApproved: (
+        to: string,
+        data: { firstName: string; dashboardUrl: string }
+    ): EmailMessage => {
+        const template = buildClientApprovedEmailTemplate(data);
+
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: true,
+                withInfoQuestion: true,
+                withList: true
+            }),
+        };
+    },
+
+    clientDeclined: (
+        to: string,
+        data: { firstName: string }
+    ): EmailMessage => {
+        const template = buildClientDeclinedEmailTemplate(data);
+
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: false,
+                withInfoQuestion: false,
+                withList: false
+            }),
+        };
+    },
+
+    approvedCampaign: (
+        to: string,
+        data: { firstName: string }
+    ): EmailMessage => {
+        const template = buildCampaignApprovedEmailTemplate(data);
+
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: true,
+                withInfoQuestion: true,
+                withList: false
+            }),
+        };
+    },
+
+    declinedCampaign: (
+        to: string,
+        data: { firstName: string }
+    ): EmailMessage => {
+        const template = buildCampaignDeclinedEmailTemplate(data);
+
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: false,
+                withInfoQuestion: false,
+                withList: true
+            }),
+        };
+    },
+
+    approvedAgencyCampaign: (
+        to: string,
+        data: { firstName: string }
+    ): EmailMessage => {
+        const template = buildAgencyApprovedEmailTemplate(data);
+
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: true,
+                withInfoQuestion: true,
+                withList: true
+            }),
+        };
+    },
+
+    declinedAgencyCampaign: (
+        to: string,
+        data: { firstName: string }
+    ): EmailMessage => {
+        const template = buildAgencyDeclinedEmailTemplate(data);
+
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: false,
+                withInfoQuestion: false,
+                withList: true
+            }),
+        };
+    },
+
     campaignInvoice: (to: string, pdf: Buffer): EmailMessage => ({
         to,
         subject: 'Campaign invoice',
@@ -109,19 +376,91 @@ export const AdminToClientEmails = {
         ],
     }),
 
-    // Forgot password
-    forgotPassword: (data: ForgotPasswordEmailDto): EmailMessage => ({
-        // to: data.email,
-        to: ADMIN_EMAIL,
-        subject: 'Reset password',
-        html: buildForgotPasswordEmailTemplate(data),
-    }),
+    resetPassword: (
+        to: string,
+        data: ForgotPasswordEmailDto
+    ): EmailMessage => {
+        const template = buildResetPasswordEmailTemplate(data);
 
-    // New password
-    newPassword: (data: NewPasswordEmailDto): EmailMessage => ({
-        // to: data.email,
-        to: ADMIN_EMAIL,
-        subject: 'New password',
-        html: buildNewPasswordEmailTemplate(data),
-    }),
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: false,
+                withInfoQuestion: false,
+                withList: false
+            }),
+        };
+    },
+
+    confirmNewEmail: (data: ConfirmNewEmailDto): EmailMessage => {
+      const template = buildConfirmNewEmailTemplate(data);
+
+        return {
+            to: data.email,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: false,
+                withInfoQuestion: true,
+                withList: false
+            }),
+        };
+    },
+
+    newEmailConfirmed: (to: string): EmailMessage => {
+        const template = buildNewEmailConfirmedTemplate();
+
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: false,
+                withInfoQuestion: true,
+                withList: false
+            }),
+        };
+    },
+
+    editRequestApproved: (to: string, data: { firstName: string }): EmailMessage => {
+        const template = buildApprovedEditRequestEmailTemplate(data);
+
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: false,
+                withInfoQuestion: false,
+                withList: true
+            }),
+        };
+    },
+
+    editRequestDeclined: (to: string, data: { firstName: string }): EmailMessage => {
+        const template = buildDeclinedEditRequestEmailTemplate(data);
+
+        return {
+            to,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            attachments: getEmailAttachments({
+                withFooterBlock: true,
+                withHeroCheck: false,
+                withInfoQuestion: false,
+                withList: true
+            }),
+        };
+    },
 } as const;

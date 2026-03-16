@@ -29,8 +29,13 @@ import {SocialAccountLabelStatus} from "../../common/types/influencer/influencer
 import {ExchangeRateService} from "../../integrations/exchange-rate/exchange-rate.service";
 import {CurrencyCode, getAvailableCurrenciesLabel} from "../../common/types/finance.types";
 import {EmailService} from "../../integrations/email/email.service";
-import {AdminToInfluencerEmails, InfluencerToAdminEmails} from "../../integrations/email/email.templates";
+import {
+    AdminToClientEmails,
+    AdminToInfluencerEmails, ClientToAdminEmails,
+    InfluencerToAdminEmails
+} from "../../integrations/email/email.templates";
 import {mapCreateInfluencerToSignupEmailDto} from "../../integrations/email/mappers/profile-email.mapper";
+import {ObjId} from "../../common/types/base.types";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -116,36 +121,15 @@ export class AuthService {
             await session.endSession();
         }
 
-        // try {
-      //       await sendMail(
-      //           process.env.EMAIL_USER,
-      //           'SoundInfluencers',
-      //           `<p>Request from a new client ${data.company}</p><b>Details:</b><br/><br/><p>First Name: ${data.firstName}</p>
-      //   <p>Company: ${data.company}</p>
-      //   <p>Company Type: ${data.companyType}</p>
-      //   <p>Instagram: ${data.instagramUsername}</p>
-      //   <p>Email: ${data.email}</p>
-      //   <p>Phone: ${data.phone}</p>
-      //   <p>Referal Code: ${data.referalCode}</p>
-      //   <h2>Do you want to verify this account?</h2>
-      //   <a href="${process.env.SERVER}/auth/verify/client?verifyId=${verifyId.toString()}&responseVerify=accept">ACCEPT</a>
-      //   <a href="${process.env.SERVER}/auth/verify/client?verifyId=${verifyId.toString()}&responseVerify=cancel">CANCEL</a>
-      //   `,
-      //           'html',
-      //       );
-      //       await sendMail(
-      //           data.email,
-      //           'SoundInfluencers',
-      //           `<p>Dear ${data.firstName},</p>
-      // <p>Hello,</p>
-      // <p>Thank you for submitting your account request. We will inform you of the outcome shortly.</p>
-      // <p>Best regards,</p>
-      // <p>The SoundInfluencers.com Team</p>`,
-      //           'html',
-      //       );
-      //   } catch (err) {
-      //       this.logger.warn(`Client ${userId.toString()} created but email failed`, err);
-      //   }
+        try {
+            await this.emailService.send(ClientToAdminEmails.clientSignup({
+                email: data.email.trim(),
+                acceptLink: `${process.env.SERVER}/auth/verify/client?verifyId=${verifyId.toString()}&responseVerify=accept`,
+                declineLink: `${process.env.SERVER}/auth/verify/client?verifyId=${verifyId.toString()}&responseVerify=cancel`,
+            }))
+          } catch (err) {
+              this.logger.warn(`Client ${userId.toString()} created but email failed`, err);
+          }
     };
 
     // Signup influencer
@@ -282,9 +266,6 @@ export class AuthService {
                     )
                 )
             )
-
-            // Auto-reply to influencer
-            await this.emailService.send(AdminToInfluencerEmails.influencerSignupAutoReply(data.email?.trim()?.toLowerCase(), data.firstName?.trim()))
         } catch (err) {
             this.logger.warn(`Influencer ${userId.toString()} created but email failed`, err);
         }
@@ -455,6 +436,13 @@ export class AuthService {
                             'facebook.$[].verifiedStatus': AccountVerifiedStatus.waitForUser,
                             'youtube.$[].verifiedStatus': AccountVerifiedStatus.waitForUser,
                             'press.$[].verifiedStatus': AccountVerifiedStatus.waitForUser,
+                            'instagram.$[].labelStatus': AccountVerifiedStatus.waitForUser,
+                            'tiktok.$[].labelStatus': AccountVerifiedStatus.waitForUser,
+                            'spotify.$[].labelStatus': AccountVerifiedStatus.waitForUser,
+                            'soundcloud.$[].labelStatus': AccountVerifiedStatus.waitForUser,
+                            'facebook.$[].labelStatus': AccountVerifiedStatus.waitForUser,
+                            'youtube.$[].labelStatus': AccountVerifiedStatus.waitForUser,
+                            'press.$[].labelStatus': AccountVerifiedStatus.waitForUser,
                         },
                     },
                     {session},
@@ -465,6 +453,20 @@ export class AuthService {
                     {
                         $set: {
                             'verifiedStatus': AccountVerifiedStatus.decline,
+                            'instagram.$[].verifiedStatus': AccountVerifiedStatus.decline,
+                            'tiktok.$[].verifiedStatus': AccountVerifiedStatus.decline,
+                            'spotify.$[].verifiedStatus': AccountVerifiedStatus.decline,
+                            'soundcloud.$[].verifiedStatus': AccountVerifiedStatus.decline,
+                            'facebook.$[].verifiedStatus': AccountVerifiedStatus.decline,
+                            'youtube.$[].verifiedStatus': AccountVerifiedStatus.decline,
+                            'press.$[].verifiedStatus': AccountVerifiedStatus.decline,
+                            'instagram.$[].labelStatus': AccountVerifiedStatus.decline,
+                            'tiktok.$[].labelStatus': AccountVerifiedStatus.decline,
+                            'spotify.$[].labelStatus': AccountVerifiedStatus.decline,
+                            'soundcloud.$[].labelStatus': AccountVerifiedStatus.decline,
+                            'facebook.$[].labelStatus': AccountVerifiedStatus.decline,
+                            'youtube.$[].labelStatus': AccountVerifiedStatus.decline,
+                            'press.$[].labelStatus': AccountVerifiedStatus.decline,
                         },
                     },
                     {session},
@@ -481,40 +483,30 @@ export class AuthService {
             await session.endSession();
         }
 
-      //   try {
-      //       switch (responseVerify) {
-      //           case 'accept':
-      //               await sendMail(
-      //                   checkInfluencer.email,
-      //                   'SoundInfluencers',
-      //                   `<p>Dear ${checkInfluencer.firstName},</p>
-      //   <p>Thank you for confirming your information with us. Your account details have been successfully verified.</p>
-      //   <p>You can now access your personal account by clicking on the link below:</p>
-      //   <a href="${process.env.SERVER_CLIENT}/influencer/profile/agreement/${checkInfluencer._id}" style="font-weight: 600">*Access Link*</a>
-      //   <p>If you have any questions or encounter any issues, please don't hesitate to contact our support team or reply to this message.</p>
-      //   <p>Best regards,</p>
-      //   <p>SoundInfluencers team</p>`,
-      //                   'html',
-      //               );
-      //               break;
-      //           case 'cancel':
-      //               await sendMail(
-      //                   checkInfluencer.email,
-      //                   'SoundInfluencers',
-      //                   `<p>Hi,</p>
-      // <p>thanks for the application!</p>
-      // <p>Unfortunately we're not sure there's a good fit for us right now.</p>
-      // <p>We suggest trying again in the future 🙂</p>
-      // <p>Best Regards</p><p>SoundInfluencers Team</p>`,
-      //                   'html',
-      //               );
-      //               break;
-      //           default:
-      //               break;
-      //       }
-      //   } catch (err) {
-      //       this.logger.warn(`Influencer ${checkVerifyAdmin.influencerId} was verified but failed email`, err);
-      //   }
+        try {
+            switch (responseVerify) {
+                case 'accept':
+                    await this.emailService.send(AdminToInfluencerEmails.influencerApproved(
+                        checkInfluencer.email,
+                        {
+                            firstName: checkInfluencer.firstName ?? checkInfluencer.email,
+                        }
+                    ));
+                    break;
+                case 'cancel':
+                    await this.emailService.send(AdminToInfluencerEmails.influencerDeclined(
+                        checkInfluencer.email,
+                        {
+                            firstName: checkInfluencer.firstName ?? checkInfluencer.email,
+                        }
+                    ));
+                    break;
+                default:
+                    break;
+            }
+        } catch (err) {
+            this.logger.warn(`Influencer ${checkVerifyAdmin.influencerId} was verified but failed email`, err);
+        }
     }
 
     // Verify client with sending mail
@@ -522,7 +514,7 @@ export class AuthService {
         if (!verifyId || !responseVerify) throw new BadRequestException('Not enough arguments');
 
         const checkVerifyAdmin = await this.verifyClientRepo.findOne({
-            verifyId: verifyId,
+            _id: new ObjId(verifyId),
         });
 
         if (!checkVerifyAdmin) throw new NotFoundException('Client not found');
@@ -541,18 +533,13 @@ export class AuthService {
 
             await this.verifyClientRepo.findOneAndDelete({verifyId: verifyId});
 
-            // await sendMail(
-            //     checkClient.email,
-            //     'SoundInfluencers',
-            //     `<p>Dear ${checkClient.firstName},</p>
-// <p>Thank you for confirming your information with us. Your account details have been successfully verified.</p>
-// <p>You can now access your personal account by clicking on the link below:</p>
-// <a href="${process.env.SERVER_CLIENT}/login/client" style="font-weight: 600">*Access Link*</a>
-// <p>If you have any questions or encounter any issues, please don't hesitate to contact our support team or reply to this message.</p>
-// <p>Best regards,</p>
-// <p>SoundInfluencers team</p>`,
-//                 'html',
-//             );
+            await this.emailService.send(AdminToClientEmails.clientApproved(
+                checkClient.email,
+                {
+                    firstName: checkClient.firstName ?? checkClient.email,
+                    dashboardUrl: `${process.env.SERVER_CLIENT}`
+                }
+            ));
         } else if (responseVerify === 'cancel') {
             await this.clientRepo.findOneAndUpdate(
                 {_id: checkClient._id},
@@ -560,10 +547,13 @@ export class AuthService {
             );
 
             await this.verifyClientRepo.findOneAndDelete({verifyId: verifyId});
-            // await sendMail(
-            //     checkClient.email,
-            //     'SoundInfluencers',
-             // send email about declining account
+
+            await this.emailService.send(AdminToClientEmails.clientDeclined(
+                checkClient.email,
+                {
+                    firstName: checkClient.firstName ?? checkClient.email
+                }
+            ))
         } else {
             throw new BadRequestException("Response can be 'accept' or 'cancel'");
         }

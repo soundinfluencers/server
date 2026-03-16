@@ -67,7 +67,11 @@ import {CampaignPdfExporter} from "../../common/utils/export/pdf/campaign-pdf.ex
 import {MediaService} from "../media/media.service";
 import {InvoiceService} from "../invoice/invoice.service";
 import {SocialAccountLabelStatus} from "../../common/types/influencer/influencer.types";
-import {AdminToInfluencerEmails, ClientToAdminEmails} from "../../integrations/email/email.templates";
+import {
+    AdminToClientEmails,
+    AdminToInfluencerEmails,
+    ClientToAdminEmails
+} from "../../integrations/email/email.templates";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -593,11 +597,13 @@ export class CampaignsService {
     }
 
     async verifyCampaign(campaignId: string, status: string): Promise<{ code: number, message: string }> {
-        if (!campaignId || !status) throw new BadRequestException('Not enough arguments')
+        if (!campaignId || !status) throw new BadRequestException('Not enough arguments');
 
         const checkCampaign: Campaign = await this.campaignRepo.findById(campaignId, {lean: true});
+        if (!checkCampaign) throw new NotFoundException('Campaign not found');
 
-        if (!checkCampaign) throw new NotFoundException('Campaign not found')
+        const clientInfo = await this.clientRepo.findById(checkCampaign.clientId.toString(), {select: ['firstName', 'email']});
+        if (!clientInfo) throw new NotFoundException('Client not found');
 
         if (status === 'accept' && checkCampaign.statusCampaign === CampaignStatusEnum.underReview) {
             const influencersIds = checkCampaign.addedAccounts.map((item) => item.influencerId);
@@ -684,14 +690,44 @@ export class CampaignsService {
                 }
             }
 
-            await this.campaignRepo.updateOne({_id: new ObjId(campaignId)}, {verifyCampaign: CampaignConfirmationEnum.accept, statusCampaign: CampaignStatusEnum.pending});
+            await this.campaignRepo.updateOne({_id: new ObjId(campaignId)}, {
+                verifyCampaign: CampaignConfirmationEnum.accept,
+                statusCampaign: CampaignStatusEnum.pending
+            });
+
+
+            try {
+                await this.emailService.send(AdminToClientEmails.approvedCampaign(
+                    clientInfo.email,
+                    {
+                        firstName: clientInfo.firstName ?? clientInfo.email
+                    }
+                ))
+            } catch (err) {
+                this.logger.error(`Campaign ${checkCampaign.campaignName} declined, but email failed`, err);
+            }
 
             return {
                 code: 200,
                 message: 'Campaign verified',
             };
         } else {
-            await this.campaignRepo.updateOne({_id: new ObjId(campaignId)}, {verifyCampaign: CampaignConfirmationEnum.decline, statusCampaign: CampaignStatusEnum.declined});
+            await this.campaignRepo.updateOne({_id: new ObjId(campaignId)}, {
+                verifyCampaign: CampaignConfirmationEnum.decline,
+                statusCampaign: CampaignStatusEnum.declined
+            });
+
+            try {
+                await this.emailService.send(AdminToClientEmails.declinedCampaign(
+                    clientInfo.email,
+                    {
+                        firstName: clientInfo.firstName ?? clientInfo.email
+                    }
+                ))
+            } catch (err) {
+                this.logger.error(`Campaign ${checkCampaign.campaignName} declined, but email failed`, err);
+            }
+
             return {
                 code: 200,
                 message: 'Campaign declined',
@@ -713,9 +749,9 @@ export class CampaignsService {
         if (!client)
             throw new NotFoundException('User not found');
 
-        let campaign: any = await this.campaignRepo.findById(campaignId, { lean: true });
+        let campaign: any = await this.campaignRepo.findById(campaignId, {lean: true});
         if (!campaign)
-            campaign = await this.completedCampaignRepo.findById(campaignId, { lean: true });
+            campaign = await this.completedCampaignRepo.findById(campaignId, {lean: true});
 
         if (!campaign)
             throw new NotFoundException('Campaign not found');
@@ -727,7 +763,7 @@ export class CampaignsService {
         ];
 
         const influencers = await this.influencerRepo.findMany(
-            { _id: { $in: influencerIds } },
+            {_id: {$in: influencerIds}},
             {
                 lean: true,
                 select: [
