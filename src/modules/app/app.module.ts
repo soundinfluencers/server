@@ -11,7 +11,6 @@ import {InvoiceModule} from "../invoice/invoice.module";
 import {PromosModule} from "../promos/promos.module";
 import {FileModule} from "../file/file.module";
 import {PaymentModule} from "../payment/payment.module";
-import {AdminModule} from "../admin/admin.module";
 import {InfluencerActionsHistoryModule} from "../influencer-actions-history/influencer-actions-history.module";
 import {ProposalSystemModule} from "../proposal-system/proposal-system.module";
 import {WebsocketModule} from "../websocket/app.gateway";
@@ -28,6 +27,7 @@ import {ExchangeRateModule} from "../../integrations/exchange-rate/exchange-rate
 import {ScheduleModule} from "@nestjs/schedule";
 import {JobsModule} from "../../jobs/jobs.module";
 import {ConfigModule} from "@nestjs/config";
+import {AdminModule} from "../admin/admin.module";
 
 @Module({
     imports: [

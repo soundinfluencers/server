@@ -49,9 +49,6 @@ export class Client {
     logo: string;
 
     @Prop({default: false})
-    isAdmin: boolean;
-
-    @Prop({default: false})
     isProposalClient: boolean;
 
     @Prop({required: false, default: AccountVerifiedStatus.waitForAdmin, enum: AccountVerifiedStatus, type: String})

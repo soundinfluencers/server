@@ -133,7 +133,7 @@ export class ScrapersService {
         return results;
     }
 
-    // Scrapes batches of. account details
+    // Scrapes batches of account details
     private async scrapeAccountDetailsBatch(
         accountsBatch: {
             accountId: string;
