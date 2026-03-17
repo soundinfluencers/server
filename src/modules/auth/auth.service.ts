@@ -561,13 +561,16 @@ export class AuthService {
 
     // Returns current user info (same with login response but without accessToken)
     async getMe(userId: string, userRole: Role, res: Response): Promise<GetMeResponseDto> {
-        let user: Client | Influencer;
+        let user: Client | Influencer | Admin;
         switch (userRole) {
             case Role.client:
                 user = await this.clientRepo.findById(userId)
                 break;
             case Role.influencer:
                 user = await this.influencerRepo.findById(userId);
+                break;
+            case Role.admin:
+                user = await this.adminRepo.findById(userId);
                 break;
             default:
                 throw new BadRequestException('Unsupported role');
