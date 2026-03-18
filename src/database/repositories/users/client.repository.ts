@@ -2,11 +2,12 @@ import {Injectable} from "@nestjs/common";
 import {BaseRepository} from "../base.repository";
 import {Client} from "../../schemas/users/client.schema";
 import {InjectModel} from "@nestjs/mongoose";
-import {FilterQuery, Model} from "mongoose";
+import {FilterQuery, Model, PipelineStage} from "mongoose";
 import {RepoOptions} from "../../types/repo.types";
 import {applyQueryOptions} from "../../utils/apply-query-options.util";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
 import {AdminClientListItem} from "../../../common/types/client/client.types";
+import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 
 @Injectable()
 export class ClientRepository extends BaseRepository<Client> {
@@ -158,6 +159,149 @@ export class ClientRepository extends BaseRepository<Client> {
             page,
             limit,
             totalPages: Math.ceil(total / limit),
+        };
+    }
+
+    async findBySearch(
+        query: SearchQueryDto,
+    ): Promise<{
+        items: AdminClientListItem[];
+        total: number;
+        limit: number;
+    }> {
+        const limit = query.limit ?? 10;
+        const rawSearch = query.search?.trim();
+
+        const escapedSearch = rawSearch
+            ? rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            : null;
+
+        const matchStage = escapedSearch
+            ? {
+                $match: {
+                    $or: [
+                        { firstName: { $regex: escapedSearch, $options: 'i' } },
+                        { lastName: { $regex: escapedSearch, $options: 'i' } },
+                        { email: { $regex: escapedSearch, $options: 'i' } },
+                        { phone: { $regex: escapedSearch, $options: 'i' } },
+                        { company: { $regex: escapedSearch, $options: 'i' } },
+                    ],
+                },
+            }
+            : null;
+
+        const basePipeline: PipelineStage[] = [
+            ...(matchStage ? [matchStage] : []),
+
+            { $sort: { createdAt: -1 } },
+            { $limit: limit },
+
+            {
+                $lookup: {
+                    from: 'campaigns',
+                    let: { clientId: '$_id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ['$clientId', '$$clientId'] },
+                            },
+                        },
+                        { $sort: { createdAt: -1 } },
+                        {
+                            $group: {
+                                _id: null,
+                                campaignsActive: { $sum: 1 },
+                                latestCampaign: {
+                                    $first: {
+                                        _id: '$_id',
+                                        campaignName: '$campaignName',
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                    as: 'activeCampaignStats',
+                },
+            },
+
+            {
+                $lookup: {
+                    from: 'completedcampaigns',
+                    let: { clientId: '$_id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ['$clientId', '$$clientId'] },
+                            },
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                campaignsCompleted: { $sum: 1 },
+                            },
+                        },
+                    ],
+                    as: 'completedCampaignStats',
+                },
+            },
+
+            {
+                $addFields: {
+                    campaignsActive: {
+                        $ifNull: [
+                            { $arrayElemAt: ['$activeCampaignStats.campaignsActive', 0] },
+                            0,
+                        ],
+                    },
+                    latestCampaign: {
+                        $ifNull: [
+                            { $arrayElemAt: ['$activeCampaignStats.latestCampaign', 0] },
+                            null,
+                        ],
+                    },
+                    campaignsCompleted: {
+                        $ifNull: [
+                            { $arrayElemAt: ['$completedCampaignStats.campaignsCompleted', 0] },
+                            0,
+                        ],
+                    },
+                },
+            },
+
+            {
+                $project: {
+                    company: 1,
+                    firstName: 1,
+                    lastName: 1,
+                    email: 1,
+                    phone: 1,
+                    companyType: 1,
+                    _id: 1,
+                    isProposal: '$isProposalClient',
+                    campaignsCompleted: 1,
+                    campaignsActive: 1,
+                    latestCampaign: 1,
+                    internalNote: 1,
+                },
+            },
+        ];
+
+        const totalPipeline: PipelineStage[] = [
+            ...(matchStage ? [matchStage] : []),
+            { $count: 'total' },
+        ];
+
+        const [items, totalResult] = await Promise.all([
+            this.clientModel.aggregate<AdminClientListItem>(basePipeline),
+            this.clientModel.aggregate(totalPipeline),
+        ]);
+
+        const total = totalResult[0]?.total ?? 0;
+
+        return {
+            items,
+            total,
+            limit,
         };
     }
 }

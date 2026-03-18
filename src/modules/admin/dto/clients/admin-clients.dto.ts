@@ -1,5 +1,6 @@
 import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
 import {PaginatedListResponseDto} from "../../../../common/dto/responses/paginated-list-response.dto";
+import {SearchListResponseDto} from "../../../../common/dto/responses/search-response.dto";
 
 // DTO client latest campaign for admin clients list
 class ClientLatestCampaignDto {
@@ -50,6 +51,14 @@ export class AdminClientResponseDto {
 }
 
 export class AdminClientsListResponseDto extends PaginatedListResponseDto<AdminClientResponseDto> {
+    @ApiProperty({
+        type: [AdminClientResponseDto],
+        description: 'List of clients',
+    })
+    items: AdminClientResponseDto[];
+}
+
+export class AdminClientsSearchResponseDto extends SearchListResponseDto<AdminClientResponseDto> {
     @ApiProperty({
         type: [AdminClientResponseDto],
         description: 'List of clients',
