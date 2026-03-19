@@ -2,19 +2,16 @@ import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
 import {ProposalCampaignsListItem} from "../types/proposal-system.types";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {
-    ArrayNotEmpty,
     IsArray,
     IsEnum,
     IsNotEmpty,
     IsNumber,
-    IsObject,
     IsOptional,
     IsString,
     ValidateNested
 } from "class-validator";
 import {Type} from "class-transformer";
-import {Role} from "../../../common/types/user.types";
-import {SafeCampaignAccount, SafeCampaignContent} from "../../../common/types/client/campaign.types";
+import {CampaignAccountDto, DetailedCampaignContentItemDto} from "../../campaigns/dto/get-campaigns.dto";
 
 // ------------ BASE TYPES --------------
 
@@ -31,17 +28,17 @@ export class BaseProposalCampaignOptionDto {
     @IsNumber()
     price: number;
 
-    @ApiProperty({type: SafeCampaignAccount, isArray: true})
+    @ApiProperty({type: CampaignAccountDto, isArray: true})
     @IsArray()
     @IsNotEmpty()
     @ValidateNested()
-    addedAccounts: SafeCampaignAccount[];
+    addedAccounts: CampaignAccountDto[];
 
-    @ApiProperty({type: SafeCampaignContent, isArray: true})
+    @ApiProperty({type: DetailedCampaignContentItemDto, isArray: true})
     @IsArray()
     @IsNotEmpty()
     @ValidateNested()
-    campaignContent: SafeCampaignContent[];
+    campaignContent: DetailedCampaignContentItemDto[];
 
     @ApiProperty({type: Boolean})
     canEdit: boolean;
@@ -59,9 +56,9 @@ class BaseProposalCampaignDto {
     @IsNotEmpty()
     campaignName: string;
 
-    @ApiProperty({type: String, enum: SocialMediaEnum})
-    @IsEnum(SocialMediaEnum)
-    socialMedia: SocialMediaEnum;
+    @ApiProperty({type: String, enum: [...Object.values(SocialMediaEnum), 'multipromo']})
+    @IsEnum([...Object.values(SocialMediaEnum), 'multipromo'])
+    socialMedia: SocialMediaEnum | 'multipromo';
 
     @ApiProperty({type: Number, isArray: true})
     @IsArray()

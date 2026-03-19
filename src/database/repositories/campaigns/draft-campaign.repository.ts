@@ -1,18 +1,27 @@
 import {BaseRepository} from "../base.repository";
 import {Injectable} from "@nestjs/common";
 import {InjectModel} from "@nestjs/mongoose";
-import {Model, PipelineStage} from "mongoose";
+import {Model, PipelineStage, Types} from "mongoose";
 import {DraftCampaign, DraftCampaignDocument} from "../../schemas/campaign/draft-campaign.schema";
 import {Influencer} from "../../schemas/users/influencer.schema";
 import {CampaignContentItemDto, SaveDraftCampaignDto} from "../../../modules/campaigns/dto/create-campaign.dto";
 import {ObjId} from "../../../common/types/base.types";
-import {CampaignContentItem} from "../../schemas/campaign/campaign.schema";
-import {CampaignDraftLatestStep} from "../../../common/types/client/campaign.types";
+import {Campaign, CampaignContentItem} from "../../schemas/campaign/campaign.schema";
+import {
+    CampaignConfirmationEnum,
+    CampaignDraftLatestStep,
+    CampaignStatusEnum, IDashboardCampaign
+} from "../../../common/types/client/campaign.types";
 import {mapContentItemDtoToModel} from "../../../common/mappers/campaign.mapper";
 import {DetailedDraftCampaignDto} from "../../../modules/campaigns/dto/get-campaigns.dto";
 
 // Interface for DraftCampaignRepository
 export interface IDraftCampaignRepository {
+    getDashboardCampaigns(
+        clientId: string,
+        limit: number,
+        skip: number,
+    ): Promise<IDashboardCampaign[]>;
     saveDraftCampaign(payload: SaveDraftCampaignDto): Promise<void>;
     getDetailedDraftCampaign(draftId: string, clientId: string): Promise<DetailedDraftCampaignDto>;
 }
@@ -26,6 +35,29 @@ export class DraftCampaignRepository extends BaseRepository<DraftCampaignDocumen
         private readonly influencer: Model<Influencer>
     ) {
         super(draftCampaign);
+    }
+
+    async getDashboardCampaigns(
+        clientId: string,
+        limit: number = 10,
+        skip: number = 0,
+    ): Promise<IDashboardCampaign[]> {
+        const drafts: DraftCampaign[] = await this.draftCampaign
+            .find({
+                clientId: new Types.ObjectId(clientId),
+            })
+            .lean()
+            .limit(limit)
+            .skip(skip)
+            .exec();
+
+        return drafts.map((campaign: DraftCampaign): IDashboardCampaign => ({
+            _id: campaign._id,
+            campaignName: campaign.campaignName,
+            socialMedia: campaign.socialMedia,
+            createdAt: campaign.createdAt,
+            clientStatus: "draft"
+        }));
     }
 
     async saveDraftCampaign(payload: SaveDraftCampaignDto): Promise<void> {

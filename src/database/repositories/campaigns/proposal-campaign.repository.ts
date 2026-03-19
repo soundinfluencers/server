@@ -6,9 +6,25 @@ import {RepoOptions} from "../../types/repo.types";
 import {applyQueryOptions} from "../../utils/apply-query-options.util";
 import {ProposalCampaign} from "../../schemas/campaign/proposal-campaign.schema";
 import {Role} from "../../../common/types/user.types";
+import {
+    CampaignConfirmationEnum,
+    CampaignStatusEnum,
+    IDashboardCampaign
+} from "../../../common/types/client/campaign.types";
+import {Campaign} from "../../schemas/campaign/campaign.schema";
+
+// Interface for proposal campaigns repository
+interface IProposalCampaignRepository {
+    // Get paginated list of dashboard campaigns
+    getDashboardCampaigns(
+        clientId: string,
+        limit: number,
+        skip: number,
+    ): Promise<IDashboardCampaign[]>;
+}
 
 @Injectable()
-export class ProposalCampaignRepository extends BaseRepository<ProposalCampaign> {
+export class ProposalCampaignRepository extends BaseRepository<ProposalCampaign> implements IProposalCampaignRepository {
     constructor(
         @InjectModel(ProposalCampaign.name)
         private readonly proposalCampaignModel: Model<ProposalCampaign>,
@@ -16,28 +32,31 @@ export class ProposalCampaignRepository extends BaseRepository<ProposalCampaign>
         super(proposalCampaignModel);
     }
 
-    async findAccessibleById(args: {
-        campaignId: Types.ObjectId,
-        userId: Types.ObjectId,
-        userRole: Role
-    }, options?: RepoOptions): Promise<ProposalCampaign> {
-        let query: Query<ProposalCampaign | null, ProposalCampaign>;
+    async getDashboardCampaigns(
+        clientId: string,
+        limit: number = 10,
+        skip: number = 0,
+    ): Promise<IDashboardCampaign[]> {
+        const proposalCampaigns: ProposalCampaign[] = await this.proposalCampaignModel
+            .find(
+                {
+                    $or: [
+                        {creatorId: new Types.ObjectId(clientId)},
+                        {clientId: new Types.ObjectId(clientId)}
+                    ]
+                }
+            )
+            .lean()
+            .limit(limit)
+            .skip(skip)
+            .exec();
 
-        switch (args.userRole) {
-            case Role.client:
-                query = this.proposalCampaignModel.findOne({
-                    _id: args.campaignId,
-                    creatorId: args.userId,
-                    creatorRole: args.userRole
-                });
-                break;
-            case Role.admin:
-                query = this.proposalCampaignModel.findOne({_id: args.campaignId});
-                break;
-            default:
-                return null;
-        }
-
-        return applyQueryOptions(query, options);
+        return proposalCampaigns.map((campaign: ProposalCampaign): IDashboardCampaign => ({
+            _id: campaign._id,
+            campaignName: campaign.campaignName,
+            socialMedia: campaign.socialMedia,
+            createdAt: campaign.createdAt,
+            clientStatus: "proposal"
+        }));
     }
 }

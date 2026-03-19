@@ -8,8 +8,21 @@ import {applyQueryOptions} from "../../utils/apply-query-options.util";
 import {SocialMediaType} from "../../../common/types/social-media.types";
 import {CampaignActionWithCampaignMeta} from "../../../modules/influencer-actions-history/types/influencer-history.types";
 
+// Interface for influencer history repository
+interface IInfluencerHistoryRepository {
+    // Find all campaign actions for specific social account (by social account's username, social media, influencer's id)
+    findCampaignActionsForSocialAccount(
+        request: {
+            influencerId: string;
+            socialAccountUsername: string;
+            socialMedia: SocialMediaType;
+        },
+        options?: RepoOptions,
+    ): Promise<CampaignActionWithCampaignMeta[]>;
+}
+
 @Injectable()
-export class InfluencerHistoryRepository extends BaseRepository<InfluencerActionsHistory> {
+export class InfluencerHistoryRepository extends BaseRepository<InfluencerActionsHistory> implements IInfluencerHistoryRepository {
     constructor(
         @InjectModel(InfluencerActionsHistory.name)
         private readonly influencerHistoryModel: Model<InfluencerActionsHistory>,
@@ -17,19 +30,6 @@ export class InfluencerHistoryRepository extends BaseRepository<InfluencerAction
         super(influencerHistoryModel);
     }
 
-    // Find influencer's history by influencerId
-    async findHistoryByInfluencerId(influencerId: string, options?: RepoOptions): Promise<InfluencerActionsHistory> {
-        const query = this.influencerHistoryModel.findOne({influencerId: new Types.ObjectId(influencerId)});
-        return applyQueryOptions(query, options);
-    }
-
-    // Find influencer's history by influencer's email
-    async findHistoryByInfluencerEmail(email: string, options?: RepoOptions): Promise<InfluencerActionsHistory> {
-        const query = this.influencerHistoryModel.findOne({influencerEmail: email});
-        return applyQueryOptions(query, options);
-    }
-
-    // Find all campaign actions for specific social account (by social account's username, social media, influencer's id)
     async findCampaignActionsForSocialAccount(
         request: {
             influencerId: string;

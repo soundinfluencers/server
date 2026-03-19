@@ -1,11 +1,13 @@
 import {
-    CampaignStatusEnum,
-    ClientCampaignForTable,
-    SafeCampaignAccount,
-    SafeSelectedContentItem
+    CampaignStatusEnum, ICampaignAccount,
+    ICampaignDetails,
+    IDetailedSelectedContent, IProposalCampaign, IProposalOption
 } from "../types/client/campaign.types";
 import {Campaign, CampaignAccount, CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
-import {ProposalCampaignAccount} from "../../database/schemas/campaign/proposal-campaign-option.schema";
+import {
+    ProposalCampaignAccount,
+    ProposalCampaignOption
+} from "../../database/schemas/campaign/proposal-campaign-option.schema";
 import {CampaignContentItemDto} from "../../modules/campaigns/dto/create-campaign.dto";
 import {Types} from "mongoose";
 import {SocialMediaEnum} from "../types/social-media.types";
@@ -13,6 +15,8 @@ import {formatDate} from "../utils/formatters";
 import {InfluencerConfirmationStatusEnum, InfluencerPromoClosedStatusEnum} from "../types/influencer/promo.types";
 import {safeParseToNumber} from "../utils/base.util";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
+import {CampaignAccountDto, CampaignDetailsDto} from "../../modules/campaigns/dto/get-campaigns.dto";
+import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
 
 // export const mapToDetailedDraftCampaignDto = (draft: DraftCampaign): DetailedDraftCampaignDto => {
 //     return {
@@ -47,18 +51,19 @@ export const mapContentItemDtoToModel = (campaignContentItem: CampaignContentIte
     } satisfies CampaignContentItem;
 };
 
-export const mapToSafeCampaignAccount = (
+// Map campaign account mongoose model to ICampaignAccount
+export const mapToICampaignAccount = (
     account: CampaignAccount | ProposalCampaignAccount,
-    selectedContentItem: SafeSelectedContentItem | null = null
-): SafeCampaignAccount => {
-    // NOTE: commented because sometimes users dont use website and admin close promos by them (so confirmation still wait)
+    selectedContentItem: IDetailedSelectedContent | null = null
+): ICampaignAccount => {
+    // NOTE: commented because sometimes users don't use website and admin close promos by them (so confirmation still wait)
     // const isPromoConfirmed = account.confirmation === InfluencerConfirmationStatusEnum.accept;
     const isPromoConfirmed = true;
 
     return {
-        addedAccountsId: account._id.toString(),
-        socialAccountId: account.accountId.toString(),
-        influencerId: account.influencerId.toString(),
+        addedAccountsId: account._id,
+        socialAccountId: account.accountId,
+        influencerId: account.influencerId,
         socialMedia: account.socialMedia,
         username: account.username,
         logoUrl: (account as any)?.logoUrl ?? null,
@@ -83,8 +88,8 @@ export const mapToSafeCampaignAccount = (
     };
 }
 
-// map schema Campaign class to ClientCampaignForTable
-export const mapToClientCampaignForTable = (campaign: Campaign | CompletedCampaign): ClientCampaignForTable => {
+// map Campaign mongoose model to ICampaignDetails
+export const mapSchemaToICampaignDetails = (campaign: Campaign | CompletedCampaign): ICampaignDetails => {
     let cpm: number | null;
     let totalFollowers: number | null;
     let totalImpressions: number | null;
@@ -97,9 +102,9 @@ export const mapToClientCampaignForTable = (campaign: Campaign | CompletedCampai
     const campaignPrice: number = campaign.campaignPrice ?? (campaign as any).price ?? (campaign as any).amount ?? 0;
 
     // build safe campaign account item
-    let proceedAccounts: SafeCampaignAccount[] = campaign?.addedAccounts?.map(
-        (account: CampaignAccount): SafeCampaignAccount => {
-            // NOTE: commented because sometimes users dont use website and admin close promos by them (so confirmation still wait)
+    let proceedAccounts: ICampaignAccount[] = campaign?.addedAccounts?.map(
+        (account: CampaignAccount): ICampaignAccount => {
+            // NOTE: commented because sometimes users don't use website and admin close promos by them (so confirmation still wait)
             // const isPromoConfirmed = account.confirmation === InfluencerConfirmationStatusEnum.accept;
             const isPromoConfirmed = true;
 
@@ -164,7 +169,7 @@ export const mapToClientCampaignForTable = (campaign: Campaign | CompletedCampai
                 totalShares = safeParseToNumber(account.shares);
             }
 
-            return mapToSafeCampaignAccount(account, selectedCampaignContentItem);
+            return mapToICampaignAccount(account, selectedCampaignContentItem);
         }
     ) ?? [];
 
@@ -207,10 +212,10 @@ export const mapToClientCampaignForTable = (campaign: Campaign | CompletedCampai
     }
 
     return {
-        campaignId: campaign._id.toString(),
+        _id: campaign._id,
         campaignName: campaign.campaignName ?? "OLD CAMPAIGN",
         socialMedia: campaign.socialMedia ?? "instagram",
-        creationDate: formatDate(campaign.createdAt),
+        createdAt: campaign.createdAt,
         price: campaignPrice,
         status: campaign.statusCampaign,
         addedAccounts: proceedAccounts,
@@ -230,4 +235,65 @@ export const mapToClientCampaignForTable = (campaign: Campaign | CompletedCampai
         hiddenColumns: campaign.hiddenColumns ?? [],
         cpm: cpm ?? null,
     };
+};
+
+// Map ICampaignDetails read model to CampaignDetailsDto
+export const mapToCampaignDetailsDto = (campaign: ICampaignDetails): CampaignDetailsDto => {
+    return {
+        campaignId: campaign._id.toString(),
+        campaignName: campaign.campaignName,
+        socialMedia: campaign.socialMedia,
+        creationDate: formatDate(campaign.createdAt),
+        price: campaign.price,
+        status: campaign.status,
+        addedAccounts: campaign.addedAccounts.map((i: ICampaignAccount): CampaignAccountDto => ({
+            ...i,
+            addedAccountsId: i.addedAccountsId.toString(),
+            socialAccountId: i.socialAccountId.toString(),
+            influencerId: i.influencerId.toString(),
+            selectedContent: {
+                campaignContentItemId: i.selectedContent.campaignContentItemId.toString(),
+                descriptionId: i.selectedContent.descriptionId.toString()
+            },
+            selectedContentItem: {
+                ...i.selectedContentItem,
+                _id: i.selectedContentItem._id.toString(),
+            },
+        })),
+        campaignContent: campaign.campaignContent ?? (campaign as any).videos ?? [],
+        shareLink: campaign.shareLink,
+        totalFollowers: campaign.totalFollowers,
+        totalImpressions: campaign.totalImpressions,
+        totalLikes: campaign.totalLikes,
+        totalSaves: campaign.totalSaves,
+        totalComments: campaign.totalComments,
+        totalShares: campaign.totalShares,
+        isCpmAndResultHidden: campaign.isCpmAndResultHidden,
+        isPriceHidden: campaign.isPriceHidden,
+        canEdit: campaign.canEdit,
+        hiddenColumns: campaign.hiddenColumns ?? [],
+        cpm: campaign.cpm,
+    }
+};
+
+// Map ProposalCampaign mongoose model to IProposalCampaign
+export const mapToIProposalCampaign = (campaign: ProposalCampaign): IProposalCampaign => {
+    return {
+        _id: campaign._id,
+        campaignName: campaign.campaignName ?? "OLD CAMPAIGN",
+        socialMedia: campaign.socialMedia as SocialMediaEnum ?? "instagram" as SocialMediaEnum,
+        optionIds: campaign.optionsIds
+    };
+};
+
+// Map ProposalCampaignOption mongoose model to IProposalOption
+export const mapToIProposalOption = (campaignOption: ProposalCampaignOption): IProposalOption => {
+  return {
+      _id: campaignOption._id,
+      proposalCampaignId: campaignOption.proposalCampaignId,
+      publicCampaignPrice: campaignOption.publicCampaignPrice,
+      privateCampaignPrice: campaignOption.privateCampaignPrice,
+      addedAccounts: campaignOption.addedAccounts.map((acc: ProposalCampaignAccount): ICampaignAccount => mapToICampaignAccount(acc)),
+      campaignContent: campaignOption.campaignContent ?? [],
+  }
 };

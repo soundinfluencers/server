@@ -3,6 +3,7 @@ import {ApiProperty} from "@nestjs/swagger";
 import {Types} from "mongoose";
 import {InfluencerConfirmationStatusEnum, InfluencerPromoClosedStatusEnum} from "../influencer/promo.types";
 import {CampaignContentMediaCache} from "../../../database/schemas/campaign/campaign.schema";
+import {Role} from "../user.types";
 
 // Campaign verify status
 export enum CampaignConfirmationEnum {
@@ -71,30 +72,30 @@ export enum CampaignDraftLatestStep {
     strategyTable = 'strategyTable',
 }
 
-// Using at home page
-export interface ClientGetCampaignForList {
-    _id: string;
+// Dashboard campaign read model
+export interface IDashboardCampaign {
+    _id: Types.ObjectId;
     campaignName: string;
     socialMedia: SocialMediaType | 'multipromo';
-    creationDate: string;
+    createdAt: Date;
+    clientStatus: string;
     price?: number;
-    status?: CampaignStatusEnum | 'draft' | 'proposal';
 }
 
-export class SafeSelectedContent {
-    campaignContentItemId: string | Types.ObjectId;
-    descriptionId?: string | Types.ObjectId;
+export interface ISelectedContent {
+    campaignContentItemId: Types.ObjectId;
+    descriptionId?: Types.ObjectId;
 }
 
 // full campaign content item
-export class SafeCampaignContent {
-    _id: string | Types.ObjectId;
+export interface ICampaignContent {
+    _id: Types.ObjectId;
     socialMedia: SocialMediaEnum;
     socialMediaGroup: string;
     mainLink: string;
     mediaCache?: CampaignContentMediaCache;
     descriptions?: {
-        _id: string | Types.ObjectId;
+        _id: Types.ObjectId;
         description: string;
     }[];
     taggedUser?: string;
@@ -103,8 +104,8 @@ export class SafeCampaignContent {
 }
 
 // full campaign content item but with selected description
-export class SafeSelectedContentItem {
-    _id: string | Types.ObjectId;
+export interface IDetailedSelectedContent {
+    _id: Types.ObjectId;
     socialMedia: SocialMediaEnum;
     socialMediaGroup: string;
     mainLink: string;
@@ -114,18 +115,19 @@ export class SafeSelectedContentItem {
     additionalBrief?: string;
 }
 
-export class SafeCampaignAccount {
-    addedAccountsId: string | Types.ObjectId;
-    socialAccountId: string | Types.ObjectId;
-    influencerId: string | Types.ObjectId;
+// Read model for campaign added account
+export interface ICampaignAccount {
+    addedAccountsId: Types.ObjectId;
+    socialAccountId: Types.ObjectId;
+    influencerId: Types.ObjectId;
     socialMedia: SocialMediaEnum;
     logoUrl?: string;
     username: string;
     // price: number
     publicPrice: number;
     followers: number;
-    selectedContent: SafeSelectedContent;
-    selectedContentItem?: SafeSelectedContentItem | null;
+    selectedContent: ISelectedContent;
+    selectedContentItem?: IDetailedSelectedContent | null;
     confirmation: InfluencerConfirmationStatusEnum;
     closePromo: InfluencerPromoClosedStatusEnum;
     dateRequest?: string;
@@ -142,28 +144,28 @@ export class SafeCampaignAccount {
     countries?: object[];
 }
 
-// Used by campaign report page
-export interface ClientCampaignForTable {
-    campaignId: string;
+// Read model for campaign added account (ADMIN)
+export interface IAdminCampaignAccount extends ICampaignAccount {
+    cpm: number;
+}
+
+// Read model for campaign details
+export interface ICampaignDetails {
+    _id: Types.ObjectId;
     campaignName: string;
     socialMedia: SocialMediaType | 'multipromo';
-    creationDate: string;
+    createdAt: Date;
     price: number;
     status: CampaignStatusEnum;
-
-    addedAccounts: SafeCampaignAccount[];
-
-    campaignContent: SafeCampaignContent[];
-
+    addedAccounts: ICampaignAccount[];
+    campaignContent: ICampaignContent[];
     shareLink: string;
-
     totalFollowers: number;
     totalImpressions: number;
     totalLikes: number;
     totalSaves: number;
     totalComments: number;
     totalShares: number;
-
     isCpmAndResultHidden: boolean;
     cpm?: number | null;
     isPriceHidden: boolean;
@@ -171,7 +173,7 @@ export interface ClientCampaignForTable {
     canEdit?: boolean;
 }
 
-export interface PublicCampaignForTable {
+export interface IPublicCampaignForTable {
     campaignId: string;
     // clientId: string;
     price: number;
@@ -182,7 +184,7 @@ export interface PublicCampaignForTable {
 
     // TODO: interface for campaign's added accounts
     addedAccounts: any[];
-    campaignContent: SafeCampaignContent[];
+    campaignContent: ICampaignContent[];
 
     shareLink: string;
 
@@ -198,4 +200,41 @@ export interface PublicCampaignForTable {
 
     hiddenColumns?: string[];
     cpm?: number | null;
+}
+
+// Interface for base proposal campaign information
+export interface IProposalCampaign {
+    _id: Types.ObjectId;
+    campaignName: string;
+    socialMedia: SocialMediaEnum;
+    optionIds: Types.ObjectId[];
+}
+
+// Interface for selected proposal campaign option
+export interface IProposalOption {
+    _id: Types.ObjectId;
+    proposalCampaignId: Types.ObjectId;
+    publicCampaignPrice: number; // show users
+    privateCampaignPrice: number; // show us
+    addedAccounts: ICampaignAccount[];
+    campaignContent: ICampaignContent[];
+}
+
+// Interface for campaign from admin campaigns list
+export interface IAdminListCampaign {
+    _id: Types.ObjectId;
+    socialMedia: SocialMediaType | 'multipromo';
+    campaignName: string;
+    creatorRole: Role;
+    creatorName: string;
+    totalFollowers: number;
+    price: number;
+    publicPrice: number;
+    createdAt: Date;
+    status: CampaignStatusEnum;
+}
+
+// Read model for admin campaign details page
+export interface IAdminCampaignDetails extends ICampaignDetails {
+    addedAccounts: IAdminCampaignAccount[];
 }

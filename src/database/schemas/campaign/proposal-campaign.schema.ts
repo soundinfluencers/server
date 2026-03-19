@@ -6,6 +6,7 @@ import {
     CampaignContentItemSchema,
 } from "./campaign.schema";
 import {Role} from "../../../common/types/user.types";
+import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
 
 @Schema({ timestamps: true })
 export class ProposalCampaign {
@@ -21,8 +22,8 @@ export class ProposalCampaign {
     @Prop({ required: true, enum: Role, type: String })
     creatorRole: Role;
 
-    @Prop({ required: true, default: 'instagram' })
-    socialMedia: string;
+    @Prop({ required: true, enum: [...Object.values(SocialMediaEnum), "multipromo"], default: SocialMediaEnum.instagram })
+    socialMedia: SocialMediaType | "multipromo";
 
     @Prop({ required: true })
     campaignName: string;

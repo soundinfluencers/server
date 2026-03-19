@@ -33,12 +33,21 @@ import {
     ProposalCampaignAccount,
     ProposalCampaignOption
 } from "../../database/schemas/campaign/proposal-campaign-option.schema";
-import {mapContentItemDtoToModel, mapToSafeCampaignAccount} from "../../common/mappers/campaign.mapper";
-import {uniq} from "../../common/utils/base.util";
+import {
+    mapContentItemDtoToModel,
+    mapToICampaignAccount, mapToIProposalCampaign, mapToIProposalOption
+} from "../../common/mappers/campaign.mapper";
+import {safeParseToNumber, uniq} from "../../common/utils/base.util";
 import {ObjId, toObjIdSafe} from "../../common/types/base.types";
 import {UpdateCampaignDto} from "../campaigns/dto/update-campaign.dto";
 import {MediaService} from "../media/media.service";
-import {SocialAccountLabelStatus} from "../../common/types/influencer/influencer.types";
+import {
+    ICampaignAccount,
+    ICampaignContent,
+    IProposalCampaign,
+    IProposalOption
+} from "../../common/types/client/campaign.types";
+import {CampaignAccountDto, DetailedCampaignContentItemDto} from "../campaigns/dto/get-campaigns.dto";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -453,19 +462,51 @@ export class ProposalSystemService {
         await campaignOption.save();
 
         try {
+            // Map to read model main campaign information and then adding selected option
+            const readModelCampaign: IProposalCampaign = mapToIProposalCampaign(proposalCampaign);
+            const readModelOption: IProposalOption = mapToIProposalOption(campaignOption);
+
             return {
                 campaignId: campaignId,
-                campaignName: proposalCampaign.campaignName,
-                socialMedia: proposalCampaign.socialMedia as SocialMediaEnum,
-                existingOptions: proposalCampaign.optionsIds.map((option: Types.ObjectId, index: number) => index),
+                campaignName: readModelCampaign.campaignName,
+                socialMedia: readModelCampaign.socialMedia,
+                existingOptions: readModelCampaign.optionIds.map((option: Types.ObjectId, index: number) => index),
                 selectedOption: {
                     optionIndex: optionIndex,
-                    price: campaignOption.publicCampaignPrice,
-                    addedAccounts: campaignOption.addedAccounts.map((account) => mapToSafeCampaignAccount(account)),
-                    campaignContent: campaignOption.campaignContent,
+                    price: readModelOption.publicCampaignPrice,
                     canEdit: this.checkCanEdit(userInfo) ?? false,
-                },
-            };
+                    addedAccounts: readModelOption.addedAccounts.map((i: ICampaignAccount): CampaignAccountDto => ({
+                        ...i,
+                        addedAccountsId: i.addedAccountsId.toString(),
+                        socialAccountId: i.socialAccountId.toString(),
+                        influencerId: i.influencerId.toString(),
+                        selectedContent: {
+                            campaignContentItemId: i.selectedContent.campaignContentItemId.toString(),
+                            descriptionId: i.selectedContent.descriptionId.toString()
+                        },
+                        selectedContentItem: {
+                            ...i.selectedContentItem,
+                            _id: i.selectedContentItem._id.toString(),
+                        },
+                        genres: "genres" in i ? i.genres : undefined,
+                        countries: "countries" in i ? i.countries : undefined,
+                    })),
+                    campaignContent: readModelOption.campaignContent.map((i: ICampaignContent): DetailedCampaignContentItemDto => ({
+                        _id: i._id.toString(),
+                        socialMedia: i.socialMedia,
+                        socialMediaGroup: i.socialMediaGroup,
+                        mainLink: i.mainLink,
+                        descriptions: i.descriptions.map((d) => ({
+                            _id: d._id.toString(),
+                            description: d.description,
+                        })),
+                        taggedUser: i.taggedUser,
+                        taggedLink: i.taggedLink,
+                        additionalBrief: i.additionalBrief,
+                        mediaCache: i.mediaCache,
+                    }))
+                }
+            }
         } catch (err) {
             this.logger.warn(`Error map ${data.campaignName} to ProposalCampaignWithOptionDto: ${err}`);
             throw new ConflictException(
@@ -495,7 +536,7 @@ export class ProposalSystemService {
         ];
 
         const influencers = await this.influencerRepo.findMany(
-            { _id: { $in: influencerIds } },
+            {_id: {$in: influencerIds}},
             {
                 lean: true,
                 select: [
@@ -543,8 +584,34 @@ export class ProposalSystemService {
             return {
                 optionIndex: optionIndex,
                 price: proposalCampaignOption.publicCampaignPrice,
-                addedAccounts: proposalCampaignOption.addedAccounts.map((account) => mapToSafeCampaignAccount(account)),
-                campaignContent: proposalCampaignOption.campaignContent,
+                // addedAccounts: proposalCampaignOption.addedAccounts.map((account) => mapToICampaignAccount(account)),
+                // campaignContent: proposalCampaignOption.campaignContent,
+                addedAccounts: proposalCampaignOption.addedAccounts.map((i: ProposalCampaignAccount): CampaignAccountDto => ({
+                    ...i,
+                    addedAccountsId: i._id.toString(),
+                    socialAccountId: i.accountId.toString(),
+                    influencerId: i.influencerId.toString(),
+                    selectedContent: {
+                        campaignContentItemId: i.selectedContent.campaignContentItemId.toString(),
+                        descriptionId: i.selectedContent.descriptionId.toString()
+                    },
+                    genres: "genres" in i ? i.genres : undefined,
+                    countries: "countries" in i ? i.countries : undefined,
+                })),
+                campaignContent: proposalCampaignOption.campaignContent.map((i: ICampaignContent): DetailedCampaignContentItemDto => ({
+                    _id: i._id.toString(),
+                    socialMedia: i.socialMedia,
+                    socialMediaGroup: i.socialMediaGroup,
+                    mainLink: i.mainLink,
+                    descriptions: i.descriptions.map((d) => ({
+                        _id: d._id.toString(),
+                        description: d.description,
+                    })),
+                    taggedUser: i.taggedUser,
+                    taggedLink: i.taggedLink,
+                    additionalBrief: i.additionalBrief,
+                    mediaCache: i.mediaCache,
+                })),
                 canEdit: this.checkCanEdit(userInfo),
             }
         } catch (err) {
@@ -599,10 +666,10 @@ export class ProposalSystemService {
         session.startTransaction();
 
         try {
-            await this.proposalCampaignOptionRepo.deleteById(selectedOptionId, { session });
+            await this.proposalCampaignOptionRepo.deleteById(selectedOptionId, {session});
 
             campaign.optionsIds.splice(data.optionIndex, 1);
-            await campaign.save({ session });
+            await campaign.save({session});
 
             await session.commitTransaction();
         } catch (err) {

@@ -15,8 +15,8 @@ import {
 import {CampaignsService} from "./campaigns.service";
 import {AuthenticatedRequest, Role} from "../../common/types/user.types";
 import {
-    ClientCampaignForTableDto,
-    ClientGetCampaignsDto,
+    CampaignDetailsDto,
+    GetDashboardCampaignsDto,
     ClientGetDashboardCampaignsQueryDto,
     DetailedDraftCampaignDto
 } from "./dto/get-campaigns.dto";
@@ -26,7 +26,7 @@ import {Public} from "../../common/decorators/public.decorator";
 import {SaveXlsxCampaignDto} from "./dto/save-xlsx-campaign.dto";
 import {CreateCampaignDto, SaveDraftCampaignDto} from "./dto/create-campaign.dto";
 import {Response} from 'express';
-import {CampaignTypeEnumForDevelopment, PublicCampaignForTable} from "../../common/types/client/campaign.types";
+import {CampaignTypeEnumForDevelopment, IPublicCampaignForTable} from "../../common/types/client/campaign.types";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {UpdateCampaignDto} from "./dto/update-campaign.dto";
 import {CreateBespokeCampaignDto} from "./dto/bespoke-request.dto";
@@ -40,7 +40,7 @@ export class CampaignsController {
     @Auth()
     @Roles(Role.client)
     @ApiOperation({summary: 'Get client campaigns list'})
-    @ApiResponseDto(ClientGetCampaignsDto)
+    @ApiResponseDto(GetDashboardCampaignsDto)
     @ApiQuery({
         name: 'status',
         required: false,
@@ -60,7 +60,7 @@ export class CampaignsController {
     async getCampaignsList(
         @Req() request: AuthenticatedRequest,
         @Query() query: ClientGetDashboardCampaignsQueryDto,
-    ): Promise<ClientGetCampaignsDto> {
+    ): Promise<GetDashboardCampaignsDto> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
         const campaigns = await this.campaignsService.getCampaignsList({...query, clientId: request.user._id});
@@ -190,9 +190,9 @@ export class CampaignsController {
     @Roles(Role.client)
     @ApiOperation({summary: 'Get client campaign (completed, ongoing)'})
     @ApiParam({name: 'campaignId', required: true})
-    @ApiResponseDto(ClientCampaignForTableDto)
+    @ApiResponseDto(CampaignDetailsDto)
     @Get(':campaignId')
-    clientGetOngoingOrPastCampaign(@Param('campaignId') campaignId: string, @Req() request: AuthenticatedRequest): Promise<ClientCampaignForTableDto> {
+    clientGetOngoingOrPastCampaign(@Param('campaignId') campaignId: string, @Req() request: AuthenticatedRequest): Promise<CampaignDetailsDto> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
         return this.campaignsService.getClientOngoingOrPastCampaign(campaignId, request.user._id);
@@ -202,9 +202,9 @@ export class CampaignsController {
     @Roles(Role.client, Role.admin)
     @ApiOperation({summary: 'Updates ongoing campaign'})
     @ApiParam({name: 'campaignId', required: true})
-    @ApiResponseDto(ClientCampaignForTableDto)
+    @ApiResponseDto(CampaignDetailsDto)
     @Patch(':campaignId/update')
-    updateCampaign(@Param('campaignId') campaignId: string, @Body() data: UpdateCampaignDto, @Req() request: AuthenticatedRequest): Promise<ClientCampaignForTableDto> {
+    updateCampaign(@Param('campaignId') campaignId: string, @Body() data: UpdateCampaignDto, @Req() request: AuthenticatedRequest): Promise<CampaignDetailsDto> {
         return this.campaignsService.updateOngoingCampaign({...data, campaignId}, request.user);
     }
 
@@ -228,9 +228,9 @@ export class CampaignsController {
     @Public()
     @ApiOperation({summary: `Get campaign by public share link`})
     @ApiParam({name: 'campaignId', required: true})
-    @ApiResponseDto(ClientCampaignForTableDto)
+    @ApiResponseDto(CampaignDetailsDto)
     @Get(':campaignId/share')
-    getCampaignByPublicShareLink(@Param('campaignId') campaignId: string): Promise<PublicCampaignForTable> {
+    getCampaignByPublicShareLink(@Param('campaignId') campaignId: string): Promise<IPublicCampaignForTable> {
         return this.campaignsService.getCampaignByPublicShareLink(campaignId);
     }
 

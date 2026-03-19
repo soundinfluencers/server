@@ -13,9 +13,8 @@ import {
     CampaignPaymentStatusEnum,
     CampaignStatusEnum,
     CampaignTypeEnumForDevelopment,
-    ClientCampaignForTable,
-    ClientGetCampaignForList,
-    PublicCampaignForTable
+    ICampaignDetails, IDashboardCampaign,
+    IPublicCampaignForTable
 } from "../../common/types/client/campaign.types";
 import {SocialMediaEnum, SocialMediaType} from "../../common/types/social-media.types";
 import {formatClientCampaignStatus, formatDate} from "../../common/utils/formatters";
@@ -30,7 +29,11 @@ import {CreateBespokeCampaignDto} from "./dto/bespoke-request.dto";
 import axios from "axios";
 import {getSocialMediaGroup} from "../../common/utils/socialMedia";
 import {returnMusicStyles} from "../../common/utils/genres";
-import {ClientGetDashboardCampaignsQueryDto, DetailedDraftCampaignDto} from "./dto/get-campaigns.dto";
+import {
+    DashboardCampaignDto,
+    ClientGetDashboardCampaignsQueryDto,
+    DetailedDraftCampaignDto, CampaignDetailsDto
+} from "./dto/get-campaigns.dto";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
 import {CompletedCampaignRepository} from "../../database/repositories/campaigns/completed-campaign.repository";
 import {ClientRepository} from "../../database/repositories/users/client.repository";
@@ -40,7 +43,6 @@ import {
     Campaign,
     CampaignAccount,
     CampaignContentItem,
-    SelectedContent
 } from "../../database/schemas/campaign/campaign.schema";
 import {Client} from "../../database/schemas/users/client.schema";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
@@ -49,12 +51,14 @@ import {
     InfluencerConfirmationStatusEnum,
     InfluencerPromoClosedStatusEnum
 } from "../../common/types/influencer/promo.types";
-import {DraftCampaign} from "../../database/schemas/campaign/draft-campaign.schema";
-import {FoundAccountDto} from "../profile/dto/influencer/get-profile.dto";
 import {EmailService} from "../../integrations/email/email.service";
 import {AccountVerifiedStatus, Role, UserPayload} from "../../common/types/user.types";
 import {UpdateCampaignDto} from "./dto/update-campaign.dto";
-import {mapContentItemDtoToModel, mapToClientCampaignForTable} from "../../common/mappers/campaign.mapper";
+import {
+    mapContentItemDtoToModel,
+    mapSchemaToICampaignDetails,
+    mapToCampaignDetailsDto
+} from "../../common/mappers/campaign.mapper";
 import {buildSafeFileName, uniq} from "../../common/utils/base.util";
 import {ObjId, toObjIdSafe} from "../../common/types/base.types";
 import {
@@ -66,7 +70,6 @@ import {CampaignCsvExporter} from "../../common/utils/export/csv/campaign-csv.ex
 import {CampaignPdfExporter} from "../../common/utils/export/pdf/campaign-pdf.exporter";
 import {MediaService} from "../media/media.service";
 import {InvoiceService} from "../invoice/invoice.service";
-import {SocialAccountLabelStatus} from "../../common/types/influencer/influencer.types";
 import {
     AdminToClientEmails,
     AdminToInfluencerEmails,
@@ -314,7 +317,7 @@ export class CampaignsService {
 
 
     // Returns campaigns list for client with diff statuses
-    async getCampaignsList(data: ClientGetDashboardCampaignsQueryDto): Promise<ClientGetCampaignForList[]> {
+    async getCampaignsList(data: ClientGetDashboardCampaignsQueryDto): Promise<DashboardCampaignDto[]> {
         const status: CampaignTypeEnumForDevelopment = data.status ?? CampaignTypeEnumForDevelopment.all
         const limit = Number(data.limit ?? 12);
         const page = Number(data.page ?? 1);
@@ -339,55 +342,39 @@ export class CampaignsService {
 
         switch (status) {
             case "draft":
-                campaigns = await this.draftCampaignRepo
-                    .findMany({
-                        clientId: new Types.ObjectId(data.clientId),
-                    }, {lean: true, limit: limit, skip: skip})
-                campaigns = campaigns.map(c => ({...c, clientStatus: 'draft' as const}));
+                campaigns = await this.draftCampaignRepo.getDashboardCampaigns(
+                    data.clientId,
+                    limit,
+                    skip,
+                )
                 break;
             case "under_review":
-                campaigns = await this.campaignRepo
-                    .findMany({
-                        clientId: new Types.ObjectId(data.clientId),
-                        statusCampaign: CampaignStatusEnum.underReview,
-                        verifyCampaign: CampaignConfirmationEnum.wait
-                    }, {lean: true, limit: limit, skip: skip})
-                campaigns = campaigns.map(c => ({...c, clientStatus: 'under_review' as const}));
+                campaigns = await this.campaignRepo.getDashboardCampaigns(
+                    data.clientId,
+                    limit,
+                    skip,
+                    [CampaignStatusEnum.underReview],
+                    CampaignConfirmationEnum.wait,
+                ) satisfies IDashboardCampaign[];
                 break;
             case "distributing":
-                campaigns = await this.campaignRepo
-                    .findMany({
-                        clientId: new Types.ObjectId(data.clientId),
-                        statusCampaign: {
-                            $in: [
-                                CampaignStatusEnum.pending,
-                                CampaignStatusEnum.distributing,
-                            ],
-                        },
-                    }, {lean: true, limit: limit, skip: skip})
-                campaigns = campaigns.map(c => ({...c, clientStatus: 'distributing' as const}));
+                campaigns = await this.campaignRepo.getDashboardCampaigns(
+                    data.clientId,
+                    limit,
+                    skip,
+                    [CampaignStatusEnum.pending, CampaignStatusEnum.distributing],
+                    CampaignConfirmationEnum.accept,
+                ) satisfies IDashboardCampaign[];
                 break;
             case "closed":
-                campaigns = await this.completedCampaignRepo
-                    .findMany({
-                        $or: [
-                            {clientId: new Types.ObjectId(data.clientId)},
-                            {userId: new Types.ObjectId(data.clientId)},
-                        ],
-                    }, {lean: true, limit: limit, skip: skip})
-                campaigns = campaigns.map(c => ({...c, clientStatus: 'closed' as const}));
+                campaigns = await this.completedCampaignRepo.getDashboardCampaigns(data.clientId, limit, skip);
                 break;
             case "proposal":
-                campaigns = await this.proposalCampaignRepo.findMany(
-                    {$or: [{creatorId: new Types.ObjectId(data.clientId)}, {clientId: new Types.ObjectId(data.clientId)}]},
-                    {lean: true, limit, skip}
-                );
-
-                campaigns = campaigns.map(c => ({
-                    ...c,
-                    clientStatus: 'proposal' as const,
-                    campaignPrice: null,
-                }));
+                campaigns = await this.proposalCampaignRepo.getDashboardCampaigns(
+                    data.clientId,
+                    limit,
+                    skip,
+                )
                 break;
             case "all":
                 const oid = new Types.ObjectId(data.clientId);
@@ -470,7 +457,7 @@ export class CampaignsService {
                 throw new BadRequestException("Bad request. Not enough arguments (missing campaign status)");
         }
 
-        return campaigns.map((item): ClientGetCampaignForList => ({
+        return campaigns.map((item): DashboardCampaignDto => ({
             _id: item._id.toString(),
             campaignName: item.campaignName,
             socialMedia: item.socialMedia as SocialMediaType,
@@ -740,28 +727,30 @@ export class CampaignsService {
     async getClientOngoingOrPastCampaign(
         campaignId: string,
         clientId: string
-    ): Promise<ClientCampaignForTable> {
-
-        if (!campaignId || !clientId)
-            throw new BadRequestException('Not enough arguments');
-
+    ): Promise<CampaignDetailsDto> {
+        // Checking if client exists
         const client = await this.clientRepo.findById(clientId);
         if (!client)
             throw new NotFoundException('User not found');
 
-        let campaign: any = await this.campaignRepo.findById(campaignId, {lean: true});
+        // Trying to find in ongoing campaigns collection
+        let campaign: ICampaignDetails = await this.campaignRepo.getDetailedCampaign(clientId, campaignId);
+
+        // Trying to find in completed campaigns collection
         if (!campaign)
-            campaign = await this.completedCampaignRepo.findById(campaignId, {lean: true});
+            campaign = await this.completedCampaignRepo.getDetailedCampaign(clientId, campaignId);
 
         if (!campaign)
             throw new NotFoundException('Campaign not found');
 
+        // Collecting unique ids for getting logos
         const influencerIds = [
             ...new Set(
                 campaign.addedAccounts.map(acc => acc.influencerId)
             )
         ];
 
+        // Getting accounts ids and logos
         const influencers = await this.influencerRepo.findMany(
             {_id: {$in: influencerIds}},
             {
@@ -786,10 +775,12 @@ export class CampaignsService {
             }
         );
 
+        // Creating map to quickly find logo for specific id
         const influencerMap = new Map(
             influencers.map(inf => [inf._id.toString(), inf])
         );
 
+        // Adding logo to each account
         campaign.addedAccounts = campaign.addedAccounts.map(acc => {
             const influencer = influencerMap.get(acc.influencerId.toString());
 
@@ -798,7 +789,7 @@ export class CampaignsService {
             const accountsArray = influencer[acc.socialMedia] ?? [];
 
             const matchedAccount = accountsArray.find(
-                a => a._id?.toString() === acc.accountId?.toString()
+                a => a._id?.toString() === acc.addedAccountsId?.toString()
             );
 
             return {
@@ -807,11 +798,11 @@ export class CampaignsService {
             };
         });
 
-        return mapToClientCampaignForTable(campaign);
+        return mapToCampaignDetailsDto(campaign);
     }
 
     // Update ongoing campaign
-    async updateOngoingCampaign(data: UpdateCampaignDto, userInfo: UserPayload): Promise<ClientCampaignForTable> {
+    async updateOngoingCampaign(data: UpdateCampaignDto, userInfo: UserPayload): Promise<CampaignDetailsDto> {
         const campaignId = data.campaignId;
         const userId = new Types.ObjectId(userInfo._id);
         const userRole = userInfo.role;
@@ -824,12 +815,11 @@ export class CampaignsService {
                     _id: new Types.ObjectId(campaignId),
                     clientId: userId,
                     canEdit: true,
-                    statusCampaign: {
-                        $in: [
-                            CampaignStatusEnum.underReview,
-                            CampaignStatusEnum.pending
-                        ]
-                    }
+                    statusCampaign: CampaignStatusEnum.underReview
+                        // $in: [
+                        //     CampaignStatusEnum.underReview,
+                        //     CampaignStatusEnum.pending
+                        // ]
                 });
                 break;
             case Role.admin:
@@ -894,7 +884,10 @@ export class CampaignsService {
         await campaign.save();
 
         try {
-            return mapToClientCampaignForTable(campaign.toObject() as Campaign);
+
+            // заглушка, чтобы сейчас не переносить в репозиторий метод update (на это нет времени)
+            const readModel = mapSchemaToICampaignDetails(campaign.toObject() as Campaign);
+            return mapToCampaignDetailsDto(readModel);
         } catch (err) {
             this.logger.warn(`Error map ${data.campaignName} to ClientCampaignForTable: ${err}`);
             throw new ConflictException(
@@ -1266,7 +1259,7 @@ export class CampaignsService {
     }
 
     // Returns detailed campaign (trying to get by sharelink, so not all info visible)
-    async getCampaignByPublicShareLink(campaignId: string): Promise<PublicCampaignForTable> {
+    async getCampaignByPublicShareLink(campaignId: string): Promise<IPublicCampaignForTable> {
         if (!campaignId) throw new BadRequestException('Not enough arguments')
 
         let campaign: any = await this.campaignRepo.findById(campaignId, {lean: true});

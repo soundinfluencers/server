@@ -3,14 +3,21 @@ import {
     CampaignDraftLatestStep,
     CampaignStatusEnum,
     CampaignTypeEnumForDevelopment,
-    ClientCampaignForTable,
-    ClientGetCampaignForList,
-    SafeCampaignContent,
 } from "../../../common/types/client/campaign.types";
 import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
-import {DraftCampaignNewAccountDto} from "./create-campaign.dto";
+import {
+    CampaignContentItemDto,
+    DraftCampaignNewAccountDto,
+    SelectedCampaignContentItemDto
+} from "./create-campaign.dto";
+import {
+    InfluencerConfirmationStatusEnum,
+    InfluencerPromoClosedStatusEnum
+} from "../../../common/types/influencer/promo.types";
+import {CampaignContentMediaCache} from "../../../database/schemas/campaign/campaign.schema";
+import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
 
-export class ClientGetDashboardCampaignsQueryDto {
+export class ClientGetDashboardCampaignsQueryDto extends PaginationQueryDto {
     @ApiPropertyOptional({
         description: 'Type of campaigns returned',
         enum: CampaignTypeEnumForDevelopment,
@@ -18,21 +25,10 @@ export class ClientGetDashboardCampaignsQueryDto {
     })
     status: CampaignTypeEnumForDevelopment;
 
-    @ApiPropertyOptional({
-        default: 12,
-    })
-    limit: number;
-
-    @ApiPropertyOptional({
-        default: 1,
-        description: 'Page number (starts from 1)',
-    })
-    page: number;
-
     clientId: string;
 }
 
-export class ClientGetCampaignForListDto implements ClientGetCampaignForList {
+export class DashboardCampaignDto {
     @ApiProperty()
     _id: string;
 
@@ -55,12 +51,123 @@ export class ClientGetCampaignForListDto implements ClientGetCampaignForList {
     status?: CampaignStatusEnum;
 }
 
-export class ClientGetCampaignsDto {
-    @ApiProperty({type: () => [ClientGetCampaignForListDto]})
-    campaigns?: ClientGetCampaignForList[];
+export class GetDashboardCampaignsDto {
+    @ApiProperty({type: () => [DashboardCampaignDto]})
+    campaigns?: DashboardCampaignDto[];
 }
 
-export class ClientCampaignForTableDto implements ClientCampaignForTable {
+// DTO with detailed selected content info
+export class DetailedSelectedContentDto {
+    @ApiProperty({ type: String })
+    _id: string;
+
+    @ApiProperty({ type: String, enum: SocialMediaEnum })
+    socialMedia: SocialMediaEnum;
+
+    @ApiProperty({ type: String })
+    socialMediaGroup: string;
+
+    @ApiProperty({ type: String })
+    mainLink: string;
+
+    @ApiProperty({ type: String })
+    description: string;
+
+    @ApiPropertyOptional({ type: String })
+    taggedUser?: string;
+
+    @ApiPropertyOptional({ type: String })
+    taggedLink?: string;
+
+    @ApiPropertyOptional({ type: String })
+    additionalBrief?: string;
+}
+
+// DTO with detailed campaign's addedAccounts item
+export class CampaignAccountDto {
+    @ApiProperty({ type: String })
+    addedAccountsId: string;
+
+    @ApiProperty({ type: String })
+    socialAccountId: string;
+
+    @ApiProperty({ type: String })
+    influencerId: string;
+
+    @ApiProperty({ type: String, enum: SocialMediaEnum })
+    socialMedia: SocialMediaEnum;
+
+    @ApiProperty({ type: String })
+    username: string;
+
+    @ApiProperty({ type: Number })
+    publicPrice: number;
+
+    @ApiProperty({ type: Number })
+    followers: number;
+
+    @ApiProperty({ type: SelectedCampaignContentItemDto })
+    selectedContent: SelectedCampaignContentItemDto; // item with selected content items _ids
+
+    @ApiPropertyOptional({ type: DetailedSelectedContentDto})
+    selectedContentItem?: DetailedSelectedContentDto; // item with detailed selected content info
+
+    @ApiProperty({ type: String, enum: InfluencerConfirmationStatusEnum })
+    confirmation: InfluencerConfirmationStatusEnum;
+
+    @ApiProperty({ type: String, enum: InfluencerPromoClosedStatusEnum })
+    closePromo: InfluencerPromoClosedStatusEnum;
+
+    @ApiPropertyOptional({ type: String })
+    dateRequest?: string;
+
+    // Campaign insights
+
+    @ApiPropertyOptional({ type: String })
+    datePost?: string;
+
+    @ApiPropertyOptional({ type: String })
+    postLink?: string;
+
+    @ApiPropertyOptional({ type: String })
+    screenshot?: string;
+
+    @ApiPropertyOptional({ type: Number })
+    impressions?: number;
+
+    @ApiPropertyOptional({ type: Number })
+    like?: number;
+
+    @ApiPropertyOptional({ type: Number })
+    comments?: number;
+
+    @ApiPropertyOptional({ type: Number })
+    shares?: number;
+
+    @ApiPropertyOptional({ type: Number })
+    saves?: number;
+
+    @ApiPropertyOptional({ type: Number })
+    rating?: number;
+
+    @ApiPropertyOptional({ type: String, isArray: true })
+    genres?: string[];
+
+    @ApiPropertyOptional({ type: Object, isArray: true })
+    countries?: object[];
+
+    @ApiPropertyOptional({ type: String })
+    logoUrl?: string;
+}
+
+// DTO with detailed campaign's content item (added mediaCache object)
+export class DetailedCampaignContentItemDto extends CampaignContentItemDto {
+    @ApiPropertyOptional({ type: CampaignContentMediaCache })
+    mediaCache?: CampaignContentMediaCache;
+}
+
+// DTO with detailed campaign info
+export class CampaignDetailsDto {
     @ApiProperty()
     campaignId: string;
 
@@ -79,41 +186,37 @@ export class ClientCampaignForTableDto implements ClientCampaignForTable {
     @ApiProperty({enum: CampaignStatusEnum})
     status: CampaignStatusEnum;
 
-    // TODO: implement interface for this
-    @ApiProperty()
-    addedAccounts: any[];
+    @ApiProperty({ type: CampaignAccountDto, isArray: true })
+    addedAccounts: CampaignAccountDto[];
 
-    @ApiProperty({type: SafeCampaignContent, isArray: true})
-    campaignContent: SafeCampaignContent[];
+    @ApiProperty({type: DetailedCampaignContentItemDto, isArray: true})
+    campaignContent: DetailedCampaignContentItemDto[];
 
-    @ApiProperty()
+    @ApiProperty({ type: String })
     shareLink: string;
 
-    @ApiProperty()
+    @ApiProperty({ type: Number })
     totalFollowers: number;
 
-    @ApiProperty()
+    @ApiProperty({ type: Number })
     totalImpressions: number;
 
-    @ApiProperty()
+    @ApiProperty({ type: Number })
     totalLikes: number;
 
-    @ApiProperty()
+    @ApiProperty({ type: Number })
     totalSaves: number;
 
-    @ApiProperty()
+    @ApiProperty({ type: Number })
     totalComments: number;
 
-    @ApiProperty()
+    @ApiProperty({ type: Number })
     totalShares: number;
 
-    // @ApiProperty()
-    // isClosed: boolean;
-
-    @ApiProperty()
+    @ApiProperty({ type: Boolean })
     isCpmAndResultHidden: boolean;
 
-    @ApiProperty()
+    @ApiProperty({ type: Boolean })
     isPriceHidden: boolean;
 
     @ApiPropertyOptional()
@@ -121,6 +224,9 @@ export class ClientCampaignForTableDto implements ClientCampaignForTable {
 
     @ApiPropertyOptional()
     cpm?: number;
+
+    @ApiPropertyOptional({ type: Boolean })
+    canEdit?: boolean;
 }
 
 export class DraftCampaignAccountDto extends DraftCampaignNewAccountDto {
@@ -153,8 +259,8 @@ export class DetailedDraftCampaignDto {
     @ApiPropertyOptional()
     campaignName?: string;
 
-    @ApiPropertyOptional({type: SafeCampaignContent, isArray: true})
-    campaignContent?: SafeCampaignContent[];
+    @ApiPropertyOptional({type: DetailedCampaignContentItemDto, isArray: true})
+    campaignContent?: DetailedCampaignContentItemDto[];
 
     @ApiProperty()
     totalPrice: number;

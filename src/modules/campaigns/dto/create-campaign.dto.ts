@@ -6,6 +6,7 @@ import {CreateCampaignInvoiceDto, CreateInvoiceDto} from "../../invoice/dto/crea
 import {InvoicePaymentMethodEnum} from "../../../common/types/invoice.types";
 import {CampaignDraftLatestStep, CampaignPaymentMethodEnum} from "../../../common/types/client/campaign.types";
 
+// DTO with selected content items _ids
 export class SelectedCampaignContentItemDto {
     @ApiProperty()
     @IsMongoId()
