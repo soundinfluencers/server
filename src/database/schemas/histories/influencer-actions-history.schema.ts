@@ -10,7 +10,7 @@ export class CampaignAction {
     @Prop({type: Types.ObjectId, required: true})
     socialAccountId: Types.ObjectId;
 
-    @Prop({type: Number, required: true, min: 0, max: 5})
+    @Prop({type: Number, required: true, min: 0, max: 6})
     actionNumber: number;
 
     @Prop({type: Number, required: true})

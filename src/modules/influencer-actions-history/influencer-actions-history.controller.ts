@@ -47,56 +47,23 @@ export class InfluencerActionsHistoryController {
         return ({history});
     }
 
-    @ApiExcludeEndpoint()
-    @Auth()
-    @Roles(Role.admin)
-    @ApiResponseDto(AllHistoriesResponseDto)
-    @ApiOperation({summary: "Returns all histories (with limit and page)"})
-    @ApiQuery({
-        name: 'limit',
-        required: false,
-        type: 'number',
-    })
-    @ApiQuery({
-        name: 'page',
-        required: false,
-        type: 'number',
-    })
-    @Get()
-    async getAllHistories(@Query() query: GetAllHistoriesQueryDto) {
-        return this.influencerActionsHistoryService.getAllHistories(query);
-    }
-
-    @ApiExcludeEndpoint()
-    @Auth()
-    @Roles(Role.admin)
-    @ApiResponseDto(OneHistoryResponseDto)
-    @ApiOperation({summary: "Returns history for one influencer"})
-    @ApiParam({
-        name: 'influencerId',
-        required: true,
-        type: 'string'
-    })
-    @Get(':influencerId')
-    getOneHistory(@Param('influencerId') influencerId: string): Promise<OneHistoryResponseDto> {
-        return this.influencerActionsHistoryService.getActionsHistoryForInfluencer(influencerId);
-    }
-
-    //
-    // // TODO
+    // @ApiExcludeEndpoint()
     // @Auth()
     // @Roles(Role.admin)
-    // @Get('last-updates')
-    // getLastUpdates() {
-    //     return this.influencerActionsHistoryService.getLastUpdates();
-    // }
-    //
-    // // TODO
-    // @Auth()
-    // @Roles(Role.admin)
-    // @Patch('patch/check-if-still-in-campaign')
-    // @UsePipes(new ValidationPipe({whitelist: true, forbidNonWhitelisted: true, transform: true}))
-    // checkIfStillInCampaign(@Body() data: CheckIfInCampaignDto) {
-    //     return this.influencerActionsHistoryService.checkIfStillInCampaign(data);
+    // @ApiResponseDto(AllHistoriesResponseDto)
+    // @ApiOperation({summary: "Returns all histories (with limit and page)"})
+    // @ApiQuery({
+    //     name: 'limit',
+    //     required: false,
+    //     type: 'number',
+    // })
+    // @ApiQuery({
+    //     name: 'page',
+    //     required: false,
+    //     type: 'number',
+    // })
+    // @Get()
+    // async getAllHistories(@Query() query: GetAllHistoriesQueryDto) {
+    //     return this.influencerActionsHistoryService.getAllHistories(query);
     // }
 }

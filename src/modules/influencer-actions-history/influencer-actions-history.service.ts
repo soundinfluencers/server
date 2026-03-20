@@ -1,11 +1,10 @@
-import {BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException} from '@nestjs/common';
+import {BadRequestException, Injectable, Logger, NotFoundException} from '@nestjs/common';
 import mongoose, {ClientSession, Types} from 'mongoose';
 import {UpsertCampaignActionDto, UpsertInvoiceActionDto} from "./dto/upsert-actions.dto";
 import {InfluencerHistoryRepository} from "../../database/repositories/histories/influencer-history.repository";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {
     CampaignActionWithCampaignMeta,
-    ProcessedInfluencerHistory
 } from "./types/influencer-history.types";
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {
@@ -429,93 +428,6 @@ export class InfluencerActionsHistoryService {
         const skip = (page - 1) * limit;
 
         return await this.influencerHistoryRepo.findMany({}, {lean: true, limit, skip})
-    }
-
-    // Return one processed history (found by influencerId)
-    async getActionsHistoryForInfluencer(influencerId: string): Promise<ProcessedInfluencerHistory> {
-        const influencerActionsHistory = await this.influencerHistoryRepo
-            .findOne({influencerId: new mongoose.Types.ObjectId(influencerId)}, {lean: true})
-
-        if (!influencerActionsHistory) {
-            throw new NotFoundException(`History for influencer ${influencerId} was not found`);
-        }
-
-        const influencer = await this.influencerRepo.findById(influencerId);
-
-        if (!influencer) {
-            throw new NotFoundException(`Influencer ${influencerId} not found`);
-        }
-
-        const socialMedias = Object.values(SocialMediaEnum);
-
-        const processedName = influencer.firstName.trim()
-            ? influencer.firstName.trim()
-            : influencer.email.includes('@')
-                ? influencer.email.split('@')[0]
-                : influencer.email;
-
-        const accountsUsernames: {
-            accountId: string;
-            socialMedia: SocialMediaEnum;
-            username: string;
-            publicPrice: number;
-        }[] = socialMedias.flatMap((socialMedia) => {
-            const accounts = influencer[socialMedia];
-
-            if (accounts) {
-                return accounts
-                    .filter((account) => account && account.username)
-                    .map((account) => ({
-                        accountId: account._id.toString(),
-                        socialMedia: socialMedia as SocialMediaEnum,
-                        username: account.username,
-                        publicPrice: account.publicPrice,
-                    }));
-            }
-
-            return [];
-        });
-
-        const actionsHistory = [
-            ...(influencerActionsHistory.campaigns || []).flatMap((campaign) =>
-                campaign.actions.map((action) => ({
-                    actionId: (action as any)._id ?? null,
-                    typeOfAction: 'campaign',
-                    campaignId: campaign.campaignId,
-                    campaignName: campaign.campaignName,
-                    actionNumber: action.actionNumber,
-                    socialMedia: action.socialMedia,
-                    networkUsername: action.networkUsername,
-                    rewardForInfluencer: action.rewardForInfluencer,
-                    currentBalance: action.currentBalance,
-                    date: action.date,
-                    isStillInCampaign: action.isStillInCampaign ?? true
-                })),
-            ),
-            ...(influencerActionsHistory.invoices || []).map((invoice) => ({
-                typeOfAction: 'invoice',
-                invoiceId: invoice.invoiceId,
-                amount: invoice.amount,
-                paymentMethod: invoice.paymentMethod,
-                currentBalance: invoice.currentBalance,
-                date: invoice.date,
-            })),
-        ];
-
-        actionsHistory.sort((a, b) => {
-            const dateA = a.date instanceof Date ? a.date.getTime() : 0;
-            const dateB = b.date instanceof Date ? b.date.getTime() : 0;
-            return dateB - dateA;
-        });
-
-        return {
-            influencerId: influencerId,
-            accountsUsernames: accountsUsernames,
-            influencerEmail: influencer.email,
-            influencerName: processedName,
-            history: actionsHistory,
-            currencyNote: influencer?.currencyNote ? influencer.currencyNote : '',
-        };
     }
 
     // // TODO

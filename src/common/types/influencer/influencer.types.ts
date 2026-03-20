@@ -6,6 +6,7 @@ import {
 import {InfluencerConfirmationStatusEnum} from "./promo.types";
 import {AccountVerifiedStatus} from "../user.types";
 import {CurrencyCode} from "../finance.types";
+import {SocialMediaEnum} from "../social-media.types";
 
 export enum InfluencerProfileCategory {
     community = 'community',
@@ -82,7 +83,8 @@ export enum HistoryCampaignActionStatus {
     insightsSubmitted = 2, // influencer submitted insights (can create invoice for this promo)
     invoiceSubmitted = 3, // influencer submitted invoice for this promo and waiting for payment
     paid = 4, // influencer got payment
-    denied = 5 // influencer denied this promo request
+    denied = 5, // influencer denied this promo request
+    addedByAdmin = 6, // Admin added social account to campaign
 }
 
 // record for influencer's history campaign action status
@@ -96,4 +98,12 @@ export const HistoryCampaignActionStatusLabel: Record<
     [HistoryCampaignActionStatus.invoiceSubmitted]: 'Invoice Submitted',
     [HistoryCampaignActionStatus.paid]: 'Paid',
     [HistoryCampaignActionStatus.denied]: 'Denied',
+    [HistoryCampaignActionStatus.addedByAdmin]: "Added By Admin",
 };
+
+export interface ShortSocialAccountInfo {
+    accountId: string;
+    socialMedia: SocialMediaEnum;
+    username: string;
+    price: number;
+}
