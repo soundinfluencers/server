@@ -8,7 +8,8 @@ import {applyQueryOptions} from "../../utils/apply-query-options.util";
 import {SocialMediaType} from "../../../common/types/social-media.types";
 import {CampaignActionWithCampaignMeta} from "../../../modules/influencer-actions-history/types/influencer-history.types";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
-import {IInfluencerHistory, InfluencerHistoryActionType} from "../../../common/types/history.types";
+import {ICampaignAction, IInfluencerHistory, InfluencerHistoryActionType} from "../../../common/types/history.types";
+import {ObjId} from "../../../common/types/base.types";
 
 // Interface for influencer history repository
 interface IInfluencerHistoryRepository {
@@ -33,6 +34,20 @@ interface IInfluencerHistoryRepository {
         limit: number;
         totalPages: number;
     } | null>
+
+    // Updates isStillInCampaign field for campaign action
+    updateStillInCampaign(
+        influencerId: string,
+        campaignIndex: number,
+        actionIndex: number,
+        value: boolean,
+    ): Promise<any>;
+
+    // Find one campaign action
+    findCampaignAction(
+        influencerId: string,
+        actionId: string,
+    ): Promise<(ICampaignAction & { campaignIndex: number; actionIndex: number }) | null>
 }
 
 @Injectable()
@@ -236,5 +251,92 @@ export class InfluencerHistoryRepository extends BaseRepository<InfluencerAction
             limit,
             totalPages: Math.ceil(total / limit),
         };
+    }
+
+    async updateStillInCampaign(
+        influencerId: string,
+        campaignIndex: number,
+        actionIndex: number,
+        value: boolean,
+    ): Promise<boolean | null> {
+        const history = await this.influencerHistoryModel.findOne({
+            influencerId: new ObjId(influencerId),
+        });
+
+        if (!history) {
+            return null;
+        }
+
+        const campaign = history.campaigns[campaignIndex];
+        if (!campaign) {
+            return null;
+        }
+
+        const action = campaign.actions[actionIndex];
+        if (!action) {
+            return null;
+        }
+
+        action.isStillInCampaign = value;
+
+        await history.save();
+
+        return action.isStillInCampaign;
+    }
+
+    async findCampaignAction(
+        influencerId: string,
+        actionId: string,
+    ): Promise<(ICampaignAction & { campaignIndex: number; actionIndex: number }) | null> {
+        const [result] = await this.influencerHistoryModel.aggregate<
+            ICampaignAction & { campaignIndex: number; actionIndex: number }
+        >([
+            {
+                $match: {
+                    influencerId: new Types.ObjectId(influencerId),
+                },
+            },
+            {
+                $unwind: {
+                    path: '$campaigns',
+                    includeArrayIndex: 'campaignIndex',
+                },
+            },
+            {
+                $unwind: {
+                    path: '$campaigns.actions',
+                    includeArrayIndex: 'actionIndex',
+                },
+            },
+            {
+                $match: {
+                    'campaigns.actions._id': new Types.ObjectId(actionId),
+                },
+            },
+            {
+                $project: {
+                    _id: '$campaigns.actions._id',
+                    type: { $literal: InfluencerHistoryActionType.campaign },
+                    campaignId: '$campaigns.campaignId',
+                    addedAccountsId: '$campaigns.actions.addedAccountsId',
+                    socialAccountId: '$campaigns.actions.socialAccountId',
+                    socialMedia: '$campaigns.actions.socialMedia',
+                    username: '$campaigns.actions.networkUsername',
+                    campaignName: '$campaigns.campaignName',
+                    reward: '$campaigns.actions.rewardForInfluencer',
+                    actionNumber: '$campaigns.actions.actionNumber',
+                    currentBalance: '$campaigns.actions.currentBalance',
+                    date: '$campaigns.actions.date',
+                    isStillInCampaign: '$campaigns.actions.isStillInCampaign',
+                    campaignIndex: 1,
+                    actionIndex: 1,
+                },
+            },
+            {
+                $limit: 1,
+            },
+        ]);
+
+        return result ?? null;
     }
 }

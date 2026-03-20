@@ -38,20 +38,23 @@ export class AdminActionsHistoryController implements IAdminActionsHistory {
     @ApiResponseDto(Boolean)
     @ApiOperation({summary: "Check if social account still in campaign"})
     @ApiParam({
-        name: 'campaignId',
+        name: 'influencerId',
         required: true,
         type: 'string'
     })
     @ApiParam({
-        name: 'accountId',
+        name: 'actionId',
         required: true,
         type: 'string'
     })
-    @Patch(':campaignId/accounts/:accountId/sync')
-    checkIfAccountStillInCampaign(@Param('campaignId') campaignId: string, @Param('accountId') accountId: string): Promise<boolean> {
-        if (!campaignId) throw new BadRequestException('Invalid campaignId');
-        if (!accountId) throw new BadRequestException('Invalid accountId');
+    @Patch(':influencerId/campaigns/:actionId/sync')
+    checkIfAccountStillInCampaign(
+        @Param('influencerId') influencerId: string,
+        @Param('actionId') actionId: string
+    ): Promise<boolean> {
+        if (!influencerId) throw new BadRequestException('Invalid influencerId');
+        if (!actionId) throw new BadRequestException('Invalid actionId');
 
-        return this.adminService.checkIfAccountStillInCampaign(campaignId, accountId);
+        return this.adminService.checkIfAccountStillInCampaign(influencerId, actionId);
     }
 }

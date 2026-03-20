@@ -43,6 +43,9 @@ export interface ICampaignRepository {
 
     // Find influencer's promos by invoice status and update this status
     updateManyInvoiceStatuses(influencerId: string, oldInvoiceStatus: InvoiceStatusEnum, newInvoiceStatus: InvoiceStatusEnum, session?: ClientSession): Promise<any>;
+
+    // Check if social account still in campaign
+    checkIfAccountStillInCampaign(campaignId: string, addedAccountsId: string): Promise<boolean>;
 }
 
 @Injectable()
@@ -231,5 +234,24 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
                 options
             ),
         ]);
+    }
+
+    async checkIfAccountStillInCampaign(
+        campaignId: string,
+        addedAccountsId: string,
+    ): Promise<boolean> {
+        let exists = await this.campaignModel.exists({
+            _id: new ObjId(campaignId),
+            'addedAccounts._id': new ObjId(addedAccountsId),
+        });
+
+        if (!exists) {
+            exists = await this.completedCampaignModel.exists({
+                _id: new ObjId(campaignId),
+                'addedAccounts._id': new ObjId(addedAccountsId),
+            });
+        }
+
+        return !!exists;
     }
 }

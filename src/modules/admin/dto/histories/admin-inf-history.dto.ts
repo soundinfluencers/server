@@ -12,6 +12,9 @@ export class AdminInfCampaignActionDto {
     @ApiProperty({ type: String, enum: InfluencerHistoryActionType })
     actionType: InfluencerHistoryActionType;
 
+    @ApiProperty({ type: String })
+    actionId: string;
+
     @ApiProperty({ type: String, example: "22.10.2026 07:21" })
     dateAndTime: string;
 
@@ -44,6 +47,9 @@ export class AdminInfCampaignActionDto {
 export class AdminInfInvoiceActionDto {
     @ApiProperty({ type: String, enum: InfluencerHistoryActionType })
     actionType: InfluencerHistoryActionType;
+
+    @ApiProperty({ type: String })
+    actionId: string;
 
     @ApiProperty({ type: String })
     invoiceId: string;

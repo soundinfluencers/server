@@ -1,4 +1,4 @@
-import {Injectable, Logger, NotFoundException} from '@nestjs/common';
+import {Injectable, InternalServerErrorException, Logger, NotFoundException} from '@nestjs/common';
 import {InfluencerRepository} from "../../../database/repositories/users/influencer.repository";
 import {InfluencerHistoryRepository} from "../../../database/repositories/histories/influencer-history.repository";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
@@ -6,6 +6,7 @@ import {AdminInfActionsHistoryDto} from "../dto/histories/admin-inf-history.dto"
 import {mapInfHistoryToAdminHistoryDto} from "../../../common/mappers/history.mapper";
 import {ShortSocialAccountInfo} from "../../../common/types/influencer/influencer.types";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
+import {CampaignRepository} from "../../../database/repositories/campaigns/campaign.repository";
 
 // Interface for AdminActionsHistoryService
 export interface IAdminActionsHistory {
@@ -30,7 +31,8 @@ export interface IAdminActionsHistory {
 export class AdminActionsHistoryService implements IAdminActionsHistory {
     constructor(
         private readonly influencerRepo: InfluencerRepository,
-        private readonly historyRepo: InfluencerHistoryRepository
+        private readonly historyRepo: InfluencerHistoryRepository,
+        private readonly campaignRepo: CampaignRepository,
     ) {
     }
 
@@ -102,8 +104,45 @@ export class AdminActionsHistoryService implements IAdminActionsHistory {
         }
     }
 
-    checkIfAccountStillInCampaign(campaignId: string, accountId: string): Promise<boolean> {
-        // todo: finish
-        return null;
+    async checkIfAccountStillInCampaign(
+        influencerId: string,
+        actionId: string,
+    ): Promise<boolean> {
+        // Find campaign action with needed information
+        const campaignAction = await this.historyRepo.findCampaignAction(influencerId, actionId);
+
+        if (
+            !campaignAction ||
+            campaignAction.campaignIndex == null ||
+            campaignAction.actionIndex == null
+        ) {
+            throw new NotFoundException('This action was not found');
+        }
+
+        if (!campaignAction.addedAccountsId) {
+            throw new InternalServerErrorException("This action isn't supportable in new website version")
+        }
+
+        // Find out is social account still in campaign
+        const exists = await this.campaignRepo.checkIfAccountStillInCampaign(campaignAction.campaignId.toString(), campaignAction.addedAccountsId.toString());
+
+        // If account was removed from campaign (even if full campaign was deleted), update isStillInCampaign field
+        if (!exists) {
+            try {
+                const resultOfUpdate = await this.historyRepo.updateStillInCampaign(
+                    influencerId,
+                    campaignAction.campaignIndex,
+                    campaignAction.actionIndex,
+                    false
+                )
+
+                if (typeof resultOfUpdate !== 'boolean') throw new Error(`isStillInCampaign for influencer: ${influencerId} with campaignIndex: ${campaignAction.campaignIndex} and actionIndex: ${campaignAction.actionIndex} was not updated`);
+            } catch (err) {
+                this.logger.error(err);
+                throw new InternalServerErrorException(`Account was removed from this campaign, but server can't update information about this`);
+            }
+        }
+
+        return exists;
     }
 }

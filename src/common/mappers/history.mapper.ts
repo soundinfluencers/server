@@ -29,6 +29,7 @@ function mapCampaignActionToDto(
 ): AdminInfCampaignActionDto {
     return {
         actionType: action.type,
+        actionId: action._id.toString(),
         dateAndTime: formatDateTime(action.date),
         socialMedia: action.socialMedia,
         username: action.username,
@@ -49,6 +50,7 @@ function mapInvoiceActionToDto(
 ): AdminInfInvoiceActionDto {
     return {
         actionType: action.type,
+        actionId: action._id.toString(),
         invoiceId: action.invoiceId.toString(),
         amount: action.amount,
         paymentMethod: action.paymentMethod,
