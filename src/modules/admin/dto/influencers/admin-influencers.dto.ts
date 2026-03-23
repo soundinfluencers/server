@@ -1,6 +1,8 @@
 import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
 import {SocialMediaEnum} from "../../../../common/types/social-media.types";
 import {CurrencyCode} from "../../../../common/types/finance.types";
+import {PaginatedListResponseDto} from "../../../../common/dto/responses/paginated-list-response.dto";
+import {SearchListResponseDto} from "../../../../common/dto/responses/search-response.dto";
 
 // DTO with social account and owner's information. For admin panel influencers list
 export class AdminSocialAccountForListDto {
@@ -63,19 +65,17 @@ export class AdminSocialAccountForListDto {
 }
 
 // DTO response for fetching influencers list on admin panel
-export class AdminInfluencersListDto {
+export class AdminInfluencersListDto extends PaginatedListResponseDto<AdminSocialAccountForListDto>{
     @ApiProperty({ type: AdminSocialAccountForListDto, isArray: true })
-    accounts: AdminSocialAccountForListDto[];
+    items: AdminSocialAccountForListDto[];
+}
 
-    @ApiProperty({ type: Number })
-    total: number;
-
-    @ApiProperty({ type: Number })
-    page: number;
-
-    @ApiProperty({ type: Number })
-    limit: number;
-
-    @ApiProperty({ type: Number })
-    totalPages: number;
+// DTO response for searching social accounts
+export class AdminSocialAccountsSearchResponseDto extends SearchListResponseDto<AdminSocialAccountForListDto> {
+    @ApiProperty({
+        type: AdminSocialAccountForListDto,
+        isArray: true,
+        description: "List of social accounts"
+    })
+    items: AdminSocialAccountForListDto[];
 }

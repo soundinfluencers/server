@@ -1,6 +1,6 @@
 import {Injectable} from "@nestjs/common";
 import {InjectModel} from "@nestjs/mongoose";
-import {Model, Types, UpdateWriteOpResult} from "mongoose";
+import {Model, PipelineStage, Types, UpdateWriteOpResult} from "mongoose";
 import {RepoOptions} from "../../types/repo.types";
 import {BaseRepository} from "../base.repository";
 import {Influencer, SocialAccount} from "../../schemas/users/influencer.schema";
@@ -8,6 +8,7 @@ import {applyQueryOptions} from "../../utils/apply-query-options.util";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
 import {AdminInfluencerListItem} from "../../../common/types/influencer/influencer.types";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
+import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 
 // Interface for InfluencerRepository
 interface IInfluencerRepository {
@@ -59,6 +60,13 @@ interface IInfluencerRepository {
         limit: number;
         totalPages: number;
     }>
+
+    // Find social account by searching username
+    findSocialAccountBySearch(query: SearchQueryDto): Promise<{
+        items: AdminInfluencerListItem[];
+        total: number;
+        limit: number;
+    }>;
 }
 
 @Injectable()
@@ -236,6 +244,150 @@ export class InfluencerRepository extends BaseRepository<Influencer> implements 
             page,
             limit,
             totalPages: Math.ceil(total / limit),
+        };
+    };
+
+    async findSocialAccountBySearch(query: SearchQueryDto): Promise<{
+        items: AdminInfluencerListItem[];
+        total: number;
+        limit: number;
+    }> {
+        const limit = query.limit ?? 10;
+        const rawSearch = query.search?.trim();
+
+        const escapedSearch = rawSearch
+            ? rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            : null;
+
+        const accountsConcat = Object.values(SocialMediaEnum).map((socialMedia) => ({
+            $map: {
+                input: `$${socialMedia}`,
+                as: 'acc',
+                in: {
+                    _id: '$$acc._id',
+                    username: '$$acc.username',
+                    socialMedia,
+                    logoUrl: '$$acc.logoUrl',
+                    followers: '$$acc.followers',
+                    profileLink: '$$acc.profileLink',
+                    publicPrice: '$$acc.publicPrice',
+                    price: '$$acc.price',
+                    initialPrice: '$$acc.initialPrice',
+                    currency: '$$acc.currency',
+                    isHidden: '$$acc.isHidden',
+                },
+            },
+        }));
+
+        const basePipeline: PipelineStage[] = [
+            {
+                $project: {
+                    influencerId: '$_id',
+                    firstName: 1,
+                    lastName: 1,
+                    email: 1,
+                    phone: 1,
+                    balance: 1,
+                    internalNote: 1,
+                    createdAt: 1,
+                    accounts: {
+                        $concatArrays: accountsConcat,
+                    },
+                },
+            },
+            {
+                $unwind: '$accounts',
+            },
+            ...(escapedSearch
+                ? [
+                    {
+                        $match: {
+                            'accounts.username': { $regex: escapedSearch, $options: 'i' },
+                        },
+                    },
+                ]
+                : []),
+            {
+                $sort: { createdAt: -1 },
+            },
+            {
+                $limit: limit,
+            },
+            {
+                $project: {
+                    _id: 0,
+                    influencerId: 1,
+                    firstName: 1,
+                    lastName: 1,
+                    email: 1,
+                    phone: 1,
+                    balance: 1,
+                    internalNote: 1,
+
+                    accountId: '$accounts._id',
+                    username: '$accounts.username',
+                    socialMedia: '$accounts.socialMedia',
+                    logoUrl: '$accounts.logoUrl',
+                    followers: '$accounts.followers',
+                    profileLink: '$accounts.profileLink',
+                    publicPrice: '$accounts.publicPrice',
+                    price: '$accounts.price',
+                    initialPrice: '$accounts.initialPrice',
+                    currency: '$accounts.currency',
+                    isHidden: '$accounts.isHidden',
+
+                    costPerFollower: {
+                        $cond: [
+                            { $gt: ['$accounts.followers', 0] },
+                            {
+                                $round: [
+                                    { $divide: ['$accounts.price', '$accounts.followers'] },
+                                    5,
+                                ],
+                            },
+                            0,
+                        ],
+                    },
+                },
+            },
+        ];
+
+        const totalPipeline: PipelineStage[] = [
+            {
+                $project: {
+                    accounts: {
+                        $concatArrays: accountsConcat,
+                    },
+                },
+            },
+            {
+                $unwind: '$accounts',
+            },
+            ...(escapedSearch
+                ? [
+                    {
+                        $match: {
+                            'accounts.username': { $regex: escapedSearch, $options: 'i' },
+                        },
+                    },
+                ]
+                : []),
+            {
+                $count: 'total',
+            },
+        ];
+
+        const [items, totalResult] = await Promise.all([
+            this.influencerModel.aggregate<AdminInfluencerListItem>(basePipeline),
+            this.influencerModel.aggregate(totalPipeline),
+        ]);
+
+        const total = totalResult[0]?.total ?? 0;
+
+        return {
+            items,
+            total,
+            limit,
         };
     }
 }
