@@ -7,6 +7,7 @@ import {InfluencerConfirmationStatusEnum} from "./promo.types";
 import {AccountVerifiedStatus} from "../user.types";
 import {CurrencyCode} from "../finance.types";
 import {SocialMediaEnum} from "../social-media.types";
+import {ObjId} from "../base.types";
 
 export enum InfluencerProfileCategory {
     community = 'community',
@@ -106,4 +107,27 @@ export interface ShortSocialAccountInfo {
     socialMedia: SocialMediaEnum;
     username: string;
     price: number;
+}
+
+// Read model for admin list
+export interface AdminInfluencerListItem {
+    influencerId: ObjId; // influencer's _id
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+    phone: string;
+    balance: number;
+    accountId: ObjId; // social account's _id
+    username: string; // social account's username
+    socialMedia: SocialMediaEnum;
+    logoUrl: string;
+    followers: number;
+    profileLink: string;
+    publicPrice: number; // show to clients
+    price: number; // real price. real price = initial price * exchange rate
+    initialPrice: number; // price that was chosen by account's owner
+    currency: CurrencyCode; // currency that was chosen by account's owner
+    costPerFollower: number;
+    isHidden: boolean;
+    internalNote?: string;
 }

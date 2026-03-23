@@ -6,6 +6,8 @@ import {
 } from "../../modules/profile/dto/influencer/get-profile.dto";
 import {AccountVerifiedStatus} from "../types/user.types";
 import {CurrencyCode} from "../types/finance.types";
+import {AdminInfluencerListItem} from "../types/influencer/influencer.types";
+import {AdminSocialAccountForListDto} from "../../modules/admin/dto/influencers/admin-influencers.dto";
 
 // Maps social account doc to social account for account details dto
 export const mapSocialAccountToAccountDetailsDto = (account: SocialAccount): SocialAccountForAccountDetailsDto => {
@@ -67,3 +69,12 @@ export const mapToSocialAccountDetailsDto = (account: SocialAccount): SocialAcco
         categories: account.categories,
     }
 };
+
+// Maps AdminInfluencerListItem read model to AdminSocialAccountForListDto
+export const mapToAdminSocialAccountForListDto = (account: AdminInfluencerListItem): AdminSocialAccountForListDto => {
+    return {
+        ...account,
+        influencerId: account.influencerId.toString(),
+        accountId: account.accountId.toString(),
+    }
+}
