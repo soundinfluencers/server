@@ -7,6 +7,7 @@ import {AdminActionsHistoryController} from "./controllers/admin-actions-history
 import {AdminActionsHistoryService} from "./services/admin-actions-history.service";
 import {AdminInfluencersService} from "./services/admin-influencers.service";
 import {AdminInfluencersController} from "./controllers/admin-influencers.controller";
+import {XlsxImporter} from "../../common/utils/import/xlsx/xlsx-import";
 
 @Module({
   controllers: [
@@ -20,6 +21,7 @@ import {AdminInfluencersController} from "./controllers/admin-influencers.contro
       AdminCampaignsService,
       AdminActionsHistoryService,
       AdminInfluencersService,
+      XlsxImporter,
   ],
 })
 export class AdminModule {}

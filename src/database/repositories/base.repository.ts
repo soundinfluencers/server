@@ -1,4 +1,13 @@
-import {ClientSession, FilterQuery, Model, PipelineStage, QueryOptions, Types, UpdateQuery} from "mongoose";
+import {
+    AnyBulkWriteOperation,
+    ClientSession,
+    FilterQuery,
+    Model,
+    PipelineStage,
+    QueryOptions,
+    Types,
+    UpdateQuery
+} from "mongoose";
 import {RepoOptions} from "../types/repo.types";
 import {applyQueryOptions} from "../utils/apply-query-options.util";
 import {applyAggregateOptions} from "../utils/apply-aggregate-options.util";
@@ -133,5 +142,12 @@ export class BaseRepository<T> implements IBaseRepository<T> {
 
     startSession(): Promise<ClientSession> {
         return this.model.db.startSession();
+    }
+
+    async bulkWrite(
+        operations: AnyBulkWriteOperation<any>[],
+        options?: { ordered?: boolean },
+    ) {
+        return this.model.bulkWrite(operations, options);
     }
 }

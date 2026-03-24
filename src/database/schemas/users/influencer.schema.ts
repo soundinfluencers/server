@@ -107,7 +107,7 @@ export const SocialAccountSchema = SchemaFactory.createForClass(SocialAccount);
 
 // Indexes for social account schema
 SocialAccountSchema.index({
-    isVerified: 1,
+    verifiedStatus: 1,
     isDeleted: 1,
     isHidden: 1,
 });
@@ -202,5 +202,5 @@ export const InfluencerSchema = SchemaFactory.createForClass(Influencer);
 // Indexes for influencer schema
 InfluencerSchema.index({email: 1}, {unique: true, background: true});
 InfluencerSchema.index({role: 1}, {background: true});
-InfluencerSchema.index({statusVerify: 1}, {background: true});
+InfluencerSchema.index({verifiedStatus: 1}, {background: true});
 
