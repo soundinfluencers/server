@@ -1,4 +1,4 @@
-import {Controller, Get, Post, Query} from '@nestjs/common';
+import {Controller, Get, Query} from '@nestjs/common';
 import {AdminClientsService} from '../services/admin-clients.service';
 import {ApiOperation, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
@@ -6,9 +6,9 @@ import {Roles} from "../../../common/decorators/roles.decorator";
 import {Role} from "../../../common/types/user.types";
 import {Auth} from "../../../common/decorators/auth.decorator";
 import {AdminClientsListResponseDto, AdminClientsSearchResponseDto} from "../dto/clients/admin-clients.dto";
-import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {OneOfQueryPipe} from "../../../common/pipes/one-of-query.pipe";
+import {ApiResponseDtoOneOf} from "../../../common/decorators/api/response/api-response-one-of.decorator";
 
 @Auth()
 @Roles(Role.admin)
@@ -19,7 +19,7 @@ export class AdminClientsController {
     }
 
     @ApiOperation({ summary: "Fetch paginated clients list or search them" })
-    @ApiResponseDto(AdminClientsListResponseDto)
+    @ApiResponseDtoOneOf([AdminClientsListResponseDto, AdminClientsSearchResponseDto])
     @ApiQuery({
         name: 'search',
         required: false,

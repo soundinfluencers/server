@@ -21,6 +21,7 @@ import {
 } from "../../database/schemas/campaign/proposal-campaign-option.schema";
 import {AccountVerifiedStatus} from "../../common/types/user.types";
 import {SocialAccountLabelStatus} from "../../common/types/influencer/influencer.types";
+import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 
 
 // ------------ LEGACY SCHEMAS ---------------
@@ -91,11 +92,11 @@ export class MigrationsService {
         // models
 
         // for migrating completed campaigns
-        // @InjectModel(CompletedCampaign.name)
-        // private readonly campaignModel: Model<CompletedCampaign>,
+        @InjectModel(CompletedCampaign.name)
+        private readonly campaignModel: Model<CompletedCampaign>,
         // for migrating completed campaigns
-        @InjectModel(Campaign.name)
-        private readonly campaignModel: Model<Campaign>,
+        // @InjectModel(Campaign.name)
+        // private readonly campaignModel: Model<Campaign>,
         @InjectModel(Influencer.name)
         private readonly influencerModel: Model<Influencer>,
         @InjectModel(ProposalCampaign.name)
@@ -568,6 +569,9 @@ export class MigrationsService {
                             verifyCampaign,
                             statusCampaign,
                             schemaVersion: 2,
+                            adminMeta: {
+                                reportSent: statusCampaign === CampaignStatusEnum.completed,
+                            },
                         },
                     },
                     {

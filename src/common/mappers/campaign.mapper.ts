@@ -1,5 +1,5 @@
 import {
-    CampaignStatusEnum, ICampaignAccount,
+    CampaignStatusEnum, IAdminCampaignForList, ICampaignAccount,
     ICampaignDetails,
     IDetailedSelectedContent, IProposalCampaign, IProposalOption
 } from "../types/client/campaign.types";
@@ -17,6 +17,7 @@ import {safeParseToNumber} from "../utils/base.util";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {CampaignAccountDto, CampaignDetailsDto} from "../../modules/campaigns/dto/get-campaigns.dto";
 import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
+import {AdminCampaignForListDto} from "../../modules/admin/dto/campaigns/admin-campaigns.dto";
 
 // export const mapToDetailedDraftCampaignDto = (draft: DraftCampaign): DetailedDraftCampaignDto => {
 //     return {
@@ -296,4 +297,31 @@ export const mapToIProposalOption = (campaignOption: ProposalCampaignOption): IP
       addedAccounts: campaignOption.addedAccounts.map((acc: ProposalCampaignAccount): ICampaignAccount => mapToICampaignAccount(acc)),
       campaignContent: campaignOption.campaignContent ?? [],
   }
+};
+
+// Map IAdminCampaignDetails read model to AdminCampaignForListDto
+export const mapToAdminCampaignForListDto = (
+    campaign: IAdminCampaignForList,
+): AdminCampaignForListDto => {
+    return {
+        campaignId: campaign._id.toString(),
+        socialMedia: campaign.socialMedia,
+        campaignName: campaign.campaignName,
+        creatorRole: campaign.creatorRole,
+        creatorName: campaign.creatorName,
+        followers: campaign.totalFollowers,
+        cost: campaign.cost !== undefined ? Number(campaign.cost) : campaign.publicPrice,
+        salePrice: campaign.salePrice !== undefined ? Number(campaign.salePrice) : campaign.price,
+        publicPrice: campaign.publicPrice,
+        createdAt: formatDate(campaign.createdAt),
+        status: campaign.status,
+        reportSent: campaign.reportSent,
+        paymentStatus: campaign.paymentStatus,
+        invoiceId: campaign.invoiceId?.toString(),
+        shortInvoiceId: campaign.shortInvoiceId,
+        notes: campaign.notes,
+        affiliatePartner: campaign.affiliatePartner,
+        affiliateCommission: campaign.affiliateCommission,
+        affiliatePaid: campaign.affiliatePaid,
+    };
 };

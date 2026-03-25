@@ -13,10 +13,12 @@ import {
 import {InvoiceStatusEnum} from "../../../common/types/invoice.types";
 import {
     CampaignConfirmationEnum,
-    CampaignStatusEnum, ICampaignDetails,
+    CampaignStatusEnum, IAdminCampaignForList, ICampaignDetails,
     IDashboardCampaign
 } from "../../../common/types/client/campaign.types";
 import {mapSchemaToICampaignDetails} from "../../../common/mappers/campaign.mapper";
+import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
+import {GetAdminCampaignsListQueryDto} from "../../../modules/admin/dto/campaigns/admin-campaigns.dto";
 
 // Interface for campaign repository
 export interface ICampaignRepository {
@@ -46,6 +48,24 @@ export interface ICampaignRepository {
 
     // Check if social account still in campaign
     checkIfAccountStillInCampaign(campaignId: string, addedAccountsId: string): Promise<boolean>;
+
+    // Aggregation for fetching ongoing campaigns for admin panel
+    getOngoingCampaignsForAdmin(
+        query: GetAdminCampaignsListQueryDto | SearchQueryDto,
+        take: number
+    ): Promise<{
+        items: IAdminCampaignForList[];
+        total: number;
+    }>
+
+    // Aggregation for fetching completed campaigns for admin panel
+    getCompletedCampaignsForAdmin(
+        query: GetAdminCampaignsListQueryDto | SearchQueryDto,
+        take: number
+    ): Promise<{
+        items: IAdminCampaignForList[];
+        total: number;
+    }>
 }
 
 @Injectable()
@@ -253,5 +273,225 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
         }
 
         return !!exists;
+    }
+
+    async getOngoingCampaignsForAdmin(
+        query: GetAdminCampaignsListQueryDto | SearchQueryDto,
+        take: number,
+    ): Promise<{
+        items: IAdminCampaignForList[];
+        total: number;
+    }> {
+        const rawSearch = (query as any).search?.trim();
+
+        const escapedSearch = rawSearch
+            ? rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            : null;
+
+        // match stage for search
+        const matchStage: PipelineStage.Match | null = escapedSearch
+            ? {
+                $match: {
+                    campaignName: { $regex: escapedSearch, $options: 'i' },
+                },
+            }
+            : null;
+
+        // match stage for status
+        const statusMatchStage: PipelineStage.Match | null = Object.values(CampaignStatusEnum).includes((query as any).status) ?
+            {
+                $match: {
+                    statusCampaign: (query as any).status
+                }
+            }
+            : null;
+
+        const basePipeline: PipelineStage[] = [
+            ...(matchStage ? [matchStage] : []),
+            ...(statusMatchStage ? [statusMatchStage] : []),
+
+            { $sort: { createdAt: -1, _id: -1 } },
+            { $limit: take },
+
+            {
+                $lookup: {
+                    from: 'clients',
+                    let: { clientId: '$clientId' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $eq: ['$_id', '$$clientId'],
+                                },
+                            },
+                        },
+                        {
+                            $project: {
+                                _id: 1,
+                                firstName: 1,
+                                role: 1,
+                            },
+                        },
+                    ],
+                    as: 'client',
+                },
+            },
+            {
+                $unwind: {
+                    path: '$client',
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $project: {
+                    _id: 1,
+                    socialMedia: 1,
+                    campaignName: 1,
+                    creatorRole: '$client.role',
+                    creatorName: '$client.firstName',
+                    totalFollowers: 1,
+                    price: 1,
+                    publicPrice: 1,
+                    createdAt: 1,
+                    status: '$statusCampaign',
+                    reportSent: { $ifNull: ['$adminMeta.reportSent', false] },
+                    paymentStatus: 1,
+                    invoiceId: 1,
+                    shortInvoiceId: 1,
+                    notes: '$adminMeta.notes',
+                    affiliatePartner: '$adminMeta.affiliatePartner',
+                    affiliateCommission: '$adminMeta.affiliateCommission',
+                    affiliatePaid: '$adminMeta.affiliatePaid',
+                },
+            },
+        ];
+
+        const totalPipeline: PipelineStage[] = [
+            ...(matchStage ? [matchStage] : []),
+            ...(statusMatchStage ? [statusMatchStage] : []),
+            { $count: 'total' },
+        ];
+
+        const [items, totalResult] = await Promise.all([
+            this.campaignModel.aggregate<IAdminCampaignForList>(basePipeline),
+            this.campaignModel.aggregate<{ total: number }>(totalPipeline),
+        ]);
+
+        const total = totalResult[0]?.total ?? 0;
+
+        return {
+            items,
+            total,
+        };
+    }
+
+    async getCompletedCampaignsForAdmin(
+        query: GetAdminCampaignsListQueryDto | SearchQueryDto,
+        take: number,
+    ): Promise<{
+        items: IAdminCampaignForList[];
+        total: number;
+    }> {
+        const rawSearch = (query as any).search?.trim();
+
+        const escapedSearch = rawSearch
+            ? rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            : null;
+
+        // match stage for search
+        const matchStage: PipelineStage.Match | null = escapedSearch
+            ? {
+                $match: {
+                    campaignName: { $regex: escapedSearch, $options: 'i' },
+                },
+            }
+            : null;
+
+        // match stage for status
+        const statusMatchStage: PipelineStage.Match | null = Object.values(CampaignStatusEnum).includes((query as any).status) ?
+            {
+                $match: {
+                    statusCampaign: (query as any).status
+                }
+            }
+            : null;
+
+        const basePipeline: PipelineStage[] = [
+            ...(matchStage ? [matchStage] : []),
+            ...(statusMatchStage ? [statusMatchStage] : []),
+
+            { $sort: { createdAt: -1, _id: -1 } },
+            { $limit: take },
+
+            {
+                $lookup: {
+                    from: 'clients',
+                    let: { clientId: '$clientId' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $eq: ['$_id', '$$clientId'],
+                                },
+                            },
+                        },
+                        {
+                            $project: {
+                                _id: 1,
+                                firstName: 1,
+                                role: 1,
+                            },
+                        },
+                    ],
+                    as: 'client',
+                },
+            },
+            {
+                $unwind: {
+                    path: '$client',
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $project: {
+                    _id: 1,
+                    socialMedia: 1,
+                    campaignName: 1,
+                    creatorRole: '$client.role',
+                    creatorName: '$client.firstName',
+                    totalFollowers: 1,
+                    price: 1,
+                    publicPrice: 1,
+                    createdAt: 1,
+                    status: '$statusCampaign',
+                    reportSent: { $ifNull: ['$adminMeta.reportSent', false] },
+                    paymentStatus: 1,
+                    invoiceId: 1,
+                    shortInvoiceId: 1,
+                    notes: '$adminMeta.notes',
+                    affiliatePartner: '$adminMeta.affiliatePartner',
+                    affiliateCommission: '$adminMeta.affiliateCommission',
+                    affiliatePaid: '$adminMeta.affiliatePaid',
+                },
+            },
+        ];
+
+        const totalPipeline: PipelineStage[] = [
+            ...(matchStage ? [matchStage] : []),
+            ...(statusMatchStage ? [statusMatchStage] : []),
+            { $count: 'total' },
+        ];
+
+        const [items, totalResult] = await Promise.all([
+            this.completedCampaignModel.aggregate<IAdminCampaignForList>(basePipeline),
+            this.completedCampaignModel.aggregate<{ total: number }>(totalPipeline),
+        ]);
+
+        const total = totalResult[0]?.total ?? 0;
+
+        return {
+            items,
+            total,
+        };
     }
 }

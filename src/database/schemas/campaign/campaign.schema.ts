@@ -175,6 +175,26 @@ export class CampaignContentItem {
 
 export const CampaignContentItemSchema = SchemaFactory.createForClass(CampaignContentItem);
 
+@Schema({_id: false, timestamps: false})
+export class CampaignAdminMeta {
+    @Prop({ required: false, type: Boolean, default: false })
+    reportSent?: boolean;
+
+    @Prop({ required: false, type: String })
+    notes?: string;
+
+    @Prop({ required: false, type: String })
+    affiliatePartner?: string;
+
+    @Prop({ required: false, type: String })
+    affiliateCommission?: string;
+
+    @Prop({ required: false, type: String })
+    affiliatePaid?: string;
+}
+
+export const CampaignAdminMetaSchema = SchemaFactory.createForClass(CampaignAdminMeta);
+
 @Schema({timestamps: true})
 export class Campaign {
     @Prop({type: Types.ObjectId, required: true})
@@ -233,6 +253,9 @@ export class Campaign {
 
     @Prop({required: false, type: Boolean})
     canEdit?: boolean;
+
+    @Prop({ required: false, type: CampaignAdminMetaSchema })
+    adminMeta?: CampaignAdminMeta;
 
     createdAt?: Date;
     updatedAt?: Date;

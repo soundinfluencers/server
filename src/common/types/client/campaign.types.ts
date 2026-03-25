@@ -221,7 +221,7 @@ export interface IProposalOption {
 }
 
 // Interface for campaign from admin campaigns list
-export interface IAdminListCampaign {
+export interface IAdminCampaignForList {
     _id: Types.ObjectId;
     socialMedia: SocialMediaType | 'multipromo';
     campaignName: string;
@@ -232,6 +232,16 @@ export interface IAdminListCampaign {
     publicPrice: number;
     createdAt: Date;
     status: CampaignStatusEnum;
+    reportSent: boolean;
+    paymentStatus: CampaignPaymentStatusEnum;
+    invoiceId: Types.ObjectId; // _id of invoice that connected to this campaign
+    shortInvoiceId: string;
+    notes?: string; // notes for this campaign
+    affiliatePartner?: string; // input for admin
+    affiliateCommission?: string; // input for admin
+    cost?: string; // input for admin
+    salePrice?: string; // input for admin
+    affiliatePaid?: string; // input for admin
 }
 
 // Read model for admin campaign details page
