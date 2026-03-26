@@ -3,14 +3,25 @@ import {SocialMediaEnum, SocialMediaType} from "../../../../common/types/social-
 import {Role} from "../../../../common/types/user.types";
 import {PaginatedListResponseDto} from "../../../../common/dto/responses/paginated-list-response.dto";
 import {SearchListResponseDto} from "../../../../common/dto/responses/search-response.dto";
-import {CampaignPaymentStatusEnum, CampaignStatusEnum} from "../../../../common/types/client/campaign.types";
+import {
+    AdminCampaignStatusEnum,
+    CampaignPaymentStatusEnum,
+} from "../../../../common/types/client/campaign.types";
 import {PaginationQueryDto} from "../../../../common/dto/requests/pagination-query.dto";
-import {IsEnum} from "class-validator";
+import {IsEnum, IsOptional} from "class-validator";
+
+export enum AdminCampaignsListStatusEnum {
+    proposal = 'proposal',
+    pending = 'pending',
+    distributing = 'distributing',
+    completed = 'completed',
+}
 
 export class GetAdminCampaignsListQueryDto extends PaginationQueryDto {
-    @ApiPropertyOptional({ type: String, enum: CampaignStatusEnum })
-    @IsEnum(CampaignStatusEnum)
-    status?: CampaignStatusEnum;
+    @ApiPropertyOptional({ type: String, enum: AdminCampaignsListStatusEnum })
+    @IsOptional()
+    @IsEnum(AdminCampaignsListStatusEnum)
+    status?: AdminCampaignsListStatusEnum;
 }
 
 // DTO with campaign item for admin campaigns list
@@ -45,8 +56,11 @@ export class AdminCampaignForListDto {
     @ApiProperty({ type: String })
     createdAt: string;
 
-    @ApiProperty({ type: String, enum: CampaignStatusEnum })
-    status: CampaignStatusEnum;
+    @ApiProperty({ type: String, enum: AdminCampaignStatusEnum })
+    status: AdminCampaignStatusEnum;
+
+    @ApiProperty({ type: String, enum: AdminCampaignStatusEnum })
+    statusLabel: AdminCampaignStatusEnum; // todo: get more info about statuses
 
     @ApiProperty({ type: Boolean })
     reportSent: boolean;

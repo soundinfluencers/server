@@ -7,12 +7,11 @@ import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {AdminCampaignsService} from "../services/admin-campaigns.service";
 import {
     AdminCampaignSearchResponseDto,
-    AdminCampaignsListResponseDto,
+    AdminCampaignsListResponseDto, AdminCampaignsListStatusEnum,
     GetAdminCampaignsListQueryDto
 } from "../dto/campaigns/admin-campaigns.dto";
 import {ApiResponseDtoOneOf} from "../../../common/decorators/api/response/api-response-one-of.decorator";
 import {OneOfQueryPipe} from "../../../common/pipes/one-of-query.pipe";
-import {CampaignStatusEnum} from "../../../common/types/client/campaign.types";
 
 @Auth()
 @Roles(Role.admin)
@@ -46,7 +45,7 @@ export class AdminCampaignsController {
         name: 'status',
         required: false,
         type: String,
-        enum: CampaignStatusEnum,
+        enum: AdminCampaignsListStatusEnum,
         description: 'Status of campaign',
     })
     @Get()

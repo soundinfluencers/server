@@ -315,6 +315,7 @@ export const mapToAdminCampaignForListDto = (
         publicPrice: campaign.publicPrice,
         createdAt: formatDate(campaign.createdAt),
         status: campaign.status,
+        statusLabel: campaign.status,
         reportSent: campaign.reportSent,
         paymentStatus: campaign.paymentStatus,
         invoiceId: campaign.invoiceId?.toString(),

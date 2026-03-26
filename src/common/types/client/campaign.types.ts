@@ -220,6 +220,17 @@ export interface IProposalOption {
     campaignContent: ICampaignContent[];
 }
 
+// Enum with admin campaigns list statuses
+export enum AdminCampaignStatusEnum {
+    underReview = 'under_review',
+    pending = 'pending',
+    distributing = 'distributing',
+    completed = 'completed',
+    declined = 'declined',
+    proposal = 'proposal',
+}
+
+
 // Interface for campaign from admin campaigns list
 export interface IAdminCampaignForList {
     _id: Types.ObjectId;
@@ -231,7 +242,7 @@ export interface IAdminCampaignForList {
     price: number;
     publicPrice: number;
     createdAt: Date;
-    status: CampaignStatusEnum;
+    status: AdminCampaignStatusEnum;
     reportSent: boolean;
     paymentStatus: CampaignPaymentStatusEnum;
     invoiceId: Types.ObjectId; // _id of invoice that connected to this campaign
