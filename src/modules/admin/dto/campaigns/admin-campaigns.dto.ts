@@ -41,32 +41,29 @@ export class AdminCampaignForListDto {
     @ApiProperty({ type: String })
     creatorName: string;
 
-    @ApiProperty({ type: Number })
-    followers: number;
+    @ApiPropertyOptional({ type: Number })
+    followers?: number;
 
-    @ApiProperty({ type: Number })
-    cost: number;
+    @ApiPropertyOptional({ type: Number })
+    cost?: number; // campaignPrice
 
-    @ApiProperty({ type: Number })
-    salePrice: number;
-
-    @ApiProperty({ type: Number })
-    publicPrice: number;
+    @ApiPropertyOptional({ type: Number })
+    salePrice?: number; // sum of accounts public price field
 
     @ApiProperty({ type: String })
-    createdAt: string;
+    date: string;
+
+    @ApiProperty({ type: String, enum: AdminCampaignsListStatusEnum })
+    status: AdminCampaignsListStatusEnum;
 
     @ApiProperty({ type: String, enum: AdminCampaignStatusEnum })
-    status: AdminCampaignStatusEnum;
-
-    @ApiProperty({ type: String, enum: AdminCampaignStatusEnum })
-    statusLabel: AdminCampaignStatusEnum; // todo: get more info about statuses
+    statusLabel: AdminCampaignStatusEnum;
 
     @ApiProperty({ type: Boolean })
     reportSent: boolean;
 
-    @ApiProperty({ type: String, enum: CampaignPaymentStatusEnum })
-    paymentStatus: CampaignPaymentStatusEnum;
+    @ApiPropertyOptional({ type: String, enum: CampaignPaymentStatusEnum })
+    paymentStatus?: CampaignPaymentStatusEnum;
 
     @ApiProperty({ type: String })
     invoiceId: string;

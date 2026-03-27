@@ -1,20 +1,22 @@
 import {BaseRepository} from "../base.repository";
 import {Injectable} from "@nestjs/common";
 import {InjectModel} from "@nestjs/mongoose";
-import {Model, PipelineStage, Query, Types} from "mongoose";
-import {RepoOptions} from "../../types/repo.types";
-import {applyQueryOptions} from "../../utils/apply-query-options.util";
+import {Model, PipelineStage, Types} from "mongoose";
 import {ProposalCampaign} from "../../schemas/campaign/proposal-campaign.schema";
 import {Role} from "../../../common/types/user.types";
 import {
-    CampaignConfirmationEnum,
-    CampaignStatusEnum, IAdminCampaignForList,
+    AdminCampaignStatusEnum,
+    CampaignAdminMetaEnum,
+    IAdminCampaignForList,
     IDashboardCampaign
 } from "../../../common/types/client/campaign.types";
-import {Campaign} from "../../schemas/campaign/campaign.schema";
 import {ProposalCampaignOption} from "../../schemas/campaign/proposal-campaign-option.schema";
-import {GetAdminCampaignsListQueryDto} from "../../../modules/admin/dto/campaigns/admin-campaigns.dto";
+import {
+    AdminCampaignsListStatusEnum,
+    GetAdminCampaignsListQueryDto
+} from "../../../modules/admin/dto/campaigns/admin-campaigns.dto";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
+import {ObjId} from "../../../common/types/base.types";
 
 // Interface for proposal campaigns repository
 interface IProposalCampaignRepository {
@@ -33,6 +35,13 @@ interface IProposalCampaignRepository {
         items: IAdminCampaignForList[];
         total: number;
     }>
+
+    // Update one of admin meta fields and returns IAdminCampaignForList
+    updateAdminMetaField(
+        campaignId: string,
+        field: CampaignAdminMetaEnum,
+        value: string | boolean,
+    ): Promise<ProposalCampaign | null>;
 }
 
 @Injectable()
@@ -141,11 +150,11 @@ export class ProposalCampaignRepository extends BaseRepository<ProposalCampaign>
                     campaignName: 1,
                     creatorRole: 1,
                     creatorName: '$client.firstName',
-                    totalFollowers: 1,
                     price: 1,
                     publicPrice: 1,
                     createdAt: 1,
-                    status: 'proposal',
+                    status: AdminCampaignsListStatusEnum.proposal,
+                    statusLabel: AdminCampaignStatusEnum.proposal,
                     reportSent: { $ifNull: ['$adminMeta.reportSent', false] },
                     paymentStatus: 1,
                     invoiceId: 1,
@@ -174,5 +183,23 @@ export class ProposalCampaignRepository extends BaseRepository<ProposalCampaign>
             items,
             total,
         };
+    }
+
+    async updateAdminMetaField(
+        campaignId: string,
+        field: CampaignAdminMetaEnum,
+        value: string | boolean,
+    ): Promise<ProposalCampaign | null> {
+        return this.proposalCampaignModel
+            .findByIdAndUpdate(
+                new ObjId(campaignId),
+                {
+                    $set: {
+                        [`adminMeta.${field}`]: value,
+                    },
+                },
+                { new: true },
+            )
+            .lean();
     }
 }

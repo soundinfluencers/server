@@ -4,6 +4,7 @@ import {Types} from "mongoose";
 import {InfluencerConfirmationStatusEnum, InfluencerPromoClosedStatusEnum} from "../influencer/promo.types";
 import {CampaignContentMediaCache} from "../../../database/schemas/campaign/campaign.schema";
 import {Role} from "../user.types";
+import {AdminCampaignsListStatusEnum} from "../../../modules/admin/dto/campaigns/admin-campaigns.dto";
 
 // Campaign verify status
 export enum CampaignConfirmationEnum {
@@ -230,6 +231,14 @@ export enum AdminCampaignStatusEnum {
     proposal = 'proposal',
 }
 
+// Enum with campaign's admin meta fields
+export enum CampaignAdminMetaEnum {
+    reportSent = 'reportSent',
+    notes = 'notes',
+    affiliatePartner = 'affiliatePartner',
+    affiliateCommission = 'affiliateCommission',
+    affiliatePaid = 'affiliatePaid',
+}
 
 // Interface for campaign from admin campaigns list
 export interface IAdminCampaignForList {
@@ -242,7 +251,8 @@ export interface IAdminCampaignForList {
     price: number;
     publicPrice: number;
     createdAt: Date;
-    status: AdminCampaignStatusEnum;
+    status: AdminCampaignsListStatusEnum;
+    statusLabel: AdminCampaignStatusEnum;
     reportSent: boolean;
     paymentStatus: CampaignPaymentStatusEnum;
     invoiceId: Types.ObjectId; // _id of invoice that connected to this campaign
@@ -250,8 +260,6 @@ export interface IAdminCampaignForList {
     notes?: string; // notes for this campaign
     affiliatePartner?: string; // input for admin
     affiliateCommission?: string; // input for admin
-    cost?: string; // input for admin
-    salePrice?: string; // input for admin
     affiliatePaid?: string; // input for admin
 }
 

@@ -1,7 +1,12 @@
 import {
-    CampaignStatusEnum, IAdminCampaignForList, ICampaignAccount,
+    AdminCampaignStatusEnum,
+    CampaignStatusEnum,
+    IAdminCampaignForList,
+    ICampaignAccount,
     ICampaignDetails,
-    IDetailedSelectedContent, IProposalCampaign, IProposalOption
+    IDetailedSelectedContent,
+    IProposalCampaign,
+    IProposalOption
 } from "../types/client/campaign.types";
 import {Campaign, CampaignAccount, CampaignContentItem} from "../../database/schemas/campaign/campaign.schema";
 import {
@@ -17,7 +22,11 @@ import {safeParseToNumber} from "../utils/base.util";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {CampaignAccountDto, CampaignDetailsDto} from "../../modules/campaigns/dto/get-campaigns.dto";
 import {ProposalCampaign} from "../../database/schemas/campaign/proposal-campaign.schema";
-import {AdminCampaignForListDto} from "../../modules/admin/dto/campaigns/admin-campaigns.dto";
+import {
+    AdminCampaignForListDto,
+    AdminCampaignsListStatusEnum
+} from "../../modules/admin/dto/campaigns/admin-campaigns.dto";
+import {Role} from "../types/user.types";
 
 // export const mapToDetailedDraftCampaignDto = (draft: DraftCampaign): DetailedDraftCampaignDto => {
 //     return {
@@ -299,7 +308,59 @@ export const mapToIProposalOption = (campaignOption: ProposalCampaignOption): IP
   }
 };
 
-// Map IAdminCampaignDetails read model to AdminCampaignForListDto
+// Map Campaign mongoose schema to AdminCampaignForListDto
+export const mapIAdminCampaignForListToDto = (
+    payload: {
+        campaign: Campaign | CompletedCampaign | ProposalCampaign,
+        creatorInfo: {
+            name: string,
+            role: Role
+        },
+        invoiceInfo: {
+            invoiceId: Types.ObjectId,
+            shortInvoiceId: string,
+        }
+    }
+): AdminCampaignForListDto => {
+    const { campaign, creatorInfo, invoiceInfo } = payload;
+
+    const isProposal = 'creatorId' in campaign;
+
+    let totalFollowers: number = 0;
+    let cost: number = 0;
+    let salePrice: number = isProposal ? 0 : campaign.campaignPrice;
+
+    if (!isProposal) {
+        campaign?.addedAccounts?.map((acc: CampaignAccount) => {
+            totalFollowers += acc.followers;
+            cost += acc.price;
+        })
+    }
+
+    return {
+        campaignId: campaign._id.toString(),
+        socialMedia: campaign.socialMedia,
+        campaignName: campaign.campaignName,
+        creatorRole: creatorInfo.role,
+        creatorName: creatorInfo.name,
+        followers: totalFollowers,
+        cost: cost,
+        salePrice: salePrice,
+        date: formatDate(campaign.createdAt),
+        status: isProposal ? AdminCampaignsListStatusEnum.proposal : campaign.statusCampaign as unknown as AdminCampaignsListStatusEnum,
+        statusLabel: isProposal ? AdminCampaignStatusEnum.proposal : campaign.statusCampaign as unknown as AdminCampaignStatusEnum,
+        reportSent: campaign?.adminMeta?.reportSent ?? false,
+        paymentStatus: isProposal ? undefined : campaign.paymentStatus,
+        invoiceId: invoiceInfo.invoiceId.toString(),
+        shortInvoiceId: invoiceInfo.shortInvoiceId,
+        ...campaign?.adminMeta?.notes ? { notes: campaign.adminMeta.notes } : null,
+        ...campaign?.adminMeta?.affiliatePartner ? { affiliatePartner: campaign.adminMeta.affiliatePartner } : null,
+        ...campaign?.adminMeta?.affiliateCommission ? { affiliateCommission: campaign.adminMeta.affiliateCommission } : null,
+        ...campaign?.adminMeta?.affiliatePaid ? { affiliatePaid: campaign.adminMeta.affiliatePaid } : null,
+    }
+}
+
+// Map IAdminCampaignForList read model to AdminCampaignForListDto
 export const mapToAdminCampaignForListDto = (
     campaign: IAdminCampaignForList,
 ): AdminCampaignForListDto => {
@@ -309,15 +370,14 @@ export const mapToAdminCampaignForListDto = (
         campaignName: campaign.campaignName,
         creatorRole: campaign.creatorRole,
         creatorName: campaign.creatorName,
-        followers: campaign.totalFollowers,
-        cost: campaign.cost !== undefined ? Number(campaign.cost) : campaign.publicPrice,
-        salePrice: campaign.salePrice !== undefined ? Number(campaign.salePrice) : campaign.price,
-        publicPrice: campaign.publicPrice,
-        createdAt: formatDate(campaign.createdAt),
+        ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? { followers: campaign.totalFollowers } : null,
+        ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? { cost: campaign.price } : null,
+        ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? { salePrice: campaign.publicPrice } : null,
+        date: formatDate(campaign.createdAt),
         status: campaign.status,
-        statusLabel: campaign.status,
+        statusLabel: campaign.statusLabel,
         reportSent: campaign.reportSent,
-        paymentStatus: campaign.paymentStatus,
+        ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? { paymentStatus: campaign.paymentStatus } : null,
         invoiceId: campaign.invoiceId?.toString(),
         shortInvoiceId: campaign.shortInvoiceId,
         notes: campaign.notes,

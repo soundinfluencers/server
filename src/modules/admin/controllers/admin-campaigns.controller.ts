@@ -1,17 +1,20 @@
-import {Controller, Get, Query} from '@nestjs/common';
-import {ApiOperation, ApiQuery, ApiTags} from "@nestjs/swagger";
+import {Body, Controller, Get, Param, ParseEnumPipe, Patch, Query} from '@nestjs/common';
+import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {Roles} from "../../../common/decorators/roles.decorator";
 import {Role} from "../../../common/types/user.types";
 import {Auth} from "../../../common/decorators/auth.decorator";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {AdminCampaignsService} from "../services/admin-campaigns.service";
 import {
+    AdminCampaignForListDto,
     AdminCampaignSearchResponseDto,
     AdminCampaignsListResponseDto, AdminCampaignsListStatusEnum,
     GetAdminCampaignsListQueryDto
 } from "../dto/campaigns/admin-campaigns.dto";
 import {ApiResponseDtoOneOf} from "../../../common/decorators/api/response/api-response-one-of.decorator";
 import {OneOfQueryPipe} from "../../../common/pipes/one-of-query.pipe";
+import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
+import {UpdateAdminMetaCampaignDto} from "../dto/campaigns/admin-update-campaign.dto";
 
 @Auth()
 @Roles(Role.admin)
@@ -21,7 +24,7 @@ export class AdminCampaignsController {
     constructor(private readonly adminService: AdminCampaignsService) {
     }
 
-    @ApiOperation({ summary: "Fetch paginated campaigns list or search them" })
+    @ApiOperation({summary: "Fetch paginated campaigns list or search them"})
     @ApiResponseDtoOneOf([AdminCampaignsListResponseDto, AdminCampaignSearchResponseDto])
     @ApiQuery({
         name: 'search',
@@ -68,5 +71,31 @@ export class AdminCampaignsController {
         }
 
         return this.adminService.getCampaignsList(query);
+    }
+
+
+    @ApiOperation({summary: "Update campaign's meta field."})
+    @ApiResponseDto(AdminCampaignForListDto)
+    @ApiParam({
+        name: "status",
+        type: String,
+        required: true,
+        enum: AdminCampaignsListStatusEnum,
+    })
+    @ApiParam({
+        name: "campaignId",
+        type: String,
+        required: true,
+    })
+    @Patch(':status/:campaignId')
+    updateAdminMeta(
+        @Body() data: UpdateAdminMetaCampaignDto,
+        @Param(
+            'status',
+            new ParseEnumPipe(AdminCampaignsListStatusEnum)
+        ) status: AdminCampaignsListStatusEnum,
+        @Param('campaignId') campaignId: string,
+    ): Promise<AdminCampaignForListDto> {
+        return this.adminService.updateMeta(data, status, campaignId);
     }
 }

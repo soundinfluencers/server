@@ -1,7 +1,7 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, {Types} from 'mongoose';
 import {
-    CampaignAccount,
+    CampaignAccount, CampaignAdminMeta, CampaignAdminMetaSchema,
     CampaignContentItem,
     CampaignContentItemSchema,
 } from "./campaign.schema";
@@ -33,6 +33,9 @@ export class ProposalCampaign {
 
     @Prop({ required: false, type: [String] })
     hiddenColumns?: string[];
+
+    @Prop({ required: false, type: CampaignAdminMetaSchema })
+    adminMeta?: CampaignAdminMeta;
 
     readonly createdAt?: Date;
     readonly updatedAt?: Date;

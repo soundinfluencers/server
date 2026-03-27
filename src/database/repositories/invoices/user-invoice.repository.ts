@@ -17,6 +17,8 @@ import {
 } from "../../../common/mappers/invoice.mapper";
 import {ObjId} from "../../../common/types/base.types";
 import {UpdateClientInvoiceDto} from "../../../modules/invoice/dto/update-invoice.dto";
+import {RepoOptions} from "../../types/repo.types";
+import {applyQueryOptions} from "../../utils/apply-query-options.util";
 
 // Interface for UserInvoiceRepository
 export interface IUserInvoiceRepository {
@@ -31,6 +33,9 @@ export interface IUserInvoiceRepository {
 
     // Updates client's invoice fields. Finds invoice by _id and userId.
     updateClientInvoiceById(invoiceId: string, payload: UpdateClientInvoiceDto): Promise<ClientInvoiceDocument | null>;
+
+    // Returns one invoice that was found by campaignId
+    findInvoiceByCampaignId(campaignId: string): Promise<UserInvoiceDocument | null>;
 }
 
 @Injectable()
@@ -73,9 +78,8 @@ export class UserInvoiceRepository extends BaseRepository<UserInvoiceDocument> i
     async findInvoiceById(
         invoiceId: string
     ): Promise<ClientInvoiceDocument | InfluencerInvoiceDocument | null> {
-        const invoice = await this.userInvoiceModel.findById(new ObjId(invoiceId)).exec() as unknown as
+        return await this.userInvoiceModel.findById(new ObjId(invoiceId)).exec() as unknown as
             ClientInvoiceDocument | InfluencerInvoiceDocument | null;
-        return invoice;
     }
 
     async updateClientInvoiceById(
@@ -87,5 +91,20 @@ export class UserInvoiceRepository extends BaseRepository<UserInvoiceDocument> i
             { $set: payload },
             { new: true, runValidators: true }
         ).exec();
+    }
+
+    findInvoiceByCampaignId(
+        campaignId: string,
+        options?: RepoOptions & { select?: string[] },
+    ): Promise<UserInvoiceDocument | null> {
+        const query = this.userInvoiceModel.findOne({
+            campaignId: new ObjId(campaignId),
+        });
+
+        if (options?.select?.length) {
+            query.select(options.select.join(' '));
+        }
+
+        return applyQueryOptions(query, options);
     }
 }
