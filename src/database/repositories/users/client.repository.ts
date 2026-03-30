@@ -22,22 +22,22 @@ export class ClientRepository extends BaseRepository<Client> {
     // todo: for return create & use READ MODELS / MAP TO DTO instead of mongoose objects. repositories should return read models and
 
     async findClientByFirstName(firstName: string, options?: RepoOptions): Promise<Client> {
-        const query = this.clientModel.findOne({ firstName });
+        const query = this.clientModel.findOne({firstName});
         return applyQueryOptions(query, options);
     }
 
     async findClientByEmail(email: string, options?: RepoOptions): Promise<Client> {
-        const query = this.clientModel.findOne({ email });
+        const query = this.clientModel.findOne({email});
         return applyQueryOptions(query, options);
     }
 
     async findClientByInstagramUsername(username: string, options?: RepoOptions): Promise<Client> {
-        const query = this.clientModel.findOne({ instagramUsername: username });
+        const query = this.clientModel.findOne({instagramUsername: username});
         return applyQueryOptions(query, options);
     }
 
     async findClientByPhone(phone: string, options?: RepoOptions): Promise<Client> {
-        const query = this.clientModel.findOne({ phone })
+        const query = this.clientModel.findOne({phone})
         return applyQueryOptions(query, options);
     }
 
@@ -56,25 +56,25 @@ export class ClientRepository extends BaseRepository<Client> {
 
         const [items, totalResult] = await Promise.all([
             this.clientModel.aggregate<IAdminClientListItem>([
-                { $sort: { createdAt: -1 } },
-                { $skip: skip },
-                { $limit: limit },
+                {$sort: {createdAt: -1}},
+                {$skip: skip},
+                {$limit: limit},
 
                 {
                     $lookup: {
                         from: 'campaigns',
-                        let: { clientId: '$_id' },
+                        let: {clientId: '$_id'},
                         pipeline: [
                             {
                                 $match: {
-                                    $expr: { $eq: ['$clientId', '$$clientId'] },
+                                    $expr: {$eq: ['$clientId', '$$clientId']},
                                 },
                             },
-                            { $sort: { createdAt: -1 } },
+                            {$sort: {createdAt: -1}},
                             {
                                 $group: {
                                     _id: null,
-                                    campaignsActive: { $sum: 1 },
+                                    campaignsActive: {$sum: 1},
                                 },
                             },
                         ],
@@ -85,17 +85,17 @@ export class ClientRepository extends BaseRepository<Client> {
                 {
                     $lookup: {
                         from: 'completedcampaigns',
-                        let: { clientId: '$_id' },
+                        let: {clientId: '$_id'},
                         pipeline: [
                             {
                                 $match: {
-                                    $expr: { $eq: ['$clientId', '$$clientId'] },
+                                    $expr: {$eq: ['$clientId', '$$clientId']},
                                 },
                             },
                             {
                                 $group: {
                                     _id: null,
-                                    campaignsCompleted: { $sum: 1 },
+                                    campaignsCompleted: {$sum: 1},
                                 },
                             },
                         ],
@@ -107,13 +107,13 @@ export class ClientRepository extends BaseRepository<Client> {
                     $addFields: {
                         campaignsActive: {
                             $ifNull: [
-                                { $arrayElemAt: ['$activeCampaignStats.campaignsActive', 0] },
+                                {$arrayElemAt: ['$activeCampaignStats.campaignsActive', 0]},
                                 0,
                             ],
                         },
                         campaignsCompleted: {
                             $ifNull: [
-                                { $arrayElemAt: ['$completedCampaignStats.campaignsCompleted', 0] },
+                                {$arrayElemAt: ['$completedCampaignStats.campaignsCompleted', 0]},
                                 0,
                             ],
                         },
@@ -135,7 +135,7 @@ export class ClientRepository extends BaseRepository<Client> {
                     },
                 },
             ]),
-            this.clientModel.aggregate([{ $count: 'total' }]),
+            this.clientModel.aggregate([{$count: 'total'}]),
         ]);
 
         const total = totalResult[0]?.total ?? 0;
@@ -167,11 +167,11 @@ export class ClientRepository extends BaseRepository<Client> {
             ? {
                 $match: {
                     $or: [
-                        { firstName: { $regex: escapedSearch, $options: 'i' } },
-                        { lastName: { $regex: escapedSearch, $options: 'i' } },
-                        { email: { $regex: escapedSearch, $options: 'i' } },
-                        { phone: { $regex: escapedSearch, $options: 'i' } },
-                        { company: { $regex: escapedSearch, $options: 'i' } },
+                        {firstName: {$regex: escapedSearch, $options: 'i'}},
+                        {lastName: {$regex: escapedSearch, $options: 'i'}},
+                        {email: {$regex: escapedSearch, $options: 'i'}},
+                        {phone: {$regex: escapedSearch, $options: 'i'}},
+                        {company: {$regex: escapedSearch, $options: 'i'}},
                     ],
                 },
             }
@@ -180,24 +180,24 @@ export class ClientRepository extends BaseRepository<Client> {
         const basePipeline: PipelineStage[] = [
             ...(matchStage ? [matchStage] : []),
 
-            { $sort: { createdAt: -1 } },
-            { $limit: limit },
+            {$sort: {createdAt: -1}},
+            {$limit: limit},
 
             {
                 $lookup: {
                     from: 'campaigns',
-                    let: { clientId: '$_id' },
+                    let: {clientId: '$_id'},
                     pipeline: [
                         {
                             $match: {
-                                $expr: { $eq: ['$clientId', '$$clientId'] },
+                                $expr: {$eq: ['$clientId', '$$clientId']},
                             },
                         },
-                        { $sort: { createdAt: -1 } },
+                        {$sort: {createdAt: -1}},
                         {
                             $group: {
                                 _id: null,
-                                campaignsActive: { $sum: 1 },
+                                campaignsActive: {$sum: 1},
                             },
                         },
                     ],
@@ -208,17 +208,17 @@ export class ClientRepository extends BaseRepository<Client> {
             {
                 $lookup: {
                     from: 'completedcampaigns',
-                    let: { clientId: '$_id' },
+                    let: {clientId: '$_id'},
                     pipeline: [
                         {
                             $match: {
-                                $expr: { $eq: ['$clientId', '$$clientId'] },
+                                $expr: {$eq: ['$clientId', '$$clientId']},
                             },
                         },
                         {
                             $group: {
                                 _id: null,
-                                campaignsCompleted: { $sum: 1 },
+                                campaignsCompleted: {$sum: 1},
                             },
                         },
                     ],
@@ -230,13 +230,13 @@ export class ClientRepository extends BaseRepository<Client> {
                 $addFields: {
                     campaignsActive: {
                         $ifNull: [
-                            { $arrayElemAt: ['$activeCampaignStats.campaignsActive', 0] },
+                            {$arrayElemAt: ['$activeCampaignStats.campaignsActive', 0]},
                             0,
                         ],
                     },
                     campaignsCompleted: {
                         $ifNull: [
-                            { $arrayElemAt: ['$completedCampaignStats.campaignsCompleted', 0] },
+                            {$arrayElemAt: ['$completedCampaignStats.campaignsCompleted', 0]},
                             0,
                         ],
                     },
@@ -261,7 +261,7 @@ export class ClientRepository extends BaseRepository<Client> {
 
         const totalPipeline: PipelineStage[] = [
             ...(matchStage ? [matchStage] : []),
-            { $count: 'total' },
+            {$count: 'total'},
         ];
 
         const [items, totalResult] = await Promise.all([
@@ -284,20 +284,20 @@ export class ClientRepository extends BaseRepository<Client> {
         const _id = new ObjId(clientId);
 
         const basePipeline: PipelineStage[] = [
-            { $match: { _id: _id } },
+            {$match: {_id: _id}},
 
             {
                 $lookup: {
                     from: 'campaigns',
-                    let: { clientId: '$_id' },
+                    let: {clientId: '$_id'},
                     pipeline: [
                         {
                             $match: {
-                                $expr: { $eq: ['$clientId', '$$clientId'] },
+                                $expr: {$eq: ['$clientId', '$$clientId']},
                             },
                         },
-                        { $sort: { createdAt: -1, _id: -1 } },
-                        { $limit: 10 },
+                        {$sort: {createdAt: -1, _id: -1}},
+                        {$limit: 10},
                         {
                             $project: {
                                 _id: 1,
@@ -315,15 +315,15 @@ export class ClientRepository extends BaseRepository<Client> {
             {
                 $lookup: {
                     from: 'completedcampaigns',
-                    let: { clientId: '$_id' },
+                    let: {clientId: '$_id'},
                     pipeline: [
                         {
                             $match: {
-                                $expr: { $eq: ['$clientId', '$$clientId'] },
+                                $expr: {$eq: ['$clientId', '$$clientId']},
                             },
                         },
-                        { $sort: { createdAt: -1, _id: -1 } },
-                        { $limit: 10 },
+                        {$sort: {createdAt: -1, _id: -1}},
+                        {$limit: 10},
                         {
                             $project: {
                                 _id: 1,
@@ -350,6 +350,7 @@ export class ClientRepository extends BaseRepository<Client> {
                     isProposal: '$isProposalClient',
                     campaignsCompleted: 1,
                     campaignsActive: 1,
+                    internalNote: 1,
                 },
             }
         ]
@@ -366,5 +367,21 @@ export class ClientRepository extends BaseRepository<Client> {
             ...aggResult,
             latestCampaignName: latestCampaignName
         };
+    }
+
+    updateOneField(
+        clientId: string,
+        field: string,
+        value: any,
+    ) {
+        return this.clientModel.findByIdAndUpdate(
+            new ObjId(clientId),
+            {
+                $set: {
+                    [`${field}`]: value,
+                }
+            },
+            {new: true},
+        ).lean();
     }
 }

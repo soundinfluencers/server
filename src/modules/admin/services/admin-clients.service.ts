@@ -1,4 +1,4 @@
-import {Injectable, Logger} from '@nestjs/common';
+import {BadRequestException, Injectable, InternalServerErrorException, Logger} from '@nestjs/common';
 import {ClientRepository} from "../../../database/repositories/users/client.repository";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
 import {
@@ -9,6 +9,7 @@ import {
 import {IAdminClientListItem} from "../../../common/types/client/client.types";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {mapReadModelToAdminClientForListDto, mapToAdminDetailedClientDto} from "../../../common/mappers/client.mapper";
+import {AdminUpdateClientDto} from "../dto/clients/admin-update-client.dto";
 
 @Injectable()
 export class AdminClientsService {
@@ -37,8 +38,33 @@ export class AdminClientsService {
         }
     }
 
-    async getClientsDetails(clientId: string): Promise<AdminDetailedClientDto> {
+    async getClientDetails(clientId: string): Promise<AdminDetailedClientDto> {
         const clientDetails = await this.clientsRepository.getClientsDetailsForAdmin(clientId);
         return mapToAdminDetailedClientDto(clientDetails);
+    }
+
+    async updateClient(clientId: string, data: AdminUpdateClientDto): Promise<AdminDetailedClientDto> {
+        const entry = Object.entries(data).find(([, value]) => value !== undefined);
+
+        if (!entry) {
+            throw new BadRequestException('No field provided');
+        }
+        if (Object.keys(data).length > 1) {
+            throw new BadRequestException('You can only update one field');
+        }
+
+        const [field, value] = entry;
+
+        if (!['isProposalClient', 'internalNote'].includes(field)) {
+            throw new BadRequestException('Unknown field provided');
+        }
+
+        const updateRes = await this.clientsRepository.updateOneField(clientId, field, value);
+
+        if (!updateRes) {
+            throw new InternalServerErrorException('Something went wrong while updating client');
+        }
+
+        return this.getClientDetails(clientId);
     }
 }
