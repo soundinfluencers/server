@@ -262,3 +262,6 @@ export class Campaign {
 }
 
 export const CampaignSchema = SchemaFactory.createForClass(Campaign);
+
+CampaignSchema.index({ clientId: 1, createdAt: -1 });
+CampaignSchema.index({ clientId: 1, _id: -1 });

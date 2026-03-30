@@ -2,13 +2,13 @@ import {Injectable, Logger} from '@nestjs/common';
 import {ClientRepository} from "../../../database/repositories/users/client.repository";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
 import {
-    AdminClientResponseDto,
+    AdminClientForListDto,
     AdminClientsListResponseDto,
-    AdminClientsSearchResponseDto
+    AdminClientsSearchResponseDto, AdminDetailedClientDto
 } from "../dto/clients/admin-clients.dto";
-import {AdminClientListItem} from "../../../common/types/client/client.types";
+import {IAdminClientListItem} from "../../../common/types/client/client.types";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
-import {mapReadModelToAdminClientResponseDto} from "../../../common/mappers/client.mapper";
+import {mapReadModelToAdminClientForListDto, mapToAdminDetailedClientDto} from "../../../common/mappers/client.mapper";
 
 @Injectable()
 export class AdminClientsService {
@@ -23,8 +23,8 @@ export class AdminClientsService {
         const list = await this.clientsRepository.findPaginated(data);
         return {
             ...list,
-            items: list.items.map((i: AdminClientListItem): AdminClientResponseDto => {
-                return mapReadModelToAdminClientResponseDto(i);
+            items: list.items.map((i: IAdminClientListItem): AdminClientForListDto => {
+                return mapReadModelToAdminClientForListDto(i);
             })
         };
     }
@@ -33,9 +33,14 @@ export class AdminClientsService {
         const searchResult = await this.clientsRepository.findBySearch(data);
         return {
             ...searchResult,
-            items: searchResult.items.map((i: AdminClientListItem): AdminClientResponseDto => {
-                return mapReadModelToAdminClientResponseDto(i);
+            items: searchResult.items.map((i: IAdminClientListItem): AdminClientForListDto => {
+                return mapReadModelToAdminClientForListDto(i);
             })
         }
+    }
+
+    async getClientsDetails(clientId: string): Promise<AdminDetailedClientDto> {
+        const clientDetails = await this.clientsRepository.getClientsDetailsForAdmin(clientId);
+        return mapToAdminDetailedClientDto(clientDetails);
     }
 }

@@ -6,8 +6,9 @@ import {FilterQuery, Model, PipelineStage} from "mongoose";
 import {RepoOptions} from "../../types/repo.types";
 import {applyQueryOptions} from "../../utils/apply-query-options.util";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
-import {AdminClientListItem} from "../../../common/types/client/client.types";
+import {IAdminClientDetails, IAdminClientListItem} from "../../../common/types/client/client.types";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
+import {ObjId} from "../../../common/types/base.types";
 
 @Injectable()
 export class ClientRepository extends BaseRepository<Client> {
@@ -43,7 +44,7 @@ export class ClientRepository extends BaseRepository<Client> {
     async findPaginated(
         query: PaginationQueryDto,
     ): Promise<{
-        items: AdminClientListItem[];
+        items: IAdminClientListItem[];
         total: number;
         page: number;
         limit: number;
@@ -54,7 +55,7 @@ export class ClientRepository extends BaseRepository<Client> {
         const skip = (page - 1) * limit;
 
         const [items, totalResult] = await Promise.all([
-            this.clientModel.aggregate<AdminClientListItem>([
+            this.clientModel.aggregate<IAdminClientListItem>([
                 { $sort: { createdAt: -1 } },
                 { $skip: skip },
                 { $limit: limit },
@@ -74,12 +75,6 @@ export class ClientRepository extends BaseRepository<Client> {
                                 $group: {
                                     _id: null,
                                     campaignsActive: { $sum: 1 },
-                                    latestCampaign: {
-                                        $first: {
-                                            _id: '$_id',
-                                            campaignName: '$campaignName',
-                                        },
-                                    },
                                 },
                             },
                         ],
@@ -116,12 +111,6 @@ export class ClientRepository extends BaseRepository<Client> {
                                 0,
                             ],
                         },
-                        latestCampaign: {
-                            $ifNull: [
-                                { $arrayElemAt: ['$activeCampaignStats.latestCampaign', 0] },
-                                null,
-                            ],
-                        },
                         campaignsCompleted: {
                             $ifNull: [
                                 { $arrayElemAt: ['$completedCampaignStats.campaignsCompleted', 0] },
@@ -143,8 +132,6 @@ export class ClientRepository extends BaseRepository<Client> {
                         isProposal: '$isProposalClient',
                         campaignsCompleted: 1,
                         campaignsActive: 1,
-                        latestCampaign: 1,
-                        internalNote: 1,
                     },
                 },
             ]),
@@ -165,7 +152,7 @@ export class ClientRepository extends BaseRepository<Client> {
     async findBySearch(
         query: SearchQueryDto,
     ): Promise<{
-        items: AdminClientListItem[];
+        items: IAdminClientListItem[];
         total: number;
         limit: number;
     }> {
@@ -211,12 +198,6 @@ export class ClientRepository extends BaseRepository<Client> {
                             $group: {
                                 _id: null,
                                 campaignsActive: { $sum: 1 },
-                                latestCampaign: {
-                                    $first: {
-                                        _id: '$_id',
-                                        campaignName: '$campaignName',
-                                    },
-                                },
                             },
                         },
                     ],
@@ -253,12 +234,6 @@ export class ClientRepository extends BaseRepository<Client> {
                             0,
                         ],
                     },
-                    latestCampaign: {
-                        $ifNull: [
-                            { $arrayElemAt: ['$activeCampaignStats.latestCampaign', 0] },
-                            null,
-                        ],
-                    },
                     campaignsCompleted: {
                         $ifNull: [
                             { $arrayElemAt: ['$completedCampaignStats.campaignsCompleted', 0] },
@@ -280,8 +255,6 @@ export class ClientRepository extends BaseRepository<Client> {
                     isProposal: '$isProposalClient',
                     campaignsCompleted: 1,
                     campaignsActive: 1,
-                    latestCampaign: 1,
-                    internalNote: 1,
                 },
             },
         ];
@@ -292,7 +265,7 @@ export class ClientRepository extends BaseRepository<Client> {
         ];
 
         const [items, totalResult] = await Promise.all([
-            this.clientModel.aggregate<AdminClientListItem>(basePipeline),
+            this.clientModel.aggregate<IAdminClientListItem>(basePipeline),
             this.clientModel.aggregate(totalPipeline),
         ]);
 
@@ -302,6 +275,96 @@ export class ClientRepository extends BaseRepository<Client> {
             items,
             total,
             limit,
+        };
+    }
+
+    async getClientsDetailsForAdmin(clientId: string): Promise<IAdminClientDetails | null> {
+        // limit: 10 active campaigns & 10 completed campaigns
+
+        const _id = new ObjId(clientId);
+
+        const basePipeline: PipelineStage[] = [
+            { $match: { _id: _id } },
+
+            {
+                $lookup: {
+                    from: 'campaigns',
+                    let: { clientId: '$_id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ['$clientId', '$$clientId'] },
+                            },
+                        },
+                        { $sort: { createdAt: -1, _id: -1 } },
+                        { $limit: 10 },
+                        {
+                            $project: {
+                                _id: 1,
+                                campaignName: 1,
+                                socialMedia: 1,
+                                createdAt: 1,
+                                campaignPrice: 1,
+                            },
+                        },
+                    ],
+                    as: 'campaignsActive',
+                },
+            },
+
+            {
+                $lookup: {
+                    from: 'completedcampaigns',
+                    let: { clientId: '$_id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ['$clientId', '$$clientId'] },
+                            },
+                        },
+                        { $sort: { createdAt: -1, _id: -1 } },
+                        { $limit: 10 },
+                        {
+                            $project: {
+                                _id: 1,
+                                campaignName: 1,
+                                socialMedia: 1,
+                                createdAt: 1,
+                                campaignPrice: 1,
+                            },
+                        },
+                    ],
+                    as: 'campaignsCompleted',
+                },
+            },
+
+            {
+                $project: {
+                    company: 1,
+                    firstName: 1,
+                    lastName: 1,
+                    email: 1,
+                    phone: 1,
+                    companyType: 1,
+                    _id: 1,
+                    isProposal: '$isProposalClient',
+                    campaignsCompleted: 1,
+                    campaignsActive: 1,
+                },
+            }
+        ]
+
+        const result = await this.clientModel.aggregate<IAdminClientDetails>(basePipeline);
+        const aggResult = result[0] ?? null;
+
+        const latestCampaign = [...(aggResult.campaignsActive ?? []), ...(aggResult.campaignsCompleted ?? [])]
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+        const latestCampaignName = latestCampaign?.campaignName ?? null;
+
+        return {
+            ...aggResult,
+            latestCampaignName: latestCampaignName
         };
     }
 }

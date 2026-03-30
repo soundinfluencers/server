@@ -10,3 +10,6 @@ export class CompletedCampaign extends Campaign {
 }
 
 export const CompletedCampaignSchema = SchemaFactory.createForClass(CompletedCampaign);
+
+CompletedCampaignSchema.index({ clientId: 1, createdAt: -1 });
+CompletedCampaignSchema.index({ clientId: 1, _id: -1 });

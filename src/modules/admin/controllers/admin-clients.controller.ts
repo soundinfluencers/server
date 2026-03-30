@@ -1,14 +1,20 @@
-import {Controller, Get, Query} from '@nestjs/common';
+import {Controller, Get, Param, Query} from '@nestjs/common';
 import {AdminClientsService} from '../services/admin-clients.service';
-import {ApiOperation, ApiQuery, ApiTags} from "@nestjs/swagger";
+import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
 import {Roles} from "../../../common/decorators/roles.decorator";
 import {Role} from "../../../common/types/user.types";
 import {Auth} from "../../../common/decorators/auth.decorator";
-import {AdminClientsListResponseDto, AdminClientsSearchResponseDto} from "../dto/clients/admin-clients.dto";
+import {
+    AdminClientsListResponseDto,
+    AdminClientsSearchResponseDto,
+    AdminDetailedClientDto
+} from "../dto/clients/admin-clients.dto";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {OneOfQueryPipe} from "../../../common/pipes/one-of-query.pipe";
 import {ApiResponseDtoOneOf} from "../../../common/decorators/api/response/api-response-one-of.decorator";
+import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
+import {ParseObjectIdPipe} from "../../../common/pipes/parse-oid.pipe";
 
 @Auth()
 @Roles(Role.admin)
@@ -59,5 +65,17 @@ export class AdminClientsController {
         }
 
         return this.adminService.getClientsList(query);
+    }
+
+    @ApiOperation({ summary: "Returns detailed client's information" })
+    @ApiResponseDto(AdminDetailedClientDto)
+    @ApiParam({
+        name: 'clientId',
+        required: true,
+        type: String,
+    })
+    @Get(':clientId')
+    getDetailedClient(@Param('clientId', ParseObjectIdPipe) clientId: string) {
+        return this.adminService.getClientsDetails(clientId);
     }
 }

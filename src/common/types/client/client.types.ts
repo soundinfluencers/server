@@ -1,4 +1,5 @@
 import {Types} from "mongoose";
+import {SocialMediaEnum} from "../social-media.types";
 
 // Interface for account settings page
 export interface ClientAccountDetails {
@@ -12,24 +13,41 @@ export interface ClientAccountDetails {
     isProposal?: boolean;
 }
 
-// Type for admin client list read model
-export type ClientLatestCampaign = {
-    campaignName: string;
-    _id: Types.ObjectId;
-}
-
 // Read model for admin list
-export interface AdminClientListItem {
+export interface IAdminClientListItem {
+    _id: Types.ObjectId;
     company: string | null;
     firstName: string | null;
     lastName: string | null;
     email: string;
     phone: string;
     companyType: string;
-    _id: Types.ObjectId;
     isProposal: boolean;
     campaignsCompleted: number;
     campaignsActive: number;
-    latestCampaign?: ClientLatestCampaign;
+}
+
+// Type for campaign info for admin client details
+export interface ICampaignForClientDetails {
+    _id: Types.ObjectId;
+    campaignName: string;
+    socialMedia: SocialMediaEnum | 'multipromo';
+    createdAt: Date | null;
+    campaignPrice: number;
+}
+
+// Read model with client details for admin
+export interface IAdminClientDetails {
+    _id: Types.ObjectId;
+    firstName: string;
+    email: string;
+    phone: string;
+    companyType: string;
+    isProposal: boolean;
+    company: string | null;
+    lastName?: string;
+    campaignsActive?: ICampaignForClientDetails[];
+    campaignsCompleted?: ICampaignForClientDetails[];
+    latestCampaignName?: string;
     internalNote?: string;
 }
