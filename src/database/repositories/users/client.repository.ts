@@ -2,7 +2,7 @@ import {Injectable} from "@nestjs/common";
 import {BaseRepository} from "../base.repository";
 import {Client} from "../../schemas/users/client.schema";
 import {InjectModel} from "@nestjs/mongoose";
-import {FilterQuery, Model, PipelineStage} from "mongoose";
+import {Model, PipelineStage} from "mongoose";
 import {RepoOptions} from "../../types/repo.types";
 import {applyQueryOptions} from "../../utils/apply-query-options.util";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";

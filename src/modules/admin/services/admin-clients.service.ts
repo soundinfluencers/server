@@ -17,8 +17,6 @@ export class AdminClientsService {
     ) {
     }
 
-    private readonly logger = new Logger('AdminClientsService');
-
     async getClientsList(data: PaginationQueryDto): Promise<AdminClientsListResponseDto> {
         const list = await this.clientsRepository.findPaginated(data);
         return {
