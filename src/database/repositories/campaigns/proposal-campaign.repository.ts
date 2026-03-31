@@ -6,7 +6,7 @@ import {ProposalCampaign} from "../../schemas/campaign/proposal-campaign.schema"
 import {Role} from "../../../common/types/user.types";
 import {
     AdminCampaignStatusEnum,
-    CampaignAdminMetaEnum,
+    CampaignAdminMetaEnum, IAdminCampaignDetails,
     IAdminCampaignForList,
     IDashboardCampaign
 } from "../../../common/types/client/campaign.types";
@@ -201,5 +201,11 @@ export class ProposalCampaignRepository extends BaseRepository<ProposalCampaign>
                 { new: true },
             )
             .lean();
+    }
+
+    async getDetailedCampaignForAdmin(
+        campaignId: string,
+    ): Promise<IAdminCampaignDetails> {
+        return null;
     }
 }

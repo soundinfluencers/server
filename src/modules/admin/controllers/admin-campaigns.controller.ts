@@ -6,6 +6,7 @@ import {Auth} from "../../../common/decorators/auth.decorator";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {AdminCampaignsService} from "../services/admin-campaigns.service";
 import {
+    AdminCampaignDetailsDto,
     AdminCampaignForListDto,
     AdminCampaignSearchResponseDto,
     AdminCampaignsListResponseDto, AdminCampaignsListStatusEnum,
@@ -106,6 +107,12 @@ export class AdminCampaignsController {
     @ApiOperation({summary: "Deletes campaign"})
     @ApiResponseDto()
     @ApiParam({
+        name: "status",
+        type: String,
+        required: true,
+        enum: AdminCampaignsListStatusEnum,
+    })
+    @ApiParam({
         name: 'campaignId',
         type: String,
         required: true,
@@ -116,7 +123,38 @@ export class AdminCampaignsController {
             'status',
             new ParseEnumPipe(AdminCampaignsListStatusEnum)
         ) status: AdminCampaignsListStatusEnum,
-        @Param('campaignId', new ParseObjectIdPipe()) campaignId: string) {
+        @Param(
+            'campaignId',
+            new ParseObjectIdPipe()
+        ) campaignId: string
+    ) {
         return this.adminService.deleteCampaign(status, campaignId);
+    }
+
+    @ApiOperation({summary: "Fetch campaign details"})
+    @ApiResponseDto(AdminCampaignDetailsDto)
+    @ApiParam({
+        name: "status",
+        type: String,
+        required: true,
+        enum: AdminCampaignsListStatusEnum,
+    })
+    @ApiParam({
+        name: 'campaignId',
+        type: String,
+        required: true,
+    })
+    @Get(':status/:campaignId')
+    getDetailedCampaign(
+        @Param(
+            'status',
+            new ParseEnumPipe(AdminCampaignsListStatusEnum)
+        ) status: AdminCampaignsListStatusEnum,
+        @Param(
+            'campaignId',
+            new ParseObjectIdPipe()
+        ) campaignId: string
+    ): Promise<AdminCampaignDetailsDto> {
+        return this.adminService.getDetailedCampaign(status, campaignId);
     }
 }

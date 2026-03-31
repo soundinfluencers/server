@@ -12,11 +12,12 @@ import {EmailService} from "../../integrations/email/email.service";
 import {MediaModule} from "../media/media.module";
 import {InvoiceService} from "../invoice/invoice.service";
 import {InvoiceModule} from "../invoice/invoice.module";
+import {CampaignDetailsOrchestrator} from "./orchestrators/campaign-details.orchestrator";
 
 @Module({
     imports: [MediaModule, InvoiceModule],
     controllers: [CampaignsController],
-    providers: [CampaignsService, InfluencerActionsHistoryService],
-    exports: [CampaignsService],
+    providers: [CampaignsService, InfluencerActionsHistoryService, CampaignDetailsOrchestrator],
+    exports: [CampaignsService, CampaignDetailsOrchestrator],
 })
 export class CampaignsModule {}

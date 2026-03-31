@@ -75,6 +75,7 @@ import {
     AdminToInfluencerEmails,
     ClientToAdminEmails
 } from "../../integrations/email/email.templates";
+import {CampaignDetailsOrchestrator} from "./orchestrators/campaign-details.orchestrator";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -108,6 +109,9 @@ export class CampaignsService {
         private readonly invoiceService: InvoiceService,
         private readonly influencerActionsHistoryService: InfluencerActionsHistoryService,
         private readonly emailService: EmailService,
+
+        // Orchestrators
+        private readonly campaignDetailsOrchestrator: CampaignDetailsOrchestrator,
     ) {
     }
 
@@ -722,83 +726,26 @@ export class CampaignsService {
         }
     }
 
-    // todo: создать оркестратор и разбить на три части (completed, ongoing, proposal) + use mapper mapToClientCampaignForTable
     // Returns one detailed campaign obj - used by campaign report page
     async getClientOngoingOrPastCampaign(
         campaignId: string,
-        clientId: string
+        clientId: string,
     ): Promise<CampaignDetailsDto> {
-        // Checking if client exists
         const client = await this.clientRepo.findById(clientId);
-        if (!client)
+        if (!client) {
             throw new NotFoundException('User not found');
+        }
 
-        // Trying to find in ongoing campaigns collection
-        let campaign: ICampaignDetails = await this.campaignRepo.getDetailedCampaign(clientId, campaignId);
-
-        // Trying to find in completed campaigns collection
-        if (!campaign)
-            campaign = await this.completedCampaignRepo.getDetailedCampaign(clientId, campaignId);
-
-        if (!campaign)
-            throw new NotFoundException('Campaign not found');
-
-        // Collecting unique ids for getting logos
-        const influencerIds = [
-            ...new Set(
-                campaign.addedAccounts.map(acc => acc.influencerId)
-            )
-        ];
-
-        // Getting accounts ids and logos
-        const influencers = await this.influencerRepo.findMany(
-            {_id: {$in: influencerIds}},
-            {
-                lean: true,
-                select: [
-                    '_id',
-                    'instagram._id',
-                    'instagram.logoUrl',
-                    'tiktok._id',
-                    'tiktok.logoUrl',
-                    'youtube._id',
-                    'youtube.logoUrl',
-                    'facebook._id',
-                    'facebook.logoUrl',
-                    'spotify._id',
-                    'spotify.logoUrl',
-                    'soundcloud._id',
-                    'soundcloud.logoUrl',
-                    'press._id',
-                    'press.logoUrl',
-                ]
-            }
-        );
-
-        // Creating map to quickly find logo for specific id
-        const influencerMap = new Map(
-            influencers.map(inf => [inf._id.toString(), inf])
-        );
-
-        // Adding logo to each account
-        campaign.addedAccounts = campaign.addedAccounts.map(acc => {
-            const influencer = influencerMap.get(acc.influencerId.toString());
-
-            if (!influencer) return acc;
-
-            const accountsArray = influencer[acc.socialMedia] ?? [];
-
-            const matchedAccount = accountsArray.find(
-                a => a._id?.toString() === acc.addedAccountsId?.toString()
-            );
-
-            return {
-                ...acc,
-                logoUrl: matchedAccount?.logoUrl ?? null
-            };
+        return this.campaignDetailsOrchestrator.execute(campaignId, {
+            findCampaign: async (campaignId) => {
+                return (
+                    await this.campaignRepo.getDetailedCampaign(clientId, campaignId)
+                ) ?? (
+                    await this.completedCampaignRepo.getDetailedCampaign(clientId, campaignId)
+                );
+            },
+            mapResult: mapToCampaignDetailsDto,
         });
-
-        return mapToCampaignDetailsDto(campaign);
     }
 
     // Update ongoing campaign

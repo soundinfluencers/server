@@ -5,12 +5,12 @@ import {InjectModel} from "@nestjs/mongoose";
 import {Model, PipelineStage, Types} from "mongoose";
 import {
     AdminCampaignStatusEnum,
-    CampaignAdminMetaEnum, CampaignStatusEnum, IAdminCampaignForList,
+    CampaignAdminMetaEnum, CampaignStatusEnum, IAdminCampaignDetails, IAdminCampaignForList,
     ICampaignDetails,
     IDashboardCampaign
 } from "../../../common/types/client/campaign.types";
 import {Campaign} from "../../schemas/campaign/campaign.schema";
-import {mapSchemaToICampaignDetails} from "../../../common/mappers/campaign.mapper";
+import {mapSchemaToIAdminCampaignDetails, mapSchemaToICampaignDetails} from "../../../common/mappers/campaign.mapper";
 import {
     AdminCampaignsListStatusEnum,
     GetAdminCampaignsListQueryDto
@@ -96,6 +96,16 @@ export class CompletedCampaignRepository extends BaseRepository<CompletedCampaig
         })
 
         return mapSchemaToICampaignDetails(campaign);
+    }
+
+    async getDetailedCampaignForAdmin(
+        campaignId: string,
+    ): Promise<IAdminCampaignDetails> {
+        const campaign = await this.completedCampaignModel.findOne({
+            _id: new Types.ObjectId(campaignId),
+        })
+
+        return mapSchemaToIAdminCampaignDetails(campaign);
     }
 
     async getCompletedCampaignsForAdmin(

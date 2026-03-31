@@ -3,6 +3,7 @@ import {ClientRepository} from "../../../database/repositories/users/client.repo
 import {CampaignRepository} from "../../../database/repositories/campaigns/campaign.repository";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {
+    AdminCampaignDetailsDto,
     AdminCampaignForListDto,
     AdminCampaignSearchResponseDto,
     AdminCampaignsListResponseDto,
@@ -10,10 +11,14 @@ import {
     GetAdminCampaignsListQueryDto
 } from "../dto/campaigns/admin-campaigns.dto";
 import {
-    mapIAdminCampaignForListToDto,
+    mapIAdminCampaignForListToDto, mapToAdminCampaignDetailsDto,
     mapToAdminCampaignForListDto,
 } from "../../../common/mappers/campaign.mapper";
-import {CampaignAdminMetaEnum, IAdminCampaignForList} from "../../../common/types/client/campaign.types";
+import {
+    CampaignAdminMetaEnum,
+    IAdminCampaignDetails,
+    IAdminCampaignForList
+} from "../../../common/types/client/campaign.types";
 import {ProposalCampaignRepository} from "../../../database/repositories/campaigns/proposal-campaign.repository";
 import {UpdateAdminMetaCampaignDto} from "../dto/campaigns/admin-update-campaign.dto";
 import {CompletedCampaignRepository} from "../../../database/repositories/campaigns/completed-campaign.repository";
@@ -22,6 +27,7 @@ import {CompletedCampaign} from "../../../database/schemas/campaign/completed-ca
 import {ProposalCampaign} from "../../../database/schemas/campaign/proposal-campaign.schema";
 import {UserInvoiceRepository} from "../../../database/repositories/invoices/user-invoice.repository";
 import {Role} from "../../../common/types/user.types";
+import {CampaignDetailsOrchestrator} from "../../campaigns/orchestrators/campaign-details.orchestrator";
 
 // Interface for admin campaigns service and controller
 export interface IAdminCampaignsService {
@@ -32,18 +38,28 @@ export interface IAdminCampaignsService {
         status: AdminCampaignsListStatusEnum,
         campaignId: string,
     ): Promise<AdminCampaignForListDto>;
-    deleteCampaign(status: AdminCampaignsListStatusEnum, campaignId: string): Promise<void>;
-    // todo: getDetailedCampaign(data: SearchQueryDto): Promise<any>;
+    deleteCampaign(
+        status: AdminCampaignsListStatusEnum,
+        campaignId: string
+    ): Promise<void>;
+    getDetailedCampaign(
+        status: AdminCampaignsListStatusEnum,
+        campaignId: string
+    ): Promise<AdminCampaignDetailsDto>;
 }
 
 @Injectable()
 export class AdminCampaignsService implements IAdminCampaignsService {
     constructor(
+        // repositories
         private readonly clientsRepository: ClientRepository,
         private readonly campaignsRepository: CampaignRepository,
         private readonly completedCampaignsRepository: CompletedCampaignRepository,
         private readonly proposalCampaignRepository: ProposalCampaignRepository,
-        private readonly invoiceRepository: UserInvoiceRepository
+        private readonly invoiceRepository: UserInvoiceRepository,
+
+        // orchestrators
+        private readonly campaignDetailsOrchestrator: CampaignDetailsOrchestrator,
     ) {
     }
 
@@ -257,5 +273,17 @@ export class AdminCampaignsService implements IAdminCampaignsService {
     async deleteCampaign(status: AdminCampaignsListStatusEnum, campaignId: string): Promise<void> {
         const repository = this.getRepository(status);
         await repository.deleteById(campaignId);
+    }
+
+    async getDetailedCampaign(status: AdminCampaignsListStatusEnum, campaignId: string): Promise<AdminCampaignDetailsDto> {
+        const repository = this.getRepository(status);
+
+        return await this.campaignDetailsOrchestrator.execute(
+            campaignId,
+            {
+                findCampaign: async (campaignId) => await repository.getDetailedCampaignForAdmin(campaignId),
+                mapResult: mapToAdminCampaignDetailsDto
+            }
+        )
     }
 }

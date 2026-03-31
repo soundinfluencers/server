@@ -9,6 +9,7 @@ import {
 } from "../../../../common/types/client/campaign.types";
 import {PaginationQueryDto} from "../../../../common/dto/requests/pagination-query.dto";
 import {IsEnum, IsOptional} from "class-validator";
+import {CampaignAccountDto, CampaignDetailsDto} from "../../../campaigns/dto/get-campaigns.dto";
 
 export enum AdminCampaignsListStatusEnum {
     proposal = 'proposal',
@@ -98,4 +99,16 @@ export class AdminCampaignSearchResponseDto extends SearchListResponseDto<AdminC
         description: 'List of campaigns',
     })
     items: AdminCampaignForListDto[];
+}
+
+// DTO with detailed campaign's addedAccounts item for admin
+export class AdminCampaignAccountDto extends CampaignAccountDto {
+    @ApiPropertyOptional({ type: Number })
+    cpm?: number;
+}
+
+// DTO with detailed campaign for admin
+export class AdminCampaignDetailsDto extends CampaignDetailsDto {
+    @ApiProperty({ type: AdminCampaignAccountDto, isArray: true })
+    addedAccounts: AdminCampaignAccountDto[];
 }

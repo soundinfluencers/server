@@ -15,12 +15,12 @@ import {
     AdminCampaignStatusEnum,
     CampaignAdminMetaEnum,
     CampaignConfirmationEnum,
-    CampaignStatusEnum,
+    CampaignStatusEnum, IAdminCampaignDetails,
     IAdminCampaignForList,
     ICampaignDetails,
     IDashboardCampaign
 } from "../../../common/types/client/campaign.types";
-import {mapSchemaToICampaignDetails} from "../../../common/mappers/campaign.mapper";
+import {mapSchemaToIAdminCampaignDetails, mapSchemaToICampaignDetails} from "../../../common/mappers/campaign.mapper";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {
     AdminCampaignsListStatusEnum,
@@ -124,6 +124,16 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
         })
 
         return mapSchemaToICampaignDetails(campaign);
+    }
+
+    async getDetailedCampaignForAdmin(
+        campaignId: string,
+    ): Promise<IAdminCampaignDetails> {
+        const campaign = await this.campaignModel.findOne({
+            _id: new Types.ObjectId(campaignId),
+        })
+
+        return mapSchemaToIAdminCampaignDetails(campaign);
     }
 
     async replaceInfluencerId(

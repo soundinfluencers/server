@@ -8,6 +8,7 @@ import {AdminActionsHistoryService} from "./services/admin-actions-history.servi
 import {AdminInfluencersService} from "./services/admin-influencers.service";
 import {AdminInfluencersController} from "./controllers/admin-influencers.controller";
 import {XlsxImporter} from "../../common/utils/import/xlsx/xlsx-import";
+import {CampaignDetailsOrchestrator} from "../campaigns/orchestrators/campaign-details.orchestrator";
 
 @Module({
   controllers: [
@@ -22,6 +23,7 @@ import {XlsxImporter} from "../../common/utils/import/xlsx/xlsx-import";
       AdminActionsHistoryService,
       AdminInfluencersService,
       XlsxImporter,
+      CampaignDetailsOrchestrator
   ],
 })
 export class AdminModule {}

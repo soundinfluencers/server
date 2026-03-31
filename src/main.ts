@@ -36,7 +36,7 @@ async function bootstrap() {
     app.useGlobalFilters(new AllExceptionsFilter()); // global exception filter
     app.useGlobalPipes(
         new ValidationPipe({
-            transform: true, // transform payload into DTO classes
+            transform: true, // transform payload into DTO classes,
         }),
     );
     app.enableCors({
