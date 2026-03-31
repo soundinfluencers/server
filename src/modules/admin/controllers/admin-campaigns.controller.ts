@@ -1,4 +1,4 @@
-import {Body, Controller, Get, Param, ParseEnumPipe, Patch, Query} from '@nestjs/common';
+import {Body, Controller, Delete, Get, Param, ParseEnumPipe, Patch, Query} from '@nestjs/common';
 import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {Roles} from "../../../common/decorators/roles.decorator";
 import {Role} from "../../../common/types/user.types";
@@ -15,6 +15,7 @@ import {ApiResponseDtoOneOf} from "../../../common/decorators/api/response/api-r
 import {OneOfQueryPipe} from "../../../common/pipes/one-of-query.pipe";
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
 import {UpdateAdminMetaCampaignDto} from "../dto/campaigns/admin-update-campaign.dto";
+import {ParseObjectIdPipe} from "../../../common/pipes/parse-oid.pipe";
 
 @Auth()
 @Roles(Role.admin)
@@ -94,8 +95,28 @@ export class AdminCampaignsController {
             'status',
             new ParseEnumPipe(AdminCampaignsListStatusEnum)
         ) status: AdminCampaignsListStatusEnum,
-        @Param('campaignId') campaignId: string,
+        @Param(
+            'campaignId',
+            new ParseObjectIdPipe()
+        ) campaignId: string,
     ): Promise<AdminCampaignForListDto> {
         return this.adminService.updateMeta(data, status, campaignId);
+    }
+
+    @ApiOperation({summary: "Deletes campaign"})
+    @ApiResponseDto()
+    @ApiParam({
+        name: 'campaignId',
+        type: String,
+        required: true,
+    })
+    @Delete(':status/:campaignId')
+    deleteCampaign(
+        @Param(
+            'status',
+            new ParseEnumPipe(AdminCampaignsListStatusEnum)
+        ) status: AdminCampaignsListStatusEnum,
+        @Param('campaignId', new ParseObjectIdPipe()) campaignId: string) {
+        return this.adminService.deleteCampaign(status, campaignId);
     }
 }

@@ -32,6 +32,7 @@ export interface IAdminCampaignsService {
         status: AdminCampaignsListStatusEnum,
         campaignId: string,
     ): Promise<AdminCampaignForListDto>;
+    deleteCampaign(status: AdminCampaignsListStatusEnum, campaignId: string): Promise<void>;
     // todo: getDetailedCampaign(data: SearchQueryDto): Promise<any>;
 }
 
@@ -251,5 +252,10 @@ export class AdminCampaignsService implements IAdminCampaignsService {
                 shortInvoiceId: invoiceInfo._id.toString()
             }
         });
+    }
+
+    async deleteCampaign(status: AdminCampaignsListStatusEnum, campaignId: string): Promise<void> {
+        const repository = this.getRepository(status);
+        await repository.deleteById(campaignId);
     }
 }
