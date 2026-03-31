@@ -12,7 +12,7 @@ import {
     Res,
     UnauthorizedException
 } from "@nestjs/common";
-import {CampaignsService} from "./campaigns.service";
+import {CampaignsService} from "./services/campaigns.service";
 import {AuthenticatedRequest, Role} from "../../common/types/user.types";
 import {
     CampaignDetailsDto,
@@ -199,7 +199,7 @@ export class CampaignsController {
     }
 
     @Auth()
-    @Roles(Role.client, Role.admin)
+    @Roles(Role.client)
     @ApiOperation({summary: 'Updates ongoing campaign'})
     @ApiParam({name: 'campaignId', required: true})
     @ApiResponseDto(CampaignDetailsDto)

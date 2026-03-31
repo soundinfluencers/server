@@ -11,55 +11,70 @@ import {
     GetAdminCampaignsListQueryDto
 } from "../dto/campaigns/admin-campaigns.dto";
 import {
-    mapIAdminCampaignForListToDto, mapToAdminCampaignDetailsDto,
+    mapIAdminCampaignForListToDto, mapSchemaToIAdminCampaignDetails, mapToAdminCampaignDetailsDto,
     mapToAdminCampaignForListDto,
 } from "../../../common/mappers/campaign.mapper";
 import {
-    CampaignAdminMetaEnum,
-    IAdminCampaignDetails,
+    CampaignAdminMetaEnum, IAdminCampaignAccount, IAdminCampaignDetails,
     IAdminCampaignForList
 } from "../../../common/types/client/campaign.types";
 import {ProposalCampaignRepository} from "../../../database/repositories/campaigns/proposal-campaign.repository";
 import {UpdateAdminMetaCampaignDto} from "../dto/campaigns/admin-update-campaign.dto";
 import {CompletedCampaignRepository} from "../../../database/repositories/campaigns/completed-campaign.repository";
-import {Campaign} from "../../../database/schemas/campaign/campaign.schema";
+import {Campaign, CampaignAccount} from "../../../database/schemas/campaign/campaign.schema";
 import {CompletedCampaign} from "../../../database/schemas/campaign/completed-campaign.schema";
 import {ProposalCampaign} from "../../../database/schemas/campaign/proposal-campaign.schema";
 import {UserInvoiceRepository} from "../../../database/repositories/invoices/user-invoice.repository";
 import {Role} from "../../../common/types/user.types";
-import {CampaignDetailsOrchestrator} from "../../campaigns/orchestrators/campaign-details.orchestrator";
+import {CampaignDetailsService} from "../../campaigns/services/campaign-details.service";
+import {UpdateCampaignDto} from "../../campaigns/dto/update-campaign.dto";
+import {CampaignUpdateService} from "../../campaigns/services/campaign-update.service";
+import {HydratedDocument} from "mongoose";
+import {CampaignAccountsBuilderService} from "../../campaigns/services/campaign-accounts-builder.service";
+import {ObjId} from "../../../common/types/base.types";
 
 // Interface for admin campaigns service and controller
 export interface IAdminCampaignsService {
     getCampaignsList(data: GetAdminCampaignsListQueryDto): Promise<AdminCampaignsListResponseDto>;
+
     searchCampaigns(data: SearchQueryDto): Promise<AdminCampaignSearchResponseDto>;
+
+    // Updates admin's meta fields in campaign
     updateMeta(
         payload: UpdateAdminMetaCampaignDto,
         status: AdminCampaignsListStatusEnum,
         campaignId: string,
     ): Promise<AdminCampaignForListDto>;
+
     deleteCampaign(
         status: AdminCampaignsListStatusEnum,
         campaignId: string
     ): Promise<void>;
+
     getDetailedCampaign(
         status: AdminCampaignsListStatusEnum,
         campaignId: string
+    ): Promise<AdminCampaignDetailsDto>;
+
+    // Orchestrator that will define method for updating campaign by campaign status
+    updateCampaign(
+        status: AdminCampaignsListStatusEnum,
+        campaignId: string,
+        data: UpdateCampaignDto
     ): Promise<AdminCampaignDetailsDto>;
 }
 
 @Injectable()
 export class AdminCampaignsService implements IAdminCampaignsService {
     constructor(
-        // repositories
         private readonly clientsRepository: ClientRepository,
         private readonly campaignsRepository: CampaignRepository,
         private readonly completedCampaignsRepository: CompletedCampaignRepository,
         private readonly proposalCampaignRepository: ProposalCampaignRepository,
         private readonly invoiceRepository: UserInvoiceRepository,
-
-        // orchestrators
-        private readonly campaignDetailsOrchestrator: CampaignDetailsOrchestrator,
+        private readonly campaignDetailsService: CampaignDetailsService,
+        private readonly campaignUpdateService: CampaignUpdateService,
+        private readonly campaignAccountsBuilderService: CampaignAccountsBuilderService,
     ) {
     }
 
@@ -144,6 +159,33 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         }
     };
 
+    // Updates fields in ongoing campaign
+    private async updateOngoingCampaign(
+        campaignId: string,
+        data: UpdateCampaignDto,
+    ): Promise<AdminCampaignDetailsDto> {
+        return this.campaignUpdateService.execute<
+            HydratedDocument<Campaign>,
+            CampaignAccount,
+            IAdminCampaignDetails,
+            AdminCampaignDetailsDto
+        >(campaignId, data, {
+            findCampaign: (campaignId: string) =>
+                this.campaignsRepository.findOne({ _id: new ObjId(campaignId) }),
+
+            buildCampaignAccountsBatch:
+                this.campaignAccountsBuilderService.buildCampaignAccountsBatch.bind(
+                    this.campaignAccountsBuilderService,
+                ),
+
+            toReadModel: (campaign: HydratedDocument<Campaign>): IAdminCampaignDetails =>
+                mapSchemaToIAdminCampaignDetails(campaign.toObject() as Campaign),
+
+            mapResult: (readModel: IAdminCampaignDetails): AdminCampaignDetailsDto =>
+                mapToAdminCampaignDetailsDto(readModel),
+        });
+    }
+
     async getCampaignsList(data: GetAdminCampaignsListQueryDto): Promise<AdminCampaignsListResponseDto> {
         // TODO: if admin created campaign - that will be input for link, if client created - that will be invoiceId
 
@@ -152,9 +194,9 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         const skip = (page - 1) * limit;
         const take = skip + limit;
 
-        let ongoingResult = { items: [], total: 0 };
-        let completedResult = { items: [], total: 0 };
-        let proposalResult = { items: [], total: 0 };
+        let ongoingResult = {items: [], total: 0};
+        let completedResult = {items: [], total: 0};
+        let proposalResult = {items: [], total: 0};
 
         if (!data.status) {
             [ongoingResult, completedResult, proposalResult] = await Promise.all([
@@ -278,12 +320,29 @@ export class AdminCampaignsService implements IAdminCampaignsService {
     async getDetailedCampaign(status: AdminCampaignsListStatusEnum, campaignId: string): Promise<AdminCampaignDetailsDto> {
         const repository = this.getRepository(status);
 
-        return await this.campaignDetailsOrchestrator.execute(
+        return await this.campaignDetailsService.execute(
             campaignId,
             {
                 findCampaign: async (campaignId) => await repository.getDetailedCampaignForAdmin(campaignId),
                 mapResult: mapToAdminCampaignDetailsDto
             }
         )
+    }
+
+    async updateCampaign(status: AdminCampaignsListStatusEnum, campaignId: string, data: UpdateCampaignDto): Promise<AdminCampaignDetailsDto> {
+        switch (status) {
+            case AdminCampaignsListStatusEnum.distributing:
+            case AdminCampaignsListStatusEnum.pending:
+                return this.updateOngoingCampaign(campaignId, data);
+
+            case AdminCampaignsListStatusEnum.proposal:
+                throw new BadRequestException("You can't update proposal campaign now");
+
+            case AdminCampaignsListStatusEnum.completed:
+                throw new BadRequestException("You can't make general updates for completed campaigns");
+
+            default:
+                throw new BadRequestException(`Unsupported campaign status: ${status}`);
+        }
     }
 }

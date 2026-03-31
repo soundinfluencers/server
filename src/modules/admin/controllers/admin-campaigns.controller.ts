@@ -17,6 +17,7 @@ import {OneOfQueryPipe} from "../../../common/pipes/one-of-query.pipe";
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
 import {UpdateAdminMetaCampaignDto} from "../dto/campaigns/admin-update-campaign.dto";
 import {ParseObjectIdPipe} from "../../../common/pipes/parse-oid.pipe";
+import {UpdateCampaignDto} from "../../campaigns/dto/update-campaign.dto";
 
 @Auth()
 @Roles(Role.admin)
@@ -89,7 +90,7 @@ export class AdminCampaignsController {
         type: String,
         required: true,
     })
-    @Patch(':status/:campaignId')
+    @Patch(':status/:campaignId/meta')
     updateAdminMeta(
         @Body() data: UpdateAdminMetaCampaignDto,
         @Param(
@@ -156,5 +157,33 @@ export class AdminCampaignsController {
         ) campaignId: string
     ): Promise<AdminCampaignDetailsDto> {
         return this.adminService.getDetailedCampaign(status, campaignId);
+    }
+
+    @ApiOperation({summary: "Updates campaign"})
+    @ApiResponseDto(AdminCampaignDetailsDto)
+    @ApiParam({
+        name: "status",
+        type: String,
+        required: true,
+        enum: AdminCampaignsListStatusEnum,
+    })
+    @ApiParam({
+        name: 'campaignId',
+        type: String,
+        required: true,
+    })
+    @Patch(':status/:campaignId')
+    updateCampaign(
+        @Param(
+            'status',
+            new ParseEnumPipe(AdminCampaignsListStatusEnum)
+        ) status: AdminCampaignsListStatusEnum,
+        @Param(
+            'campaignId',
+            new ParseObjectIdPipe()
+        ) campaignId: string,
+        @Body() data: UpdateCampaignDto
+    ): Promise<AdminCampaignDetailsDto> {
+        return this.adminService.updateCampaign(status, campaignId, data);
     }
 }

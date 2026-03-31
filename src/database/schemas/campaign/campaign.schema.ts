@@ -32,8 +32,8 @@ export class CampaignAccount {
     @Prop({type: Types.ObjectId, required: true, ref: "Influencer"})
     influencerId: Types.ObjectId;
 
-    @Prop({ type: Types.ObjectId, required: false, default: null, ref: 'SocialAccount' })
-    accountId?: Types.ObjectId | null;
+    @Prop({ type: Types.ObjectId, required: true, ref: 'SocialAccount' })
+    accountId: Types.ObjectId;
 
     @Prop({required: true, enum: SocialMediaEnum})
     socialMedia: SocialMediaEnum;

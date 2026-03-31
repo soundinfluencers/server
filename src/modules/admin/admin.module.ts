@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import {Module} from '@nestjs/common';
 import { AdminClientsService } from './services/admin-clients.service';
 import { AdminClientsController } from './controllers/admin-clients.controller';
 import {AdminCampaignsController} from "./controllers/admin-campaigns.controller";
@@ -8,7 +8,14 @@ import {AdminActionsHistoryService} from "./services/admin-actions-history.servi
 import {AdminInfluencersService} from "./services/admin-influencers.service";
 import {AdminInfluencersController} from "./controllers/admin-influencers.controller";
 import {XlsxImporter} from "../../common/utils/import/xlsx/xlsx-import";
-import {CampaignDetailsOrchestrator} from "../campaigns/orchestrators/campaign-details.orchestrator";
+import {CampaignDetailsService} from "../campaigns/services/campaign-details.service";
+import {CampaignUpdateService} from "../campaigns/services/campaign-update.service";
+import {CampaignAccountsBuilderService} from "../campaigns/services/campaign-accounts-builder.service";
+import {MediaService} from "../media/media.service";
+import {MediaStrategyFactory} from "../media/media.factory";
+import {DropboxMediaStrategy} from "../media/strategies/dropbox.strategy";
+import {DirectMediaStrategy} from "../media/strategies/direct.strategy";
+import DropboxService from "../../integrations/dropbox/dropbox";
 
 @Module({
   controllers: [
@@ -23,7 +30,14 @@ import {CampaignDetailsOrchestrator} from "../campaigns/orchestrators/campaign-d
       AdminActionsHistoryService,
       AdminInfluencersService,
       XlsxImporter,
-      CampaignDetailsOrchestrator
+      MediaService,
+      MediaStrategyFactory,
+      DropboxMediaStrategy,
+      DirectMediaStrategy,
+      DropboxService,
+      CampaignDetailsService,
+      CampaignUpdateService,
+      CampaignAccountsBuilderService,
   ],
 })
 export class AdminModule {}

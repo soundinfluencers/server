@@ -9,7 +9,7 @@ export type CampaignDetailsContext<TCampaign, TResult> = {
 };
 
 @Injectable()
-export class CampaignDetailsOrchestrator {
+export class CampaignDetailsService {
     constructor(
         private readonly clientRepo: ClientRepository,
         private readonly influencerRepo: InfluencerRepository,
