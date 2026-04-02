@@ -278,6 +278,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         }
 
         return {
+            campaignId,
             [field]: updatedCampaign.adminMeta?.[field as CampaignAdminMetaEnum],
         } as UpdatedAdminMetaCampaignDto;
     }

@@ -1,4 +1,4 @@
-import { ApiPropertyOptional, ApiHideProperty } from '@nestjs/swagger';
+import {ApiPropertyOptional, ApiHideProperty, ApiProperty} from '@nestjs/swagger';
 import { IsBoolean, IsOptional, IsString } from 'class-validator';
 import {ExactlyOneDefined} from "../../../../common/decorators/dto/exactly-one-defined.decorator";
 import {CampaignAdminMetaEnum} from "../../../../common/types/client/campaign.types";
@@ -42,6 +42,9 @@ export class UpdateAdminMetaCampaignDto {
 
 // DTO with result of updating campaign's admin meta information
 export class UpdatedAdminMetaCampaignDto {
+    @ApiProperty({ type: String })
+    campaignId: string;
+
     @ApiPropertyOptional({type: Boolean})
     @IsBoolean()
     @IsOptional()
