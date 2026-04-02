@@ -163,7 +163,7 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
         influencerId: string,
         invoiceStatus: InvoiceStatusEnum,
         session?: ClientSession
-    ): Promise<(CampaignAccount & { campaignId: Types.ObjectId })[]> {
+    ): Promise<(CampaignAccount & { campaignId: Types.ObjectId, campaignName: string })[]> {
         const _id = new ObjId(influencerId);
 
         const pipeline = [
@@ -182,6 +182,7 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
             {
                 $project: {
                     campaignId: "$_id",
+                    campaignName: "$campaignName",
                     addedAccounts: {
                         $filter: {
                             input: "$addedAccounts",
@@ -205,6 +206,7 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
                         $mergeObjects: [
                             "$addedAccounts",
                             {campaignId: "$campaignId"},
+                            {campaignName: "$campaignName"},
                         ],
                     },
                 },
@@ -213,11 +215,11 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
 
         const [ongoingPromos, completedPromos] = await Promise.all([
             this.campaignModel
-                .aggregate<CampaignAccount & { campaignId: Types.ObjectId }>(pipeline)
+                .aggregate<CampaignAccount & { campaignId: Types.ObjectId, campaignName: string }>(pipeline)
                 .session(session ?? null),
 
             this.completedCampaignModel
-                .aggregate<CampaignAccount & { campaignId: Types.ObjectId }>(pipeline)
+                .aggregate<CampaignAccount & { campaignId: Types.ObjectId, campaignName: string }>(pipeline)
                 .session(session ?? null),
         ]);
 

@@ -34,6 +34,15 @@ export class InvoiceController {
 
     @Auth()
     @Roles(Role.influencer)
+    @ApiOperation({summary: "Returns influencer's invoice draft values"})
+    @ApiResponseDto(CreateInvoiceDto)
+    @Get('draft')
+    getDraft(@Req() req: AuthenticatedRequest): Promise<CreateInvoiceDto> {
+        return this.invoiceService.getInvoiceDraft(req.user);
+    }
+
+    @Auth()
+    @Roles(Role.influencer)
     @ApiOperation({summary: "Creates influencer's invoice"})
     @ApiResponseDto(undefined, { successStatusCode: 201 })
     @Post()
@@ -96,14 +105,5 @@ export class InvoiceController {
     @Get('download')
     downloadInvoice(@Query() args: { invoiceId: string }, @Req() req: AuthenticatedRequest): Promise<StreamableFile> {
         return this.invoiceService.downloadInvoice(args.invoiceId, req.user);
-    }
-
-    @Auth()
-    @Roles(Role.influencer)
-    @ApiOperation({summary: "Returns influencer's invoice draft values"})
-    @ApiResponseDto(CreateInvoiceDto)
-    @Get('draft')
-    getDraft(@Req() req: AuthenticatedRequest): Promise<CreateInvoiceDto> {
-        return this.invoiceService.getInvoiceDraft(req.user);
     }
 }

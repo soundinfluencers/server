@@ -1,6 +1,6 @@
 import {BadRequestException, Injectable, Logger, NotFoundException} from '@nestjs/common';
 import mongoose, {ClientSession, Types} from 'mongoose';
-import {UpsertCampaignActionDto, UpsertInvoiceActionDto} from "./dto/upsert-actions.dto";
+import {UpsertCampaignActionDto, UpsertCampaignActionsDto, UpsertInvoiceActionDto} from "./dto/upsert-actions.dto";
 import {InfluencerHistoryRepository} from "../../database/repositories/histories/influencer-history.repository";
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {
@@ -43,7 +43,7 @@ export class InfluencerActionsHistoryService {
 
         if (!updatedCampaignAction) throw new BadRequestException("Missing campaign action");
 
-        const influencer = await this.influencerRepo.findById(influencerId).select('email balance');
+        const influencer = await this.influencerRepo.findById(influencerId, {session}).select('email balance');
 
         if (!influencer) throw new NotFoundException(`Influencer ${influencerId} not found`);
 
@@ -65,7 +65,7 @@ export class InfluencerActionsHistoryService {
         const updateResult = await this.influencerHistoryRepo.findOneAndUpdate(
             {
                 influencerId: new mongoose.Types.ObjectId(influencerId),
-                'campaigns.campaignId': campaignId,
+                'campaigns.campaignId': new Types.ObjectId(campaignId),
             },
             {
                 $push: {
@@ -74,7 +74,7 @@ export class InfluencerActionsHistoryService {
             },
             {
                 new: true,
-                session: session ?? undefined
+                session: session
             },
         );
 
@@ -98,8 +98,122 @@ export class InfluencerActionsHistoryService {
                 {
                     new: true,
                     upsert: true,
+                    session
                 },
             );
+        }
+    };
+
+    async upsertInfluencerCampaignActionsHistoryMany(
+        data: UpsertCampaignActionsDto,
+        session?: ClientSession,
+    ): Promise<void> {
+        const { influencerId, updatedCampaignActions } = data;
+
+        if (!updatedCampaignActions?.length) {
+            throw new BadRequestException('Missing campaign actions');
+        }
+
+        const influencer = await this.influencerRepo
+            .findById(influencerId, { session })
+            .select('email balance');
+
+        if (!influencer) {
+            throw new NotFoundException(`Influencer ${influencerId} not found`);
+        }
+
+        const { email, balance } = influencer;
+        const influencerObjectId = new Types.ObjectId(influencerId);
+
+        const groupedActions = new Map<
+            string,
+            {
+                campaignId: string;
+                campaignName: string;
+                actions: CampaignAction[];
+            }
+        >();
+
+        for (const updatedCampaignAction of updatedCampaignActions) {
+            const {
+                campaignId,
+                campaignName,
+                actionNumber,
+                networkUsername,
+                rewardForInfluencer,
+                socialMedia,
+                socialAccountId,
+                addedAccountsId,
+            } = updatedCampaignAction;
+
+            const action: CampaignAction = {
+                addedAccountsId,
+                socialAccountId,
+                actionNumber,
+                networkUsername,
+                rewardForInfluencer,
+                socialMedia: socialMedia as SocialMediaEnum,
+                currentBalance: 0,
+                date: new Date(),
+            };
+
+            const key = campaignId;
+
+            if (!groupedActions.has(key)) {
+                groupedActions.set(key, {
+                    campaignId,
+                    campaignName,
+                    actions: [action],
+                });
+            } else {
+                groupedActions.get(key)!.actions.push(action);
+            }
+        }
+
+        for (const group of groupedActions.values()) {
+            const updateResult = await this.influencerHistoryRepo.findOneAndUpdate(
+                {
+                    influencerId: influencerObjectId,
+                    'campaigns.campaignId': new Types.ObjectId(group.campaignId),
+                },
+                {
+                    $push: {
+                        'campaigns.$.actions': {
+                            $each: group.actions,
+                        },
+                    },
+                },
+                {
+                    new: true,
+                    session: session ?? undefined,
+                },
+            );
+
+            if (!updateResult) {
+                await this.influencerHistoryRepo.findOneAndUpdate(
+                    {
+                        influencerId: influencerObjectId,
+                    },
+                    {
+                        $push: {
+                            campaigns: {
+                                campaignId: new Types.ObjectId(group.campaignId),
+                                campaignName: group.campaignName,
+                                actions: group.actions,
+                            },
+                        },
+                        $setOnInsert: {
+                            influencerId: influencerObjectId,
+                            influencerEmail: email,
+                        },
+                    },
+                    {
+                        new: true,
+                        upsert: true,
+                        session: session ?? undefined,
+                    },
+                );
+            }
         }
     }
 

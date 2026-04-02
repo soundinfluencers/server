@@ -40,7 +40,6 @@ export class InvoiceService {
         private readonly userInvoiceRepository: UserInvoiceRepository,
         private readonly invoiceDetailsRepo: InvoiceDetailsRepository,
         private readonly campaignRepo: CampaignRepository,
-
         // services
         private readonly influencerHistoryService: InfluencerActionsHistoryService,
         private readonly profileService: ProfileService,
@@ -57,7 +56,10 @@ export class InvoiceService {
 
         try {
             // Getting influencer
-            const influencerForPayment = await this.influencerRepo.findById(data.userId, { session, select: ['balance'] });
+            const influencerForPayment = await this.influencerRepo.findById(data.userId, {
+                session,
+                select: ['balance']
+            });
 
             if (!influencerForPayment) {
                 throw new NotFoundException('Influencer not found');
@@ -71,7 +73,7 @@ export class InvoiceService {
             }
 
             // Searching promos that were closed and waiting for payment
-            const promosWaitForPayment = await this.campaignRepo.findAllWaitingForPayment(data.userId, InvoiceStatusEnum.wait, session);
+            const promosWaitForPayment = await this.campaignRepo.findAllWaitingForPayment(data.userId, InvoiceStatusEnum.wait, session)
 
             if (!promosWaitForPayment || promosWaitForPayment.length === 0) {
                 throw new NotFoundException(`Can't find any promo that is waiting for payment`);
@@ -80,22 +82,7 @@ export class InvoiceService {
             // Updating invoice status in these promos
             await this.campaignRepo.updateManyInvoiceStatuses(data.userId, InvoiceStatusEnum.wait, InvoiceStatusEnum.submitted, session);
 
-            const updatedInfluencer = await this.influencerRepo.findOneAndUpdate(
-                {
-                    _id: new Types.ObjectId(data.userId),
-                    balance: oldBalance, // defend from races
-                },
-                {
-                    $set: { balance: 0 }, // set zero
-                },
-                { new: true, session }
-            );
-
-            if (!updatedInfluencer || updatedInfluencer.balance !== 0) {
-                throw new BadRequestException('Failed to update balance');
-            }
-
-            const newBalance = Number(updatedInfluencer.balance);
+            // throw new Error('expected error');
 
             // Creating invoice
             const invoice: InfluencerInvoiceDocument = await this.userInvoiceRepository.createInfluencerInvoice({
@@ -104,7 +91,41 @@ export class InvoiceService {
                 amount: oldBalance
             }, session);
 
-            // Updating influencer's actions history
+            // Updating influencer's actions history - ADDING CAMPAIGN ACTIONS
+            await this.influencerHistoryService.upsertInfluencerCampaignActionsHistoryMany({
+                    influencerId: data.userId,
+                    updatedCampaignActions: promosWaitForPayment.map(p => ({
+                        campaignId: p.campaignId.toString(),
+                        campaignName: p.campaignName,
+                        addedAccountsId: p._id,
+                        socialAccountId: p.accountId,
+                        actionNumber: 3,
+                        networkUsername: p.username,
+                        rewardForInfluencer: -p.price,
+                        socialMedia: p.socialMedia
+                    }))
+                },
+                session
+            );
+
+            const updatedInfluencer = await this.influencerRepo.findOneAndUpdate(
+                {
+                    _id: new Types.ObjectId(data.userId),
+                    balance: oldBalance, // defend from races
+                },
+                {
+                    $set: {balance: 0}, // set zero
+                },
+                {new: true, session}
+            );
+
+            if (!updatedInfluencer || updatedInfluencer.balance !== 0) {
+                throw new BadRequestException('Failed to update balance');
+            }
+
+            const newBalance = Number(updatedInfluencer.balance);
+
+            // Updating influencer's actions history - ADDING INVOICE ACTION
             await this.influencerHistoryService.upsertInfluencerInvoiceHistory(
                 {
                     influencerId: data.userId,
@@ -174,7 +195,7 @@ export class InvoiceService {
         data: GetInvoicesQueryDto,
         userInfo: UserPayload,
     ): Promise<InvoiceForDashboard[]> {
-        const { limit, page } = data;
+        const {limit, page} = data;
 
         const userId = new ObjId(userInfo._id);
         const userRole = userInfo.role;
@@ -182,17 +203,17 @@ export class InvoiceService {
         const skip = (page - 1) * limit;
 
         const pipeline: PipelineStage[] = [
-            { $match: { userId, userRole } },
-            { $sort: { createdAt: -1 } },
-            { $skip: skip },
-            { $limit: limit },
+            {$match: {userId, userRole}},
+            {$sort: {createdAt: -1}},
+            {$skip: skip},
+            {$limit: limit},
 
             {
                 $addFields: {
                     needCampaignNameLookup: {
                         $and: [
-                            { $eq: ['$userRole', 'client'] },
-                            { $eq: [{ $ifNull: ['$campaignName', null] }, null] },
+                            {$eq: ['$userRole', 'client']},
+                            {$eq: [{$ifNull: ['$campaignName', null]}, null]},
                         ],
                     },
                 },
@@ -201,20 +222,20 @@ export class InvoiceService {
             {
                 $lookup: {
                     from: 'campaigns',
-                    let: { cid: '$campaignId', need: '$needCampaignNameLookup' },
+                    let: {cid: '$campaignId', need: '$needCampaignNameLookup'},
                     pipeline: [
                         {
                             $match: {
                                 $expr: {
                                     $and: [
                                         '$$need',
-                                        { $eq: ['$_id', '$$cid'] },
+                                        {$eq: ['$_id', '$$cid']},
                                     ],
                                 },
                             },
                         },
-                        { $project: { _id: 0, campaignName: 1 } },
-                        { $limit: 1 },
+                        {$project: {_id: 0, campaignName: 1}},
+                        {$limit: 1},
                     ],
                     as: 'campaignDoc',
                 },
@@ -223,20 +244,20 @@ export class InvoiceService {
             {
                 $lookup: {
                     from: 'completedcampaigns',
-                    let: { cid: '$campaignId', need: '$needCampaignNameLookup' },
+                    let: {cid: '$campaignId', need: '$needCampaignNameLookup'},
                     pipeline: [
                         {
                             $match: {
                                 $expr: {
                                     $and: [
                                         '$$need',
-                                        { $eq: ['$_id', '$$cid'] },
+                                        {$eq: ['$_id', '$$cid']},
                                     ],
                                 },
                             },
                         },
-                        { $project: { _id: 0, campaignName: 1 } },
-                        { $limit: 1 },
+                        {$project: {_id: 0, campaignName: 1}},
+                        {$limit: 1},
                     ],
                     as: 'completedCampaignDoc',
                 },
@@ -249,8 +270,8 @@ export class InvoiceService {
                             '$campaignName',
                             {
                                 $ifNull: [
-                                    { $first: '$campaignDoc.campaignName' },
-                                    { $first: '$completedCampaignDoc.campaignName' },
+                                    {$first: '$campaignDoc.campaignName'},
+                                    {$first: '$completedCampaignDoc.campaignName'},
                                 ],
                             },
                         ],
@@ -262,15 +283,15 @@ export class InvoiceService {
                 $project: {
                     _id: 0,
                     invoiceId: {$toString: '$_id'},
-                    shortInvoiceId: { $substr: [{ $toString: '$_id' }, 0, 8] },
-                    creationDate: { $dateToString: { date: '$createdAt', format: '%d.%m.%Y' } },
+                    shortInvoiceId: {$substr: [{$toString: '$_id'}, 0, 8]},
+                    creationDate: {$dateToString: {date: '$createdAt', format: '%d.%m.%Y'}},
                     paymentMethod: '$selectedPaymentMethod',
                     amount: 1,
                     status: 1,
 
                     campaignName: {
                         $cond: [
-                            { $eq: ['$userRole', 'client'] },
+                            {$eq: ['$userRole', 'client']},
                             '$campaignNameResolved',
                             '$$REMOVE',
                         ],
