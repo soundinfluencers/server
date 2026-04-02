@@ -1,31 +1,27 @@
 import {BadRequestException, Injectable, Logger, NotFoundException} from '@nestjs/common';
-import {ClientRepository} from "../../../database/repositories/users/client.repository";
 import {CampaignRepository} from "../../../database/repositories/campaigns/campaign.repository";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {
     AdminCampaignDetailsDto,
-    AdminCampaignForListDto,
     AdminCampaignSearchResponseDto,
     AdminCampaignsListResponseDto,
     AdminCampaignsListStatusEnum,
     GetAdminCampaignsListQueryDto
 } from "../dto/campaigns/admin-campaigns.dto";
 import {
-    mapIAdminCampaignForListToDto, mapSchemaToIAdminCampaignDetails, mapToAdminCampaignDetailsDto,
+    mapSchemaToIAdminCampaignDetails, mapToAdminCampaignDetailsDto,
     mapToAdminCampaignForListDto,
 } from "../../../common/mappers/campaign.mapper";
 import {
-    CampaignAdminMetaEnum, IAdminCampaignAccount, IAdminCampaignDetails,
+    CampaignAdminMetaEnum, IAdminCampaignDetails,
     IAdminCampaignForList
 } from "../../../common/types/client/campaign.types";
 import {ProposalCampaignRepository} from "../../../database/repositories/campaigns/proposal-campaign.repository";
-import {UpdateAdminMetaCampaignDto} from "../dto/campaigns/admin-update-campaign.dto";
+import {UpdateAdminMetaCampaignDto, UpdatedAdminMetaCampaignDto} from "../dto/campaigns/admin-update-campaign.dto";
 import {CompletedCampaignRepository} from "../../../database/repositories/campaigns/completed-campaign.repository";
 import {Campaign, CampaignAccount} from "../../../database/schemas/campaign/campaign.schema";
 import {CompletedCampaign} from "../../../database/schemas/campaign/completed-campaign.schema";
 import {ProposalCampaign} from "../../../database/schemas/campaign/proposal-campaign.schema";
-import {UserInvoiceRepository} from "../../../database/repositories/invoices/user-invoice.repository";
-import {Role} from "../../../common/types/user.types";
 import {CampaignDetailsService} from "../../campaigns/services/campaign-details.service";
 import {UpdateCampaignDto} from "../../campaigns/dto/update-campaign.dto";
 import {CampaignUpdateService} from "../../campaigns/services/campaign-update.service";
@@ -44,7 +40,7 @@ export interface IAdminCampaignsService {
         payload: UpdateAdminMetaCampaignDto,
         status: AdminCampaignsListStatusEnum,
         campaignId: string,
-    ): Promise<AdminCampaignForListDto>;
+    ): Promise<UpdatedAdminMetaCampaignDto>;
 
     deleteCampaign(
         status: AdminCampaignsListStatusEnum,
@@ -67,11 +63,9 @@ export interface IAdminCampaignsService {
 @Injectable()
 export class AdminCampaignsService implements IAdminCampaignsService {
     constructor(
-        private readonly clientsRepository: ClientRepository,
         private readonly campaignsRepository: CampaignRepository,
         private readonly completedCampaignsRepository: CompletedCampaignRepository,
         private readonly proposalCampaignRepository: ProposalCampaignRepository,
-        private readonly invoiceRepository: UserInvoiceRepository,
         private readonly campaignDetailsService: CampaignDetailsService,
         private readonly campaignUpdateService: CampaignUpdateService,
         private readonly campaignAccountsBuilderService: CampaignAccountsBuilderService,
@@ -187,8 +181,6 @@ export class AdminCampaignsService implements IAdminCampaignsService {
     }
 
     async getCampaignsList(data: GetAdminCampaignsListQueryDto): Promise<AdminCampaignsListResponseDto> {
-        // TODO: if admin created campaign - that will be input for link, if client created - that will be invoiceId
-
         const page = data.page ?? 1;
         const limit = data.limit ?? 10;
         const skip = (page - 1) * limit;
@@ -260,7 +252,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         payload: UpdateAdminMetaCampaignDto,
         status: AdminCampaignsListStatusEnum,
         campaignId: string,
-    ): Promise<AdminCampaignForListDto> {
+    ): Promise<UpdatedAdminMetaCampaignDto> {
         const entry = Object.entries(payload).find(([, value]) => value !== undefined);
 
         if (!entry) {
@@ -285,31 +277,9 @@ export class AdminCampaignsService implements IAdminCampaignsService {
             throw new NotFoundException('Campaign not found');
         }
 
-        const isProposal = 'creatorId' in updatedCampaign;
-
-        const clientInfo = await this.clientsRepository.findById(
-            isProposal ? updatedCampaign.creatorId.toString() : updatedCampaign.clientId.toString(),
-            {select: ['firstName']}
-        );
-
-        const invoiceInfo = await this.invoiceRepository.findInvoiceByCampaignId(
-            campaignId,
-            {
-                select: ['_id']
-            }
-        );
-
-        return mapIAdminCampaignForListToDto({
-            campaign: updatedCampaign,
-            creatorInfo: {
-                name: clientInfo.firstName ?? "Not found",
-                role: Role.client
-            },
-            invoiceInfo: {
-                invoiceId: invoiceInfo._id,
-                shortInvoiceId: invoiceInfo._id.toString()
-            }
-        });
+        return {
+            [field]: updatedCampaign.adminMeta?.[field as CampaignAdminMetaEnum],
+        } as UpdatedAdminMetaCampaignDto;
     }
 
     async deleteCampaign(status: AdminCampaignsListStatusEnum, campaignId: string): Promise<void> {

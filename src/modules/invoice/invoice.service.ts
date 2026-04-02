@@ -101,7 +101,7 @@ export class InvoiceService {
                         socialAccountId: p.accountId,
                         actionNumber: 3,
                         networkUsername: p.username,
-                        rewardForInfluencer: -p.price,
+                        rewardForInfluencer: p.price,
                         socialMedia: p.socialMedia
                     }))
                 },

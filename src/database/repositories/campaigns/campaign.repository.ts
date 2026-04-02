@@ -359,6 +359,42 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
                     preserveNullAndEmptyArrays: true,
                 },
             },
+
+            {
+                $lookup: {
+                    from: 'userinvoices',
+                    let: { campaignId: '$_id' },
+                    pipeline: [
+                        {
+                            $setWindowFields: {
+                                sortBy: { _id: 1 },
+                                output: {
+                                    shortInvoiceNumber: { $documentNumber: {} }
+                                }
+                            }
+                        },
+                        {
+                            $match: {
+                                $expr: { $eq: ['$campaignId', '$$campaignId'] }
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 1,
+                                shortInvoiceNumber: 1
+                            }
+                        }
+                    ],
+                    as: 'userInvoice'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$userInvoice',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+
             {
                 $project: {
                     _id: 1,
@@ -386,8 +422,8 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
                     },
                     reportSent: {$ifNull: ['$adminMeta.reportSent', false]},
                     paymentStatus: 1,
-                    invoiceId: 1,
-                    shortInvoiceId: 1,
+                    invoiceId: '$userInvoice._id',
+                    shortInvoiceNumber: '$userInvoice.shortInvoiceNumber',
                     notes: '$adminMeta.notes',
                     affiliatePartner: '$adminMeta.affiliatePartner',
                     affiliateCommission: '$adminMeta.affiliateCommission',

@@ -39,3 +39,31 @@ export class UpdateAdminMetaCampaignDto {
     )
     private readonly __exactlyOneDefinedValidation?: never;
 }
+
+// DTO with result of updating campaign's admin meta information
+export class UpdatedAdminMetaCampaignDto {
+    @ApiPropertyOptional({type: Boolean})
+    @IsBoolean()
+    @IsOptional()
+    reportSent?: boolean;
+
+    @ApiPropertyOptional({type: String})
+    @IsString()
+    @IsOptional()
+    notes?: string;
+
+    @ApiPropertyOptional({type: String})
+    @IsString()
+    @IsOptional()
+    affiliatePartner?: string;
+
+    @ApiPropertyOptional({type: String})
+    @IsString()
+    @IsOptional()
+    affiliateCommission?: string;
+
+    @ApiPropertyOptional({type: String})
+    @IsString()
+    @IsOptional()
+    affiliatePaid?: string;
+}

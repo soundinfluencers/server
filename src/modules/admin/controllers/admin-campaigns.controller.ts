@@ -15,7 +15,7 @@ import {
 import {ApiResponseDtoOneOf} from "../../../common/decorators/api/response/api-response-one-of.decorator";
 import {OneOfQueryPipe} from "../../../common/pipes/one-of-query.pipe";
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
-import {UpdateAdminMetaCampaignDto} from "../dto/campaigns/admin-update-campaign.dto";
+import {UpdateAdminMetaCampaignDto, UpdatedAdminMetaCampaignDto} from "../dto/campaigns/admin-update-campaign.dto";
 import {ParseObjectIdPipe} from "../../../common/pipes/parse-oid.pipe";
 import {UpdateCampaignDto} from "../../campaigns/dto/update-campaign.dto";
 
@@ -78,7 +78,7 @@ export class AdminCampaignsController {
 
 
     @ApiOperation({summary: "Update campaign's meta field."})
-    @ApiResponseDto(AdminCampaignForListDto)
+    @ApiResponseDto(UpdatedAdminMetaCampaignDto)
     @ApiParam({
         name: "status",
         type: String,
@@ -101,7 +101,7 @@ export class AdminCampaignsController {
             'campaignId',
             new ParseObjectIdPipe()
         ) campaignId: string,
-    ): Promise<AdminCampaignForListDto> {
+    ): Promise<UpdatedAdminMetaCampaignDto> {
         return this.adminService.updateMeta(data, status, campaignId);
     }
 

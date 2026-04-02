@@ -526,58 +526,6 @@ export const mapToIProposalOption = (campaignOption: ProposalCampaignOption): IP
   }
 };
 
-// Map Campaign mongoose schema to AdminCampaignForListDto
-export const mapIAdminCampaignForListToDto = (
-    payload: {
-        campaign: Campaign | CompletedCampaign | ProposalCampaign,
-        creatorInfo: {
-            name: string,
-            role: Role
-        },
-        invoiceInfo: {
-            invoiceId: Types.ObjectId,
-            shortInvoiceId: string,
-        }
-    }
-): AdminCampaignForListDto => {
-    const { campaign, creatorInfo, invoiceInfo } = payload;
-
-    const isProposal = 'creatorId' in campaign;
-
-    let totalFollowers: number = 0;
-    let cost: number = 0;
-    let salePrice: number = isProposal ? 0 : campaign.campaignPrice;
-
-    if (!isProposal) {
-        campaign?.addedAccounts?.map((acc: CampaignAccount) => {
-            totalFollowers += acc.followers;
-            cost += acc.price;
-        })
-    }
-
-    return {
-        campaignId: campaign._id.toString(),
-        socialMedia: campaign.socialMedia,
-        campaignName: campaign.campaignName,
-        creatorRole: creatorInfo.role,
-        creatorName: creatorInfo.name,
-        followers: totalFollowers,
-        cost: cost,
-        salePrice: salePrice,
-        date: formatDate(campaign.createdAt),
-        status: isProposal ? AdminCampaignsListStatusEnum.proposal : campaign.statusCampaign as unknown as AdminCampaignsListStatusEnum,
-        statusLabel: isProposal ? AdminCampaignStatusEnum.proposal : campaign.statusCampaign as unknown as AdminCampaignStatusEnum,
-        reportSent: campaign?.adminMeta?.reportSent ?? false,
-        paymentStatus: isProposal ? undefined : campaign.paymentStatus,
-        invoiceId: invoiceInfo.invoiceId.toString(),
-        shortInvoiceId: invoiceInfo.shortInvoiceId,
-        ...campaign?.adminMeta?.notes ? { notes: campaign.adminMeta.notes } : null,
-        ...campaign?.adminMeta?.affiliatePartner ? { affiliatePartner: campaign.adminMeta.affiliatePartner } : null,
-        ...campaign?.adminMeta?.affiliateCommission ? { affiliateCommission: campaign.adminMeta.affiliateCommission } : null,
-        ...campaign?.adminMeta?.affiliatePaid ? { affiliatePaid: campaign.adminMeta.affiliatePaid } : null,
-    }
-}
-
 // Map IAdminCampaignForList read model to AdminCampaignForListDto
 export const mapToAdminCampaignForListDto = (
     campaign: IAdminCampaignForList,
@@ -596,8 +544,8 @@ export const mapToAdminCampaignForListDto = (
         statusLabel: campaign.statusLabel,
         reportSent: campaign.reportSent,
         ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? { paymentStatus: campaign.paymentStatus } : null,
-        invoiceId: campaign.invoiceId?.toString(),
-        shortInvoiceId: campaign.shortInvoiceId,
+        ...campaign.invoiceId ? { invoiceId: campaign.invoiceId.toString() } : null,
+        ...campaign.invoiceId ? { shortInvoiceNumber: campaign.shortInvoiceNumber } : null,
         notes: campaign.notes,
         affiliatePartner: campaign.affiliatePartner,
         affiliateCommission: campaign.affiliateCommission,

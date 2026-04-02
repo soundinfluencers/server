@@ -256,7 +256,7 @@ export interface IAdminCampaignForList {
     reportSent: boolean;
     paymentStatus: CampaignPaymentStatusEnum;
     invoiceId: Types.ObjectId; // _id of invoice that connected to this campaign
-    shortInvoiceId: string;
+    shortInvoiceNumber: number;
     notes?: string; // notes for this campaign
     affiliatePartner?: string; // input for admin
     affiliateCommission?: string; // input for admin

@@ -69,8 +69,8 @@ export class AdminCampaignForListDto {
     @ApiProperty({ type: String })
     invoiceId: string;
 
-    @ApiProperty({ type: String })
-    shortInvoiceId: string;
+    @ApiProperty({ type: Number })
+    shortInvoiceNumber: number;
 
     @ApiPropertyOptional({ type: String })
     notes?: string;
