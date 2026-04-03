@@ -1,4 +1,4 @@
-import {BadRequestException, Injectable, Logger, NotFoundException} from '@nestjs/common';
+import {BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException} from '@nestjs/common';
 import {CampaignRepository} from "../../../database/repositories/campaigns/campaign.repository";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {
@@ -14,7 +14,7 @@ import {
 } from "../../../common/mappers/campaign.mapper";
 import {
     CampaignAdminMetaEnum, IAdminCampaignDetails,
-    IAdminCampaignForList
+    IAdminCampaignForList, IProposalCampaign
 } from "../../../common/types/client/campaign.types";
 import {ProposalCampaignRepository} from "../../../database/repositories/campaigns/proposal-campaign.repository";
 import {UpdateAdminMetaCampaignDto, UpdatedAdminMetaCampaignDto} from "../dto/campaigns/admin-update-campaign.dto";
@@ -25,9 +25,20 @@ import {ProposalCampaign} from "../../../database/schemas/campaign/proposal-camp
 import {CampaignDetailsService} from "../../campaigns/services/campaign-details.service";
 import {UpdateCampaignDto} from "../../campaigns/dto/update-campaign.dto";
 import {CampaignUpdateService} from "../../campaigns/services/campaign-update.service";
-import {HydratedDocument} from "mongoose";
+import {ClientSession, HydratedDocument, Types} from "mongoose";
 import {CampaignAccountsBuilderService} from "../../campaigns/services/campaign-accounts-builder.service";
 import {ObjId} from "../../../common/types/base.types";
+import {XlsxImporter} from "../../../common/utils/import/xlsx/xlsx-import";
+import {XlsxCampaignDto} from "../dto/campaigns/xlsx-campaign.dto";
+import {getSocialMediaGroup} from "../../../common/utils/socialMedia";
+import {getArrayFromAccountMusicGenres, returnMusicStyles} from "../../../common/utils/genres";
+import {SocialMediaEnum} from "../../../common/types/social-media.types";
+import {ProposalCampaignOption} from "../../../database/schemas/campaign/proposal-campaign-option.schema";
+import {Role} from "../../../common/types/user.types";
+import {InfluencerRepository} from "../../../database/repositories/users/influencer.repository";
+import {
+    ProposalCampaignOptionRepository
+} from "../../../database/repositories/campaigns/proposal-campaign-option.repository";
 
 // Interface for admin campaigns service and controller
 export interface IAdminCampaignsService {
@@ -58,20 +69,27 @@ export interface IAdminCampaignsService {
         campaignId: string,
         data: UpdateCampaignDto
     ): Promise<AdminCampaignDetailsDto>;
+
+    // Imports xlsx file with campaign and save data as proposal campaign
+    importXlsx(file: Express.Multer.File): Promise<void>;
 }
 
 @Injectable()
 export class AdminCampaignsService implements IAdminCampaignsService {
     constructor(
+        private readonly influencersRepository: InfluencerRepository,
         private readonly campaignsRepository: CampaignRepository,
         private readonly completedCampaignsRepository: CompletedCampaignRepository,
         private readonly proposalCampaignRepository: ProposalCampaignRepository,
+        private readonly proposalOptionsRepository: ProposalCampaignOptionRepository,
         private readonly campaignDetailsService: CampaignDetailsService,
         private readonly campaignUpdateService: CampaignUpdateService,
         private readonly campaignAccountsBuilderService: CampaignAccountsBuilderService,
+        private readonly xlsxImporter: XlsxImporter,
     ) {
     }
 
+    private readonly adminId = new ObjId('650000000000000000000001');
     private readonly logger = new Logger('AdminCampaignsService');
 
     // Sort and merge ongoing and completed campaigns
@@ -314,6 +332,340 @@ export class AdminCampaignsService implements IAdminCampaignsService {
 
             default:
                 throw new BadRequestException(`Unsupported campaign status: ${status}`);
+        }
+    }
+
+    async importXlsx(file: Express.Multer.File): Promise<void> {
+        const data: XlsxCampaignDto = await this.xlsxImporter.importProposalCampaign(file);
+
+        if (!data) {
+            throw new InternalServerErrorException("Something went wrong");
+        }
+
+        const newCampaignId = new ObjId();
+        const newCampaignOptionId = new ObjId();
+
+        const isMultiPromo = !data.socialMedia || data.socialMedia === 'multipromo';
+
+        const socialMediaPlatforms = Object.values(SocialMediaEnum);
+
+        const proposalOption: Partial<ProposalCampaignOption> = {
+            _id: newCampaignOptionId,
+            proposalCampaignId: newCampaignId,
+            creatorId: this.adminId,
+            creatorRole: Role.admin,
+            publicCampaignPrice: data.price,
+            privateCampaignPrice: 0,
+            campaignContent: [],
+            addedAccounts: []
+        }
+
+        const proposalCampaign: Partial<ProposalCampaign> = {
+            _id: newCampaignId,
+            creatorId: this.adminId,
+            creatorRole: Role.admin,
+            campaignName: data.campaignName,
+            socialMedia: data.socialMedia || 'multipromo',
+            optionsIds: [newCampaignOptionId],
+        };
+
+        await Promise.all(
+            data.pages.map(async (page) => {
+                let influencerId: Types.ObjectId | null = null;
+
+                if (isMultiPromo) {
+                    const normalizedUsername = page.username.trim();
+
+                    const aggregationPipeline = [
+                        {
+                            $facet: socialMediaPlatforms.reduce((acc, platform) => {
+                                acc[platform] = [
+                                    {$unwind: {path: `$${platform}`, preserveNullAndEmptyArrays: true}},
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $let: {
+                                                    vars: {
+                                                        cleanFollowers: {
+                                                            $replaceAll: {
+                                                                input: {
+                                                                    $replaceAll: {
+                                                                        input: `$${platform}.followers`,
+                                                                        find: '.',
+                                                                        replacement: '',
+                                                                    },
+                                                                },
+                                                                find: ',',
+                                                                replacement: '',
+                                                            },
+                                                        },
+                                                    },
+                                                    in: {
+                                                        $and: [
+                                                            {
+                                                                $eq: [
+                                                                    {$trim: {input: `$${platform}.username`}},
+                                                                    normalizedUsername,
+                                                                ],
+                                                            },
+                                                            {
+                                                                $eq: [{$toInt: '$$cleanFollowers'}, page.followers],
+                                                            },
+                                                        ],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    {
+                                        $project: {
+                                            influencerId: '$_id',
+                                            accountId: `$${platform}._id`,
+                                            socialMedia: platform,
+                                            price: `$${platform}.price`,
+                                            publicPrice: `$${platform}.publicPrice`,
+                                            dateRequest: data.timeline,
+                                            followers: `$${platform}.followers`,
+                                            countries: `$${platform}.countries`,
+                                            musicGenres: `$${platform}.musicGenres`,
+                                        },
+                                    },
+                                ];
+                                return acc;
+                            }, {}),
+                        },
+                        {
+                            $project: {
+                                combined: {
+                                    $concatArrays: socialMediaPlatforms.map((platform) => `$${platform}`),
+                                },
+                            },
+                        },
+                        {$unwind: '$combined'},
+                        {
+                            $project: {
+                                influencerId: '$combined.influencerId',
+                                accountId: `$combined.accountId`,
+                                socialMedia: '$combined.socialMedia',
+                                price: '$combined.price',
+                                publicPrice: '$combined.publicPrice',
+                                dateRequest: '$combined.dateRequest',
+                                followers: '$combined.followers',
+                                countries: '$combined.countries',
+                                musicGenres: '$combined.musicGenres',
+                            },
+                        },
+                    ];
+
+                    const result = await this.influencersRepository.aggregate(aggregationPipeline).exec();
+
+                    if (result.length > 0) {
+                        influencerId = result[0].influencerId
+                            ? new Types.ObjectId(result[0].influencerId)
+                            : null;
+                        let selectedCampaignContentItem: {
+                            campaignContentItemId: ObjId,
+                            postDescriptionId: ObjId
+                        } | null = null;
+
+                        const existingContentIndex: number = proposalOption.campaignContent.findIndex(
+                            (item) =>
+                                item.mainLink === page.mainLink &&
+                                getSocialMediaGroup(item.socialMedia) === getSocialMediaGroup(result[0].socialMedia),
+                        );
+
+                        if (page.mainLink && existingContentIndex === -1) {
+                            const campaignContentItemId = new ObjId();
+                            const postDescriptionId = new ObjId();
+
+                            selectedCampaignContentItem = {
+                                campaignContentItemId,
+                                postDescriptionId
+                            };
+
+                            proposalOption.campaignContent.push({
+                                _id: campaignContentItemId,
+                                socialMedia: result[0].socialMedia,
+                                socialMediaGroup: getSocialMediaGroup(result[0].socialMedia),
+                                mainLink: page.mainLink,
+                                descriptions: [{
+                                    _id: postDescriptionId,
+                                    description: page.description || '',
+                                }],
+                                ...page.taggedUser?.trim().length > 0 ? {taggedUser: page.taggedUser} : undefined,
+                                ...page.taggedLink?.trim().length > 0 ? {taggedLink: page.taggedLink} : undefined,
+                                ...page.additionalBrief?.trim().length > 0 ? {additionalBrief: page.additionalBrief} : undefined,
+                            });
+                        } else if (existingContentIndex !== -1) {
+                            const existingDescriptionIndex: number = proposalOption.campaignContent[existingContentIndex].descriptions.findIndex(
+                                pd => pd.description === page.description,
+                            )
+
+                            if (existingDescriptionIndex === -1) {
+                                const postDescriptionId = new ObjId();
+
+                                selectedCampaignContentItem = {
+                                    campaignContentItemId: proposalOption.campaignContent[existingContentIndex]._id,
+                                    postDescriptionId: postDescriptionId
+                                };
+
+                                proposalOption.campaignContent[existingContentIndex].descriptions.push({
+                                    _id: postDescriptionId,
+                                    description: page.description || '',
+                                })
+                            } else {
+                                selectedCampaignContentItem = {
+                                    campaignContentItemId: proposalOption.campaignContent[existingContentIndex]._id,
+                                    postDescriptionId: proposalOption.campaignContent[existingContentIndex].descriptions[existingDescriptionIndex]._id
+                                }
+                            }
+                        }
+
+                        const formattedGenres = getArrayFromAccountMusicGenres(result[0]?.musicGenres) ?? [];
+                        proposalOption.privateCampaignPrice += result[0].price;
+
+                        proposalOption.addedAccounts.push({
+                            ...result[0],
+                            _id: new ObjId(),
+                            username: normalizedUsername,
+                            selectedContent: selectedCampaignContentItem,
+                            genres: formattedGenres,
+                            followers: result[0].followers,
+                        });
+                    }
+                } else {
+                    const platform = data.socialMedia;
+                    const normalizedUsername = page.username.trim();
+
+                    const aggregationPipeline = [
+                        {$unwind: `$${platform}`},
+                        {
+                            $match: {
+                                $expr: {
+                                    $eq: [
+                                        {$trim: {input: `$${platform}.username`}},
+                                        normalizedUsername,
+                                    ],
+                                },
+                            },
+                        },
+                        {
+                            $project: {
+                                influencerId: '$_id',
+                                accountId: `$${platform}._id`,
+                                socialMedia: platform,
+                                price: `$${platform}.price`,
+                                publicPrice: `$${platform}.publicPrice`,
+                                dateRequest: data.timeline,
+                                followers: `$${platform}.followers`,
+                                countries: `$${platform}.countries`,
+                                musicGenres: `$${platform}.musicGenres`,
+                            },
+                        },
+                    ];
+
+                    const result = await this.influencersRepository.aggregate(aggregationPipeline).exec();
+
+                    if (result.length > 0) {
+                        influencerId = result[0].influencerId
+                            ? new Types.ObjectId(result[0].influencerId)
+                            : null;
+                        let selectedCampaignContentItem: {
+                            campaignContentItemId: ObjId,
+                            postDescriptionId: ObjId,
+                        } | null = null;
+
+                        const existingContentIndex: number = proposalOption.campaignContent.findIndex(
+                            (item) =>
+                                item.mainLink === page.mainLink &&
+                                getSocialMediaGroup(item.socialMedia) === getSocialMediaGroup(result[0].socialMedia),
+                        );
+
+                        if (page.mainLink && existingContentIndex === -1) {
+                            const campaignContentItemId = new ObjId();
+                            const postDescriptionId = new ObjId();
+
+                            selectedCampaignContentItem = {
+                                campaignContentItemId,
+                                postDescriptionId
+                            };
+
+                            proposalOption.campaignContent.push({
+                                _id: campaignContentItemId,
+                                socialMedia: result[0].socialMedia,
+                                socialMediaGroup: getSocialMediaGroup(result[0].socialMedia),
+                                mainLink: page.mainLink,
+                                descriptions: [{
+                                    _id: postDescriptionId,
+                                    description: page.description || '',
+                                }],
+                                ...page.taggedUser?.trim().length > 0 ? {taggedUser: page.taggedUser} : undefined,
+                                ...page.taggedLink?.trim().length > 0 ? {taggedLink: page.taggedLink} : undefined,
+                                ...page.additionalBrief?.trim().length > 0 ? {additionalBrief: page.additionalBrief} : undefined,
+                            });
+                        } else if (existingContentIndex !== -1) {
+                            const existingDescriptionIndex: number = proposalOption.campaignContent[existingContentIndex].descriptions.findIndex(
+                                pd => pd.description === page.description,
+                            )
+
+                            if (existingDescriptionIndex === -1) {
+                                const postDescriptionId = new ObjId;
+
+                                selectedCampaignContentItem = {
+                                    campaignContentItemId: proposalOption.campaignContent[existingContentIndex]._id,
+                                    postDescriptionId: postDescriptionId
+                                };
+
+                                proposalOption.campaignContent[existingContentIndex].descriptions.push({
+                                    _id: postDescriptionId,
+                                    description: page.description || '',
+                                })
+                            } else {
+                                selectedCampaignContentItem = {
+                                    campaignContentItemId: proposalOption.campaignContent[existingContentIndex]._id,
+                                    postDescriptionId: proposalOption.campaignContent[existingContentIndex].descriptions[existingDescriptionIndex]._id
+                                }
+                            }
+                        }
+
+                        const formattedGenres = getArrayFromAccountMusicGenres(result[0]?.musicGenres) ?? [];
+                        proposalOption.privateCampaignPrice += result[0].price;
+
+                        proposalOption.addedAccounts.push({
+                            ...result[0],
+                            _id: new ObjId(),
+                            username: normalizedUsername,
+                            selectedContent: selectedCampaignContentItem,
+                            genres: formattedGenres,
+                            followers: result[0].followers,
+                        });
+                    }
+                }
+
+                if (!influencerId) {
+                    console.warn(
+                        `(SAVING XLSX CAMPAIGN) No social media account found for username: ${page.username} with ${page.followers} followers`,
+                    );
+                }
+            }),
+        );
+
+        proposalCampaign.campaignName = proposalCampaign.campaignName || `Date: ${new Date().toISOString().split('T')[0]}`;
+
+        const session: ClientSession = await this.proposalCampaignRepository.startSession();
+        session.startTransaction();
+
+        try {
+            await this.proposalCampaignRepository.create(proposalCampaign, {session});
+            await this.proposalOptionsRepository.create(proposalOption, {session});
+
+            await session.commitTransaction();
+        } catch (e) {
+            this.logger.error(`Error importing ${proposalCampaign.campaignName} as proposal:`, e);
+            await session.abortTransaction();
+            throw new InternalServerErrorException(`Campaign was built, but something went wrong on the database side.`)
+        } finally {
+            await session.endSession();
         }
     }
 }

@@ -1,5 +1,17 @@
-import {Body, Controller, Delete, Get, Param, ParseEnumPipe, Patch, Query} from '@nestjs/common';
-import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
+import {
+    Body,
+    Controller,
+    Delete,
+    Get,
+    Param,
+    ParseEnumPipe,
+    Patch,
+    Post,
+    Query,
+    UploadedFile,
+    UseInterceptors
+} from '@nestjs/common';
+import {ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {Roles} from "../../../common/decorators/roles.decorator";
 import {Role} from "../../../common/types/user.types";
 import {Auth} from "../../../common/decorators/auth.decorator";
@@ -18,6 +30,7 @@ import {ApiResponseDto} from "../../../common/decorators/api/response/api-respon
 import {UpdateAdminMetaCampaignDto, UpdatedAdminMetaCampaignDto} from "../dto/campaigns/admin-update-campaign.dto";
 import {ParseObjectIdPipe} from "../../../common/pipes/parse-oid.pipe";
 import {UpdateCampaignDto} from "../../campaigns/dto/update-campaign.dto";
+import {FileInterceptor} from "@nestjs/platform-express";
 
 @Auth()
 @Roles(Role.admin)
@@ -185,5 +198,26 @@ export class AdminCampaignsController {
         @Body() data: UpdateCampaignDto
     ): Promise<AdminCampaignDetailsDto> {
         return this.adminService.updateCampaign(status, campaignId, data);
+    }
+
+    @ApiOperation({summary: "Import xlsx file with new proposal campaign"})
+    @ApiResponseDto()
+    @ApiConsumes("multipart/form-data")
+    @ApiBody({
+        schema: {
+            type: "object",
+            properties: {
+                file: {
+                    type: "string",
+                    format: "binary",
+                },
+            },
+            required: ["file"],
+        },
+    })
+    @UseInterceptors(FileInterceptor("file"))
+    @Post('/xlsx')
+    importXlsx(@UploadedFile() file: Express.Multer.File): Promise<void> {
+        return this.adminService.importXlsx(file);
     }
 }
