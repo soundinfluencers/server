@@ -244,11 +244,12 @@ export class CampaignsService {
 
         return campaigns.map((item): DashboardCampaignDto => ({
             _id: item._id.toString(),
-            campaignName: item.campaignName,
+            campaignName: item.campaignName ?? item.latestStep ? `Draft ${formatDate(item.createdAt)}` : "No name",
             socialMedia: item.socialMedia as SocialMediaType,
             creationDate: formatDate(item.createdAt),
             price: item.campaignPrice ?? item.publicPrice ?? item.price ?? undefined,
             status: item.clientStatus ?? formatClientCampaignStatus(item.statusCampaign),
+            ...item.latestStep ? {draftStep: item.latestStep} : undefined,
         }));
     }
 
