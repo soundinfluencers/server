@@ -486,7 +486,7 @@ export class ProposalSystemService {
                         },
                         selectedContentItem: {
                             ...i.selectedContentItem,
-                            _id: i.selectedContentItem._id.toString(),
+                            _id: i.selectedContentItem?._id?.toString(),
                         },
                         genres: "genres" in i ? i.genres : undefined,
                         countries: "countries" in i ? i.countries : undefined,
@@ -508,7 +508,7 @@ export class ProposalSystemService {
                 }
             }
         } catch (err) {
-            this.logger.warn(`Error map ${data.campaignName} to ProposalCampaignWithOptionDto: ${err}`);
+            this.logger.warn(`Error map ${data.campaignName} to ProposalCampaignWithOptionDto: ${err} ${err.stack}`);
             throw new ConflictException(
                 'Campaign option updated, but response serialization failed. Please refresh.'
             );
