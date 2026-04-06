@@ -49,6 +49,9 @@ export class DashboardCampaignDto {
 
     @ApiPropertyOptional({enum: CampaignStatusEnum})
     status?: CampaignStatusEnum;
+
+    @ApiPropertyOptional({enum: CampaignDraftLatestStep})
+    draftStep?: CampaignDraftLatestStep;
 }
 
 export class GetDashboardCampaignsDto {
