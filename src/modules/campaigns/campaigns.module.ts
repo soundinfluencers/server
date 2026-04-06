@@ -16,13 +16,13 @@ import {CampaignAccountsBuilderService} from "./services/campaign-accounts-build
         InfluencerActionsHistoryService,
         CampaignDetailsService,
         CampaignUpdateService,
-        CampaignAccountsBuilderService
+        CampaignAccountsBuilderService,
     ],
     exports: [
         CampaignsService,
         CampaignDetailsService,
         CampaignUpdateService,
-        CampaignAccountsBuilderService
+        CampaignAccountsBuilderService,
     ],
 })
 export class CampaignsModule {

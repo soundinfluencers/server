@@ -526,6 +526,96 @@ export const mapToIProposalOption = (campaignOption: ProposalCampaignOption): IP
   }
 };
 
+// Map ProposalCampaign + ProposalCampaignOption to IAdminCampaignDetails
+export const mapProposalToIAdminCampaignDetails = (
+    campaign: ProposalCampaign,
+    option: ProposalCampaignOption,
+): IAdminCampaignDetails => {
+    let totalFollowers = 0;
+    let totalImpressions = 0;
+    let totalLikes = 0;
+    let totalSaves = 0;
+    let totalComments = 0;
+    let totalShares = 0;
+
+    const proceedAccounts: IAdminCampaignAccount[] = (option.addedAccounts ?? []).map(
+        (account: ProposalCampaignAccount): IAdminCampaignAccount => {
+            const selectedCampaignContentItemId =
+                account.selectedContent?.campaignContentItemId?.toString() ?? null;
+
+            let selectedCampaignContentItem = null;
+            if (selectedCampaignContentItemId && Array.isArray(option.campaignContent)) {
+                const contentItem = option.campaignContent.find(
+                    item => item?._id?.toString() === selectedCampaignContentItemId,
+                );
+                if (contentItem) {
+                    let description = '';
+                    try {
+                        description =
+                            contentItem.descriptions?.find(
+                                pd =>
+                                    pd._id?.toString() ===
+                                    account.selectedContent?.descriptionId?.toString(),
+                            )?.description ?? '';
+                    } catch {}
+
+                    selectedCampaignContentItem = {
+                        _id: contentItem._id,
+                        mainLink: contentItem.mainLink ?? null,
+                        description,
+                        taggedUser: contentItem.taggedUser ?? null,
+                        taggedLink: contentItem.taggedLink ?? null,
+                        additionalBrief: contentItem.additionalBrief ?? null,
+                    };
+                }
+            }
+
+            const accountCpm =
+                account.impressions > 0
+                    ? Math.round(((account.publicPrice * 1000) / account.impressions) * 1000) / 1000
+                    : null;
+
+            totalFollowers += safeParseToNumber(account.followers);
+            totalImpressions += safeParseToNumber(account.impressions);
+            totalLikes += safeParseToNumber(account.like);
+            totalSaves += safeParseToNumber(account.saves);
+            totalComments += safeParseToNumber(account.comments);
+            totalShares += safeParseToNumber(account.shares);
+
+            return mapToIAdminCampaignAccount(account, selectedCampaignContentItem, accountCpm);
+        },
+    );
+
+    const campaignPrice = option.publicCampaignPrice ?? 0;
+    const cpm =
+        totalImpressions > 0
+            ? Math.round(((campaignPrice * 1000) / totalImpressions) * 1000) / 1000
+            : null;
+
+    return {
+        _id: campaign._id,
+        campaignName: campaign.campaignName ?? 'OLD CAMPAIGN',
+        socialMedia: campaign.socialMedia ?? 'instagram',
+        createdAt: campaign.createdAt,
+        price: campaignPrice,
+        status: 'proposal' as CampaignStatusEnum,
+        addedAccounts: proceedAccounts,
+        campaignContent: option.campaignContent ?? [],
+        shareLink: null,
+        totalFollowers,
+        totalImpressions,
+        totalLikes,
+        totalSaves,
+        totalComments,
+        totalShares,
+        isCpmAndResultHidden: false,
+        isPriceHidden: false,
+        canEdit: true,
+        hiddenColumns: campaign.hiddenColumns ?? [],
+        cpm,
+    };
+};
+
 // Map IAdminCampaignForList read model to AdminCampaignForListDto
 export const mapToAdminCampaignForListDto = (
     campaign: IAdminCampaignForList,

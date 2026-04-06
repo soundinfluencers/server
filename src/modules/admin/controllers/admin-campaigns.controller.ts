@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Body,
     Controller,
     Delete,
@@ -19,9 +20,9 @@ import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {AdminCampaignsService} from "../services/admin-campaigns.service";
 import {
     AdminCampaignDetailsDto,
-    AdminCampaignForListDto,
     AdminCampaignSearchResponseDto,
-    AdminCampaignsListResponseDto, AdminCampaignsListStatusEnum,
+    AdminCampaignsListResponseDto,
+    AdminCampaignsListStatusEnum,
     GetAdminCampaignsListQueryDto
 } from "../dto/campaigns/admin-campaigns.dto";
 import {ApiResponseDtoOneOf} from "../../../common/decorators/api/response/api-response-one-of.decorator";
@@ -158,6 +159,12 @@ export class AdminCampaignsController {
         type: String,
         required: true,
     })
+    @ApiQuery({
+        name: 'optionIndex',
+        required: false,
+        type: Number,
+        description: 'Option index for proposal campaigns (0-based)',
+    })
     @Get(':status/:campaignId')
     getDetailedCampaign(
         @Param(
@@ -167,9 +174,14 @@ export class AdminCampaignsController {
         @Param(
             'campaignId',
             new ParseObjectIdPipe()
-        ) campaignId: string
+        ) campaignId: string,
+        @Query('optionIndex') optionIndex?: number,
     ): Promise<AdminCampaignDetailsDto> {
-        return this.adminService.getDetailedCampaign(status, campaignId);
+        if (status === AdminCampaignsListStatusEnum.proposal && optionIndex === undefined) {
+            throw new BadRequestException("For fetching proposal campaign, you must provide optionIndex");
+        }
+
+        return this.adminService.getDetailedCampaign(status, campaignId, optionIndex);
     }
 
     @ApiOperation({summary: "Updates campaign"})
@@ -185,6 +197,12 @@ export class AdminCampaignsController {
         type: String,
         required: true,
     })
+    @ApiQuery({
+        name: 'optionIndex',
+        required: false,
+        type: Number,
+        description: 'Option index for proposal campaigns (0-based)',
+    })
     @Patch(':status/:campaignId')
     updateCampaign(
         @Param(
@@ -195,9 +213,10 @@ export class AdminCampaignsController {
             'campaignId',
             new ParseObjectIdPipe()
         ) campaignId: string,
-        @Body() data: UpdateCampaignDto
+        @Body() data: UpdateCampaignDto,
+        @Query('optionIndex') optionIndex?: number,
     ): Promise<AdminCampaignDetailsDto> {
-        return this.adminService.updateCampaign(status, campaignId, data);
+        return this.adminService.updateCampaign(status, campaignId, data, optionIndex);
     }
 
     @ApiOperation({summary: "Import xlsx file with new proposal campaign"})

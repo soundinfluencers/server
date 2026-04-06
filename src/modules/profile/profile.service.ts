@@ -533,7 +533,7 @@ export class ProfileService {
             const client = await this.clientRepo.findOne({_id: new Types.ObjectId(_id)});
 
             if (!client) {
-                throw new NotFoundException("Client not found");
+                throw new UnauthorizedException("Client not found");
             }
 
             if (bcrypt.compareSync(currentPassword, client.password)) {
@@ -550,7 +550,7 @@ export class ProfileService {
             const influencer = await this.influencerRepo.findOne({_id: new Types.ObjectId(_id)});
 
             if (!influencer) {
-                throw new NotFoundException("Influencer not found");
+                throw new UnauthorizedException("Influencer not found");
             }
 
             if (bcrypt.compareSync(data.currentPassword, influencer.password)) {

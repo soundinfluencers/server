@@ -11,6 +11,9 @@ import {XlsxImporter} from "../../common/utils/import/xlsx/xlsx-import";
 import {CampaignDetailsService} from "../campaigns/services/campaign-details.service";
 import {CampaignUpdateService} from "../campaigns/services/campaign-update.service";
 import {CampaignAccountsBuilderService} from "../campaigns/services/campaign-accounts-builder.service";
+import {ProposalCampaignDetailsService} from "../proposal-system/services/proposal-campaign-details.service";
+import {ProposalCampaignUpdateService} from "../proposal-system/services/proposal-campaign-update.service";
+import {ProposalAccountsBuilderService} from "../proposal-system/services/proposal-accounts-builder.service";
 import {MediaService} from "../media/media.service";
 import {MediaStrategyFactory} from "../media/media.factory";
 import {DropboxMediaStrategy} from "../media/strategies/dropbox.strategy";
@@ -38,6 +41,9 @@ import DropboxService from "../../integrations/dropbox/dropbox";
       CampaignDetailsService,
       CampaignUpdateService,
       CampaignAccountsBuilderService,
+      ProposalCampaignDetailsService,
+      ProposalCampaignUpdateService,
+      ProposalAccountsBuilderService,
   ],
 })
 export class AdminModule {}

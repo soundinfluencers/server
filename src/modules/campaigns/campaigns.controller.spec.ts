@@ -1,0 +1,22 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { CampaignsController } from './campaigns.controller';
+import { CampaignsService } from './services/campaigns.service';
+
+describe('CampaignsController', () => {
+  let controller: CampaignsController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [CampaignsController],
+      providers: [
+        { provide: CampaignsService, useValue: {} },
+      ],
+    }).compile();
+
+    controller = module.get<CampaignsController>(CampaignsController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});

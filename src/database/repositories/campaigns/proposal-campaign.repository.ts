@@ -120,7 +120,7 @@ export class ProposalCampaignRepository extends BaseRepository<ProposalCampaign>
                             $match: {
                                 $expr: {
                                     $and: [
-                                        { $eq: ['$$creatorRole', Role.admin] },
+                                        { $eq: ['$$creatorRole', Role.client] },
                                         { $eq: ['$_id', '$$creatorId'] },
                                     ],
                                 },

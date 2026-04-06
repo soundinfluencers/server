@@ -30,7 +30,7 @@ import {
 import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
 import {CompletedCampaignRepository} from "../../database/repositories/campaigns/completed-campaign.repository";
-import {formatDate} from 'src/common/utils/formatters';
+import {formatDate} from '../../common/utils/formatters';
 import {SocialMediaValidationStrategyFactory} from "./strategies/social-media-validation.factory";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {ClientRepository} from "../../database/repositories/users/client.repository";

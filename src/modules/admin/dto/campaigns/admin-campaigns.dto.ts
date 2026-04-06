@@ -112,3 +112,9 @@ export class AdminCampaignDetailsDto extends CampaignDetailsDto {
     @ApiProperty({ type: AdminCampaignAccountDto, isArray: true })
     addedAccounts: AdminCampaignAccountDto[];
 }
+
+// DTO with detailed proposal campaign for admin
+export class AdminProposalCampaignDetailsDto extends AdminCampaignDetailsDto {
+    @ApiProperty({ type: Number })
+    optionIndex: number;
+}

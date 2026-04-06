@@ -10,7 +10,7 @@ import {
 } from "../dto/campaigns/admin-campaigns.dto";
 import {
     mapSchemaToIAdminCampaignDetails, mapToAdminCampaignDetailsDto,
-    mapToAdminCampaignForListDto,
+    mapToAdminCampaignForListDto, mapProposalToIAdminCampaignDetails,
 } from "../../../common/mappers/campaign.mapper";
 import {
     CampaignAdminMetaEnum, IAdminCampaignDetails,
@@ -25,6 +25,9 @@ import {ProposalCampaign} from "../../../database/schemas/campaign/proposal-camp
 import {CampaignDetailsService} from "../../campaigns/services/campaign-details.service";
 import {UpdateCampaignDto} from "../../campaigns/dto/update-campaign.dto";
 import {CampaignUpdateService} from "../../campaigns/services/campaign-update.service";
+import {ProposalCampaignDetailsService} from "../../proposal-system/services/proposal-campaign-details.service";
+import {ProposalCampaignUpdateService} from "../../proposal-system/services/proposal-campaign-update.service";
+import {ProposalAccountsBuilderService} from "../../proposal-system/services/proposal-accounts-builder.service";
 import {ClientSession, HydratedDocument, Types} from "mongoose";
 import {CampaignAccountsBuilderService} from "../../campaigns/services/campaign-accounts-builder.service";
 import {ObjId} from "../../../common/types/base.types";
@@ -60,14 +63,15 @@ export interface IAdminCampaignsService {
 
     getDetailedCampaign(
         status: AdminCampaignsListStatusEnum,
-        campaignId: string
+        campaignId: string,
+        optionIndex?: number,
     ): Promise<AdminCampaignDetailsDto>;
 
     // Orchestrator that will define method for updating campaign by campaign status
     updateCampaign(
         status: AdminCampaignsListStatusEnum,
         campaignId: string,
-        data: UpdateCampaignDto
+        data: UpdateCampaignDto,
     ): Promise<AdminCampaignDetailsDto>;
 
     // Imports xlsx file with campaign and save data as proposal campaign
@@ -85,6 +89,9 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         private readonly campaignDetailsService: CampaignDetailsService,
         private readonly campaignUpdateService: CampaignUpdateService,
         private readonly campaignAccountsBuilderService: CampaignAccountsBuilderService,
+        private readonly proposalCampaignDetailsService: ProposalCampaignDetailsService,
+        private readonly proposalCampaignUpdateService: ProposalCampaignUpdateService,
+        private readonly proposalAccountsBuilderService: ProposalAccountsBuilderService,
         private readonly xlsxImporter: XlsxImporter,
     ) {
     }
@@ -170,6 +177,63 @@ export class AdminCampaignsService implements IAdminCampaignsService {
                 throw new BadRequestException(`Unsupported campaign status: ${status}`);
         }
     };
+
+    // Returns detailed proposal campaign for admin
+    private async getProposalCampaignDetails(
+        campaignId: string,
+        optionIndex: number,
+    ): Promise<AdminCampaignDetailsDto> {
+        return this.proposalCampaignDetailsService.execute(
+            campaignId,
+            optionIndex,
+            {
+                findCampaign: (id) => this.proposalCampaignRepository.findById(id, { lean: true }),
+
+                findOption: (campaignId, index) =>
+                    this.proposalOptionsRepository.findOneByIndex(
+                        { campaignId, optionIndex: index },
+                        { lean: true },
+                    ),
+
+                mapResult: (campaign, option) => {
+                    const readModel = mapProposalToIAdminCampaignDetails(campaign, option);
+                    return mapToAdminCampaignDetailsDto(readModel);
+                },
+            },
+        );
+    }
+
+    // Updates fields in proposal campaign option
+    private async updateProposalCampaign(
+        campaignId: string,
+        optionIndex: number,
+        data: UpdateCampaignDto,
+    ): Promise<AdminCampaignDetailsDto> {
+        return this.proposalCampaignUpdateService.execute(
+            campaignId,
+            optionIndex,
+            data,
+            {
+                findCampaign: (id) => this.proposalCampaignRepository.findById(id) as any,
+
+                findOption: (campaignId, index) =>
+                    this.proposalOptionsRepository.findOneByIndex(
+                        { campaignId, optionIndex: index },
+                    ) as any,
+
+                buildProposalAccountsBatch:
+                    this.proposalAccountsBuilderService.buildProposalAccountsBatch.bind(
+                        this.proposalAccountsBuilderService,
+                    ),
+
+                toReadModel: (campaign: HydratedDocument<ProposalCampaign>, option: HydratedDocument<ProposalCampaignOption>): IAdminCampaignDetails =>
+                    mapProposalToIAdminCampaignDetails(campaign, option),
+
+                mapResult: (readModel: IAdminCampaignDetails): AdminCampaignDetailsDto =>
+                    mapToAdminCampaignDetailsDto(readModel),
+            },
+        );
+    }
 
     // Updates fields in ongoing campaign
     private async updateOngoingCampaign(
@@ -306,7 +370,15 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         await repository.deleteById(campaignId);
     }
 
-    async getDetailedCampaign(status: AdminCampaignsListStatusEnum, campaignId: string): Promise<AdminCampaignDetailsDto> {
+    async getDetailedCampaign(
+        status: AdminCampaignsListStatusEnum,
+        campaignId: string,
+        optionIndex?: number,
+    ): Promise<AdminCampaignDetailsDto> {
+        if (optionIndex !== undefined) {
+            return this.getProposalCampaignDetails(campaignId, optionIndex);
+        }
+
         const repository = this.getRepository(status);
 
         return await this.campaignDetailsService.execute(
@@ -318,14 +390,19 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         )
     }
 
-    async updateCampaign(status: AdminCampaignsListStatusEnum, campaignId: string, data: UpdateCampaignDto): Promise<AdminCampaignDetailsDto> {
+    async updateCampaign(status: AdminCampaignsListStatusEnum, campaignId: string, data: UpdateCampaignDto, optionIndex?: number): Promise<AdminCampaignDetailsDto> {
+        if (data.optionIndex !== undefined) {
+            return this.updateProposalCampaign(campaignId, data.optionIndex, data);
+        }
+
         switch (status) {
             case AdminCampaignsListStatusEnum.distributing:
             case AdminCampaignsListStatusEnum.pending:
                 return this.updateOngoingCampaign(campaignId, data);
 
             case AdminCampaignsListStatusEnum.proposal:
-                throw new BadRequestException("You can't update proposal campaign now");
+                if (typeof optionIndex !== "number") throw new BadRequestException("For updating proposal campaign, you must provide optionIndex");
+                return this.updateProposalCampaign(campaignId, optionIndex, data);
 
             case AdminCampaignsListStatusEnum.completed:
                 throw new BadRequestException("You can't make general updates for completed campaigns");
