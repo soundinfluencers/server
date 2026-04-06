@@ -1,23 +1,16 @@
-import {BadRequestException, Injectable, InternalServerErrorException} from "@nestjs/common";
+import {Injectable, InternalServerErrorException} from "@nestjs/common";
 import {InfluencerRepository} from "../../../database/repositories/users/influencer.repository";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
-import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
-import {AdminInfluencersListDto, AdminSocialAccountsSearchResponseDto} from "../dto/influencers/admin-influencers.dto";
+import {AdminInfluencersListDto} from "../dto/influencers/admin-influencers.dto";
+import {AdminInfluencersQueryDto} from "../dto/influencers/admin-influencers-query.dto";
 import {mapToAdminSocialAccountForListDto} from "../../../common/mappers/influencer.mapper";
-import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {XlsxImporter} from "../../../common/utils/import/xlsx/xlsx-import";
 import {Influencer, SocialAccount} from "../../../database/schemas/users/influencer.schema";
 
 // Interface for AdminInfluencersService, AdminInfluencersController
 export interface IAdminInfluencersService {
-    // Get paginated influencers list filtered by social media
-    getInfluencersList(
-        socialMedia: SocialMediaEnum,
-        query: PaginationQueryDto,
-    ): Promise<AdminInfluencersListDto>;
-
-    // Search social accounts
-    searchSocialAccounts(query: SearchQueryDto): Promise<AdminSocialAccountsSearchResponseDto>;
+    // Get paginated influencers list with optional platform filter and search
+    getInfluencers(query: AdminInfluencersQueryDto): Promise<AdminInfluencersListDto>;
 
     // Import xlsx file with new social accounts
     importXlsxSocialAccounts(
@@ -36,25 +29,13 @@ export class AdminInfluencersService implements IAdminInfluencersService {
     ) {
     }
 
-    // Get paginated influencers list filtered by social media
-    async getInfluencersList(socialMedia: SocialMediaEnum, query: PaginationQueryDto): Promise<AdminInfluencersListDto> {
-        const list = await this.influencerRepo.findPaginated(
-            socialMedia,
-            query,
-        );
+    // Get paginated influencers list with optional platform filter and search
+    async getInfluencers(query: AdminInfluencersQueryDto): Promise<AdminInfluencersListDto> {
+        const result = await this.influencerRepo.findInfluencers(query);
 
         return {
-            ...list,
-            items: list.items?.length > 0 ? list.items.map(acc => mapToAdminSocialAccountForListDto(acc)) : []
-        }
-    }
-
-    // Search social accounts
-    async searchSocialAccounts(query: SearchQueryDto): Promise<AdminSocialAccountsSearchResponseDto> {
-        const searchResult = await this.influencerRepo.findSocialAccountBySearch(query);
-        return {
-            ...searchResult,
-            items: searchResult.items.map(acc => mapToAdminSocialAccountForListDto(acc))
+            ...result,
+            items: result.items?.length > 0 ? result.items.map(acc => mapToAdminSocialAccountForListDto(acc)) : []
         }
     }
 

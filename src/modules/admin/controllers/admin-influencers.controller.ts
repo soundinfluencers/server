@@ -5,10 +5,10 @@ import {Role} from "../../../common/types/user.types";
 import {Roles} from "../../../common/decorators/roles.decorator";
 import {ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiTags} from "@nestjs/swagger";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
-import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
-import {AdminInfluencersListDto, AdminSocialAccountsSearchResponseDto} from "../dto/influencers/admin-influencers.dto";
+
+import {AdminInfluencersListDto} from "../dto/influencers/admin-influencers.dto";
+import {AdminInfluencersQueryDto} from "../dto/influencers/admin-influencers-query.dto";
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
-import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {FileInterceptor} from "@nestjs/platform-express";
 
 @Auth()
@@ -18,29 +18,13 @@ import {FileInterceptor} from "@nestjs/platform-express";
 export class AdminInfluencersController implements IAdminInfluencersService {
     constructor(private readonly adminService: AdminInfluencersService) {}
 
-    @ApiOperation({ summary: 'Get paginated influencers list with social media filter' })
+    @ApiOperation({ summary: 'Get paginated influencers list with optional platform filter and search' })
     @ApiResponseDto(AdminInfluencersListDto)
-    @ApiParam({
-        name: 'socialMedia',
-        type: String,
-        enum: SocialMediaEnum,
-        required: true,
-    })
-    @Get(':socialMedia')
-    getInfluencersList(
-        @Param('socialMedia') socialMedia: SocialMediaEnum,
-        @Query() query: PaginationQueryDto
+    @Get()
+    getInfluencers(
+        @Query() query: AdminInfluencersQueryDto
     ): Promise<AdminInfluencersListDto> {
-        return this.adminService.getInfluencersList(socialMedia, query);
-    }
-
-    @ApiOperation({ summary: "Search social accounts" })
-    @ApiResponseDto()
-    @Post()
-    searchSocialAccounts(
-        @Query() query: SearchQueryDto
-    ): Promise<AdminSocialAccountsSearchResponseDto> {
-        return this.adminService.searchSocialAccounts(query);
+        return this.adminService.getInfluencers(query);
     }
 
     @ApiOperation({ summary: "Import xlsx file with new social accounts" })

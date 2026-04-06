@@ -5,10 +5,9 @@ import {RepoOptions} from "../../types/repo.types";
 import {BaseRepository} from "../base.repository";
 import {Influencer, SocialAccount} from "../../schemas/users/influencer.schema";
 import {applyQueryOptions} from "../../utils/apply-query-options.util";
-import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
 import {AdminInfluencerListItem} from "../../../common/types/influencer/influencer.types";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
-import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
+import {AdminInfluencersQueryDto} from "../../../modules/admin/dto/influencers/admin-influencers-query.dto";
 
 // Interface for InfluencerRepository
 interface IInfluencerRepository {
@@ -49,23 +48,13 @@ interface IInfluencerRepository {
         options?: RepoOptions,
     ): Promise<boolean>
 
-    // Get paginated list of influencer accounts
-    findPaginated(
-        socialMedia: SocialMediaEnum,
-        query: PaginationQueryDto,
-    ): Promise<{
+    // Get paginated list of influencer accounts with optional platform filter and search
+    findInfluencers(query: AdminInfluencersQueryDto): Promise<{
         items: AdminInfluencerListItem[];
         total: number;
         page: number;
         limit: number;
         totalPages: number;
-    }>
-
-    // Find social account by searching username
-    findSocialAccountBySearch(query: SearchQueryDto): Promise<{
-        items: AdminInfluencerListItem[];
-        total: number;
-        limit: number;
     }>;
 }
 
@@ -144,12 +133,8 @@ export class InfluencerRepository extends BaseRepository<Influencer> implements 
         return !!(await applyQueryOptions(query, options));
     }
 
-    // Get paginated list of influencer accounts
-    // Currently returning read model for admin panel influencers list, but maybe in future will be changed
-    async findPaginated(
-        socialMedia: SocialMediaEnum,
-        query: PaginationQueryDto,
-    ): Promise<{
+    // Get paginated list of influencer accounts with optional platform filter and search
+    async findInfluencers(query: AdminInfluencersQueryDto): Promise<{
         items: AdminInfluencerListItem[];
         total: number;
         page: number;
@@ -159,15 +144,65 @@ export class InfluencerRepository extends BaseRepository<Influencer> implements 
         const page = query.page ?? 1;
         const limit = query.limit ?? 10;
         const skip = (page - 1) * limit;
+        const platform = query.platform;
 
-        const socialMediaField = socialMedia;
+        const rawSearch = query.search?.trim();
+        const escapedSearch = rawSearch
+            ? rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            : null;
 
-        const basePipeline = [
-            {
-                $match: {
-                    [`${socialMediaField}.0`]: { $exists: true },
+        const accountsProjection = platform
+            ? {
+                $map: {
+                    input: `$${platform}`,
+                    as: 'acc',
+                    in: {
+                        _id: '$$acc._id',
+                        username: '$$acc.username',
+                        socialMedia: { $literal: platform },
+                        logoUrl: '$$acc.logoUrl',
+                        followers: '$$acc.followers',
+                        profileLink: '$$acc.profileLink',
+                        publicPrice: '$$acc.publicPrice',
+                        price: '$$acc.price',
+                        initialPrice: '$$acc.initialPrice',
+                        currency: '$$acc.currency',
+                        isHidden: '$$acc.isHidden',
+                    },
                 },
-            },
+            }
+            : {
+                $concatArrays: Object.values(SocialMediaEnum).map((sm) => ({
+                    $map: {
+                        input: `$${sm}`,
+                        as: 'acc',
+                        in: {
+                            _id: '$$acc._id',
+                            username: '$$acc.username',
+                            socialMedia: sm,
+                            logoUrl: '$$acc.logoUrl',
+                            followers: '$$acc.followers',
+                            profileLink: '$$acc.profileLink',
+                            publicPrice: '$$acc.publicPrice',
+                            price: '$$acc.price',
+                            initialPrice: '$$acc.initialPrice',
+                            currency: '$$acc.currency',
+                            isHidden: '$$acc.isHidden',
+                        },
+                    },
+                })),
+            };
+
+        const matchStage: PipelineStage[] = platform
+            ? [{ $match: { [`${platform}.0`]: { $exists: true } } }]
+            : [];
+
+        const searchStage: PipelineStage[] = escapedSearch
+            ? [{ $match: { 'accounts.username': { $regex: escapedSearch, $options: 'i' } } }]
+            : [];
+
+        const basePipeline: PipelineStage[] = [
+            ...matchStage,
             {
                 $project: {
                     influencerId: '$_id',
@@ -178,13 +213,50 @@ export class InfluencerRepository extends BaseRepository<Influencer> implements 
                     balance: 1,
                     internalNote: 1,
                     createdAt: 1,
-                    accounts: `$${socialMediaField}`,
+                    accounts: accountsProjection,
                 },
             },
-            {
-                $unwind: '$accounts',
-            },
+            { $unwind: '$accounts' },
+            ...searchStage,
         ];
+
+        const finalProjection: PipelineStage = {
+            $project: {
+                _id: 0,
+                influencerId: 1,
+                firstName: 1,
+                lastName: 1,
+                email: 1,
+                phone: 1,
+                balance: 1,
+                internalNote: 1,
+
+                accountId: '$accounts._id',
+                username: '$accounts.username',
+                socialMedia: '$accounts.socialMedia',
+                logoUrl: '$accounts.logoUrl',
+                followers: '$accounts.followers',
+                profileLink: '$accounts.profileLink',
+                publicPrice: '$accounts.publicPrice',
+                price: '$accounts.price',
+                initialPrice: '$accounts.initialPrice',
+                currency: '$accounts.currency',
+                isHidden: '$accounts.isHidden',
+
+                costPerFollower: {
+                    $cond: [
+                        { $gt: ['$accounts.followers', 0] },
+                        {
+                            $round: [
+                                { $divide: ['$accounts.price', '$accounts.followers'] },
+                                6,
+                            ],
+                        },
+                        0,
+                    ],
+                },
+            },
+        };
 
         const [items, totalResult] = await Promise.all([
             this.influencerModel.aggregate<AdminInfluencerListItem>([
@@ -192,43 +264,7 @@ export class InfluencerRepository extends BaseRepository<Influencer> implements 
                 { $sort: { createdAt: -1 } },
                 { $skip: skip },
                 { $limit: limit },
-                {
-                    $project: {
-                        _id: 0,
-                        influencerId: 1,
-                        firstName: 1,
-                        lastName: 1,
-                        email: 1,
-                        phone: 1,
-                        balance: 1,
-                        internalNote: 1,
-
-                        accountId: '$accounts._id',
-                        username: '$accounts.username',
-                        socialMedia: { $literal: socialMedia },
-                        logoUrl: '$accounts.logoUrl',
-                        followers: '$accounts.followers',
-                        profileLink: '$accounts.profileLink',
-                        publicPrice: '$accounts.publicPrice',
-                        price: '$accounts.price',
-                        initialPrice: '$accounts.initialPrice',
-                        currency: '$accounts.currency',
-                        isHidden: '$accounts.isHidden',
-
-                        costPerFollower: {
-                            $cond: [
-                                { $gt: ['$accounts.followers', 0] },
-                                {
-                                    $round: [
-                                        { $divide: ['$accounts.price', '$accounts.followers'] },
-                                        6,
-                                    ],
-                                },
-                                0,
-                            ],
-                        },
-                    },
-                },
+                finalProjection,
             ]),
             this.influencerModel.aggregate([
                 ...basePipeline,
@@ -244,150 +280,6 @@ export class InfluencerRepository extends BaseRepository<Influencer> implements 
             page,
             limit,
             totalPages: Math.ceil(total / limit),
-        };
-    };
-
-    async findSocialAccountBySearch(query: SearchQueryDto): Promise<{
-        items: AdminInfluencerListItem[];
-        total: number;
-        limit: number;
-    }> {
-        const limit = query.limit ?? 10;
-        const rawSearch = query.search?.trim();
-
-        const escapedSearch = rawSearch
-            ? rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-            : null;
-
-        const accountsConcat = Object.values(SocialMediaEnum).map((socialMedia) => ({
-            $map: {
-                input: `$${socialMedia}`,
-                as: 'acc',
-                in: {
-                    _id: '$$acc._id',
-                    username: '$$acc.username',
-                    socialMedia,
-                    logoUrl: '$$acc.logoUrl',
-                    followers: '$$acc.followers',
-                    profileLink: '$$acc.profileLink',
-                    publicPrice: '$$acc.publicPrice',
-                    price: '$$acc.price',
-                    initialPrice: '$$acc.initialPrice',
-                    currency: '$$acc.currency',
-                    isHidden: '$$acc.isHidden',
-                },
-            },
-        }));
-
-        const basePipeline: PipelineStage[] = [
-            {
-                $project: {
-                    influencerId: '$_id',
-                    firstName: 1,
-                    lastName: 1,
-                    email: 1,
-                    phone: 1,
-                    balance: 1,
-                    internalNote: 1,
-                    createdAt: 1,
-                    accounts: {
-                        $concatArrays: accountsConcat,
-                    },
-                },
-            },
-            {
-                $unwind: '$accounts',
-            },
-            ...(escapedSearch
-                ? [
-                    {
-                        $match: {
-                            'accounts.username': { $regex: escapedSearch, $options: 'i' },
-                        },
-                    },
-                ]
-                : []),
-            {
-                $sort: { createdAt: -1 },
-            },
-            {
-                $limit: limit,
-            },
-            {
-                $project: {
-                    _id: 0,
-                    influencerId: 1,
-                    firstName: 1,
-                    lastName: 1,
-                    email: 1,
-                    phone: 1,
-                    balance: 1,
-                    internalNote: 1,
-
-                    accountId: '$accounts._id',
-                    username: '$accounts.username',
-                    socialMedia: '$accounts.socialMedia',
-                    logoUrl: '$accounts.logoUrl',
-                    followers: '$accounts.followers',
-                    profileLink: '$accounts.profileLink',
-                    publicPrice: '$accounts.publicPrice',
-                    price: '$accounts.price',
-                    initialPrice: '$accounts.initialPrice',
-                    currency: '$accounts.currency',
-                    isHidden: '$accounts.isHidden',
-
-                    costPerFollower: {
-                        $cond: [
-                            { $gt: ['$accounts.followers', 0] },
-                            {
-                                $round: [
-                                    { $divide: ['$accounts.price', '$accounts.followers'] },
-                                    5,
-                                ],
-                            },
-                            0,
-                        ],
-                    },
-                },
-            },
-        ];
-
-        const totalPipeline: PipelineStage[] = [
-            {
-                $project: {
-                    accounts: {
-                        $concatArrays: accountsConcat,
-                    },
-                },
-            },
-            {
-                $unwind: '$accounts',
-            },
-            ...(escapedSearch
-                ? [
-                    {
-                        $match: {
-                            'accounts.username': { $regex: escapedSearch, $options: 'i' },
-                        },
-                    },
-                ]
-                : []),
-            {
-                $count: 'total',
-            },
-        ];
-
-        const [items, totalResult] = await Promise.all([
-            this.influencerModel.aggregate<AdminInfluencerListItem>(basePipeline),
-            this.influencerModel.aggregate(totalPipeline),
-        ]);
-
-        const total = totalResult[0]?.total ?? 0;
-
-        return {
-            items,
-            total,
-            limit,
         };
     }
 }
