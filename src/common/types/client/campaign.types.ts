@@ -81,6 +81,7 @@ export interface IDashboardCampaign {
     createdAt: Date;
     clientStatus: string;
     price?: number;
+    latestStep?: CampaignDraftLatestStep;
 }
 
 export interface ISelectedContent {

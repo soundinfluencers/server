@@ -222,6 +222,20 @@ export class CampaignsService {
                         },
                     },
 
+                    {
+                        $unionWith: {
+                            coll: 'draftcampaigns',
+                            pipeline: [
+                                {$match: {$or: [{creatorId: oid}, {clientId: oid}]}},
+                                {
+                                    $addFields: {
+                                        clientStatus: 'draft',
+                                    },
+                                },
+                            ],
+                        },
+                    },
+
                     {$sort: {createdAt: -1}},
                     {$skip: skip},
                     {$limit: limit},
@@ -234,6 +248,7 @@ export class CampaignsService {
                             createdAt: 1,
                             campaignPrice: 1,
                             clientStatus: 1,
+                            latestStep: 1,
                         },
                     },
                 ]).exec();

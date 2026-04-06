@@ -56,7 +56,8 @@ export class DraftCampaignRepository extends BaseRepository<DraftCampaignDocumen
             campaignName: campaign.campaignName,
             socialMedia: campaign.socialMedia,
             createdAt: campaign.createdAt,
-            clientStatus: "draft"
+            clientStatus: "draft",
+            latestStep: campaign.latestStep,
         }));
     }
 
