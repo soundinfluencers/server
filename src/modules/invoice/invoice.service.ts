@@ -25,7 +25,6 @@ import {AdminToClientEmails, InfluencerToAdminEmails} from "../../integrations/e
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
 import {mapPromosToInvoiceLinkedPromos, mapToDetailedInvoice} from "../../common/mappers/invoice.mapper";
 import {
-    ClientInvoice,
     ClientInvoiceDocument,
     InfluencerInvoiceDocument
 } from "../../database/schemas/invoices/user-invoice.schema";

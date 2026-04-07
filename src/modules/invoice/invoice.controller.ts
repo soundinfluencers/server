@@ -1,7 +1,7 @@
 import {
     Body,
     Controller,
-    Get, NotFoundException,
+    Get,
     Param,
     Patch,
     Post,
@@ -18,7 +18,6 @@ import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/user.types";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {ClientDetailedInvoiceDto, GetInvoicesQueryDto, InvoicesForDashboardDto} from "./dto/invoice.dto";
-import {ClientInvoice} from "../../database/schemas/invoices/user-invoice.schema";
 import {UpdateClientInvoiceDto} from "./dto/update-invoice.dto";
 
 @ApiTags('invoice')
@@ -99,11 +98,15 @@ export class InvoiceController {
     }
 
     @Auth()
-    @Roles(Role.influencer, Role.client, Role.admin)
+    @Roles(Role.client, Role.influencer, Role.admin)
     @ApiOperation({summary: "Download invoice"})
-    @ApiQuery({name: 'invoiceId'})
-    @Get('download')
-    downloadInvoice(@Query() args: { invoiceId: string }, @Req() req: AuthenticatedRequest): Promise<StreamableFile> {
-        return this.invoiceService.downloadInvoice(args.invoiceId, req.user);
+    @ApiParam({
+        name: 'invoiceId',
+        type: String,
+        required: true
+    })
+    @Get('download/:invoiceId')
+    downloadInvoice(@Param('invoiceId') invoiceId: string, @Req() req: AuthenticatedRequest): Promise<StreamableFile> {
+        return this.invoiceService.downloadInvoice(invoiceId, req.user);
     }
 }
