@@ -6,7 +6,7 @@ import { UserInvoiceRepository } from '../../database/repositories/invoices/user
 import { InvoiceDetailsRepository } from '../../database/repositories/invoices/invoice-details.repository';
 import { CampaignRepository } from '../../database/repositories/campaigns/campaign.repository';
 import { InfluencerActionsHistoryService } from '../influencer-actions-history/influencer-actions-history.service';
-import { ProfileService } from '../profile/profile.service';
+import { ProfileService } from '../profile/services/profile.service';
 import { EmailService } from '../../integrations/email/email.service';
 import { Role } from '../../common/types/user.types';
 import { Types } from 'mongoose';

@@ -32,8 +32,8 @@ export class AdminSocialAccountForListDto {
     @ApiProperty({ type: String, enum: SocialMediaEnum })
     socialMedia: SocialMediaEnum;
 
-    @ApiProperty({ type: String })
-    logoUrl: string;
+    @ApiPropertyOptional({ type: String })
+    logoUrl?: string;
 
     @ApiProperty({ type: Number })
     followers: number;

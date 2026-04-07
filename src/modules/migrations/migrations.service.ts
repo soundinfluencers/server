@@ -1,4 +1,4 @@
-import {ProfileService} from "../profile/profile.service";
+import {ProfileService} from "../profile/services/profile.service";
 import {PromosService} from "../promos/promos.service";
 import {MigrateAccountDto} from "./dto/migrate-account.dto";
 import {Connection, Model, Types} from "mongoose";

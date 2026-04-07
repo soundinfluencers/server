@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { ProfileController } from './profile.controller';
-import { ProfileService } from './profile.service';
+import { ProfileService } from './services/profile.service';
 import { AuthenticatedRequest, Role } from '../../common/types/user.types';
 
 describe('ProfileController', () => {

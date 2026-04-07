@@ -8,41 +8,44 @@ import {
     NotFoundException,
     UnauthorizedException
 } from '@nestjs/common';
-import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from './dto/client/update-client.dto';
+import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from '../dto/client/update-client.dto';
 import {ClientSession, PipelineStage, Types} from 'mongoose';
-import {UpdateUserPasswordDto} from './dto/update-password.dto';
+import {UpdateUserPasswordDto} from '../dto/update-password.dto';
 import {
     AddSocialAccountDto,
     DeleteSocialAccountDto,
     InfluencerUpdatedPersonalDetailsDto,
     UpdateInfluencerPersonalDetailsDto,
-    UpdateSocialMediaAccountDto
-} from './dto/influencer/update-influencer.dto';
+    UpdateSocialAccountDto
+} from '../dto/influencer/update-influencer.dto';
 import * as process from 'node:process';
-import {AppGateway} from '../websocket/app.gateway';
+import {AppGateway} from '../../websocket/app.gateway';
 import {
     Influencer,
     InfluencerCountryStats,
     InfluencerMusicGenre,
     SocialAccount,
     UserNotificationMethods
-} from "../../database/schemas/users/influencer.schema";
-import {MigrateAccountDto} from "../migrations/dto/migrate-account.dto";
-import {SocialAccountMigrationContext} from "../migrations/types/migrations.types";
-import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
-import {ClientRepository} from "../../database/repositories/users/client.repository";
-import {AccountVerifiedStatus, NotificationMethodsEnum, Role, UserPayload} from "../../common/types/user.types";
-import {SocialMediaEnum} from "../../common/types/social-media.types";
-import {normalizeDtoToMusicGenres, normalizeStringToMusicGenres} from "../../common/utils/genres";
+} from "../../../database/schemas/users/influencer.schema";
+import {MigrateAccountDto} from "../../migrations/dto/migrate-account.dto";
+import {SocialAccountMigrationContext} from "../../migrations/types/migrations.types";
+import {InfluencerRepository} from "../../../database/repositories/users/influencer.repository";
+import {ClientRepository} from "../../../database/repositories/users/client.repository";
+import {AccountVerifiedStatus, NotificationMethodsEnum, Role, UserPayload} from "../../../common/types/user.types";
+import {SocialMediaEnum} from "../../../common/types/social-media.types";
+import {normalizeDtoToMusicGenres, normalizeStringToMusicGenres} from "../../../common/utils/genres";
 import {
     AgreementType,
     InfluencerAccountDetails,
     SocialAccountDetails,
     SocialAccountLabelStatus,
-} from "../../common/types/influencer/influencer.types";
-import {mapInfluencerToAccountDetailsDto, mapToSocialAccountDetailsDto} from "../../common/mappers/influencer.mapper";
-import {ClientAccountDetails} from "../../common/types/client/client.types";
-import {mapClientToAccountDetailsDto} from "../../common/mappers/client.mapper";
+} from "../../../common/types/influencer/influencer.types";
+import {
+    mapInfluencerToAccountDetailsDto,
+    mapToSocialAccountDetailsDto
+} from "../../../common/mappers/influencer.mapper";
+import {ClientAccountDetails} from "../../../common/types/client/client.types";
+import {mapClientToAccountDetailsDto} from "../../../common/mappers/client.mapper";
 import {
     AgreementAccountDto,
     AgreementAccountsListDto,
@@ -51,12 +54,12 @@ import {
     InfluencerAccountDetailsDto,
     UpdateAccountAgreementDto,
     UpdateAccountsAgreementDto
-} from "./dto/influencer/get-profile.dto";
-import {GetFilteredAccountsBodyDto, SearchSocialAccountsDto} from "./dto/client/search-social-accounts.dto";
-import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
-import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details.dto";
-import {InvoiceDetailsRepository} from "../../database/repositories/invoices/invoice-details.repository";
-import {mapToInvoiceDetailsDto} from "../../common/mappers/invoice.mapper";
+} from "../dto/influencer/get-profile.dto";
+import {GetFilteredAccountsBodyDto, SearchSocialAccountsDto} from "../dto/client/search-social-accounts.dto";
+import {GetFilterOptionsDataDto} from "../dto/client/filter-options.dto";
+import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "../dto/invoice-details.dto";
+import {InvoiceDetailsRepository} from "../../../database/repositories/invoices/invoice-details.repository";
+import {mapToInvoiceDetailsDto} from "../../../common/mappers/invoice.mapper";
 import {
     InternationalBankTransferDto,
     PaymentDetailsDto,
@@ -64,28 +67,29 @@ import {
     PayPalDto,
     UKBankTransferDto,
     UpdatePaymentDetailsDto
-} from "./dto/payment-details.dto";
-import {UkBankTransferDetailsRepository} from "../../database/repositories/invoices/uk-transfer-details.repository";
+} from "../dto/payment-details.dto";
+import {UkBankTransferDetailsRepository} from "../../../database/repositories/invoices/uk-transfer-details.repository";
 import {
     InternationalBankTransferDetailsRepository
-} from "../../database/repositories/invoices/international-transfer-details.repository";
-import {PaypalDetailsRepository} from "../../database/repositories/invoices/paypal-details.repository";
-import {ObjId} from "../../common/types/base.types";
+} from "../../../database/repositories/invoices/international-transfer-details.repository";
+import {PaypalDetailsRepository} from "../../../database/repositories/invoices/paypal-details.repository";
+import {ObjId} from "../../../common/types/base.types";
 import {
     mapToInternationalBankTransferDto,
     mapToPayPalDto,
     mapToUkBankTransferDto
-} from "../../common/mappers/payment-details.mapper";
-import {InvoicePaymentMethodEnum} from "../../common/types/invoice.types";
-import {AuthService} from "../auth/auth.service";
-import {LoginResponseDto} from "../auth/dto/login.dto";
-import {setRefreshTokenCookie} from "../../common/utils/cookie.util";
-import {EmailService} from "../../integrations/email/email.service";
-import {areCountriesValid} from "../../common/utils/countries.util";
-import {AdminToInfluencerEmails, InfluencerToAdminEmails} from "../../integrations/email/email.templates";
-import {ExchangeRateService} from "../../integrations/exchange-rate/exchange-rate.service";
-import {CurrencyCode, getAvailableCurrenciesLabel} from "../../common/types/finance.types";
-import {NegotiationRepository} from "../../database/repositories/negotiation/negotiation.repository";
+} from "../../../common/mappers/payment-details.mapper";
+import {InvoicePaymentMethodEnum} from "../../../common/types/invoice.types";
+import {AuthService} from "../../auth/auth.service";
+import {LoginResponseDto} from "../../auth/dto/login.dto";
+import {setRefreshTokenCookie} from "../../../common/utils/cookie.util";
+import {EmailService} from "../../../integrations/email/email.service";
+import {areCountriesValid} from "../../../common/utils/countries.util";
+import {AdminToInfluencerEmails, InfluencerToAdminEmails} from "../../../integrations/email/email.templates";
+import {ExchangeRateService} from "../../../integrations/exchange-rate/exchange-rate.service";
+import {CurrencyCode, getAvailableCurrenciesLabel} from "../../../common/types/finance.types";
+import {NegotiationRepository} from "../../../database/repositories/negotiation/negotiation.repository";
+import {UpdateSocialAccountService} from "./update-social-account.service";
 
 const bcrypt = require('bcryptjs');
 
@@ -109,6 +113,7 @@ export class ProfileService {
         private readonly paypalDetailsRepo: PaypalDetailsRepository,
         // negotiation
         private readonly negotiationRepo: NegotiationRepository,
+        private readonly updateSocialAccountService: UpdateSocialAccountService,
     ) {
     }
 
@@ -607,113 +612,9 @@ export class ProfileService {
     }
 
     // Updates influencer's social account
-    async updateSocialAccount(data: UpdateSocialMediaAccountDto): Promise<SocialAccountDetails> {
+    async updateSocialAccount(data: UpdateSocialAccountDto): Promise<SocialAccountDetails> {
         if (!data.influencerId) throw new BadRequestException("Not enough arguments");
-
-        const influencer = await this.influencerRepo.findOne({_id: new Types.ObjectId(data.influencerId)});
-        if (!influencer) throw new NotFoundException("Influencer not found");
-
-        const socialMediaAccounts = influencer[data.socialMedia];
-        if (!socialMediaAccounts || socialMediaAccounts.length === 0) throw new NotFoundException(`No accounts found for type: ${data.socialMedia}`);
-
-        const socialAccountId = new Types.ObjectId(data.accountId);
-
-        const accountIndex = socialMediaAccounts.findIndex(
-            (account) => account._id.equals(socialAccountId),
-        );
-
-        if (accountIndex === -1) throw new NotFoundException(`Social account not found`)
-
-        const socialAccount = influencer[data.socialMedia][accountIndex];
-
-        if (!socialAccount) throw new NotFoundException('Social account not found');
-
-        if (socialAccount.verifiedStatus !== AccountVerifiedStatus.accept) throw new ForbiddenException("Wait admin approve to update account, that requested price change");
-
-        if (!areCountriesValid(data.countries)) {
-            throw new BadRequestException('Countries not valid');
-        }
-
-        const updateFields: Partial<SocialAccount> = {};
-        for (const [key, value] of Object.entries(data)) {
-            if (
-                value !== undefined &&
-                key !== "influencerId" &&
-                key !== "socialAccountId" &&
-                key !== "socialMedia" &&
-                key !== "price" &&
-                key !== "currency"
-            ) {
-                updateFields[key] = value as any;
-            }
-        }
-
-        const isPriceChanged = data.price !== undefined && data.price !== null && data.price !== socialAccount.price;
-
-        // for creating change price request
-        if (isPriceChanged) {
-            if (!Object.values(CurrencyCode).includes(data.currency)) {
-                throw new BadRequestException(
-                    `Currency for ${data.socialMedia} account ${socialAccount.username} is not valid. ` +
-                    `Try to use one of these: ${getAvailableCurrenciesLabel()}`
-                );
-            }
-
-            try {
-                await this.emailService.send(InfluencerToAdminEmails.priceChangeRequest({
-                    influencerName: influencer.firstName,
-                    influencerEmail: influencer.email,
-                    accountUsername: socialAccount.username,
-                    accountSocialMedia: data.socialMedia,
-                    oldPrice: socialAccount.price,
-                    newPrice: data.price,
-                    currency: data.currency,
-                    acceptLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=true&newPrice=${data.price}&currency=${data.currency}`,
-                    declineLink: `${process.env.SERVER}/profile/influencer/verify-new-accounts?influencerId=${data.influencerId}&accounts=${encodeURIComponent(JSON.stringify([data.accountId]))}&isVerified=false&newPrice=${data.price}&currency=${data.currency}`,
-                }));
-
-                updateFields.verifiedStatus = AccountVerifiedStatus.waitForAdmin;
-                updateFields.labelStatus = SocialAccountLabelStatus.priceChanged;
-            } catch (e) {
-                this.logger.error(`Error sending mail about price change for ${data.socialMedia} account ${data.accountId}`, e);
-                throw new InternalServerErrorException("Creating price change request failed. Try again later");
-            }
-        }
-
-        // if there's no fields to update - return account in current state (without updating)
-        if (Object.keys(updateFields).length === 0) {
-            return mapToSocialAccountDetailsDto(socialMediaAccounts[accountIndex]);
-        }
-
-        if (updateFields?.musicGenres?.length > 0) {
-            updateFields.musicGenres = normalizeDtoToMusicGenres(updateFields.musicGenres);
-        }
-
-        const updateResult = await this.influencerRepo.updateOne(
-            {
-                _id: influencer._id,
-                [`${data.socialMedia}._id`]: socialAccountId,
-            },
-            {
-                $set: Object.fromEntries(
-                    Object.entries(updateFields).map(([key, value]) => [
-                        `${data.socialMedia}.$.${key}`,
-                        value,
-                    ]),
-                ),
-            },
-        );
-
-        if (updateResult.modifiedCount === 0)
-            throw new InternalServerErrorException("Failed to update social account");
-
-        const updatedInfluencer = await this.influencerRepo.findOne({
-            _id: influencer._id,
-        });
-
-        return mapToSocialAccountDetailsDto(updatedInfluencer[data.socialMedia].find((acc: SocialAccount) =>
-            acc._id.equals(socialAccountId),
-        ));
+        return await this.updateSocialAccountService.execute(data) as SocialAccountDetails;
     }
 
     // Returns list of social accounts that were verified by admin and need agreement from influencer

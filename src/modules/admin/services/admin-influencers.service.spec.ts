@@ -80,7 +80,7 @@ describe('AdminInfluencersService', () => {
             totalPages: 1,
         });
 
-        const result = await service.getInfluencersList(SocialMediaEnum.instagram, query);
+        const result = await service.getInfluencers(SocialMediaEnum.instagram, query);
 
         expect(influencerRepo.findPaginated).toHaveBeenCalledWith(SocialMediaEnum.instagram, query);
         expect(result.items).toHaveLength(1);
@@ -98,7 +98,7 @@ describe('AdminInfluencersService', () => {
             totalPages: 0,
         });
 
-        const result = await service.getInfluencersList(SocialMediaEnum.tiktok, query);
+        const result = await service.getInfluencers(SocialMediaEnum.tiktok, query);
 
         expect(result.items).toEqual([]);
     });

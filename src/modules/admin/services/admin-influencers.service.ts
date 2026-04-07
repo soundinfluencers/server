@@ -1,16 +1,23 @@
 import {Injectable, InternalServerErrorException} from "@nestjs/common";
 import {InfluencerRepository} from "../../../database/repositories/users/influencer.repository";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
-import {AdminInfluencersListDto} from "../dto/influencers/admin-influencers.dto";
+import {AdminInfluencersListDto, AdminSocialAccountForListDto} from "../dto/influencers/admin-influencers.dto";
 import {AdminInfluencersQueryDto} from "../dto/influencers/admin-influencers-query.dto";
-import {mapToAdminSocialAccountForListDto} from "../../../common/mappers/influencer.mapper";
+import {
+    mapToAdminSocialAccountForListDto,
+} from "../../../common/mappers/influencer.mapper";
 import {XlsxImporter} from "../../../common/utils/import/xlsx/xlsx-import";
 import {Influencer, SocialAccount} from "../../../database/schemas/users/influencer.schema";
+import {AdminUpdateSocialAccountDto} from "../dto/influencers/admin-update-influencer.dto";
+import {UpdateSocialAccountService} from "../../profile/services/update-social-account.service";
 
 // Interface for AdminInfluencersService, AdminInfluencersController
 export interface IAdminInfluencersService {
     // Get paginated influencers list with optional platform filter and search
     getInfluencers(query: AdminInfluencersQueryDto): Promise<AdminInfluencersListDto>;
+
+    // Update social account
+    updateSocialAccount(data: AdminUpdateSocialAccountDto): Promise<AdminSocialAccountForListDto>;
 
     // Import xlsx file with new social accounts
     importXlsxSocialAccounts(
@@ -23,9 +30,10 @@ export interface IAdminInfluencersService {
 export class AdminInfluencersService implements IAdminInfluencersService {
     constructor(
         private readonly influencerRepo: InfluencerRepository,
-
         // For importing xlsx files
         private readonly xlsxImporter: XlsxImporter,
+        // For updating social account
+        private readonly updateSocialAccountService: UpdateSocialAccountService,
     ) {
     }
 
@@ -37,6 +45,10 @@ export class AdminInfluencersService implements IAdminInfluencersService {
             ...result,
             items: result.items?.length > 0 ? result.items.map(acc => mapToAdminSocialAccountForListDto(acc)) : []
         }
+    }
+
+    async updateSocialAccount(data: AdminUpdateSocialAccountDto): Promise<AdminSocialAccountForListDto> {
+        return await this.updateSocialAccountService.execute(data, true) as AdminSocialAccountForListDto;
     }
 
     // Import xlsx file with new social accounts
@@ -148,7 +160,7 @@ export class AdminInfluencersService implements IAdminInfluencersService {
 
         // Load all existing influencers by email in a single query
         const existingInfluencers = await this.influencerRepo.findMany({
-            email: { $in: emails },
+            email: {$in: emails},
         });
 
         const existingMap = new Map<string, Influencer>();
@@ -218,7 +230,7 @@ export class AdminInfluencersService implements IAdminInfluencersService {
 
             ops.push({
                 updateOne: {
-                    filter: { _id: found._id },
+                    filter: {_id: found._id},
                     update: {
                         $set: {
                             [socialMedia]: mergedAccounts,
@@ -241,7 +253,7 @@ export class AdminInfluencersService implements IAdminInfluencersService {
         for (let i = 0; i < ops.length; i += chunkSize) {
             const chunk = ops.slice(i, i + chunkSize);
 
-            const result = await this.influencerRepo.bulkWrite(chunk, { ordered: false });
+            const result = await this.influencerRepo.bulkWrite(chunk, {ordered: false});
             console.log('bulkWrite result:', result);
         }
     }

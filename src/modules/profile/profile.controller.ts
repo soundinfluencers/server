@@ -12,7 +12,7 @@ import {
     Res,
     UnauthorizedException
 } from '@nestjs/common';
-import {ProfileService} from './profile.service';
+import {ProfileService} from './services/profile.service';
 import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from './dto/client/update-client.dto';
 import {UpdateUserPasswordDto} from './dto/update-password.dto';
 import {
@@ -20,7 +20,7 @@ import {
     DeleteSocialAccountDto,
     InfluencerUpdatedPersonalDetailsDto,
     UpdateInfluencerPersonalDetailsDto,
-    UpdateSocialMediaAccountDto
+    UpdateSocialAccountDto
 } from './dto/influencer/update-influencer.dto';
 import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiQuery, ApiTags} from '@nestjs/swagger';
 import {Auth} from "../../common/decorators/auth.decorator";
@@ -290,11 +290,11 @@ export class ProfileController {
     }
 
     @Auth()
-    @Roles(Role.influencer, Role.admin)
+    @Roles(Role.influencer)
     @ApiOperation({summary: "Updates influencer's social account"})
     @ApiResponseDto(SocialAccountDetailsDto)
     @Patch('social-account')
-    updateSocialAccount(@Req() request: AuthenticatedRequest, @Body() data: UpdateSocialMediaAccountDto): Promise<SocialAccountDetailsDto> {
+    updateSocialAccount(@Req() request: AuthenticatedRequest, @Body() data: UpdateSocialAccountDto): Promise<SocialAccountDetailsDto> {
         if (!request.user._id) throw new UnauthorizedException('Unauthorized');
 
         return this.profileService.updateSocialAccount({...data, influencerId: request.user._id});

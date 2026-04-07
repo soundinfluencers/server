@@ -19,7 +19,7 @@ import {InvoiceDetailsRepository} from "../../database/repositories/invoices/inv
 import {Role, UserPayload} from "../../common/types/user.types";
 import {ObjId} from "../../common/types/base.types";
 import {PaymentMethodRequestEnum} from "../profile/dto/payment-details.dto";
-import {ProfileService} from "../profile/profile.service";
+import {ProfileService} from "../profile/services/profile.service";
 import {InvoicePdfExporter} from "../../common/utils/export/pdf/invoice-pdf.exporter";
 import {AdminToClientEmails, InfluencerToAdminEmails} from "../../integrations/email/email.templates";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";

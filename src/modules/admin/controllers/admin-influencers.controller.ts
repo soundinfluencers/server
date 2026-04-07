@@ -1,15 +1,30 @@
-import {Controller, Get, Param, Post, Query, UploadedFile, UseInterceptors} from "@nestjs/common";
+import {
+    Body,
+    Controller,
+    Get,
+    Param,
+    Patch,
+    Post,
+    Query,
+    Req,
+    UnauthorizedException,
+    UploadedFile,
+    UseInterceptors
+} from "@nestjs/common";
 import {AdminInfluencersService, IAdminInfluencersService} from "../services/admin-influencers.service";
 import {Auth} from "../../../common/decorators/auth.decorator";
-import {Role} from "../../../common/types/user.types";
+import {AuthenticatedRequest, Role} from "../../../common/types/user.types";
 import {Roles} from "../../../common/decorators/roles.decorator";
 import {ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiTags} from "@nestjs/swagger";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 
-import {AdminInfluencersListDto} from "../dto/influencers/admin-influencers.dto";
+import {AdminInfluencersListDto, AdminSocialAccountForListDto} from "../dto/influencers/admin-influencers.dto";
 import {AdminInfluencersQueryDto} from "../dto/influencers/admin-influencers-query.dto";
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
 import {FileInterceptor} from "@nestjs/platform-express";
+import {SocialAccountDetailsDto} from "../../profile/dto/influencer/get-profile.dto";
+import {UpdateSocialAccountDto} from "../../profile/dto/influencer/update-influencer.dto";
+import {AdminUpdateSocialAccountDto} from "../dto/influencers/admin-update-influencer.dto";
 
 @Auth()
 @Roles(Role.admin)
@@ -25,6 +40,13 @@ export class AdminInfluencersController implements IAdminInfluencersService {
         @Query() query: AdminInfluencersQueryDto
     ): Promise<AdminInfluencersListDto> {
         return this.adminService.getInfluencers(query);
+    }
+
+    @ApiOperation({summary: "Updates influencer's social account"})
+    @ApiResponseDto(AdminSocialAccountForListDto)
+    @Patch('social-account')
+    updateSocialAccount(@Body() data: AdminUpdateSocialAccountDto): Promise<AdminSocialAccountForListDto> {
+        return this.adminService.updateSocialAccount(data);
     }
 
     @ApiOperation({ summary: "Import xlsx file with new social accounts" })

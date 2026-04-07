@@ -73,8 +73,24 @@ export const mapToSocialAccountDetailsDto = (account: SocialAccount): SocialAcco
 // Maps AdminInfluencerListItem read model to AdminSocialAccountForListDto
 export const mapToAdminSocialAccountForListDto = (account: AdminInfluencerListItem): AdminSocialAccountForListDto => {
     return {
-        ...account,
         influencerId: account.influencerId.toString(),
+        firstName: account.firstName,
+        lastName: account.lastName ?? "",
+        email: account.email,
+        phone: account.phone,
+        balance: account.balance,
         accountId: account.accountId.toString(),
-    }
+        username: account.username,
+        socialMedia: account.socialMedia,
+        logoUrl: account.logoUrl ?? null,
+        followers: account.followers,
+        profileLink: account.profileLink,
+        publicPrice: account.publicPrice,
+        price: account.price,
+        initialPrice: account.initialPrice,
+        currency: account.currency,
+        costPerFollower: account.costPerFollower,
+        isHidden: account.isHidden,
+        ...account.internalNote !== null ? {internalNote: account.internalNote} : undefined,
+    } satisfies AdminSocialAccountForListDto;
 }

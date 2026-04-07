@@ -6,7 +6,7 @@ import {MongooseModule} from '@nestjs/mongoose';
 import {ServeStaticModule} from '@nestjs/serve-static';
 import {AuthModule} from "../auth/auth.module";
 import {ForgotModule} from "../forgot/forgot.module";
-import {ProfileModule} from "../profile/profile.module";
+import {ProfileModule, UpdateSocialAccountModule} from "../profile/profile.module";
 import {InvoiceModule} from "../invoice/invoice.module";
 import {PromosModule} from "../promos/promos.module";
 import {FileModule} from "../file/file.module";
@@ -63,6 +63,7 @@ import {AdminModule} from "../admin/admin.module";
         DatabaseModule,
         ExchangeRateModule,
         JobsModule,
+        UpdateSocialAccountModule,
     ],
     controllers: [AppController, HealthController],
     providers: [AppService],

@@ -80,7 +80,7 @@ export class AddSocialAccountDto {
 }
 
 // DTO for updating one social account
-export class UpdateSocialMediaAccountDto {
+export class UpdateSocialAccountDto {
     influencerId: string;
 
     @ApiPropertyOptional({ description: "Social account ID", example: "66a747a89c6e78a6cfb83g5" })
@@ -162,21 +162,6 @@ export class UpdateSocialMediaAccountDto {
     @IsOptional()
     @IsEnum(InfluencerProfileCategory)
     profileCategory?: InfluencerProfileCategory;
-
-    // @ApiPropertyOptional({ description: "Hidden flag" })
-    // @IsOptional()
-    // @IsBoolean()
-    // isHidden?: boolean;
-    //
-    // @ApiPropertyOptional({ description: "Deleted flag" })
-    // @IsOptional()
-    // @IsBoolean()
-    // isDeleted?: boolean;
-    //
-    // @ApiPropertyOptional({ description: "Verified flag" })
-    // @IsOptional()
-    // @IsBoolean()
-    // isVerified?: boolean;
 }
 
 // dto for deleting social account

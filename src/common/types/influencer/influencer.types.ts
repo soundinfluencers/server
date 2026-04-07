@@ -3,8 +3,6 @@ import {
     InfluencerMusicGenre,
     UserNotificationMethods
 } from "../../../database/schemas/users/influencer.schema";
-import {InfluencerConfirmationStatusEnum} from "./promo.types";
-import {AccountVerifiedStatus} from "../user.types";
 import {CurrencyCode} from "../finance.types";
 import {SocialMediaEnum} from "../social-media.types";
 import {ObjId} from "../base.types";
