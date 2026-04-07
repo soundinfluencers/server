@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {BadRequestException, Injectable} from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
-import { Types } from 'mongoose';
+import {Types} from 'mongoose';
 import {Influencer, SocialAccount} from "../../../../database/schemas/users/influencer.schema";
 import {AccountVerifiedStatus, Role} from "../../../types/user.types";
 import {CurrencyCode} from "../../../types/finance.types";
@@ -11,10 +11,17 @@ import {XlsxCampaignDto} from "../../../../modules/admin/dto/campaigns/xlsx-camp
 @Injectable()
 export class XlsxImporter {
     private readonly supportedSocials: SocialMediaEnum[] = Object.values(SocialMediaEnum);
+    private readonly defaultSocialLogoUrl = "https://dl.dropboxusercontent.com/scl/fi/2azbdbvvujzb5b1yd3iqx/2025-11-28T08-15-10.280Zjusthitsongs_avatar_1764317710280.jpeg?rlkey=b9snlaxtg91cms0678rvxy83y&dl=0";
 
-    async importInfluencers(file: Express.Multer.File, socialMedia: SocialMediaEnum): Promise<Partial<Influencer>[]> {
+    async importInfluencers(
+        file: Express.Multer.File,
+        socialMedia: SocialMediaEnum,
+    ): Promise<Partial<Influencer>[]> {
         if (!file) {
             throw new BadRequestException('File is required');
+        }
+        if (!this.supportedSocials.includes(socialMedia)) {
+            throw new BadRequestException("Provided social media isn't supported.")
         }
 
         const workbook = new ExcelJS.Workbook();
@@ -31,9 +38,10 @@ export class XlsxImporter {
             throw new BadRequestException('Workbook does not contain any worksheets');
         }
 
-        const rows = this.readWorksheetAsObjects(worksheet);
+        const matrix = this.readWorksheetMatrix(worksheet);
+        const headerMap = this.findInfluencerTableHeaderRow(matrix, socialMedia);
 
-        return rows.map((row, index) => this.mapRowToInfluencer(row, index + 2, socialMedia));
+        return this.readInfluencerRows(matrix, headerMap, socialMedia);
     }
 
     async importProposalCampaign(file: Express.Multer.File): Promise<XlsxCampaignDto> {
@@ -216,14 +224,14 @@ export class XlsxImporter {
                 return {
                     rowIndex,
                     columns: {
-                        ...(columns.platform !== -1 ? { platform: columns.platform } : {}),
-                        ...(columns.brandName !== -1 ? { brandName: columns.brandName } : {}),
-                        ...(columns.followers !== -1 ? { followers: columns.followers } : {}),
-                        ...(columns.videoLink !== -1 ? { videoLink: columns.videoLink } : {}),
-                        ...(columns.description !== -1 ? { description: columns.description } : {}),
-                        ...(columns.storyTag !== -1 ? { storyTag: columns.storyTag } : {}),
-                        ...(columns.storyLink !== -1 ? { storyLink: columns.storyLink } : {}),
-                        ...(columns.specialRequest !== -1 ? { specialRequest: columns.specialRequest } : {}),
+                        ...(columns.platform !== -1 ? {platform: columns.platform} : {}),
+                        ...(columns.brandName !== -1 ? {brandName: columns.brandName} : {}),
+                        ...(columns.followers !== -1 ? {followers: columns.followers} : {}),
+                        ...(columns.videoLink !== -1 ? {videoLink: columns.videoLink} : {}),
+                        ...(columns.description !== -1 ? {description: columns.description} : {}),
+                        ...(columns.storyTag !== -1 ? {storyTag: columns.storyTag} : {}),
+                        ...(columns.storyLink !== -1 ? {storyLink: columns.storyLink} : {}),
+                        ...(columns.specialRequest !== -1 ? {specialRequest: columns.specialRequest} : {}),
                     },
                 };
             }
@@ -314,37 +322,198 @@ export class XlsxImporter {
         return this.toNullableString(row[columnIndex]);
     }
 
-    private readWorksheetAsObjects(
-        worksheet: ExcelJS.Worksheet,
-    ): Record<string, unknown>[] {
-        const headerRow = worksheet.getRow(1);
-
-        const headers = (headerRow.values as any)
-            .slice(1)
-            .map((value) => this.normalizeHeader(String(value ?? '')));
-
-        const result: Record<string, unknown>[] = [];
-
-        worksheet.eachRow((row, rowNumber) => {
-            if (rowNumber === 1) return;
-
-            const rowObj: Record<string, unknown> = {};
-
-            headers.forEach((header, index) => {
-                if (!header) return;
-
-                const cellValue = row.getCell(index + 1).value;
-                rowObj[header] = this.extractCellValue(cellValue);
-            });
-
-            const isEmpty = Object.values(rowObj).every(
-                (value) => value === null || value === undefined || String(value).trim() === '',
+    private findInfluencerTableHeaderRow(
+        matrix: (string | null)[][],
+        socialMedia: SocialMediaEnum,
+    ): {
+        rowIndex: number;
+        columns: {
+            brandName?: number;
+            firstName?: number;
+            lastName?: number;
+            phone?: number;
+            email?: number;
+            profileLink?: number;
+            followers?: number;
+            price?: number;
+            publicPrice?: number;
+            initialPrice?: number;
+            engagementRate?: number;
+            averageViews?: number;
+        };
+    } {
+        for (let rowIndex = 0; rowIndex < matrix.length; rowIndex++) {
+            const normalizedRow = matrix[rowIndex].map((cell) =>
+                this.normalizeHeader(cell ?? ''),
             );
 
-            if (!isEmpty) {
-                result.push(rowObj);
+            const columns = {
+                brandName: normalizedRow.findIndex((v) =>
+                    ['brandname', 'username', `${socialMedia}username`].includes(v),
+                ),
+                firstName: normalizedRow.findIndex((v) =>
+                    ['firstname', 'name', 'contactname'].includes(v),
+                ),
+                lastName: normalizedRow.findIndex((v) =>
+                    ['lastname', 'surname'].includes(v),
+                ),
+                phone: normalizedRow.findIndex((v) =>
+                    ['phone', 'phonenumber', 'mobilenumber'].includes(v),
+                ),
+                email: normalizedRow.findIndex((v) =>
+                    ['email', 'emailaddress', 'mail'].includes(v),
+                ),
+                profileLink: normalizedRow.findIndex((v) =>
+                    [
+                        `${socialMedia}profilelink`,
+                        'profilelink',
+                        'iglink',
+                        'instagramlink',
+                        'link',
+                        'url',
+                    ].includes(v),
+                ),
+                followers: normalizedRow.findIndex((v) =>
+                    [
+                        `${socialMedia}followers`,
+                        'followers',
+                        'ttlittgfollow',
+                        'ttfollowers',
+                        'igfollowers',
+                    ].includes(v),
+                ),
+                price: normalizedRow.findIndex((v) =>
+                    [
+                        `${socialMedia}price`,
+                        'price',
+                        'ttprice',
+                        'igprice',
+                        'offerprice',
+                    ].includes(v),
+                ),
+                publicPrice: normalizedRow.findIndex((v) =>
+                    [`${socialMedia}publicprice`, 'publicprice'].includes(v),
+                ),
+                initialPrice: normalizedRow.findIndex((v) =>
+                    [`${socialMedia}initialprice`, 'initialprice'].includes(v),
+                ),
+                engagementRate: normalizedRow.findIndex((v) =>
+                    [`${socialMedia}engagementrate`, 'engagementrate'].includes(v),
+                ),
+                averageViews: normalizedRow.findIndex((v) =>
+                    [`${socialMedia}averageviews`, 'averageviews', 'averagevie'].includes(v),
+                ),
+            };
+
+            const hasRequiredColumns =
+                columns.brandName !== -1 &&
+                columns.email !== -1;
+
+            if (hasRequiredColumns) {
+                return {
+                    rowIndex,
+                    columns: {
+                        ...(columns.brandName !== -1 ? { brandName: columns.brandName } : {}),
+                        ...(columns.firstName !== -1 ? { firstName: columns.firstName } : {}),
+                        ...(columns.lastName !== -1 ? { lastName: columns.lastName } : {}),
+                        ...(columns.phone !== -1 ? { phone: columns.phone } : {}),
+                        ...(columns.email !== -1 ? { email: columns.email } : {}),
+                        ...(columns.profileLink !== -1 ? { profileLink: columns.profileLink } : {}),
+                        ...(columns.followers !== -1 ? { followers: columns.followers } : {}),
+                        ...(columns.price !== -1 ? { price: columns.price } : {}),
+                        ...(columns.publicPrice !== -1 ? { publicPrice: columns.publicPrice } : {}),
+                        ...(columns.initialPrice !== -1 ? { initialPrice: columns.initialPrice } : {}),
+                        ...(columns.engagementRate !== -1 ? { engagementRate: columns.engagementRate } : {}),
+                        ...(columns.averageViews !== -1 ? { averageViews: columns.averageViews } : {}),
+                    },
+                };
             }
-        });
+        }
+
+        throw new BadRequestException('Influencer table headers not found');
+    }
+
+    private readInfluencerRows(
+        matrix: (string | null)[][],
+        headerMap: {
+            rowIndex: number;
+            columns: {
+                brandName?: number;
+                firstName?: number;
+                lastName?: number;
+                phone?: number;
+                email?: number;
+                profileLink?: number;
+                followers?: number;
+                price?: number;
+                publicPrice?: number;
+                initialPrice?: number;
+                engagementRate?: number;
+                averageViews?: number;
+            };
+        },
+        socialMedia: SocialMediaEnum,
+    ): Partial<Influencer>[] {
+        const result: Partial<Influencer>[] = [];
+
+        for (let rowIndex = headerMap.rowIndex + 1; rowIndex < matrix.length; rowIndex++) {
+            const row = matrix[rowIndex];
+
+            const email = this.getCellByColumn(row, headerMap.columns.email);
+            const username = this.getCellByColumn(row, headerMap.columns.brandName);
+            const firstName = this.getCellByColumn(row, headerMap.columns.firstName);
+            const lastName = this.getCellByColumn(row, headerMap.columns.lastName);
+            const phone = this.getCellByColumn(row, headerMap.columns.phone);
+            const profileLink = this.getCellByColumn(row, headerMap.columns.profileLink);
+            const followers = this.getCellByColumn(row, headerMap.columns.followers);
+            const price = this.getCellByColumn(row, headerMap.columns.price);
+            const publicPrice = this.getCellByColumn(row, headerMap.columns.publicPrice);
+            const initialPrice = this.getCellByColumn(row, headerMap.columns.initialPrice);
+            const engagementRate = this.getCellByColumn(row, headerMap.columns.engagementRate);
+            const averageViews = this.getCellByColumn(row, headerMap.columns.averageViews);
+
+            const hasAnyUsefulData = [
+                email,
+                username,
+                firstName,
+                phone,
+                profileLink,
+                followers,
+                price,
+                publicPrice,
+                initialPrice,
+                engagementRate,
+                averageViews,
+            ].some((value) => value !== null && String(value).trim() !== '');
+
+            if (!hasAnyUsefulData) {
+                continue;
+            }
+
+            if (!email) {
+                continue;
+            }
+
+            const normalizedRow: Record<string, unknown> = {
+                email,
+                firstname: firstName,
+                lastname: lastName,
+                phone,
+
+                username,
+                profilelink: profileLink,
+                followers,
+                price,
+                publicprice: publicPrice,
+                initialprice: initialPrice,
+                engagementrate: engagementRate,
+                averageviews: averageViews,
+            };
+
+            result.push(
+                this.mapRowToInfluencer(normalizedRow, rowIndex + 1, socialMedia),
+            );
+        }
 
         return result;
     }
@@ -422,18 +591,18 @@ export class XlsxImporter {
         };
 
         const username = this.toNullableString(
-            getValue(`${social}_username`, 'username'),
+            getValue(`${social}_username`, 'username', 'brandname'),
         );
 
         const profileLink = this.toNullableString(
-            getValue(`${social}_profilelink`, 'profilelink'),
+            getValue(`${social}_profilelink`, 'profilelink', 'iglink', 'link'),
         ) ?? this.buildProfileLink(social, username);
 
         const hasAnySocialData = [
-            getValue(`${social}_username`, 'username'),
-            getValue(`${social}_profilelink`, 'profilelink'),
-            getValue(`${social}_followers`, 'followers'),
-            getValue(`${social}_price`, 'price'),
+            getValue(`${social}_username`, 'username', 'brandname'),
+            getValue(`${social}_profilelink`, 'profilelink', 'iglink', 'link'),
+            getValue(`${social}_followers`, 'followers', 'ttlittgfollow'),
+            getValue(`${social}_price`, 'price', 'ttprice', 'offerprice'),
             getValue(`${social}_publicprice`, 'publicprice'),
             getValue(`${social}_initialprice`, 'initialprice'),
         ].some((v) => v !== null && v !== undefined && String(v).trim() !== '');
@@ -458,7 +627,7 @@ export class XlsxImporter {
         );
 
         const price = this.toNumber(
-            getValue(`${social}_price`, 'price'),
+            getValue(`${social}_price`, 'price', 'ttprice', 'offerprice'),
             initialPrice,
         );
 
@@ -472,12 +641,12 @@ export class XlsxImporter {
             username,
             profileLink: profileLink ?? '',
             followers: this.toNumber(
-                getValue(`${social}_followers`, 'followers'),
+                getValue(`${social}_followers`, 'followers', 'ttlittgfollow'),
                 0,
             ),
             logoUrl: this.toNullableString(
                 getValue(`${social}_logourl`, 'logourl'),
-            ) ?? '',
+            ) ?? this.defaultSocialLogoUrl,
             profileCategory:
                 this.toEnumValue<InfluencerProfileCategory>(
                     getValue(`${social}_profilecategory`, 'profilecategory'),
@@ -503,7 +672,7 @@ export class XlsxImporter {
                 getValue(`${social}_engagementrate`, 'engagementrate'),
             ),
             averageViews: this.toOptionalNumber(
-                getValue(`${social}_averageviews`, 'averageviews'),
+                getValue(`${social}_averageviews`, 'averageviews', 'averagevie'),
             ),
             isHidden: this.toBoolean(
                 getValue(`${social}_ishidden`, 'ishidden'),

@@ -64,10 +64,6 @@ export class AdminInfluencersService implements IAdminInfluencersService {
             );
         }
 
-        console.log('socialMedia:', socialMedia);
-        console.log('accounts length:', accounts.length);
-        console.log('first account:', JSON.stringify(accounts[0], null, 2));
-
         // Group imported rows by email and merge duplicated rows inside the same file
         const grouped: Record<string, Partial<Influencer>> = {};
 
@@ -240,9 +236,6 @@ export class AdminInfluencersService implements IAdminInfluencersService {
             });
         }
 
-        console.log('grouped emails:', Object.keys(grouped).length);
-        console.log('ops length:', ops.length);
-
         if (ops.length === 0) {
             return;
         }
@@ -254,7 +247,16 @@ export class AdminInfluencersService implements IAdminInfluencersService {
             const chunk = ops.slice(i, i + chunkSize);
 
             const result = await this.influencerRepo.bulkWrite(chunk, {ordered: false});
-            console.log('bulkWrite result:', result);
+
+            if ((result as any)?.mongoose?.results?.length) {
+                (result as any).mongoose.results.forEach((item: any, index: number) => {
+                    if (item instanceof Error) {
+                        console.log(`bulk op #${index} failed`);
+                        console.log(item.message);
+                        console.log(item);
+                    }
+                });
+            }
         }
     }
 }
