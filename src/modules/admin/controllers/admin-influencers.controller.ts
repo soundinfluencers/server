@@ -46,6 +46,13 @@ export class AdminInfluencersController implements IAdminInfluencersService {
         return this.adminService.getPaginated(query);
     }
 
+    @ApiOperation({summary: "Updates influencer's social account"})
+    @ApiResponseDto(AdminSocialAccountForListDto)
+    @Patch('social-account')
+    updateSocialAccount(@Body() data: AdminUpdateSocialAccountDto): Promise<AdminSocialAccountForListDto> {
+        return this.adminService.updateSocialAccount(data);
+    }
+
     @ApiOperation({summary: `Updates influencer's personal info and: \n1) Returns InfluencerUpdatedPersonalDto if accountId IS NOT provided; \n2) Returns AdminSocialAccountForListDto if accountId IS provided`})
     @ApiResponseDtoOneOf([AdminSocialAccountForListDto, InfluencerUpdatedPersonalDto])
     @ApiParam({
@@ -65,13 +72,6 @@ export class AdminInfluencersController implements IAdminInfluencersService {
         @Query('accountId') accountId?: string
     ): Promise<InfluencerUpdatedPersonalDto | AdminSocialAccountForListDto> {
         return this.adminService.updatePersonalInfo(influencerId, data, accountId);
-    }
-
-    @ApiOperation({summary: "Updates influencer's social account"})
-    @ApiResponseDto(AdminSocialAccountForListDto)
-    @Patch('social-account')
-    updateSocialAccount(@Body() data: AdminUpdateSocialAccountDto): Promise<AdminSocialAccountForListDto> {
-        return this.adminService.updateSocialAccount(data);
     }
 
     @ApiOperation({ summary: "Import xlsx file with new social accounts" })

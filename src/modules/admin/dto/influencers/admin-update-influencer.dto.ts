@@ -12,6 +12,12 @@ export class AdminUpdateSocialAccountDto extends UpdateSocialAccountDto {
     @IsString()
     influencerId: string;
 
+    @ApiPropertyOptional({type: String, description: "Public Price"})
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    publicPrice?: number;
+
     @ApiPropertyOptional({type: Boolean, description: "Hidden flag"})
     @IsOptional()
     @IsBoolean()

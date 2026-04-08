@@ -79,17 +79,19 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
         this.validateSocialAccountBeforeUpdate(socialAccount);
         this.validateCountries(data);
 
-        const updateFields = this.buildUpdateFields(data);
+        const updateFields = this.buildUpdateFields(data, isForAdmin);
 
-        await this.handlePriceChangeIfNeeded({
-            data,
-            influencer,
-            socialAccount,
-            socialMedia,
-            influencerId,
-            socialAccountId,
-            updateFields,
-        });
+        if (isForAdmin === false) {
+            await this.handlePriceChangeIfNeeded({
+                data,
+                influencer,
+                socialAccount,
+                socialMedia,
+                influencerId,
+                socialAccountId,
+                updateFields,
+            });
+        }
 
         // if there's no fields to update - return account in current state (without updating)
         if (Object.keys(updateFields).length === 0) {
@@ -223,7 +225,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
         }
     }
 
-    private buildUpdateFields(data: UpdateSocialAccountInput): Partial<SocialAccount> {
+    private buildUpdateFields(data: UpdateSocialAccountInput, isForAdmin: boolean = false): Partial<SocialAccount> {
         const updateFields: Partial<SocialAccount> = {};
 
         for (const [key, value] of Object.entries(data)) {
@@ -231,10 +233,14 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
                 value !== undefined &&
                 key !== "influencerId" &&
                 key !== "accountId" &&
-                key !== "socialMedia" &&
-                key !== "price" &&
-                key !== "currency"
+                key !== "socialMedia"
+                // key !== "price" &&
+                // key !== "currency"
             ) {
+                if ((key === "price" || key === "currency" || key === "publicPrice") && isForAdmin === false) {
+                    continue;
+                }
+
                 updateFields[key as keyof SocialAccount] = value as never;
             }
         }
