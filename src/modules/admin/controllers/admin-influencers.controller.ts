@@ -15,7 +15,7 @@ import {AdminInfluencersService, IAdminInfluencersService} from "../services/adm
 import {Auth} from "../../../common/decorators/auth.decorator";
 import {AuthenticatedRequest, Role} from "../../../common/types/user.types";
 import {Roles} from "../../../common/decorators/roles.decorator";
-import {ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiTags} from "@nestjs/swagger";
+import {ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 
 import {AdminInfluencersListDto, AdminSocialAccountForListDto} from "../dto/influencers/admin-influencers.dto";
@@ -23,8 +23,12 @@ import {AdminInfluencersQueryDto} from "../dto/influencers/admin-influencers-que
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
 import {FileInterceptor} from "@nestjs/platform-express";
 import {SocialAccountDetailsDto} from "../../profile/dto/influencer/get-profile.dto";
-import {UpdateSocialAccountDto} from "../../profile/dto/influencer/update-influencer.dto";
-import {AdminUpdateSocialAccountDto} from "../dto/influencers/admin-update-influencer.dto";
+import {InfluencerUpdatedPersonalDto, UpdateSocialAccountDto} from "../../profile/dto/influencer/update-influencer.dto";
+import {
+    AdminUpdateInfluencerPersonalDto,
+    AdminUpdateSocialAccountDto
+} from "../dto/influencers/admin-update-influencer.dto";
+import {ApiResponseDtoOneOf} from "../../../common/decorators/api/response/api-response-one-of.decorator";
 
 @Auth()
 @Roles(Role.admin)
@@ -36,10 +40,31 @@ export class AdminInfluencersController implements IAdminInfluencersService {
     @ApiOperation({ summary: 'Get paginated influencers list with optional platform filter and search' })
     @ApiResponseDto(AdminInfluencersListDto)
     @Get()
-    getInfluencers(
+    getPaginated(
         @Query() query: AdminInfluencersQueryDto
     ): Promise<AdminInfluencersListDto> {
-        return this.adminService.getInfluencers(query);
+        return this.adminService.getPaginated(query);
+    }
+
+    @ApiOperation({summary: `Updates influencer's personal info and: \n1) Returns InfluencerUpdatedPersonalDto if accountId IS NOT provided; \n2) Returns AdminSocialAccountForListDto if accountId IS provided`})
+    @ApiResponseDtoOneOf([AdminSocialAccountForListDto, InfluencerUpdatedPersonalDto])
+    @ApiParam({
+        name: 'influencerId',
+        type: String,
+        required: true
+    })
+    @ApiQuery({
+        name: 'accountId',
+        type: String,
+        required: false
+    })
+    @Patch(':influencerId')
+    updatePersonalInfo(
+        @Param('influencerId') influencerId: string,
+        @Body() data: AdminUpdateInfluencerPersonalDto,
+        @Query('accountId') accountId?: string
+    ): Promise<InfluencerUpdatedPersonalDto | AdminSocialAccountForListDto> {
+        return this.adminService.updatePersonalInfo(influencerId, data, accountId);
     }
 
     @ApiOperation({summary: "Updates influencer's social account"})

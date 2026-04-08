@@ -8,6 +8,8 @@ import {AccountVerifiedStatus} from "../types/user.types";
 import {CurrencyCode} from "../types/finance.types";
 import {AdminInfluencerListItem} from "../types/influencer/influencer.types";
 import {AdminSocialAccountForListDto} from "../../modules/admin/dto/influencers/admin-influencers.dto";
+import {InternalServerErrorException} from "@nestjs/common";
+import {SocialMediaEnum} from "../types/social-media.types";
 
 // Maps social account doc to social account for account details dto
 export const mapSocialAccountToAccountDetailsDto = (account: SocialAccount): SocialAccountForAccountDetailsDto => {
@@ -69,6 +71,46 @@ export const mapToSocialAccountDetailsDto = (account: SocialAccount): SocialAcco
         categories: account.categories,
     }
 };
+
+// Maps influencer model to AdminInfluencerListItem
+export const mapToAdminInfluencerListItem = (influencer: Influencer, accountId: string): AdminInfluencerListItem => {
+    let account: SocialAccount = null;
+    let foundSocialMedia: SocialMediaEnum = null;
+
+    for (const socialMedia of Object.values(SocialMediaEnum)) {
+        if (!influencer[socialMedia] || influencer[socialMedia]?.length === 0) continue;
+
+        account = influencer[socialMedia].find((acc) => acc._id.toString() === accountId) ?? null;
+        if (account) {
+            foundSocialMedia = socialMedia;
+            break;
+        }
+    }
+
+    if (!account || !foundSocialMedia) throw new InternalServerErrorException("Social account not found.")
+
+    return {
+        influencerId: influencer._id,
+        firstName: influencer.firstName,
+        lastName: influencer.lastName ?? "",
+        email: influencer.email,
+        phone: influencer.phone,
+        balance: influencer.balance,
+        accountId: account._id,
+        username: account.username,
+        socialMedia: foundSocialMedia,
+        logoUrl: account.logoUrl ?? null,
+        followers: account.followers,
+        profileLink: account.profileLink,
+        publicPrice: account.publicPrice,
+        price: account.price,
+        initialPrice: account.initialPrice,
+        currency: account.currency,
+        costPerFollower: Number((account.price / account.followers)?.toFixed(6)) ?? 0,
+        isHidden: account.isHidden,
+        ...influencer.internalNote !== null ? {internalNote: influencer.internalNote} : undefined,
+    } satisfies AdminInfluencerListItem;
+}
 
 // Maps AdminInfluencerListItem read model to AdminSocialAccountForListDto
 export const mapToAdminSocialAccountForListDto = (account: AdminInfluencerListItem): AdminSocialAccountForListDto => {

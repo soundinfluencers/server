@@ -8,9 +8,7 @@ import {InfluencerProfileCategory} from "../../../../common/types/influencer/inf
 import {CurrencyCode} from "../../../../common/types/finance.types";
 
 // DTO for updating personal details
-export class UpdateInfluencerPersonalDetailsDto {
-    influencerId: string;
-
+export class UpdateInfluencerPersonalDto {
     @ApiPropertyOptional({description: "Influencer's updated first name", example: "Eric"})
     @IsOptional()
     @IsString()
@@ -38,7 +36,7 @@ export class UpdateInfluencerPersonalDetailsDto {
 }
 
 // result of updating personal details
-export class InfluencerUpdatedPersonalDetailsDto {
+export class InfluencerUpdatedPersonalDto {
     @ApiPropertyOptional()
     @IsOptional()
     @IsString()

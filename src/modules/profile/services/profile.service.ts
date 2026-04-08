@@ -14,8 +14,8 @@ import {UpdateUserPasswordDto} from '../dto/update-password.dto';
 import {
     AddSocialAccountDto,
     DeleteSocialAccountDto,
-    InfluencerUpdatedPersonalDetailsDto,
-    UpdateInfluencerPersonalDetailsDto,
+    InfluencerUpdatedPersonalDto,
+    UpdateInfluencerPersonalDto,
     UpdateSocialAccountDto
 } from '../dto/influencer/update-influencer.dto';
 import * as process from 'node:process';
@@ -90,6 +90,7 @@ import {ExchangeRateService} from "../../../integrations/exchange-rate/exchange-
 import {CurrencyCode, getAvailableCurrenciesLabel} from "../../../common/types/finance.types";
 import {NegotiationRepository} from "../../../database/repositories/negotiation/negotiation.repository";
 import {UpdateSocialAccountService} from "./update-social-account.service";
+import {UpdateInfluencerService} from "./update-influencer.service";
 
 const bcrypt = require('bcryptjs');
 
@@ -113,6 +114,9 @@ export class ProfileService {
         private readonly paypalDetailsRepo: PaypalDetailsRepository,
         // negotiation
         private readonly negotiationRepo: NegotiationRepository,
+        // Update influencer personal information
+        private readonly updateInfluencerService: UpdateInfluencerService,
+        // Update social account
         private readonly updateSocialAccountService: UpdateSocialAccountService,
     ) {
     }
@@ -216,39 +220,15 @@ export class ProfileService {
     }
 
     // Updates influencer's personal information
-    async updatePersonalInfluencer(data: UpdateInfluencerPersonalDetailsDto): Promise<InfluencerUpdatedPersonalDetailsDto> {
-        const {influencerId, firstName, logoUrl, lastName, email, phone} = data;
-
-        const updateData: Partial<{
-            firstName: string;
-            lastName: string;
-            logoUrl: string;
-            email: string;
-            phone: string;
-        }> = {};
-
-        if (firstName) updateData.firstName = firstName.trim();
-        if (lastName) updateData.lastName = lastName.trim();
-        if (logoUrl) updateData.logoUrl = logoUrl.trim();
-        if (email) updateData.email = email.trim().toLowerCase();
-        if (phone) updateData.phone = phone.trim();
-
-        const updatedUser = await this.influencerRepo.findOneAndUpdate(
-            {_id: new Types.ObjectId(influencerId)},
-            {$set: updateData},
-            {new: true}
-        );
-
-        if (!updatedUser) {
-            throw new NotFoundException("Client not found");
-        }
+    async updatePersonalInfluencer(influencerId: string, data: UpdateInfluencerPersonalDto): Promise<InfluencerUpdatedPersonalDto> {
+        const res = await this.updateInfluencerService.exec(influencerId, data);
 
         return {
-            firstName: updatedUser.firstName,
-            lastName: updatedUser?.lastName,
-            logoUrl: updateData?.logoUrl,
-            email: updatedUser.email,
-            phone: updatedUser.phone,
+            firstName: res.firstName,
+            lastName: res?.lastName,
+            logoUrl: res?.logoUrl,
+            email: res.email,
+            phone: res.phone,
         };
     }
 

@@ -1,6 +1,10 @@
-import {UpdateSocialAccountDto} from "../../../profile/dto/influencer/update-influencer.dto";
+import {
+    UpdateInfluencerPersonalDto,
+    UpdateSocialAccountDto
+} from "../../../profile/dto/influencer/update-influencer.dto";
 import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
-import {IsBoolean, IsOptional, IsString} from "class-validator";
+import {IsBoolean, IsNumber, IsOptional, IsString} from "class-validator";
+import {Type} from "class-transformer";
 
 // DTO for updating one social account as admin
 export class AdminUpdateSocialAccountDto extends UpdateSocialAccountDto {
@@ -22,4 +26,18 @@ export class AdminUpdateSocialAccountDto extends UpdateSocialAccountDto {
     // @IsOptional()
     // @IsBoolean()
     // isVerified?: boolean;
+}
+
+// DTO for updating influencer's personal information as admin
+export class AdminUpdateInfluencerPersonalDto extends UpdateInfluencerPersonalDto {
+    @ApiPropertyOptional({type: String, description: "Internal note"})
+    @IsOptional()
+    @IsString()
+    internalNote?: string;
+
+    @ApiPropertyOptional({type: Number, description: "Balance"})
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    balance?: number;
 }

@@ -18,8 +18,8 @@ import {UpdateUserPasswordDto} from './dto/update-password.dto';
 import {
     AddSocialAccountDto,
     DeleteSocialAccountDto,
-    InfluencerUpdatedPersonalDetailsDto,
-    UpdateInfluencerPersonalDetailsDto,
+    InfluencerUpdatedPersonalDto,
+    UpdateInfluencerPersonalDto,
     UpdateSocialAccountDto
 } from './dto/influencer/update-influencer.dto';
 import {ApiExcludeEndpoint, ApiOperation, ApiParam, ApiQuery, ApiTags} from '@nestjs/swagger';
@@ -93,10 +93,10 @@ export class ProfileController {
     @Auth()
     @Roles(Role.influencer)
     @ApiOperation({summary: "Updates influencer's personal details"})
-    @ApiResponseDto(InfluencerUpdatedPersonalDetailsDto)
+    @ApiResponseDto(InfluencerUpdatedPersonalDto)
     @Patch('influencer/personal')
-    updatePersonalInfluencer(@Req() request: AuthenticatedRequest, @Body() data: UpdateInfluencerPersonalDetailsDto): Promise<InfluencerUpdatedPersonalDetailsDto> {
-        return this.profileService.updatePersonalInfluencer({...data, influencerId: request.user._id});
+    updatePersonalInfluencer(@Req() request: AuthenticatedRequest, @Body() data: UpdateInfluencerPersonalDto): Promise<InfluencerUpdatedPersonalDto> {
+        return this.profileService.updatePersonalInfluencer(request.user._id, data);
     }
 
     @Auth()

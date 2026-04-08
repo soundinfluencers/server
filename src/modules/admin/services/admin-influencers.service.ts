@@ -4,17 +4,32 @@ import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {AdminInfluencersListDto, AdminSocialAccountForListDto} from "../dto/influencers/admin-influencers.dto";
 import {AdminInfluencersQueryDto} from "../dto/influencers/admin-influencers-query.dto";
 import {
+    mapToAdminInfluencerListItem,
     mapToAdminSocialAccountForListDto,
 } from "../../../common/mappers/influencer.mapper";
 import {XlsxImporter} from "../../../common/utils/import/xlsx/xlsx-import";
 import {Influencer, SocialAccount} from "../../../database/schemas/users/influencer.schema";
-import {AdminUpdateSocialAccountDto} from "../dto/influencers/admin-update-influencer.dto";
+import {
+    AdminUpdateInfluencerPersonalDto,
+    AdminUpdateSocialAccountDto
+} from "../dto/influencers/admin-update-influencer.dto";
 import {UpdateSocialAccountService} from "../../profile/services/update-social-account.service";
+import {InfluencerUpdatedPersonalDto} from "../../profile/dto/influencer/update-influencer.dto";
+import {UpdateInfluencerService} from "../../profile/services/update-influencer.service";
 
 // Interface for AdminInfluencersService, AdminInfluencersController
 export interface IAdminInfluencersService {
     // Get paginated influencers list with optional platform filter and search
-    getInfluencers(query: AdminInfluencersQueryDto): Promise<AdminInfluencersListDto>;
+    getPaginated(query: AdminInfluencersQueryDto): Promise<AdminInfluencersListDto>;
+
+    // Updates influencer's personal information
+    // 1) Returns just updated personal info if accountId IS NOT provided;
+    // 2) Returns AdminSocialAccountForListDto if accountId IS provided
+    updatePersonalInfo(
+        influencerId: string,
+        data: AdminUpdateInfluencerPersonalDto,
+        accountId?: string
+    ): Promise<InfluencerUpdatedPersonalDto | AdminSocialAccountForListDto>;
 
     // Update social account
     updateSocialAccount(data: AdminUpdateSocialAccountDto): Promise<AdminSocialAccountForListDto>;
@@ -32,18 +47,37 @@ export class AdminInfluencersService implements IAdminInfluencersService {
         private readonly influencerRepo: InfluencerRepository,
         // For importing xlsx files
         private readonly xlsxImporter: XlsxImporter,
+        // For updating influencer's personal info
+        private readonly updateInfluencerService: UpdateInfluencerService,
         // For updating social account
         private readonly updateSocialAccountService: UpdateSocialAccountService,
     ) {
     }
 
     // Get paginated influencers list with optional platform filter and search
-    async getInfluencers(query: AdminInfluencersQueryDto): Promise<AdminInfluencersListDto> {
+    async getPaginated(query: AdminInfluencersQueryDto): Promise<AdminInfluencersListDto> {
         const result = await this.influencerRepo.findInfluencers(query);
 
         return {
             ...result,
             items: result.items?.length > 0 ? result.items.map(acc => mapToAdminSocialAccountForListDto(acc)) : []
+        }
+    }
+
+    async updatePersonalInfo(influencerId: string, data: AdminUpdateInfluencerPersonalDto, accountId?: string): Promise<AdminSocialAccountForListDto | InfluencerUpdatedPersonalDto> {
+        const updated = await this.updateInfluencerService.exec(influencerId, data);
+
+        if (typeof accountId === 'string' && accountId.trim() !== '') {
+            const readModel = mapToAdminInfluencerListItem(updated, accountId);
+            return mapToAdminSocialAccountForListDto(readModel);
+        } else {
+            return {
+                firstName: updated.firstName,
+                lastName: updated.lastName,
+                logoUrl: updated.logoUrl,
+                email: updated.email,
+                phone: updated.phone
+            } satisfies InfluencerUpdatedPersonalDto;
         }
     }
 
