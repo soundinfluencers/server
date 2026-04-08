@@ -8,9 +8,11 @@ export function setRefreshTokenCookie(res: Response, token: string) {
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000,
         path: '/',
-        secure,
-        sameSite: secure ? 'none' : 'lax',
-        ...(domain ? {domain} : {}),
+        // secure,
+        secure: true,
+        // sameSite: secure ? 'none' : 'lax',
+        // ...(domain ? {domain} : {}),
+        sameSite: 'none',
     });
 }
 
@@ -18,8 +20,10 @@ export function clearRefreshTokenCookie(res: Response) {
     res.clearCookie('refreshToken', {
         httpOnly: true,
         path: '/',
-        secure,
-        sameSite: secure ? 'none' : 'lax',
-        ...(domain ? {domain} : {}),
+        secure: true,
+        // secure,
+        sameSite: 'none',
+        // sameSite: secure ? 'none' : 'lax',
+        // ...(domain ? {domain} : {}),
     });
 }
