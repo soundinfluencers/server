@@ -1,9 +1,10 @@
-import {Injectable, InternalServerErrorException} from "@nestjs/common";
+import {BadRequestException, Injectable, InternalServerErrorException, NotFoundException} from "@nestjs/common";
 import {InfluencerRepository} from "../../../database/repositories/users/influencer.repository";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {AdminInfluencersListDto, AdminSocialAccountForListDto} from "../dto/influencers/admin-influencers.dto";
 import {AdminInfluencersQueryDto} from "../dto/influencers/admin-influencers-query.dto";
 import {
+    mapInfluencerToAccountDetailsDto,
     mapToAdminInfluencerListItem,
     mapToAdminSocialAccountForListDto,
 } from "../../../common/mappers/influencer.mapper";
@@ -16,11 +17,15 @@ import {
 import {UpdateSocialAccountService} from "../../profile/services/update-social-account.service";
 import {InfluencerUpdatedPersonalDto} from "../../profile/dto/influencer/update-influencer.dto";
 import {UpdateInfluencerService} from "../../profile/services/update-influencer.service";
+import {InfluencerAccountDetailsDto} from "../../profile/dto/influencer/get-profile.dto";
 
 // Interface for AdminInfluencersService, AdminInfluencersController
 export interface IAdminInfluencersService {
     // Get paginated influencers list with optional platform filter and search
     getPaginated(query: AdminInfluencersQueryDto): Promise<AdminInfluencersListDto>;
+
+    // Get influencer's details
+    getDetails(influencerId: string): Promise<InfluencerAccountDetailsDto>;
 
     // Updates influencer's personal information
     // 1) Returns just updated personal info if accountId IS NOT provided;
@@ -62,6 +67,15 @@ export class AdminInfluencersService implements IAdminInfluencersService {
             ...result,
             items: result.items?.length > 0 ? result.items.map(acc => mapToAdminSocialAccountForListDto(acc)) : []
         }
+    }
+
+    async getDetails(influencerId: string): Promise<InfluencerAccountDetailsDto> {
+        if (!influencerId) throw new BadRequestException('Influencer ID is required');
+
+        const influencer = await this.influencerRepo.findById(influencerId);
+        if (!influencer) throw new NotFoundException('Influencer not found');
+
+        return mapInfluencerToAccountDetailsDto(influencer);
     }
 
     async updatePersonalInfo(influencerId: string, data: AdminUpdateInfluencerPersonalDto, accountId?: string): Promise<AdminSocialAccountForListDto | InfluencerUpdatedPersonalDto> {

@@ -22,7 +22,7 @@ import {AdminInfluencersListDto, AdminSocialAccountForListDto} from "../dto/infl
 import {AdminInfluencersQueryDto} from "../dto/influencers/admin-influencers-query.dto";
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
 import {FileInterceptor} from "@nestjs/platform-express";
-import {SocialAccountDetailsDto} from "../../profile/dto/influencer/get-profile.dto";
+import {InfluencerAccountDetailsDto, SocialAccountDetailsDto} from "../../profile/dto/influencer/get-profile.dto";
 import {InfluencerUpdatedPersonalDto, UpdateSocialAccountDto} from "../../profile/dto/influencer/update-influencer.dto";
 import {
     AdminUpdateInfluencerPersonalDto,
@@ -44,6 +44,13 @@ export class AdminInfluencersController implements IAdminInfluencersService {
         @Query() query: AdminInfluencersQueryDto
     ): Promise<AdminInfluencersListDto> {
         return this.adminService.getPaginated(query);
+    }
+
+    @ApiOperation({ summary: "Get influencer's account details" })
+    @ApiResponseDto(InfluencerAccountDetailsDto)
+    @Get(':influencerId')
+    getDetails(@Param('influencerId') influencerId: string): Promise<InfluencerAccountDetailsDto> {
+        return this.adminService.getDetails(influencerId);
     }
 
     @ApiOperation({summary: "Updates influencer's social account"})
