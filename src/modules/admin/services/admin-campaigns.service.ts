@@ -14,7 +14,7 @@ import {
 } from "../../../common/mappers/campaign.mapper";
 import {
     CampaignAdminMetaEnum, IAdminCampaignDetails,
-    IAdminCampaignForList, IProposalCampaign
+    IAdminCampaignForList
 } from "../../../common/types/client/campaign.types";
 import {ProposalCampaignRepository} from "../../../database/repositories/campaigns/proposal-campaign.repository";
 import {UpdateAdminMetaCampaignDto, UpdatedAdminMetaCampaignDto} from "../dto/campaigns/admin-update-campaign.dto";
@@ -34,7 +34,7 @@ import {ObjId} from "../../../common/types/base.types";
 import {XlsxImporter} from "../../../common/utils/import/xlsx/xlsx-import";
 import {XlsxCampaignDto} from "../dto/campaigns/xlsx-campaign.dto";
 import {getSocialMediaGroup} from "../../../common/utils/socialMedia";
-import {getArrayFromAccountMusicGenres, returnMusicStyles} from "../../../common/utils/genres";
+import {getArrayFromAccountMusicGenres} from "../../../common/utils/genres";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {ProposalCampaignOption} from "../../../database/schemas/campaign/proposal-campaign-option.schema";
 import {Role} from "../../../common/types/user.types";

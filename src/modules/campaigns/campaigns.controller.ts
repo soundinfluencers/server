@@ -193,8 +193,6 @@ export class CampaignsController {
     @ApiResponseDto(CampaignDetailsDto)
     @Get(':campaignId')
     clientGetOngoingOrPastCampaign(@Param('campaignId') campaignId: string, @Req() request: AuthenticatedRequest): Promise<CampaignDetailsDto> {
-        if (!request.user._id) throw new UnauthorizedException('Unauthorized');
-
         return this.campaignsService.getClientOngoingOrPastCampaign(campaignId, request.user._id);
     }
 

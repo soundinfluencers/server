@@ -5,6 +5,8 @@ export const uniq = <T>(arr: T[]) => [...new Set(arr)];
 
 // safe parse to int
 export const safeParseToNumber = (val: any, fallback = 0): number => {
+    // console.log(val, 'value', fallback, 'fallback', typeof val, 'typeof value')
+
     // if already number
     if (typeof val === "number") {
         return Number.isFinite(val) ? val : fallback;
@@ -23,6 +25,7 @@ export const safeParseToNumber = (val: any, fallback = 0): number => {
     if (val == null) return fallback;
 
     const n = Number(val);
+    console.log('safeParseToNumber n result: ', n)
     return Number.isFinite(n) ? n : fallback;
 };
 

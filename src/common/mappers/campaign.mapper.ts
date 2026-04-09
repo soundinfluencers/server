@@ -126,16 +126,13 @@ export const mapToIAdminCampaignAccount = (
 
 // map Campaign mongoose model to ICampaignDetails
 export const mapSchemaToICampaignDetails = (campaign: Campaign | CompletedCampaign): ICampaignDetails => {
-    console.log(campaign, 'campaign')
-    if (!campaign) throw new NotFoundException("Campaign not found");
-
     let cpm: number | null;
-    let totalFollowers: number | null;
-    let totalImpressions: number | null;
-    let totalLikes: number | null;
-    let totalSaves: number | null;
-    let totalComments: number | null;
-    let totalShares: number | null;
+    let totalFollowers: number = 0;
+    let totalImpressions: number = 0;
+    let totalLikes: number = 0;
+    let totalSaves: number = 0;
+    let totalComments: number = 0;
+    let totalShares: number = 0;
 
     // getting campaign price
     const campaignPrice: number = campaign?.campaignPrice ?? (campaign as any)?.price ?? (campaign as any)?.amount ?? 0;
@@ -279,12 +276,12 @@ export const mapSchemaToICampaignDetails = (campaign: Campaign | CompletedCampai
 // map Campaign mongoose model to IAdminCampaignDetails
 export const mapSchemaToIAdminCampaignDetails = (campaign: Campaign | CompletedCampaign): IAdminCampaignDetails => {
     let cpm: number | null;
-    let totalFollowers: number | null;
-    let totalImpressions: number | null;
-    let totalLikes: number | null;
-    let totalSaves: number | null;
-    let totalComments: number | null;
-    let totalShares: number | null;
+    let totalFollowers: number = 0;
+    let totalImpressions: number = 0;
+    let totalLikes: number = 0;
+    let totalSaves: number = 0;
+    let totalComments: number = 0;
+    let totalShares: number = 0;
 
     // getting campaign price
     const campaignPrice: number = campaign.campaignPrice ?? (campaign as any).price ?? (campaign as any).amount ?? 0;
@@ -431,6 +428,8 @@ export const mapSchemaToIAdminCampaignDetails = (campaign: Campaign | CompletedC
 
 // Map ICampaignDetails read model to CampaignDetailsDto
 export const mapToCampaignDetailsDto = (campaign: ICampaignDetails): CampaignDetailsDto => {
+    // console.log(campaign, 'campaign')
+
     return {
         campaignId: campaign._id.toString(),
         campaignName: campaign.campaignName,
