@@ -563,7 +563,7 @@ export class CampaignsService {
                     _id: new Types.ObjectId(campaignId),
                     clientId: userId,
                     canEdit: true,
-                    statusCampaign: CampaignStatusEnum.underReview,
+                    statusCampaign: CampaignStatusEnum.pending,
                 }),
 
             buildCampaignAccountsBatch:

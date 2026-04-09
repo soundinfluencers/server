@@ -1,5 +1,4 @@
 import {SocialMediaEnum, SocialMediaType} from "../social-media.types";
-import {ApiProperty} from "@nestjs/swagger";
 import {Types} from "mongoose";
 import {InfluencerConfirmationStatusEnum, InfluencerPromoClosedStatusEnum} from "../influencer/promo.types";
 import {CampaignContentMediaCache} from "../../../database/schemas/campaign/campaign.schema";

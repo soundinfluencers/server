@@ -22,6 +22,7 @@ import {
 import {AccountVerifiedStatus} from "../../common/types/user.types";
 import {SocialAccountLabelStatus} from "../../common/types/influencer/influencer.types";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
+import {ObjId} from "../../common/types/base.types";
 
 
 // ------------ LEGACY SCHEMAS ---------------
@@ -268,6 +269,7 @@ export class MigrationsService {
 
         const mapped: any = {
             ...acc, // сохраняем поля типа countries/categories/engagementRate/...
+            // _id: new ObjId(acc._id),
             username,
             profileLink,
             followers,
@@ -279,6 +281,10 @@ export class MigrationsService {
             verifiedStatus: acc.isVerified === true ? AccountVerifiedStatus.accept : AccountVerifiedStatus.waitForAdmin,
             labelStatus: acc.isVerified === true ? SocialAccountLabelStatus.accept : SocialAccountLabelStatus.waitForAdmin,
         };
+
+        if (typeof mapped._id === 'string') {
+            mapped._id = new ObjId(acc._id);
+        }
 
         // выпиливаем legacy поля
         delete mapped.instagramUsername;
@@ -641,7 +647,7 @@ export class MigrationsService {
         let scanned = 0;
         let updated = 0;
 
-        const socials = ['instagram', 'tiktok', 'spotify', 'soundcloud', 'facebook', 'youtube', 'press'];
+        const socials = Object.values(SocialMediaEnum);
 
         while (true) {
             const filter: any = {
@@ -678,7 +684,16 @@ export class MigrationsService {
                     const arr = Array.isArray((doc as any)[social]) ? (doc as any)[social] : [];
                     if (!arr.length) continue;
 
-                    $set[social] = arr.map((a: any) => this.mapLegacyAccount(a));
+                    $set[social] = arr.map((a: any) => {
+                        const mappedAcc = this.mapLegacyAccount(a);
+                        if (typeof mappedAcc?._id === 'string') {
+                            console.log(`mapped account with string accountId: \nInfluencer id: ${doc._id}\nAccount's id: ${mappedAcc._id}\nAccount's social media: ${mappedAcc.socialMedia}`)
+                        }
+                        return mappedAcc;
+                    });
+
+                    // throw new Error('temp')
+
                     touched = true;
                 }
 

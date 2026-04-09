@@ -2,9 +2,8 @@ import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {IsArray, IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested} from "class-validator";
 import {Type} from "class-transformer";
-import {CreateCampaignInvoiceDto, CreateInvoiceDto} from "../../invoice/dto/create-invoice.dto";
-import {InvoicePaymentMethodEnum} from "../../../common/types/invoice.types";
-import {CampaignDraftLatestStep, CampaignPaymentMethodEnum} from "../../../common/types/client/campaign.types";
+import {CreateCampaignInvoiceDto} from "../../invoice/dto/create-invoice.dto";
+import {CampaignDraftLatestStep} from "../../../common/types/client/campaign.types";
 
 // DTO with selected content items _ids
 export class SelectedCampaignContentItemDto {

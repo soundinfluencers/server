@@ -175,7 +175,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
         }
 
         const accountIndex = socialMediaAccounts.findIndex(
-            (account) => account._id.equals(socialAccountId),
+            (account) => account._id.toString() === socialAccountId.toString(),
         );
 
         if (accountIndex === -1) throw new NotFoundException("Social account not found");
@@ -339,6 +339,8 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
     }): Promise<void> {
         const {influencerId, socialAccountId, socialMedia, updateFields} = params;
 
+        console.log(influencerId, socialAccountId, 'update social account service logs:')
+
         const updateResult = await this.influencerRepository.updateOne(
             {
                 _id: influencerId,
@@ -353,6 +355,8 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
                 ),
             },
         );
+
+        console.log(updateResult, 'updateRes')
 
         if (updateResult.modifiedCount === 0) {
             throw new InternalServerErrorException("Failed to update social account");
@@ -375,7 +379,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
         }
 
         const updatedAccount = updatedInfluencer[socialMedia]?.find(
-            (acc: SocialAccount) => acc._id.equals(socialAccountId),
+            (acc: SocialAccount) => acc._id.toString() === socialAccountId.toString(),
         );
 
         if (!updatedAccount) {
