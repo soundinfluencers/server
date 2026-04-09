@@ -41,6 +41,19 @@ export class InvoiceController {
     }
 
     @Auth()
+    @Roles(Role.client, Role.influencer, Role.admin)
+    @ApiOperation({summary: "Download invoice"})
+    @ApiParam({
+        name: 'invoiceId',
+        type: String,
+        required: true
+    })
+    @Get('download/:invoiceId')
+    downloadInvoice(@Param('invoiceId') invoiceId: string, @Req() req: AuthenticatedRequest): Promise<StreamableFile> {
+        return this.invoiceService.downloadInvoice(invoiceId, req.user);
+    }
+
+    @Auth()
     @Roles(Role.influencer)
     @ApiOperation({summary: "Creates influencer's invoice"})
     @ApiResponseDto(undefined, { successStatusCode: 201 })
@@ -95,18 +108,5 @@ export class InvoiceController {
     @Patch(':invoiceId')
     updateInvoice(@Param('invoiceId') invoiceId: string, @Req() request: AuthenticatedRequest, @Body() data: UpdateClientInvoiceDto): Promise<void> {
         return this.invoiceService.updateInvoice(invoiceId, data, request.user);
-    }
-
-    @Auth()
-    @Roles(Role.client, Role.influencer, Role.admin)
-    @ApiOperation({summary: "Download invoice"})
-    @ApiParam({
-        name: 'invoiceId',
-        type: String,
-        required: true
-    })
-    @Get('download/:invoiceId')
-    downloadInvoice(@Param('invoiceId') invoiceId: string, @Req() req: AuthenticatedRequest): Promise<StreamableFile> {
-        return this.invoiceService.downloadInvoice(invoiceId, req.user);
     }
 }
