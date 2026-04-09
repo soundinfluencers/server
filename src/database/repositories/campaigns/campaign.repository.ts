@@ -123,6 +123,9 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
             clientId: new Types.ObjectId(clientId),
         })
 
+        if (!campaign) return null;
+
+        console.log(campaign, 'campaign repository', clientId, campaignId)
         return mapSchemaToICampaignDetails(campaign);
     }
 

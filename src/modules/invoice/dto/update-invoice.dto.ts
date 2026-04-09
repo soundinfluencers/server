@@ -22,4 +22,9 @@ export class UpdateClientInvoiceDto {
     @IsOptional()
     @IsString()
     country?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    vatNumber?: string;
 }

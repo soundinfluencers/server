@@ -95,6 +95,8 @@ export class CompletedCampaignRepository extends BaseRepository<CompletedCampaig
             clientId: new Types.ObjectId(clientId),
         })
 
+        if (!campaign) return null;
+
         return mapSchemaToICampaignDetails(campaign);
     }
 

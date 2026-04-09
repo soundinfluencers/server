@@ -101,4 +101,10 @@ export class ClientDetailedInvoiceDto implements ClientDetailedInvoice {
     @IsNotEmpty()
     @IsString()
     poNumber?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsNotEmpty()
+    @IsString()
+    vatNumber?: string;
 }

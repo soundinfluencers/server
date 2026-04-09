@@ -29,6 +29,7 @@ import {
     AdminCampaignsListStatusEnum
 } from "../../modules/admin/dto/campaigns/admin-campaigns.dto";
 import {Role} from "../types/user.types";
+import {NotFoundException} from "@nestjs/common";
 
 // builds object with CampaignContentItemDto type from CampaignContentItem (dto which using for creating and updating campaigns)
 export const mapContentItemDtoToModel = (campaignContentItem: CampaignContentItemDto): CampaignContentItem => {
@@ -125,6 +126,9 @@ export const mapToIAdminCampaignAccount = (
 
 // map Campaign mongoose model to ICampaignDetails
 export const mapSchemaToICampaignDetails = (campaign: Campaign | CompletedCampaign): ICampaignDetails => {
+    console.log(campaign, 'campaign')
+    if (!campaign) throw new NotFoundException("Campaign not found");
+
     let cpm: number | null;
     let totalFollowers: number | null;
     let totalImpressions: number | null;
@@ -134,7 +138,7 @@ export const mapSchemaToICampaignDetails = (campaign: Campaign | CompletedCampai
     let totalShares: number | null;
 
     // getting campaign price
-    const campaignPrice: number = campaign.campaignPrice ?? (campaign as any).price ?? (campaign as any).amount ?? 0;
+    const campaignPrice: number = campaign?.campaignPrice ?? (campaign as any)?.price ?? (campaign as any)?.amount ?? 0;
 
     // build safe campaign account item
     let proceedAccounts: ICampaignAccount[] = campaign?.addedAccounts?.map(
