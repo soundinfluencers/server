@@ -22,7 +22,8 @@ import {
     mapToAdminCampaignForListDto,
 } from "../../../common/mappers/campaign.mapper";
 import {
-    CampaignAdminMetaEnum, CampaignConfirmationEnum,
+    CampaignAdminMetaEnum,
+    CampaignConfirmationEnum,
     CampaignStatusEnum,
     IAdminCampaignDetails,
     IAdminCampaignForList
@@ -87,7 +88,14 @@ export interface IAdminCampaignsService {
     ): Promise<AdminCampaignDetailsDto>;
 
     // Closes campaign
+    // Moves campaign document from ongoing collection to completed collection
     closeCampaign(
+        campaignId: string
+    ): Promise<void>;
+
+    // Reopens campaign
+    // Returns from completed collection to ongoing collection
+    reopenCampaign(
         campaignId: string
     ): Promise<void>;
 
@@ -407,6 +415,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         )
     }
 
+    // Orchestrator that will define method for updating campaign by campaign status
     async updateCampaign(status: AdminCampaignsListStatusEnum, campaignId: string, data: UpdateCampaignDto, optionIndex?: number): Promise<AdminCampaignDetailsDto> {
         if (data.optionIndex !== undefined) {
             return this.updateProposalCampaign(campaignId, data.optionIndex, data);
@@ -430,6 +439,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
     }
 
     // Closes campaign
+    // Moves campaign document from ongoing collection to completed collection
     async closeCampaign(campaignId: string): Promise<void> {
         // Campaign id normalization
         const cId = new ObjId(campaignId);
@@ -447,7 +457,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
             // Inserting this campaign in completed collection
             const createdCompletedCampaign = await this.completedCampaignsRepository.create({
                 ...campaign.toObject(),
-                _id: new ObjId(),
+                // _id: new ObjId(),
                 statusCampaign: CampaignStatusEnum.completed,
                 addedAccounts: campaign.addedAccounts.map((acc: CampaignAccount): CampaignAccount => ({
                     ...acc,
@@ -471,6 +481,50 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         }
     }
 
+    // Reopens campaign
+    // Returns from completed collection to ongoing collection
+    async reopenCampaign(campaignId: string): Promise<void> {
+        // Campaign id normalization
+        const cId = new ObjId(campaignId);
+
+        // Starting transaction
+        const session = await this.campaignsRepository.startSession();
+        session.startTransaction();
+
+        try {
+            // Deleting campaign from ongoing collection
+            let campaign = await this.completedCampaignsRepository.findOneAndDelete({_id: cId}, {session});
+
+            if (!campaign) throw new NotFoundException("Campaign not found");
+
+            // Inserting this campaign in completed collection
+            const createdCampaign = await this.campaignsRepository.create({
+                ...campaign.toObject(),
+                // _id: new ObjId(),
+                statusCampaign: CampaignStatusEnum.distributing,
+                addedAccounts: campaign.addedAccounts.map((acc: CampaignAccount): CampaignAccount => ({
+                    ...acc,
+                    closePromo: InfluencerPromoClosedStatusEnum.wait
+                })),
+                verifyCampaign: CampaignConfirmationEnum.accept,
+            }, {session});
+
+            if (!createdCampaign) throw new Error(`Can't create ongoing campaign. Completed campaign: ${campaignId}`)
+
+            await session.commitTransaction();
+        } catch (err) {
+            await session.abortTransaction();
+            this.logger.error(`Error while reopening campaign - ${campaignId}.`, err)
+
+            if (err instanceof HttpException) throw err;
+
+            throw new InternalServerErrorException("Something went wrong");
+        } finally {
+            await session.endSession();
+        }
+    }
+
+    // Imports xlsx file with campaign and save data as proposal campaign
     async importXlsx(file: Express.Multer.File): Promise<void> {
         const data: XlsxCampaignDto = await this.xlsxImporter.importProposalCampaign(file);
 

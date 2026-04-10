@@ -226,12 +226,27 @@ export class AdminCampaignsController {
         type: String,
         required: true
     })
-    @Post("/close/:campaignId")
+    @Post(":campaignId/close")
     closeCampaign(@Param(
         "campaignId",
         new ParseObjectIdPipe()
     ) campaignId: string): Promise<void> {
         return this.adminService.closeCampaign(campaignId);
+    }
+
+    @ApiOperation({summary: "Reopen campaign (returns campaign from completed campaigns collection to ongoing collection)"})
+    @ApiResponseDto()
+    @ApiParam({
+        name: "campaignId",
+        type: String,
+        required: true
+    })
+    @Post(":campaignId/reopen")
+    reopenCampaign(@Param(
+        "campaignId",
+        new ParseObjectIdPipe()
+    ) campaignId: string): Promise<void> {
+        return this.adminService.reopenCampaign(campaignId);
     }
 
     @ApiOperation({summary: "Import xlsx file with new proposal campaign"})
