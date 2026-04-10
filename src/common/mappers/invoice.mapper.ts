@@ -133,6 +133,7 @@ export const mapToDetailedInvoice = (data: ClientInvoiceDocument | InfluencerInv
         company: data.company,
         country: data.country,
         address: data.address,
+        vatNumber: data.vatNumber
     } satisfies BaseDetailedInvoice;
 
     if (data.userRole === Role.client || data.userRole === Role.admin) {

@@ -18,6 +18,7 @@ export interface BaseDetailedInvoice {
     country: string;
     address: string;
     company?: string;
+    vatNumber?: string;
 }
 
 // enum for influencer's invoice status
