@@ -1,4 +1,11 @@
-import {BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException} from '@nestjs/common';
+import {
+    BadRequestException,
+    HttpException,
+    Injectable,
+    InternalServerErrorException,
+    Logger,
+    NotFoundException
+} from '@nestjs/common';
 import {CampaignRepository} from "../../../database/repositories/campaigns/campaign.repository";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {
@@ -9,11 +16,15 @@ import {
     GetAdminCampaignsListQueryDto
 } from "../dto/campaigns/admin-campaigns.dto";
 import {
-    mapSchemaToIAdminCampaignDetails, mapToAdminCampaignDetailsDto,
-    mapToAdminCampaignForListDto, mapProposalToIAdminCampaignDetails,
+    mapProposalToIAdminCampaignDetails,
+    mapSchemaToIAdminCampaignDetails,
+    mapToAdminCampaignDetailsDto,
+    mapToAdminCampaignForListDto,
 } from "../../../common/mappers/campaign.mapper";
 import {
-    CampaignAdminMetaEnum, IAdminCampaignDetails,
+    CampaignAdminMetaEnum, CampaignConfirmationEnum,
+    CampaignStatusEnum,
+    IAdminCampaignDetails,
     IAdminCampaignForList
 } from "../../../common/types/client/campaign.types";
 import {ProposalCampaignRepository} from "../../../database/repositories/campaigns/proposal-campaign.repository";
@@ -42,6 +53,7 @@ import {InfluencerRepository} from "../../../database/repositories/users/influen
 import {
     ProposalCampaignOptionRepository
 } from "../../../database/repositories/campaigns/proposal-campaign-option.repository";
+import {InfluencerPromoClosedStatusEnum} from "../../../common/types/influencer/promo.types";
 
 // Interface for admin campaigns service and controller
 export interface IAdminCampaignsService {
@@ -73,6 +85,11 @@ export interface IAdminCampaignsService {
         campaignId: string,
         data: UpdateCampaignDto,
     ): Promise<AdminCampaignDetailsDto>;
+
+    // Closes campaign
+    closeCampaign(
+        campaignId: string
+    ): Promise<void>;
 
     // Imports xlsx file with campaign and save data as proposal campaign
     importXlsx(file: Express.Multer.File): Promise<void>;
@@ -409,6 +426,48 @@ export class AdminCampaignsService implements IAdminCampaignsService {
 
             default:
                 throw new BadRequestException(`Unsupported campaign status: ${status}`);
+        }
+    }
+
+    // Closes campaign
+    async closeCampaign(campaignId: string): Promise<void> {
+        // Campaign id normalization
+        const cId = new ObjId(campaignId);
+
+        // Starting transaction
+        const session = await this.campaignsRepository.startSession();
+        session.startTransaction();
+
+        try {
+            // Deleting campaign from ongoing collection
+            let campaign = await this.campaignsRepository.findOneAndDelete({_id: cId}, {session});
+
+            if (!campaign) throw new NotFoundException("Campaign not found");
+
+            // Inserting this campaign in completed collection
+            const createdCompletedCampaign = await this.completedCampaignsRepository.create({
+                ...campaign.toObject(),
+                _id: new ObjId(),
+                statusCampaign: CampaignStatusEnum.completed,
+                addedAccounts: campaign.addedAccounts.map((acc: CampaignAccount): CampaignAccount => ({
+                    ...acc,
+                    closePromo: InfluencerPromoClosedStatusEnum.close
+                })),
+                verifyCampaign: CampaignConfirmationEnum.accept,
+            }, {session});
+
+            if (!createdCompletedCampaign) throw new Error(`Can't create completed campaign. Ongoing campaign: ${campaignId}`)
+
+            await session.commitTransaction();
+        } catch (err) {
+            await session.abortTransaction();
+            this.logger.error(`Error while closing campaign - ${campaignId}.`, err)
+
+            if (err instanceof HttpException) throw err;
+
+            throw new InternalServerErrorException("Something went wrong");
+        } finally {
+            await session.endSession();
         }
     }
 

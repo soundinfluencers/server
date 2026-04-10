@@ -219,6 +219,21 @@ export class AdminCampaignsController {
         return this.adminService.updateCampaign(status, campaignId, data, optionIndex);
     }
 
+    @ApiOperation({summary: "Close campaign"})
+    @ApiResponseDto()
+    @ApiParam({
+        name: "campaignId",
+        type: String,
+        required: true
+    })
+    @Post("/close/:campaignId")
+    closeCampaign(@Param(
+        "campaignId",
+        new ParseObjectIdPipe()
+    ) campaignId: string): Promise<void> {
+        return this.adminService.closeCampaign(campaignId);
+    }
+
     @ApiOperation({summary: "Import xlsx file with new proposal campaign"})
     @ApiResponseDto()
     @ApiConsumes("multipart/form-data")
