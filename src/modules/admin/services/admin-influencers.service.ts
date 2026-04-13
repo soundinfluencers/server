@@ -6,7 +6,7 @@ import {AdminInfluencersQueryDto} from "../dto/influencers/admin-influencers-que
 import {
     mapInfluencerToAccountDetailsDto,
     mapToAdminInfluencerListItem,
-    mapToAdminSocialAccountForListDto,
+    mapToAdminSocialAccountForListDto, mapToSocialAccountDetailsDto,
 } from "../../../common/mappers/influencer.mapper";
 import {XlsxImporter} from "../../../common/utils/import/xlsx/xlsx-import";
 import {Influencer, SocialAccount} from "../../../database/schemas/users/influencer.schema";
@@ -17,7 +17,12 @@ import {
 import {UpdateSocialAccountService} from "../../profile/services/update-social-account.service";
 import {InfluencerUpdatedPersonalDto} from "../../profile/dto/influencer/update-influencer.dto";
 import {UpdateInfluencerService} from "../../profile/services/update-influencer.service";
-import {InfluencerAccountDetailsDto} from "../../profile/dto/influencer/get-profile.dto";
+import {
+    GetSocialAccountDetailsParamsDto,
+    InfluencerAccountDetailsDto
+} from "../../profile/dto/influencer/get-profile.dto";
+import {SocialAccountDetails} from "../../../common/types/influencer/influencer.types";
+import {Types} from "mongoose";
 
 // Interface for AdminInfluencersService, AdminInfluencersController
 export interface IAdminInfluencersService {
@@ -44,6 +49,9 @@ export interface IAdminInfluencersService {
         socialMedia: SocialMediaEnum,
         file: Express.Multer.File
     ): Promise<void>;
+
+    // Returns detailed social account
+    getDetailedSocialAccount(data: GetSocialAccountDetailsParamsDto): Promise<SocialAccountDetails>;
 }
 
 @Injectable()
@@ -93,6 +101,44 @@ export class AdminInfluencersService implements IAdminInfluencersService {
                 phone: updated.phone
             } satisfies InfluencerUpdatedPersonalDto;
         }
+    }
+
+    // Returns detailed social account
+    async getDetailedSocialAccount(data: GetSocialAccountDetailsParamsDto): Promise<SocialAccountDetails> {
+        const {influencerId, socialMedia, accountId} = data;
+
+        if (!influencerId || !socialMedia || !accountId) throw new BadRequestException("Not enough arguments");
+
+        const accountAggregation = await this.influencerRepo.aggregate([
+            {
+                $match: {
+                    _id: new Types.ObjectId(influencerId),
+                    isDeleted: {$ne: true},
+                }
+            },
+            {
+                $project: {
+                    accounts: `$${socialMedia}`
+                }
+            },
+            {
+                $unwind: '$accounts'
+            },
+            {
+                $match: {'accounts._id': new Types.ObjectId(accountId)}
+            },
+            {
+                $replaceRoot: {newRoot: '$accounts'}
+            }
+        ]);
+
+        if (!accountAggregation.length) {
+            throw new NotFoundException('Social account not found');
+        }
+
+        const account: SocialAccount = accountAggregation[0];
+
+        return mapToSocialAccountDetailsDto(account);
     }
 
     async updateSocialAccount(data: AdminUpdateSocialAccountDto): Promise<AdminSocialAccountForListDto> {

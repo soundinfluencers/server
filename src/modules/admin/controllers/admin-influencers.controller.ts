@@ -2,7 +2,7 @@ import {
     Body,
     Controller,
     Get,
-    Param,
+    Param, ParseEnumPipe,
     Patch,
     Post,
     Query,
@@ -22,22 +22,28 @@ import {AdminInfluencersListDto, AdminSocialAccountForListDto} from "../dto/infl
 import {AdminInfluencersQueryDto} from "../dto/influencers/admin-influencers-query.dto";
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
 import {FileInterceptor} from "@nestjs/platform-express";
-import {InfluencerAccountDetailsDto, SocialAccountDetailsDto} from "../../profile/dto/influencer/get-profile.dto";
+import {
+    GetSocialAccountDetailsParamsDto,
+    InfluencerAccountDetailsDto,
+    SocialAccountDetailsDto
+} from "../../profile/dto/influencer/get-profile.dto";
 import {InfluencerUpdatedPersonalDto, UpdateSocialAccountDto} from "../../profile/dto/influencer/update-influencer.dto";
 import {
     AdminUpdateInfluencerPersonalDto,
     AdminUpdateSocialAccountDto
 } from "../dto/influencers/admin-update-influencer.dto";
 import {ApiResponseDtoOneOf} from "../../../common/decorators/api/response/api-response-one-of.decorator";
+import {ParseObjectIdPipe} from "../../../common/pipes/parse-oid.pipe";
 
 @Auth()
 @Roles(Role.admin)
 @ApiTags('admin/influencers')
 @Controller('admin/influencers')
-export class AdminInfluencersController implements IAdminInfluencersService {
-    constructor(private readonly adminService: AdminInfluencersService) {}
+export class AdminInfluencersController {
+    constructor(private readonly adminService: AdminInfluencersService) {
+    }
 
-    @ApiOperation({ summary: 'Get paginated influencers list with optional platform filter and search' })
+    @ApiOperation({summary: 'Get paginated influencers list with optional platform filter and search'})
     @ApiResponseDto(AdminInfluencersListDto)
     @Get()
     getPaginated(
@@ -46,7 +52,7 @@ export class AdminInfluencersController implements IAdminInfluencersService {
         return this.adminService.getPaginated(query);
     }
 
-    @ApiOperation({ summary: "Get influencer's account details" })
+    @ApiOperation({summary: "Get influencer's account details"})
     @ApiResponseDto(InfluencerAccountDetailsDto)
     @Get(':influencerId')
     getDetails(@Param('influencerId') influencerId: string): Promise<InfluencerAccountDetailsDto> {
@@ -81,7 +87,7 @@ export class AdminInfluencersController implements IAdminInfluencersService {
         return this.adminService.updatePersonalInfo(influencerId, data, accountId);
     }
 
-    @ApiOperation({ summary: "Import xlsx file with new social accounts" })
+    @ApiOperation({summary: "Import xlsx file with new social accounts"})
     @ApiResponseDto()
     @ApiConsumes("multipart/form-data")
     @ApiParam({
@@ -109,5 +115,25 @@ export class AdminInfluencersController implements IAdminInfluencersService {
         @UploadedFile() file: Express.Multer.File,
     ): Promise<void> {
         return this.adminService.importXlsxSocialAccounts(socialMedia, file);
+    }
+
+    @ApiOperation({summary: "Gets detailed influencer's social account"})
+    @ApiResponseDto(SocialAccountDetailsDto)
+    @ApiParam({
+        name: "accountId",
+        required: true
+    })
+    @ApiParam({
+        name: "socialMedia",
+        enum: SocialMediaEnum,
+        required: true
+    })
+    @Get(':influencerId/:accountId/:socialMedia')
+    getDetailedSocialAccount(
+        @Param('influencerId', new ParseObjectIdPipe()) influencerId: string,
+        @Param('accountId', new ParseObjectIdPipe()) accountId: string,
+        @Param('socialMedia', new ParseEnumPipe(SocialMediaEnum)) socialMedia: SocialMediaEnum
+    ): Promise<SocialAccountDetailsDto> {
+        return this.adminService.getDetailedSocialAccount({accountId, influencerId, socialMedia});
     }
 }
