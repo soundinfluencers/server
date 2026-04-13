@@ -65,6 +65,8 @@ export interface SocialAccountDetails {
     creatorCategories: string[];
     countries: InfluencerCountryStats[];
     categories: string[];
+    engagementRate: number;
+    averageViews: number;
 }
 
 export enum SocialAccountSortByEnum {

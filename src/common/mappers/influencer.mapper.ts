@@ -69,6 +69,8 @@ export const mapToSocialAccountDetailsDto = (account: SocialAccount): SocialAcco
         creatorCategories: account.creatorCategories,
         countries: account.countries,
         categories: account.categories,
+        engagementRate: account.engagementRate ?? 0,
+        averageViews: account.averageViews ?? 0,
     }
 };
 

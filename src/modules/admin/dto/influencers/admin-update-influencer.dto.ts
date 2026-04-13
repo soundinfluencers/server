@@ -23,6 +23,18 @@ export class AdminUpdateSocialAccountDto extends UpdateSocialAccountDto {
     @IsBoolean()
     isHidden?: boolean;
 
+    @ApiPropertyOptional({type: Number})
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    engagementRate?: number;
+
+    @ApiPropertyOptional({type: Number})
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    averageViews?: number;
+
     // @ApiPropertyOptional({ description: "Deleted flag" })
     // @IsOptional()
     // @IsBoolean()

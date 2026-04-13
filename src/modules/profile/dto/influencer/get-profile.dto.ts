@@ -184,6 +184,12 @@ export class SocialAccountDetailsDto implements SocialAccountDetails {
 
     @ApiProperty({example: ['Music', 'Entertainment'], isArray: true})
     categories: string[];
+
+    @ApiProperty({ type: Number })
+    engagementRate: number;
+
+    @ApiProperty({ type: Number })
+    averageViews: number;
 }
 
 // dto for returning found social accounts
