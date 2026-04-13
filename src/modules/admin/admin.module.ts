@@ -19,6 +19,8 @@ import {MediaStrategyFactory} from "../media/media.factory";
 import {DropboxMediaStrategy} from "../media/strategies/dropbox.strategy";
 import {DirectMediaStrategy} from "../media/strategies/direct.strategy";
 import DropboxService from "../../integrations/dropbox/dropbox";
+import {AdminPaymentsHistoryService} from "./services/admin-payments-history.service";
+import {AdminPaymentsHistoryController} from "./controllers/admin-payments-history.controller";
 
 @Module({
   controllers: [
@@ -26,6 +28,7 @@ import DropboxService from "../../integrations/dropbox/dropbox";
       AdminCampaignsController,
       AdminActionsHistoryController,
       AdminInfluencersController,
+      AdminPaymentsHistoryController,
   ],
   providers: [
       AdminClientsService,
@@ -44,6 +47,7 @@ import DropboxService from "../../integrations/dropbox/dropbox";
       ProposalCampaignDetailsService,
       ProposalCampaignUpdateService,
       ProposalAccountsBuilderService,
+      AdminPaymentsHistoryService,
   ],
 })
 export class AdminModule {}

@@ -6,11 +6,15 @@ import {MongooseModule} from '@nestjs/mongoose';
 import {ServeStaticModule} from '@nestjs/serve-static';
 import {AuthModule} from "../auth/auth.module";
 import {ForgotModule} from "../forgot/forgot.module";
-import {ProfileModule, UpdateInfluencerModule, UpdateSocialAccountModule} from "../profile/profile.module";
+import {
+    CreateSocialAccountModule,
+    ProfileModule,
+    UpdateInfluencerModule,
+    UpdateSocialAccountModule
+} from "../profile/profile.module";
 import {InvoiceModule} from "../invoice/invoice.module";
 import {PromosModule} from "../promos/promos.module";
 import {FileModule} from "../file/file.module";
-import {PaymentModule} from "../payment/payment.module";
 import {InfluencerActionsHistoryModule} from "../influencer-actions-history/influencer-actions-history.module";
 import {ProposalSystemModule} from "../proposal-system/proposal-system.module";
 import {WebsocketModule} from "../websocket/app.gateway";
@@ -49,7 +53,6 @@ import {AdminModule} from "../admin/admin.module";
         CampaignsModule,
         PromosModule,
         FileModule,
-        PaymentModule,
         AdminModule,
         InfluencerActionsHistoryModule,
         ProposalSystemModule,
@@ -63,6 +66,7 @@ import {AdminModule} from "../admin/admin.module";
         DatabaseModule,
         ExchangeRateModule,
         JobsModule,
+        CreateSocialAccountModule,
         UpdateSocialAccountModule,
         UpdateInfluencerModule,
     ],

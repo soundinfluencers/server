@@ -61,6 +61,8 @@ import {
 } from "./schemas/negotiation/negotiation.schema";
 import {NegotiationRepository} from "./repositories/negotiation/negotiation.repository";
 import {Role} from "../common/types/user.types";
+import {PaymentHistoryCell, PaymentHistoryCellSchema} from "./schemas/histories/payment-history-cell.schema";
+import {PaymentHistoryCellRepository} from "./repositories/histories/payment-history-cell.repository";
 
 @Global()
 @Module({
@@ -85,6 +87,7 @@ import {Role} from "../common/types/user.types";
             { name: ReportSizes.name, schema: ReportSizesSchema },
             { name: Negotiation.name, schema: NegotiationSchema },
             { name: NegotiationOffer.name, schema: NegotiationOfferSchema },
+            { name: PaymentHistoryCell.name, schema: PaymentHistoryCellSchema },
             {
                 name: UserInvoice.name,
                 schema: UserInvoiceSchema,
@@ -133,6 +136,7 @@ import {Role} from "../common/types/user.types";
         PaypalDetailsRepository,
         ReportSizeRepository,
         NegotiationRepository,
+        PaymentHistoryCellRepository,
     ],
     exports: [
         ClientRepository,
@@ -154,6 +158,7 @@ import {Role} from "../common/types/user.types";
         PaypalDetailsRepository,
         ReportSizeRepository,
         NegotiationRepository,
+        PaymentHistoryCellRepository,
     ],
 })
 export class DatabaseModule {}

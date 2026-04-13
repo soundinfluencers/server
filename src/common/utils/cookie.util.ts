@@ -1,8 +1,5 @@
 import type {Response} from 'express';
 
-const secure = process.env.COOKIE_SECURE === 'true';
-const domain = process.env.COOKIE_DOMAIN;
-
 export function setRefreshTokenCookie(res: Response, token: string) {
     res.cookie('refreshToken', token, {
         httpOnly: true,

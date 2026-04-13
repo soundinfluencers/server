@@ -42,3 +42,43 @@ export interface IInfluencerHistory {
     influencerEmail: string;
     actions: (ICampaignAction | IInvoiceAction)[];
 }
+
+// Automatic status calculated by the backend for a payment history cell.
+// This reflects the system's view of the account's progress in a campaign,
+// without any manual admin override applied.
+export enum PaymentHistorySystemStatusEnum {
+    // The account is in the campaign, but the payment flow is not fully completed yet.
+    // This includes cases where the influencer has not accepted the campaign yet,
+    // is still working on it, or has completed the work but has not sent an invoice.
+    in_process = 'in_process',
+
+    // The account has completed all required work and the influencer has sent an invoice.
+    // This is the final automatic status produced by the system.
+    done = 'done',
+}
+
+// Manual status set by an admin.
+// This does not come from the automatic system logic and is used
+// to explicitly mark a payment history cell as paid.
+export enum PaymentHistoryAdminOverrideStatusEnum {
+    // Admin manually confirmed that the payment was made.
+    // When this value is set, it overrides the automatic system status in the UI.
+    paid = 'paid',
+}
+
+// Final status returned to the frontend and used for UI rendering.
+// This is the resolved status after combining the automatic system status
+// with the optional manual admin override.
+export enum PaymentHistoryEffectiveStatusEnum {
+    // Final status is "in_process" when no admin override exists
+    // and the automatic system status is still in progress.
+    in_process = 'in_process',
+
+    // Final status is "done" when no admin override exists
+    // and the automatic system status is completed.
+    done = 'done',
+
+    // Final status is "paid" when an admin manually marks the cell as paid.
+    // This value has priority over the automatic system status.
+    paid = 'paid',
+}
