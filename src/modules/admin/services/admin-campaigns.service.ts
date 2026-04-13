@@ -35,7 +35,7 @@ import {Campaign, CampaignAccount} from "../../../database/schemas/campaign/camp
 import {CompletedCampaign} from "../../../database/schemas/campaign/completed-campaign.schema";
 import {ProposalCampaign} from "../../../database/schemas/campaign/proposal-campaign.schema";
 import {CampaignDetailsService} from "../../campaigns/services/campaign-details.service";
-import {UpdateCampaignDto} from "../../campaigns/dto/update-campaign.dto";
+import {AdminUpdateCampaignDto, UpdateCampaignDto} from "../../campaigns/dto/update-campaign.dto";
 import {CampaignUpdateService} from "../../campaigns/services/campaign-update.service";
 import {ProposalCampaignDetailsService} from "../../proposal-system/services/proposal-campaign-details.service";
 import {ProposalCampaignUpdateService} from "../../proposal-system/services/proposal-campaign-update.service";
@@ -232,8 +232,12 @@ export class AdminCampaignsService implements IAdminCampaignsService {
     private async updateProposalCampaign(
         campaignId: string,
         optionIndex: number,
-        data: UpdateCampaignDto,
+        data: AdminUpdateCampaignDto,
     ): Promise<AdminCampaignDetailsDto> {
+        if (data.isPriceHidden !== undefined || data.isCpmAndResultHidden !== undefined) {
+            throw new BadRequestException("You can't change hidden status for price and cpm in proposal campaign");
+        }
+
         return this.proposalCampaignUpdateService.execute(
             campaignId,
             optionIndex,
@@ -263,7 +267,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
     // Updates fields in ongoing campaign
     private async updateOngoingCampaign(
         campaignId: string,
-        data: UpdateCampaignDto,
+        data: AdminUpdateCampaignDto,
     ): Promise<AdminCampaignDetailsDto> {
         return this.campaignUpdateService.execute<
             HydratedDocument<Campaign>,
@@ -400,7 +404,9 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         campaignId: string,
         optionIndex?: number,
     ): Promise<AdminCampaignDetailsDto> {
-        if (optionIndex !== undefined) {
+        console.log(status, optionIndex)
+
+        if (status === AdminCampaignsListStatusEnum.proposal && optionIndex !== undefined) {
             return this.getProposalCampaignDetails(campaignId, optionIndex);
         }
 
@@ -416,11 +422,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
     }
 
     // Orchestrator that will define method for updating campaign by campaign status
-    async updateCampaign(status: AdminCampaignsListStatusEnum, campaignId: string, data: UpdateCampaignDto, optionIndex?: number): Promise<AdminCampaignDetailsDto> {
-        if (data.optionIndex !== undefined) {
-            return this.updateProposalCampaign(campaignId, data.optionIndex, data);
-        }
-
+    async updateCampaign(status: AdminCampaignsListStatusEnum, campaignId: string, data: AdminUpdateCampaignDto, optionIndex?: number): Promise<AdminCampaignDetailsDto> {
         switch (status) {
             case AdminCampaignsListStatusEnum.distributing:
             case AdminCampaignsListStatusEnum.pending:

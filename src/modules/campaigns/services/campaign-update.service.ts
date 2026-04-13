@@ -4,7 +4,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { Types } from 'mongoose';
-import { UpdateCampaignDto } from '../dto/update-campaign.dto';
+import {AdminUpdateCampaignDto, UpdateCampaignDto} from '../dto/update-campaign.dto';
 import { MediaService } from '../../media/media.service';
 import {CampaignContentItem} from "../../../database/schemas/campaign/campaign.schema";
 import {CampaignContentItemDto, SelectInfluencerDto} from "../dto/create-campaign.dto";
@@ -26,6 +26,8 @@ export type CampaignDocumentLike<TAccount extends CampaignAccountLike> = {
     campaignName: string;
     addedAccounts: TAccount[];
     campaignContent: CampaignContentItem[];
+    isCpmAndResultHidden?: boolean;
+    isPriceHidden?: boolean;
     save: () => Promise<unknown>;
     toObject: () => unknown;
 };
@@ -59,7 +61,7 @@ export class CampaignUpdateService {
         TResult,
     >(
         campaignId: string,
-        data: UpdateCampaignDto,
+        data: UpdateCampaignDto | AdminUpdateCampaignDto,
         context: CampaignUpdateContext<TCampaignDoc, TAccount, TReadModel, TResult>,
     ): Promise<TResult> {
         const campaign = await context.findCampaign(campaignId);
@@ -93,13 +95,19 @@ export class CampaignUpdateService {
         TAccount extends CampaignAccountLike,
     >(
         campaign: TCampaignDoc,
-        data: UpdateCampaignDto,
+        data: UpdateCampaignDto | AdminUpdateCampaignDto,
         buildCampaignAccountsBatch: (
             addedAccountsData: SelectInfluencerDto[],
         ) => Promise<TAccount[]>,
     ): Promise<void> {
         if (data.campaignName && data.campaignName.trim() !== campaign.campaignName) {
             campaign.campaignName = data.campaignName.trim();
+        }
+        if (data instanceof AdminUpdateCampaignDto && data.isCpmAndResultHidden !== undefined) {
+            campaign.isCpmAndResultHidden = data.isCpmAndResultHidden;
+        }
+        if (data instanceof AdminUpdateCampaignDto && data.isPriceHidden !== undefined) {
+            campaign.isPriceHidden = data.isPriceHidden;
         }
 
         if (data.addedAccounts) {

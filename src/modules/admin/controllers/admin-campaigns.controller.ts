@@ -30,7 +30,7 @@ import {OneOfQueryPipe} from "../../../common/pipes/one-of-query.pipe";
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
 import {UpdateAdminMetaCampaignDto, UpdatedAdminMetaCampaignDto} from "../dto/campaigns/admin-update-campaign.dto";
 import {ParseObjectIdPipe} from "../../../common/pipes/parse-oid.pipe";
-import {UpdateCampaignDto} from "../../campaigns/dto/update-campaign.dto";
+import {AdminUpdateCampaignDto, UpdateCampaignDto} from "../../campaigns/dto/update-campaign.dto";
 import {FileInterceptor} from "@nestjs/platform-express";
 
 @Auth()
@@ -213,7 +213,7 @@ export class AdminCampaignsController {
             'campaignId',
             new ParseObjectIdPipe()
         ) campaignId: string,
-        @Body() data: UpdateCampaignDto,
+        @Body() data: AdminUpdateCampaignDto,
         @Query('optionIndex') optionIndex?: number,
     ): Promise<AdminCampaignDetailsDto> {
         return this.adminService.updateCampaign(status, campaignId, data, optionIndex);

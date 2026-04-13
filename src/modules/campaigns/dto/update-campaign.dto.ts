@@ -1,5 +1,5 @@
 import {ApiPropertyOptional} from "@nestjs/swagger";
-import {ArrayNotEmpty, IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested} from "class-validator";
+import {ArrayNotEmpty, IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, ValidateNested} from "class-validator";
 import {Type} from "class-transformer";
 import {CampaignContentItemDto, SelectInfluencerDto} from "./create-campaign.dto";
 
@@ -29,4 +29,17 @@ export class UpdateCampaignDto {
     @ArrayNotEmpty()
     @ValidateNested({ each: true })
     campaignContent?: CampaignContentItemDto[];
+}
+
+// dto for updating campaign from admin side
+export class AdminUpdateCampaignDto extends UpdateCampaignDto {
+    @ApiPropertyOptional({type: Boolean})
+    @IsOptional()
+    @IsBoolean()
+    isCpmAndResultHidden?: boolean;
+
+    @ApiPropertyOptional({type: Boolean})
+    @IsOptional()
+    @IsBoolean()
+    isPriceHidden?: boolean;
 }
