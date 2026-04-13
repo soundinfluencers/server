@@ -56,6 +56,9 @@ export interface IAdminInfluencersService {
 
     // Returns detailed social account
     getDetailedSocialAccount(data: GetSocialAccountDetailsParamsDto): Promise<SocialAccountDetails>;
+
+    // Deletes social account
+    deleteSocialAccount(data: GetSocialAccountDetailsParamsDto): Promise<void>;
 }
 
 @Injectable()
@@ -370,4 +373,31 @@ export class AdminInfluencersService implements IAdminInfluencersService {
             }
         }
     }
+
+    // Delete social account
+    async deleteSocialAccount(data: GetSocialAccountDetailsParamsDto): Promise<void> {
+        const { accountId, influencerId, socialMedia } = data;
+
+        const influencer = await this.influencerRepo.findById(influencerId);
+
+        if (!influencer) {
+            throw new NotFoundException('Influencer not found');
+        }
+
+        if (!influencer[socialMedia] || influencer[socialMedia].length === 0) {
+            throw new NotFoundException('Social account not found');
+        }
+
+        const accountIndex = influencer[socialMedia].findIndex(
+            (acc: SocialAccount) => acc._id.toString() === accountId,
+        );
+
+        if (accountIndex < 0) {
+            throw new NotFoundException('Social account not found');
+        }
+
+        influencer[socialMedia].splice(accountIndex, 1);
+
+        await influencer.save({ validateBeforeSave: false });
+    };
 }

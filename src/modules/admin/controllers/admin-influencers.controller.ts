@@ -1,6 +1,6 @@
 import {
     Body,
-    Controller,
+    Controller, Delete,
     Get,
     Param, ParseEnumPipe,
     Patch,
@@ -171,5 +171,25 @@ export class AdminInfluencersController {
         @Param('socialMedia', new ParseEnumPipe(SocialMediaEnum)) socialMedia: SocialMediaEnum
     ): Promise<SocialAccountDetailsDto> {
         return this.adminService.getDetailedSocialAccount({accountId, influencerId, socialMedia});
+    }
+
+    @ApiOperation({summary: "Deletes social account"})
+    @ApiResponseDto()
+    @ApiParam({
+        name: "accountId",
+        required: true
+    })
+    @ApiParam({
+        name: "socialMedia",
+        enum: SocialMediaEnum,
+        required: true
+    })
+    @Delete(':influencerId/:accountId/:socialMedia')
+    deleteSocialAccount(
+        @Param('influencerId', new ParseObjectIdPipe()) influencerId: string,
+        @Param('accountId', new ParseObjectIdPipe()) accountId: string,
+        @Param('socialMedia', new ParseEnumPipe(SocialMediaEnum)) socialMedia: SocialMediaEnum
+    ): Promise<void> {
+        return this.adminService.deleteSocialAccount({accountId, influencerId, socialMedia});
     }
 }
