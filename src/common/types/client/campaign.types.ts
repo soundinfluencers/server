@@ -268,4 +268,5 @@ export interface IAdminCampaignForList {
 // Read model for admin campaign details page
 export interface IAdminCampaignDetails extends ICampaignDetails {
     addedAccounts: IAdminCampaignAccount[];
+    existingOptions?: number[]; // for proposal campaign options
 }

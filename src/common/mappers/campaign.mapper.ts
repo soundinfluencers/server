@@ -508,6 +508,7 @@ export const mapToAdminCampaignDetailsDto = (campaign: IAdminCampaignDetails): A
         canEdit: campaign.canEdit,
         hiddenColumns: campaign.hiddenColumns ?? [],
         cpm: campaign.cpm,
+        ...campaign.existingOptions && campaign.existingOptions.length > 0 ? {existingOptions: campaign.existingOptions} : {},
     }
 };
 
@@ -621,6 +622,7 @@ export const mapProposalToIAdminCampaignDetails = (
         canEdit: true,
         hiddenColumns: campaign.hiddenColumns ?? [],
         cpm,
+        existingOptions: campaign.optionsIds.map((_, i) => i),
     };
 };
 
