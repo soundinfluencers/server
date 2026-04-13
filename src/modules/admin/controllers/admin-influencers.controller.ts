@@ -27,13 +27,18 @@ import {
     InfluencerAccountDetailsDto,
     SocialAccountDetailsDto
 } from "../../profile/dto/influencer/get-profile.dto";
-import {InfluencerUpdatedPersonalDto, UpdateSocialAccountDto} from "../../profile/dto/influencer/update-influencer.dto";
+import {
+    AddSocialAccountDto,
+    InfluencerUpdatedPersonalDto,
+    UpdateSocialAccountDto
+} from "../../profile/dto/influencer/update-influencer.dto";
 import {
     AdminUpdateInfluencerPersonalDto,
     AdminUpdateSocialAccountDto
 } from "../dto/influencers/admin-update-influencer.dto";
 import {ApiResponseDtoOneOf} from "../../../common/decorators/api/response/api-response-one-of.decorator";
 import {ParseObjectIdPipe} from "../../../common/pipes/parse-oid.pipe";
+import {CreateSocialAccountDto} from "../../auth/dto/create-influencer.dto";
 
 @Auth()
 @Roles(Role.admin)
@@ -115,6 +120,37 @@ export class AdminInfluencersController {
         @UploadedFile() file: Express.Multer.File,
     ): Promise<void> {
         return this.adminService.importXlsxSocialAccounts(socialMedia, file);
+    }
+
+    @ApiOperation({summary: "Creates new social account"})
+    @ApiResponseDto(InfluencerAccountDetailsDto)
+    @ApiParam({
+        name: 'influencerId',
+        type: String,
+        required: true
+    })
+    @ApiParam({
+        name: "socialMedia",
+        enum: SocialMediaEnum,
+        required: true
+    })
+    @Post(':influencerId/:socialMedia')
+    createSocialAccount(
+        @Param(
+            'influencerId',
+            new ParseObjectIdPipe()
+        ) influencerId: string,
+        @Param(
+            'socialMedia',
+            new ParseEnumPipe(SocialMediaEnum)
+        ) socialMedia: SocialMediaEnum,
+        @Body() data: CreateSocialAccountDto
+    ): Promise<InfluencerAccountDetailsDto> {
+        return this.adminService.createSocialAccount({
+            influencerId,
+            socialMedia,
+            payload: data
+        })
     }
 
     @ApiOperation({summary: "Gets detailed influencer's social account"})

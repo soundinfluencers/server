@@ -91,6 +91,7 @@ import {CurrencyCode, getAvailableCurrenciesLabel} from "../../../common/types/f
 import {NegotiationRepository} from "../../../database/repositories/negotiation/negotiation.repository";
 import {UpdateSocialAccountService} from "./update-social-account.service";
 import {UpdateInfluencerService} from "./update-influencer.service";
+import {CreateSocialAccountService} from "./create-social-account.service";
 
 const bcrypt = require('bcryptjs');
 
@@ -116,6 +117,8 @@ export class ProfileService {
         private readonly negotiationRepo: NegotiationRepository,
         // Update influencer personal information
         private readonly updateInfluencerService: UpdateInfluencerService,
+        // Create social account
+        private readonly createSocialAccountService: CreateSocialAccountService,
         // Update social account
         private readonly updateSocialAccountService: UpdateSocialAccountService,
     ) {
@@ -879,185 +882,11 @@ export class ProfileService {
     async addSocialAccount(
         data: AddSocialAccountDto,
     ): Promise<InfluencerAccountDetailsDto> {
-        const {influencerId, socialMedia, payload} = data;
-
-        if (!influencerId) {
-            throw new BadRequestException('Influencer id is missing');
-        }
-
-        const influencer = await this.influencerRepo.findById(influencerId);
-        if (!influencer) {
-            throw new NotFoundException('Influencer not found');
-        }
-
-        // ---- DUPLICATE CHECK ----
-        if (!payload?.username) {
-            throw new BadRequestException('Username is required');
-        }
-
-        if (!areCountriesValid(data.payload.countries)) {
-            throw new BadRequestException('Countries not valid');
-        }
-
-
-        const duplicate = await this.influencerRepo.findOne({
-            [`${socialMedia}.username`]: payload.username,
-        });
-        if (!Object.values(CurrencyCode).includes(payload.currency)) {
-            throw new BadRequestException(
-                `Currency for ${data.socialMedia} account ${payload.username} is not valid. ` +
-                `Try to use one of these: ${getAvailableCurrenciesLabel()}`
-            );
-        }
-
-        if (duplicate) {
-            throw new ConflictException({
-                message: 'Username already exists',
-                network: socialMedia,
-                username: payload.username,
-            });
-        }
-
-        // ---- NORMALIZE DATA ----
-        const musicGenres = Array.isArray(payload.musicGenres)
-            ? payload.musicGenres.filter(Boolean)
-            : [];
-
-        const countries =
-            Array.isArray(payload.countries)
-                ? payload.countries
-                    .filter(
-                        (c): c is InfluencerCountryStats =>
-                            typeof c?.country === 'string' &&
-                            c.country.trim().length > 0 &&
-                            typeof c.percentage === 'number',
-                    )
-                    .map((c) => ({
-                        country: c.country,
-                        percentage: c.percentage,
-                    }))
-                : [];
-
-        // ---- PRICE PARSING ----
-
-        const exchangeRate: number =
-            payload.currency !== CurrencyCode.EUR
-                ? await this.exchangeRateService.getRate(
-                    payload.currency.toString(),
-                    'EUR'
-                )
-                : 1;
-
-        const sanitizedPrice =
-            parseFloat(String(payload.price).replace(/[^\d.-]/g, '')) || 0;
-
-        const price = Math.round(sanitizedPrice * exchangeRate);
-        const publicPrice = price * 2;
-
-        // ---- CREATE ACCOUNT ----
-        const accountId = new Types.ObjectId();
-
-        const newAccount: SocialAccount = {
-            ...(payload.profileCategory === 'creator' && {
-                creatorCategories: payload.creatorCategories ?? [],
-            }),
-            _id: accountId,
-            username: payload.username,
-            profileLink: payload.profileLink,
-            followers: payload.followers,
-            logoUrl: payload.logoUrl,
-            profileCategory: payload.profileCategory,
-            price: price,
-            publicPrice: publicPrice,
-            initialPrice: payload.price,
-            currency: payload.currency,
-            musicGenres,
-            countries,
-            categories: payload.categories,
-            engagementRate: null,
-            averageViews: null,
-            isHidden: false,
-            isDeleted: false,
-            verifiedStatus: AccountVerifiedStatus.waitForAdmin,
-            labelStatus: SocialAccountLabelStatus.waitForAdmin,
-        };
-
-        influencer[socialMedia] = [
-            ...(influencer[socialMedia] ?? []),
-            newAccount,
-        ];
-
-        // ---- TRANSACTION ----
-        const session = await this.influencerRepo.startSession();
-        session.startTransaction();
-
-        try {
-            await influencer.save({session, validateBeforeSave: false});
-            await session.commitTransaction();
-        } catch (err) {
-            await session.abortTransaction();
-            throw err;
-        } finally {
-            await session.endSession();
-        }
-
-        // ---- EMAIL ----
-        try {
-            let emailHtml = '';
-
-            if (socialMedia === 'spotify' || socialMedia === 'soundcloud') {
-                emailHtml = `
-<ul>
-    <li><strong>${socialMedia === 'spotify' ? 'Spotify playlist name' : 'SoundCloud account name'}:</strong> ${payload.username}</li>
-    <li><strong>Link:</strong> ${payload.profileLink}</li>
-    <li><strong>Followers:</strong> ${payload.followers}</li>
-    <li><strong>Logo:</strong> ${payload.logoUrl}</li>
-    <li><strong>Price:</strong> ${payload.price}€</li>
-    <li><strong>Initial price:</strong> ${payload.price}€</li>
-</ul>`;
-            } else if (socialMedia === 'press') {
-                emailHtml = `
-<ul>
-    <li><strong>Brand name:</strong> ${payload.username}</li>
-    <li><strong>Website:</strong> ${payload.profileLink}</li>
-    <li><strong>Visitors:</strong> ${payload.followers}</li>
-    <li><strong>Logo:</strong> ${payload.logoUrl}</li>
-    <li><strong>Music genres:</strong> ${musicGenres.join(', ')}</li>
-    <li><strong>Price:</strong> ${payload.price}€</li>
-    <li><strong>Initial price:</strong> ${payload.price}€</li>
-</ul>`;
-            } else {
-                emailHtml = `
-<ul>
-    <li><strong>Username:</strong> ${payload.username}</li>
-    <li><strong>Link:</strong> ${payload.profileLink}</li>
-    <li><strong>Followers:</strong> ${payload.followers}</li>
-    <li><strong>Logo:</strong> ${payload.logoUrl}</li>
-    <li><strong>Music genres:</strong> ${musicGenres.join(', ')}</li>
-    <li><strong>Price:</strong> ${payload.price}€</li>
-    <li><strong>Initial price:</strong> ${payload.price}€</li>
-</ul>`;
-            }
-
-            // ${process.env.SERVER}/profile/influencer/verify-new-accounts
-            // ?influencerId=${influencerId}
-            // &accounts=${encodeURIComponent(JSON.stringify([accountId]))}
-            // &isVerified=true
-
-            // ${process.env.SERVER}/profile/influencer/verify-new-accounts
-            // ?influencerId=${influencerId}
-            // &accounts=${encodeURIComponent(JSON.stringify([accountId]))}
-            // &isVerified=false
-        } catch (err) {
-            this.logger.warn(
-                `Account ${accountId.toString()} added but email failed`,
-                err,
-            );
-        }
-
-        // ---- RESPONSE ----
-        return mapInfluencerToAccountDetailsDto(influencer);
-    }
+        return this.createSocialAccountService.execute(
+            data,
+            (influencer: Influencer): InfluencerAccountDetailsDto => mapInfluencerToAccountDetailsDto(influencer),
+        );
+    };
 
     // Verifies new social accounts
     async verifyNewSocialMediaAccounts(

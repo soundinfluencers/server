@@ -15,7 +15,7 @@ import {
     AdminUpdateSocialAccountDto
 } from "../dto/influencers/admin-update-influencer.dto";
 import {UpdateSocialAccountService} from "../../profile/services/update-social-account.service";
-import {InfluencerUpdatedPersonalDto} from "../../profile/dto/influencer/update-influencer.dto";
+import {AddSocialAccountDto, InfluencerUpdatedPersonalDto} from "../../profile/dto/influencer/update-influencer.dto";
 import {UpdateInfluencerService} from "../../profile/services/update-influencer.service";
 import {
     GetSocialAccountDetailsParamsDto,
@@ -23,6 +23,7 @@ import {
 } from "../../profile/dto/influencer/get-profile.dto";
 import {SocialAccountDetails} from "../../../common/types/influencer/influencer.types";
 import {Types} from "mongoose";
+import {CreateSocialAccountService} from "../../profile/services/create-social-account.service";
 
 // Interface for AdminInfluencersService, AdminInfluencersController
 export interface IAdminInfluencersService {
@@ -40,6 +41,9 @@ export interface IAdminInfluencersService {
         data: AdminUpdateInfluencerPersonalDto,
         accountId?: string
     ): Promise<InfluencerUpdatedPersonalDto | AdminSocialAccountForListDto>;
+
+    // Create new social account
+    createSocialAccount(data: AddSocialAccountDto): Promise<InfluencerAccountDetailsDto>;
 
     // Update social account
     updateSocialAccount(data: AdminUpdateSocialAccountDto): Promise<AdminSocialAccountForListDto>;
@@ -62,6 +66,8 @@ export class AdminInfluencersService implements IAdminInfluencersService {
         private readonly xlsxImporter: XlsxImporter,
         // For updating influencer's personal info
         private readonly updateInfluencerService: UpdateInfluencerService,
+        // For creating social account
+        private readonly createSocialAccountService: CreateSocialAccountService,
         // For updating social account
         private readonly updateSocialAccountService: UpdateSocialAccountService,
     ) {
@@ -77,6 +83,7 @@ export class AdminInfluencersService implements IAdminInfluencersService {
         }
     }
 
+    // Get influencer's details
     async getDetails(influencerId: string): Promise<InfluencerAccountDetailsDto> {
         if (!influencerId) throw new BadRequestException('Influencer ID is required');
 
@@ -86,6 +93,16 @@ export class AdminInfluencersService implements IAdminInfluencersService {
         return mapInfluencerToAccountDetailsDto(influencer);
     }
 
+    // Create new social account
+    async createSocialAccount(data: AddSocialAccountDto): Promise<InfluencerAccountDetailsDto> {
+        return this.createSocialAccountService.execute(
+            data,
+            (influencer: Influencer): InfluencerAccountDetailsDto => mapInfluencerToAccountDetailsDto(influencer),
+            true
+        );
+    }
+
+    // Update social account
     async updatePersonalInfo(influencerId: string, data: AdminUpdateInfluencerPersonalDto, accountId?: string): Promise<AdminSocialAccountForListDto | InfluencerUpdatedPersonalDto> {
         const updated = await this.updateInfluencerService.exec(influencerId, data);
 

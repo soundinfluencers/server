@@ -8,6 +8,7 @@ import {Influencer, InfluencerSchema} from "../../database/schemas/users/influen
 import {AuthService} from "../auth/auth.service";
 import {UpdateSocialAccountService} from "./services/update-social-account.service";
 import {UpdateInfluencerService} from "./services/update-influencer.service";
+import {CreateSocialAccountService} from "./services/create-social-account.service";
 
 @Module({
     imports: [
@@ -22,6 +23,13 @@ import {UpdateInfluencerService} from "./services/update-influencer.service";
 })
 export class ProfileModule {
 }
+
+@Global()
+@Module({
+    providers: [CreateSocialAccountService],
+    exports: [CreateSocialAccountService],
+})
+export class CreateSocialAccountModule {}
 
 @Global()
 @Module({
