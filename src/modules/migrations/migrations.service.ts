@@ -23,6 +23,7 @@ import {AccountVerifiedStatus} from "../../common/types/user.types";
 import {SocialAccountLabelStatus} from "../../common/types/influencer/influencer.types";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {ObjId} from "../../common/types/base.types";
+import {CurrencyCode} from "../../common/types/finance.types";
 
 
 // ------------ LEGACY SCHEMAS ---------------
@@ -578,6 +579,7 @@ export class MigrationsService {
                             adminMeta: {
                                 reportSent: statusCampaign === CampaignStatusEnum.completed,
                             },
+                            displayCurrency: CurrencyCode.EUR,
                         },
                     },
                     {
@@ -1008,6 +1010,7 @@ export class MigrationsService {
                         schemaVersion: 1,
                         publicCampaignPrice: this.toNumber((doc as any).publicPrice) ?? 0,
                         privateCampaignPrice: this.toNumber((doc as any).price) ?? 0,
+                        displayCurrency: CurrencyCode.EUR,
                         addedAccounts,
                         campaignContent,
                     };

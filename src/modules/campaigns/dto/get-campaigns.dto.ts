@@ -16,6 +16,7 @@ import {
 } from "../../../common/types/influencer/promo.types";
 import {CampaignContentMediaCache} from "../../../database/schemas/campaign/campaign.schema";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
+import {CurrencyCode} from "../../../common/types/finance.types";
 
 export class ClientGetDashboardCampaignsQueryDto extends PaginationQueryDto {
     @ApiPropertyOptional({
@@ -185,6 +186,9 @@ export class CampaignDetailsDto {
 
     @ApiProperty()
     price: number;
+
+    @ApiProperty({enum: CurrencyCode, example: CurrencyCode.EUR})
+    displayCurrency: CurrencyCode;
 
     @ApiProperty({enum: CampaignStatusEnum})
     status: CampaignStatusEnum;

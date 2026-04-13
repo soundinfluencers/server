@@ -1,7 +1,17 @@
 import {ApiPropertyOptional} from "@nestjs/swagger";
-import {ArrayNotEmpty, IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, ValidateNested} from "class-validator";
+import {
+    ArrayNotEmpty,
+    IsArray,
+    IsBoolean,
+    IsEnum,
+    IsNotEmpty,
+    IsOptional,
+    IsString,
+    ValidateNested
+} from "class-validator";
 import {Type} from "class-transformer";
 import {CampaignContentItemDto, SelectInfluencerDto} from "./create-campaign.dto";
+import {CurrencyCode} from "../../../common/types/finance.types";
 
 // dto for requesting campaign update
 export class UpdateCampaignDto {
@@ -42,4 +52,9 @@ export class AdminUpdateCampaignDto extends UpdateCampaignDto {
     @IsOptional()
     @IsBoolean()
     isPriceHidden?: boolean;
+
+    @ApiPropertyOptional({type: String, enum: CurrencyCode})
+    @IsOptional()
+    @IsEnum(CurrencyCode)
+    displayCurrency?: CurrencyCode;
 }

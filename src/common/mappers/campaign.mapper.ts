@@ -1,6 +1,7 @@
 import {
-    AdminCampaignStatusEnum,
-    CampaignStatusEnum, IAdminCampaignAccount, IAdminCampaignDetails,
+    CampaignStatusEnum,
+    IAdminCampaignAccount,
+    IAdminCampaignDetails,
     IAdminCampaignForList,
     ICampaignAccount,
     ICampaignDetails,
@@ -28,8 +29,7 @@ import {
     AdminCampaignForListDto,
     AdminCampaignsListStatusEnum
 } from "../../modules/admin/dto/campaigns/admin-campaigns.dto";
-import {Role} from "../types/user.types";
-import {NotFoundException} from "@nestjs/common";
+import {CurrencyCode} from "../types/finance.types";
 
 // builds object with CampaignContentItemDto type from CampaignContentItem (dto which using for creating and updating campaigns)
 export const mapContentItemDtoToModel = (campaignContentItem: CampaignContentItemDto): CampaignContentItem => {
@@ -253,6 +253,7 @@ export const mapSchemaToICampaignDetails = (campaign: Campaign | CompletedCampai
         socialMedia: campaign.socialMedia ?? "instagram",
         createdAt: campaign.createdAt,
         price: campaignPrice,
+        displayCurrency: campaign.displayCurrency ?? CurrencyCode.EUR,
         status: campaign.statusCampaign,
         addedAccounts: proceedAccounts,
         campaignContent: campaign.campaignContent ?? (campaign as any).videos ?? [],
@@ -406,6 +407,7 @@ export const mapSchemaToIAdminCampaignDetails = (campaign: Campaign | CompletedC
         socialMedia: campaign.socialMedia ?? "instagram",
         createdAt: campaign.createdAt,
         price: campaignPrice,
+        displayCurrency: campaign.displayCurrency ?? CurrencyCode.EUR,
         status: campaign.statusCampaign,
         addedAccounts: proceedAccounts,
         campaignContent: campaign.campaignContent ?? (campaign as any).videos ?? [],
@@ -436,6 +438,7 @@ export const mapToCampaignDetailsDto = (campaign: ICampaignDetails): CampaignDet
         socialMedia: campaign.socialMedia,
         creationDate: formatDate(campaign.createdAt),
         price: campaign.price,
+        displayCurrency: campaign.displayCurrency ?? CurrencyCode.EUR,
         status: campaign.status,
         addedAccounts: campaign.addedAccounts.map((i: ICampaignAccount): CampaignAccountDto => ({
             ...i,
@@ -475,6 +478,7 @@ export const mapToAdminCampaignDetailsDto = (campaign: IAdminCampaignDetails): A
         socialMedia: campaign.socialMedia,
         creationDate: formatDate(campaign.createdAt),
         price: campaign.price,
+        displayCurrency: campaign.displayCurrency ?? CurrencyCode.EUR,
         status: campaign.status,
         addedAccounts: campaign.addedAccounts.map((i: IAdminCampaignAccount): AdminCampaignAccountDto => ({
             ...i,
@@ -601,6 +605,7 @@ export const mapProposalToIAdminCampaignDetails = (
         socialMedia: campaign.socialMedia ?? 'instagram',
         createdAt: campaign.createdAt,
         price: campaignPrice,
+        displayCurrency: option.displayCurrency ?? CurrencyCode.EUR,
         status: 'proposal' as CampaignStatusEnum,
         addedAccounts: proceedAccounts,
         campaignContent: option.campaignContent ?? [],

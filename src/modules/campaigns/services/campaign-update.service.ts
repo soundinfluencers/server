@@ -10,6 +10,7 @@ import {CampaignContentItem} from "../../../database/schemas/campaign/campaign.s
 import {CampaignContentItemDto, SelectInfluencerDto} from "../dto/create-campaign.dto";
 import {mapContentItemDtoToModel} from "../../../common/mappers/campaign.mapper";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
+import {CurrencyCode} from "../../../common/types/finance.types";
 
 export type CampaignAccountLike = {
     accountId: Types.ObjectId;
@@ -26,6 +27,7 @@ export type CampaignDocumentLike<TAccount extends CampaignAccountLike> = {
     campaignName: string;
     addedAccounts: TAccount[];
     campaignContent: CampaignContentItem[];
+    displayCurrency: CurrencyCode;
     isCpmAndResultHidden?: boolean;
     isPriceHidden?: boolean;
     save: () => Promise<unknown>;
@@ -103,11 +105,19 @@ export class CampaignUpdateService {
         if (data.campaignName && data.campaignName.trim() !== campaign.campaignName) {
             campaign.campaignName = data.campaignName.trim();
         }
-        if (data instanceof AdminUpdateCampaignDto && data.isCpmAndResultHidden !== undefined) {
-            campaign.isCpmAndResultHidden = data.isCpmAndResultHidden;
-        }
-        if (data instanceof AdminUpdateCampaignDto && data.isPriceHidden !== undefined) {
-            campaign.isPriceHidden = data.isPriceHidden;
+        if (data instanceof AdminUpdateCampaignDto) {
+            if (data.isCpmAndResultHidden !== undefined) {
+                campaign.isCpmAndResultHidden = data.isCpmAndResultHidden;
+            }
+            if (data.isPriceHidden !== undefined) {
+                campaign.isPriceHidden = data.isPriceHidden;
+            }
+            if (data.displayCurrency !== undefined) {
+                campaign.displayCurrency = data.displayCurrency;
+            }
+            if (!campaign.displayCurrency) {
+                campaign.displayCurrency = CurrencyCode.EUR;
+            }
         }
 
         if (data.addedAccounts) {

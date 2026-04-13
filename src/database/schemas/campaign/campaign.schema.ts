@@ -12,6 +12,7 @@ import {
 } from "../../../common/types/influencer/promo.types";
 import {MediaKindEnum, MediaProviderEnum} from "../../../common/types/file/file.types";
 import {InvoiceStatusEnum} from "../../../common/types/invoice.types";
+import {CurrencyCode} from "../../../common/types/finance.types";
 
 @Schema({_id: false, timestamps: false})
 export class SelectedContent {
@@ -214,6 +215,9 @@ export class Campaign {
 
     @Prop({required: true, type: Number})
     campaignPrice: number;
+
+    @Prop({required: false, type: String, enum: CurrencyCode, default: CurrencyCode.EUR})
+    displayCurrency: CurrencyCode;
 
     @Prop({required: true, type: [CampaignAccountSchema]})
     addedAccounts: CampaignAccount[];

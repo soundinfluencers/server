@@ -2,6 +2,7 @@ import {Prop, Schema, SchemaFactory} from "@nestjs/mongoose";
 import {CampaignAccount, CampaignContentItem, CampaignContentItemSchema} from "./campaign.schema";
 import {Types} from "mongoose";
 import {Role} from "../../../common/types/user.types";
+import {CurrencyCode} from "../../../common/types/finance.types";
 
 @Schema()
 export class ProposalCampaignAccount extends CampaignAccount {
@@ -40,6 +41,9 @@ export class ProposalCampaignOption {
 
     @Prop({required: true, type: Number})
     privateCampaignPrice: number; // for us
+
+    @Prop({required: false, type: String, enum: CurrencyCode, default: CurrencyCode.EUR})
+    displayCurrency?: CurrencyCode;
 
     @Prop({
         type: [ProposalCampaignAccountSchema],

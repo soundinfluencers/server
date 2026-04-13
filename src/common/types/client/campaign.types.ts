@@ -4,6 +4,7 @@ import {InfluencerConfirmationStatusEnum, InfluencerPromoClosedStatusEnum} from 
 import {CampaignContentMediaCache} from "../../../database/schemas/campaign/campaign.schema";
 import {Role} from "../user.types";
 import {AdminCampaignsListStatusEnum} from "../../../modules/admin/dto/campaigns/admin-campaigns.dto";
+import {CurrencyCode} from "../finance.types";
 
 // Campaign verify status
 export enum CampaignConfirmationEnum {
@@ -157,6 +158,7 @@ export interface ICampaignDetails {
     socialMedia: SocialMediaType | 'multipromo';
     createdAt: Date;
     price: number;
+    displayCurrency: CurrencyCode;
     status: CampaignStatusEnum;
     addedAccounts: ICampaignAccount[];
     campaignContent: ICampaignContent[];

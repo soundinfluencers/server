@@ -255,8 +255,11 @@ export class AdminCampaignsService implements IAdminCampaignsService {
                         this.proposalAccountsBuilderService,
                     ),
 
-                toReadModel: (campaign: HydratedDocument<ProposalCampaign>, option: HydratedDocument<ProposalCampaignOption>): IAdminCampaignDetails =>
-                    mapProposalToIAdminCampaignDetails(campaign, option),
+                toReadModel: (campaign, option): IAdminCampaignDetails =>
+                    mapProposalToIAdminCampaignDetails(
+                        campaign as HydratedDocument<ProposalCampaign>,
+                        option as HydratedDocument<ProposalCampaignOption>,
+                    ),
 
                 mapResult: (readModel: IAdminCampaignDetails): AdminCampaignDetailsDto =>
                     mapToAdminCampaignDetailsDto(readModel),
@@ -404,8 +407,6 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         campaignId: string,
         optionIndex?: number,
     ): Promise<AdminCampaignDetailsDto> {
-        console.log(status, optionIndex)
-
         if (status === AdminCampaignsListStatusEnum.proposal && optionIndex !== undefined) {
             return this.getProposalCampaignDetails(campaignId, optionIndex);
         }

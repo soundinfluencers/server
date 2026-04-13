@@ -1,16 +1,12 @@
-import {
-    ConflictException,
-    Injectable,
-    Logger,
-    NotFoundException,
-} from '@nestjs/common';
-import { Types } from 'mongoose';
-import { UpdateCampaignDto } from '../../campaigns/dto/update-campaign.dto';
-import { MediaService } from '../../media/media.service';
-import { CampaignContentItem } from '../../../database/schemas/campaign/campaign.schema';
-import { CampaignContentItemDto, SelectInfluencerDto } from '../../campaigns/dto/create-campaign.dto';
-import { mapContentItemDtoToModel } from '../../../common/mappers/campaign.mapper';
-import { SocialMediaEnum } from '../../../common/types/social-media.types';
+import {ConflictException, Injectable, Logger, NotFoundException,} from '@nestjs/common';
+import {Types} from 'mongoose';
+import {AdminUpdateCampaignDto, UpdateCampaignDto} from '../../campaigns/dto/update-campaign.dto';
+import {MediaService} from '../../media/media.service';
+import {CampaignContentItem} from '../../../database/schemas/campaign/campaign.schema';
+import {CampaignContentItemDto, SelectInfluencerDto} from '../../campaigns/dto/create-campaign.dto';
+import {mapContentItemDtoToModel} from '../../../common/mappers/campaign.mapper';
+import {SocialMediaEnum} from '../../../common/types/social-media.types';
+import {CurrencyCode} from "../../../common/types/finance.types";
 
 export type ProposalAccountLike = {
     accountId: Types.ObjectId;
@@ -36,6 +32,7 @@ export type ProposalOptionDocLike<TAccount extends ProposalAccountLike> = {
     campaignContent: CampaignContentItem[];
     publicCampaignPrice: number;
     privateCampaignPrice: number;
+    displayCurrency: CurrencyCode;
     save: () => Promise<unknown>;
 };
 
@@ -68,7 +65,8 @@ export type ProposalCampaignUpdateContext<
 
 @Injectable()
 export class ProposalCampaignUpdateService {
-    constructor(private readonly mediaService: MediaService) {}
+    constructor(private readonly mediaService: MediaService) {
+    }
 
     private readonly logger = new Logger('ProposalCampaignUpdateService');
 
@@ -81,7 +79,7 @@ export class ProposalCampaignUpdateService {
     >(
         campaignId: string,
         optionIndex: number,
-        data: UpdateCampaignDto,
+        data: UpdateCampaignDto | AdminUpdateCampaignDto,
         context: ProposalCampaignUpdateContext<TCampaignDoc, TOptionDoc, TAccount, TReadModel, TResult>,
     ): Promise<TResult> {
         const campaign = await context.findCampaign(campaignId);
@@ -123,7 +121,7 @@ export class ProposalCampaignUpdateService {
     >(
         campaign: TCampaignDoc,
         option: TOptionDoc,
-        data: UpdateCampaignDto,
+        data: UpdateCampaignDto | AdminUpdateCampaignDto,
         buildProposalAccountsBatch: (
             addedAccountsData: SelectInfluencerDto[],
         ) => Promise<{
@@ -136,6 +134,14 @@ export class ProposalCampaignUpdateService {
             campaign.campaignName = data.campaignName.trim();
             await campaign.save();
         }
+        if (data instanceof AdminUpdateCampaignDto) {
+            if (data.displayCurrency !== undefined) {
+                option.displayCurrency = data.displayCurrency;
+            }
+            if (!option.displayCurrency) {
+                option.displayCurrency = CurrencyCode.EUR;
+            }
+        }
 
         if (data.addedAccounts) {
             const existingAccountsMap = new Map<string, TAccount>();
@@ -145,7 +151,7 @@ export class ProposalCampaignUpdateService {
 
             const updatedAccounts: TAccount[] = [];
             const newAccountsDto: SelectInfluencerDto[] = [];
-            let newPrices = { publicCampaignPrice: 0, privateCampaignPrice: 0 };
+            let newPrices = {publicCampaignPrice: 0, privateCampaignPrice: 0};
 
             for (const accDto of data.addedAccounts) {
                 const existingAcc = existingAccountsMap.get(accDto.socialAccountId);
