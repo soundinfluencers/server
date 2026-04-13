@@ -295,6 +295,16 @@ export class CampaignsService {
         let createdCampaign: Campaign;
         let client: Client;
 
+        // for invoice
+        const campaignTotalFollowers = processedAccounts.reduce((sum, account) => {
+            const followers =
+                typeof account.followers === 'number' && Number.isFinite(account.followers)
+                    ? account.followers
+                    : 0;
+
+            return sum + followers;
+        }, 0);
+
         const campaignId: ObjId = new ObjId();
         try {
             createdCampaign = await this.campaignRepo.create({
@@ -319,6 +329,7 @@ export class CampaignsService {
             data.paymentDetails.userRole = Role.client;
             data.paymentDetails.campaignId = campaignId.toString();
             data.paymentDetails.campaignName = data.campaignName.trim();
+            data.paymentDetails.campaignFollowers = campaignTotalFollowers;
             data.paymentDetails.company = client.company;
 
             // create and send invoice to client

@@ -55,6 +55,7 @@ export const mapDtoToClientInvoice = (
         selectedPaymentMethod: data.selectedPaymentMethod,
         campaignId: new ObjId(data.campaignId),
         campaignName: data.campaignName,
+        campaignFollowers: data.campaignFollowers,
         ...(data.company ? {company: data.company} : {}),
         ...(data.vatNumber ? {vatNumber: data.vatNumber} : {}),
     } satisfies CreateClientInvoiceDbShape;
@@ -138,6 +139,7 @@ export const mapToDetailedInvoice = (data: ClientInvoiceDocument | InfluencerInv
 
     if (data.userRole === Role.client || data.userRole === Role.admin) {
         (baseDetailedInvoice as ClientDetailedInvoice).campaignName = (data as ClientInvoice).campaignName ?? "Unknown";
+        (baseDetailedInvoice as ClientDetailedInvoice).campaignFollowers = (data as ClientInvoice).campaignFollowers ?? null;
         (baseDetailedInvoice as ClientDetailedInvoice).poNumber = (data as ClientInvoice).poNumber;
     }
 

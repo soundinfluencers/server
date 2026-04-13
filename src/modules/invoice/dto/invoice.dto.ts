@@ -90,6 +90,10 @@ export class ClientDetailedInvoiceDto implements ClientDetailedInvoice {
     @IsNotEmpty()
     campaignName: string;
 
+    @ApiProperty({type: Number})
+    @IsNumber()
+    campaignFollowers: number | null;
+
     @ApiPropertyOptional({type: String})
     @IsOptional()
     @IsNotEmpty()

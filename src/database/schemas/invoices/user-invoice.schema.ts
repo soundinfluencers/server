@@ -26,6 +26,9 @@ export class ClientInvoice {
     @Prop({ type: String, required: false })
     campaignName: string;
 
+    @Prop({ type: Number, required: false })
+    campaignFollowers: number;
+
     @Prop({
         required: true,
         type: String,
