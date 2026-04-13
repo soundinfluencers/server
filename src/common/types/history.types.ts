@@ -7,6 +7,17 @@ export enum InfluencerHistoryActionType {
     invoice = "invoice",
 }
 
+// Read model for latest campaign actions page
+export interface ILatestCampaignAction {
+    influencerId: ObjId;
+    influencerName: string;
+    socialMedia: SocialMediaEnum;
+    username: string;
+    campaignName: string;
+    actionNumber: number;
+    date: Date;
+}
+
 // Read model for social account's actions history
 export interface ICampaignAction {
     type: InfluencerHistoryActionType.campaign;

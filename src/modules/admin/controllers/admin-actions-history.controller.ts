@@ -1,12 +1,12 @@
-import {BadRequestException, Controller, Get, Param, Patch, Query} from '@nestjs/common';
+import {BadRequestException, Controller, Get, Param, ParseIntPipe, Patch, Query} from '@nestjs/common';
 import {Roles} from "../../../common/decorators/roles.decorator";
 import {Role} from "../../../common/types/user.types";
 import {Auth} from "../../../common/decorators/auth.decorator";
 import {AdminActionsHistoryService, IAdminActionsHistory} from "../services/admin-actions-history.service";
-import {ApiOperation, ApiParam, ApiTags} from "@nestjs/swagger";
+import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
 import {OneHistoryResponseDto} from "../../influencer-actions-history/dto/get-history.dto";
-import {AdminInfActionsHistoryDto} from "../dto/histories/admin-inf-history.dto";
+import {AdminInfActionsHistoryDto, AdminInfActionsHistoryLatestDto} from "../dto/histories/admin-inf-history.dto";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
 
 @Auth()
@@ -15,6 +15,18 @@ import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.
 @Controller('admin/actions-history')
 export class AdminActionsHistoryController implements IAdminActionsHistory {
     constructor(private readonly adminService: AdminActionsHistoryService) {
+    }
+
+    @ApiOperation({summary: "Get 10 last actions history updates"})
+    @ApiResponseDto(AdminInfActionsHistoryLatestDto, {isArray: true})
+    @ApiQuery({
+        name: 'limit',
+        type: Number,
+        required: false
+    })
+    @Get('/latest')
+    getLatestUpdates(@Query('limit') limit?: number): Promise<AdminInfActionsHistoryLatestDto[]> {
+        return this.adminService.getLatestUpdates(limit ? Number(limit) : undefined);
     }
 
     @ApiResponseDto(OneHistoryResponseDto)

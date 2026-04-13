@@ -8,7 +8,12 @@ import {applyQueryOptions} from "../../utils/apply-query-options.util";
 import {SocialMediaType} from "../../../common/types/social-media.types";
 import {CampaignActionWithCampaignMeta} from "../../../modules/influencer-actions-history/types/influencer-history.types";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
-import {ICampaignAction, IInfluencerHistory, InfluencerHistoryActionType} from "../../../common/types/history.types";
+import {
+    ICampaignAction,
+    IInfluencerHistory,
+    ILatestCampaignAction,
+    InfluencerHistoryActionType
+} from "../../../common/types/history.types";
 import {ObjId} from "../../../common/types/base.types";
 
 // Interface for influencer history repository
@@ -48,6 +53,11 @@ interface IInfluencerHistoryRepository {
         influencerId: string,
         actionId: string,
     ): Promise<(ICampaignAction & { campaignIndex: number; actionIndex: number }) | null>
+
+    // Find latest n amount of updates
+    findLatestUpdates(
+        limit: number,
+    ): Promise<ILatestCampaignAction[]>;
 }
 
 @Injectable()
@@ -338,5 +348,76 @@ export class InfluencerHistoryRepository extends BaseRepository<InfluencerAction
         ]);
 
         return result ?? null;
+    }
+
+    async findLatestUpdates(limit: number): Promise<ILatestCampaignAction[]> {
+        const safeLimit = Math.max(1, limit);
+
+        const result = await this.influencerHistoryModel.aggregate<ILatestCampaignAction>([
+            {
+                $unwind: {
+                    path: '$campaigns',
+                    preserveNullAndEmptyArrays: false,
+                },
+            },
+
+            {
+                $unwind: {
+                    path: '$campaigns.actions',
+                    preserveNullAndEmptyArrays: false,
+                },
+            },
+
+            {
+                $sort: {
+                    'campaigns.actions.date': -1,
+                    'campaigns.actions._id': -1,
+                },
+            },
+
+            {
+                $limit: safeLimit,
+            },
+
+            {
+                $lookup: {
+                    from: 'influencers',
+                    localField: 'influencerId',
+                    foreignField: '_id',
+                    as: 'influencer',
+                },
+            },
+            {
+                $unwind: {
+                    path: '$influencer',
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+
+            {
+                $project: {
+                    _id: 0,
+                    influencerId: '$influencerId',
+                    influencerName: {
+                        $trim: {
+                            input: {
+                                $concat: [
+                                    { $ifNull: ['$influencer.firstName', ''] },
+                                    ' ',
+                                    { $ifNull: ['$influencer.lastName', ''] },
+                                ],
+                            },
+                        },
+                    },
+                    socialMedia: '$campaigns.actions.socialMedia',
+                    username: '$campaigns.actions.networkUsername',
+                    campaignName: '$campaigns.campaignName',
+                    actionNumber: '$campaigns.actions.actionNumber',
+                    date: '$campaigns.actions.date',
+                },
+            },
+        ]);
+
+        return result;
     }
 }

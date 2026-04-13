@@ -2,11 +2,12 @@ import {Injectable, InternalServerErrorException, Logger, NotFoundException} fro
 import {InfluencerRepository} from "../../../database/repositories/users/influencer.repository";
 import {InfluencerHistoryRepository} from "../../../database/repositories/histories/influencer-history.repository";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
-import {AdminInfActionsHistoryDto} from "../dto/histories/admin-inf-history.dto";
-import {mapInfHistoryToAdminHistoryDto} from "../../../common/mappers/history.mapper";
+import {AdminInfActionsHistoryDto, AdminInfActionsHistoryLatestDto} from "../dto/histories/admin-inf-history.dto";
+import {mapInfHistoryToAdminHistoryDto, mapToActionsHistoryLatestDto} from "../../../common/mappers/history.mapper";
 import {ShortSocialAccountInfo} from "../../../common/types/influencer/influencer.types";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {CampaignRepository} from "../../../database/repositories/campaigns/campaign.repository";
+import {ILatestCampaignAction} from "../../../common/types/history.types";
 
 // Interface for AdminActionsHistoryService
 export interface IAdminActionsHistory {
@@ -25,6 +26,9 @@ export interface IAdminActionsHistory {
 
     // Check if social account still in campaign
     checkIfAccountStillInCampaign(campaignId: string, accountId: string): Promise<boolean>;
+
+    // Get 10 last actions history updates
+    getLatestUpdates(limit?: number): Promise<AdminInfActionsHistoryLatestDto[]>;
 }
 
 @Injectable()
@@ -37,6 +41,12 @@ export class AdminActionsHistoryService implements IAdminActionsHistory {
     }
 
     private readonly logger = new Logger('AdminActionsHistoryService');
+
+    async getLatestUpdates(limit: number = 10): Promise<AdminInfActionsHistoryLatestDto[]> {
+        const latestUpdates: ILatestCampaignAction[] = await this.historyRepo.findLatestUpdates(limit);
+        if (!latestUpdates || latestUpdates.length === 0) return [];
+        return latestUpdates.map(i => mapToActionsHistoryLatestDto(i));
+    }
 
     async getInfluencerHistory(
         influencerId: string,

@@ -1,7 +1,13 @@
 import {SocialMediaEnum} from "../types/social-media.types";
-import {ICampaignAction, IInfluencerHistory, IInvoiceAction, InfluencerHistoryActionType} from "../types/history.types";
 import {
-    AdminInfActionsHistoryDto,
+    ICampaignAction,
+    IInfluencerHistory,
+    IInvoiceAction,
+    ILatestCampaignAction,
+    InfluencerHistoryActionType
+} from "../types/history.types";
+import {
+    AdminInfActionsHistoryDto, AdminInfActionsHistoryLatestDto,
     AdminInfCampaignActionDto,
     AdminInfInvoiceActionDto
 } from "../../modules/admin/dto/histories/admin-inf-history.dto";
@@ -82,4 +88,18 @@ export const mapInfHistoryToAdminHistoryDto = (
         accounts,
         currencyNote,
     };
+};
+
+// Map ILatestCampaignAction to AdminInfActionsHistoryLatestDto
+export const mapToActionsHistoryLatestDto = (action: ILatestCampaignAction): AdminInfActionsHistoryLatestDto => {
+    if (!action.influencerId) return null;
+
+    return {
+        influencerId: action.influencerId.toString(),
+        influencerName: action.influencerName,
+        socialMedia: action.socialMedia,
+        username: action.username,
+        campaignName: action.campaignName,
+        statusLabel: HistoryCampaignActionStatusLabel[action.actionNumber as HistoryCampaignActionStatus],
+    }
 };

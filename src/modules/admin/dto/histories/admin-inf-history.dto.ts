@@ -105,3 +105,24 @@ export class AdminInfActionsHistoryDto {
     @ApiPropertyOptional({ type: String })
     currencyNote?: string;
 }
+
+// DTO with latest campaign actions updates for admin panel
+export class AdminInfActionsHistoryLatestDto {
+    @ApiProperty({ type: String })
+    influencerId: string;
+
+    @ApiProperty({ type: String })
+    influencerName: string;
+
+    @ApiProperty({ type: String, enum: SocialMediaEnum })
+    socialMedia: SocialMediaEnum;
+
+    @ApiProperty({ type: String })
+    username: string;
+
+    @ApiProperty({ type: String })
+    campaignName: string;
+
+    @ApiProperty({ type: String })
+    statusLabel: string; // for UI. use HistoryCampaignActionStatusLabel record
+}
