@@ -90,6 +90,56 @@ export class AdminCampaignsController {
         return this.adminService.getCampaignsList(query);
     }
 
+    @ApiOperation({summary: "Close campaign"})
+    @ApiResponseDto()
+    @ApiParam({
+        name: "campaignId",
+        type: String,
+        required: true
+    })
+    @Post(":campaignId/close")
+    closeCampaign(@Param(
+        "campaignId",
+        new ParseObjectIdPipe()
+    ) campaignId: string): Promise<void> {
+        return this.adminService.closeCampaign(campaignId);
+    }
+
+    @ApiOperation({summary: "Reopen campaign (returns campaign from completed campaigns collection to ongoing collection)"})
+    @ApiResponseDto()
+    @ApiParam({
+        name: "campaignId",
+        type: String,
+        required: true
+    })
+    @Post(":campaignId/reopen")
+    reopenCampaign(@Param(
+        "campaignId",
+        new ParseObjectIdPipe()
+    ) campaignId: string): Promise<void> {
+        return this.adminService.reopenCampaign(campaignId);
+    }
+
+    @ApiOperation({summary: "Import xlsx file with new proposal campaign"})
+    @ApiResponseDto()
+    @ApiConsumes("multipart/form-data")
+    @ApiBody({
+        schema: {
+            type: "object",
+            properties: {
+                file: {
+                    type: "string",
+                    format: "binary",
+                },
+            },
+            required: ["file"],
+        },
+    })
+    @UseInterceptors(FileInterceptor("file"))
+    @Post('/xlsx')
+    importXlsx(@UploadedFile() file: Express.Multer.File): Promise<void> {
+        return this.adminService.importXlsx(file);
+    }
 
     @ApiOperation({summary: "Update campaign's meta field."})
     @ApiResponseDto(UpdatedAdminMetaCampaignDto)
@@ -117,6 +167,41 @@ export class AdminCampaignsController {
         ) campaignId: string,
     ): Promise<UpdatedAdminMetaCampaignDto> {
         return this.adminService.updateMeta(data, status, campaignId);
+    }
+
+    @ApiOperation({summary: "Updates campaign"})
+    @ApiResponseDto(AdminCampaignDetailsDto)
+    @ApiParam({
+        name: "status",
+        type: String,
+        required: true,
+        enum: AdminCampaignsListStatusEnum,
+    })
+    @ApiParam({
+        name: 'campaignId',
+        type: String,
+        required: true,
+    })
+    @ApiQuery({
+        name: 'optionIndex',
+        required: false,
+        type: Number,
+        description: 'Option index for proposal campaigns (0-based)',
+    })
+    @Patch(':status/:campaignId')
+    updateCampaign(
+        @Param(
+            'status',
+            new ParseEnumPipe(AdminCampaignsListStatusEnum)
+        ) status: AdminCampaignsListStatusEnum,
+        @Param(
+            'campaignId',
+            new ParseObjectIdPipe()
+        ) campaignId: string,
+        @Body() data: AdminUpdateCampaignDto,
+        @Query('optionIndex') optionIndex?: number,
+    ): Promise<AdminCampaignDetailsDto> {
+        return this.adminService.updateCampaign(status, campaignId, data, optionIndex);
     }
 
     @ApiOperation({summary: "Deletes campaign"})
@@ -180,93 +265,6 @@ export class AdminCampaignsController {
         if (status === AdminCampaignsListStatusEnum.proposal && optionIndex === undefined) {
             throw new BadRequestException("For fetching proposal campaign, you must provide optionIndex");
         }
-
         return this.adminService.getDetailedCampaign(status, campaignId, optionIndex);
-    }
-
-    @ApiOperation({summary: "Updates campaign"})
-    @ApiResponseDto(AdminCampaignDetailsDto)
-    @ApiParam({
-        name: "status",
-        type: String,
-        required: true,
-        enum: AdminCampaignsListStatusEnum,
-    })
-    @ApiParam({
-        name: 'campaignId',
-        type: String,
-        required: true,
-    })
-    @ApiQuery({
-        name: 'optionIndex',
-        required: false,
-        type: Number,
-        description: 'Option index for proposal campaigns (0-based)',
-    })
-    @Patch(':status/:campaignId')
-    updateCampaign(
-        @Param(
-            'status',
-            new ParseEnumPipe(AdminCampaignsListStatusEnum)
-        ) status: AdminCampaignsListStatusEnum,
-        @Param(
-            'campaignId',
-            new ParseObjectIdPipe()
-        ) campaignId: string,
-        @Body() data: AdminUpdateCampaignDto,
-        @Query('optionIndex') optionIndex?: number,
-    ): Promise<AdminCampaignDetailsDto> {
-        return this.adminService.updateCampaign(status, campaignId, data, optionIndex);
-    }
-
-    @ApiOperation({summary: "Close campaign"})
-    @ApiResponseDto()
-    @ApiParam({
-        name: "campaignId",
-        type: String,
-        required: true
-    })
-    @Post(":campaignId/close")
-    closeCampaign(@Param(
-        "campaignId",
-        new ParseObjectIdPipe()
-    ) campaignId: string): Promise<void> {
-        return this.adminService.closeCampaign(campaignId);
-    }
-
-    @ApiOperation({summary: "Reopen campaign (returns campaign from completed campaigns collection to ongoing collection)"})
-    @ApiResponseDto()
-    @ApiParam({
-        name: "campaignId",
-        type: String,
-        required: true
-    })
-    @Post(":campaignId/reopen")
-    reopenCampaign(@Param(
-        "campaignId",
-        new ParseObjectIdPipe()
-    ) campaignId: string): Promise<void> {
-        return this.adminService.reopenCampaign(campaignId);
-    }
-
-    @ApiOperation({summary: "Import xlsx file with new proposal campaign"})
-    @ApiResponseDto()
-    @ApiConsumes("multipart/form-data")
-    @ApiBody({
-        schema: {
-            type: "object",
-            properties: {
-                file: {
-                    type: "string",
-                    format: "binary",
-                },
-            },
-            required: ["file"],
-        },
-    })
-    @UseInterceptors(FileInterceptor("file"))
-    @Post('/xlsx')
-    importXlsx(@UploadedFile() file: Express.Multer.File): Promise<void> {
-        return this.adminService.importXlsx(file);
     }
 }

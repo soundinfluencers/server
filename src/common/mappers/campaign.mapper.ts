@@ -486,12 +486,12 @@ export const mapToAdminCampaignDetailsDto = (campaign: IAdminCampaignDetails): A
             socialAccountId: i.socialAccountId.toString(),
             influencerId: i.influencerId.toString(),
             selectedContent: {
-                campaignContentItemId: i.selectedContent.campaignContentItemId.toString(),
-                descriptionId: i.selectedContent.descriptionId.toString()
+                campaignContentItemId: i.selectedContent?.campaignContentItemId?.toString(),
+                descriptionId: i.selectedContent?.descriptionId?.toString()
             },
             selectedContentItem: {
                 ...i.selectedContentItem,
-                _id: i.selectedContentItem._id.toString(),
+                _id: i.selectedContentItem?._id?.toString(),
             },
             ...(i.cpm !== undefined ? { cpm: i.cpm } : {})
         })),

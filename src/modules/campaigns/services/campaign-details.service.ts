@@ -1,5 +1,4 @@
 import {Injectable, NotFoundException} from "@nestjs/common";
-import {ClientRepository} from "../../../database/repositories/users/client.repository";
 import {InfluencerRepository} from "../../../database/repositories/users/influencer.repository";
 import {ICampaignDetails} from "../../../common/types/client/campaign.types";
 
@@ -11,7 +10,6 @@ export type CampaignDetailsContext<TCampaign, TResult> = {
 @Injectable()
 export class CampaignDetailsService {
     constructor(
-        private readonly clientRepo: ClientRepository,
         private readonly influencerRepo: InfluencerRepository,
     ) {}
 
