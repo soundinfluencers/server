@@ -81,7 +81,6 @@ export class DropboxMediaStrategy implements MediaStrategy {
                 const videos = await this.dropbox.listVideosFromSharedFolder(contentItem.mainLink, {
                     extensions: ['.mp4', '.mov', '.m4v', '.webm'],
                     maxItems: 500,
-                    recursive: false,
                 });
 
                 items = videos.map((v) => ({

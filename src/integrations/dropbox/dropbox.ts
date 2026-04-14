@@ -150,10 +150,73 @@ class DropboxService {
         return shareLink.result.url.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
     }
 
+    private async listAllEntriesFromSharedLink(params: {
+        folderUrl: string;
+        path?: string;
+    }): Promise<any[]> {
+        const entries: any[] = [];
+
+        const normalizedPath =
+            !params.path || params.path === '/'
+                ? ''
+                : params.path.startsWith('/')
+                    ? params.path
+                    : `/${params.path}`;
+
+        let res = await this.dbx.filesListFolder({
+            path: normalizedPath,
+            shared_link: { url: params.folderUrl },
+            recursive: false, // ВАЖНО: для shared link только false
+            include_media_info: false,
+            include_deleted: false,
+        });
+
+        entries.push(...res.result.entries);
+
+        while (res.result.has_more) {
+            res = await this.dbx.filesListFolderContinue({
+                cursor: res.result.cursor,
+            });
+
+            entries.push(...res.result.entries);
+        }
+
+        return entries;
+    }
+
+    private extractVideosFromEntries(
+        entries: any[],
+        extensions: string[],
+        maxItems: number,
+    ): DropboxSharedFolderVideo[] {
+        const videos: DropboxSharedFolderVideo[] = [];
+
+        for (const e of entries) {
+            if (videos.length >= maxItems) break;
+            if (e['.tag'] !== 'file') continue;
+
+            const name = (e.name as string) ?? '';
+            const lower = name.toLowerCase();
+
+            if (!extensions.some((ext) => lower.endsWith(ext))) continue;
+
+            const pathLower = e.path_lower as string | undefined;
+            if (!pathLower) continue;
+
+            videos.push({
+                id: e.id,
+                name,
+                size: e.size,
+                pathLower,
+            });
+        }
+
+        return videos;
+    }
+
     async listVideosFromSharedFolder(
         folderUrl: string,
         opts?: {
-            recursive?: boolean;
             extensions?: string[];
             maxItems?: number;
         },
@@ -161,46 +224,57 @@ class DropboxService {
         const extensions = (opts?.extensions ?? ['.mp4', '.mov', '.m4v', '.webm']).map((x) =>
             x.toLowerCase(),
         );
+
         const maxItems = opts?.maxItems ?? 500;
-        const recursive = opts?.recursive ?? false;
 
-        const videos: DropboxSharedFolderVideo[] = [];
-
-        let res = await this.dbx.filesListFolder({
+        const rootEntries = await this.listAllEntriesFromSharedLink({
+            folderUrl,
             path: '',
-            shared_link: { url: folderUrl },
-            recursive,
-            include_media_info: false,
-            include_deleted: false,
         });
 
-        while (true) {
-            for (const e of res.result.entries) {
-                if (videos.length >= maxItems) return videos;
-                if ((e as any)['.tag'] !== 'file') continue;
-
-                const anyE = e as any;
-                const name = (anyE.name as string) ?? '';
-                const lower = name.toLowerCase();
-
-                if (!extensions.some((ext) => lower.endsWith(ext))) continue;
-
-                const pathLower = anyE.path_lower as string | undefined;
-                if (!pathLower) continue;
-
-                videos.push({
-                    id: anyE.id,
-                    name,
-                    size: anyE.size,
-                    pathLower,
-                });
-            }
-
-            if (!res.result.has_more) break;
-            res = await this.dbx.filesListFolderContinue({ cursor: res.result.cursor });
+        const rootVideos = this.extractVideosFromEntries(rootEntries, extensions, maxItems);
+        if (rootVideos.length > 0) {
+            return rootVideos;
         }
 
-        return videos;
+        const queue: string[] = [];
+
+        for (const entry of rootEntries) {
+            if (entry['.tag'] === 'folder' && entry.name) {
+                queue.push(`/${entry.name}`);
+            }
+        }
+
+        while (queue.length > 0) {
+            const currentPath = queue.shift();
+            if (!currentPath) continue;
+
+            let entries: any[] = [];
+
+            try {
+                entries = await this.listAllEntriesFromSharedLink({
+                    folderUrl,
+                    path: currentPath,
+                });
+            } catch (error) {
+                console.error(`DROPBOX failed to read folder "${currentPath}"`, error);
+                continue;
+            }
+
+            const videos = this.extractVideosFromEntries(entries, extensions, maxItems);
+
+            if (videos.length > 0) {
+                return videos;
+            }
+
+            for (const entry of entries) {
+                if (entry['.tag'] !== 'folder' || !entry.name) continue;
+
+                queue.push(`${currentPath}/${entry.name}`);
+            }
+        }
+
+        return [];
     }
 
     async getPlayableTempLinkByPath(pathLower: string): Promise<string> {
@@ -229,8 +303,6 @@ class DropboxService {
                 r?.result?.fileBinary ??
                 r?.fileBinary ??
                 r?.result;
-
-            console.log(r, 'res')
 
             if (!bytes) {
                 console.warn('Dropbox thumbnail bytes missing for', pathLower);

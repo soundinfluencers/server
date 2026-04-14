@@ -34,6 +34,8 @@ export class MediaService {
             }),
         );
 
+        // console.log(`MEDIA SERVICE - out: ${JSON.stringify(out)}`)
+
         return out;
     }
 }
