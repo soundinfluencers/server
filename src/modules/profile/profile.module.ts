@@ -10,6 +10,7 @@ import {UpdateSocialAccountService} from "./services/update-social-account.servi
 import {UpdateInfluencerService} from "./services/update-influencer.service";
 import {CreateSocialAccountService} from "./services/create-social-account.service";
 
+@Global()
 @Module({
     imports: [
         MongooseModule.forFeature([

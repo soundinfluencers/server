@@ -15,6 +15,7 @@ import {
     InfluencerHistoryActionType
 } from "../../../common/types/history.types";
 import {ObjId} from "../../../common/types/base.types";
+import {SearchedSocialAccountDto} from "../../../modules/admin/dto/influencers/admin-influencers.dto";
 
 // Interface for influencer history repository
 interface IInfluencerHistoryRepository {

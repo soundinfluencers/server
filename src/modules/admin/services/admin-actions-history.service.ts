@@ -8,6 +8,10 @@ import {ShortSocialAccountInfo} from "../../../common/types/influencer/influence
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {CampaignRepository} from "../../../database/repositories/campaigns/campaign.repository";
 import {ILatestCampaignAction} from "../../../common/types/history.types";
+import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
+import {AdminSocialAccountSearchResponseDto, SearchedSocialAccountDto} from "../dto/influencers/admin-influencers.dto";
+import {ProfileService} from "../../profile/services/profile.service";
+import {FoundAccountDto} from "../../profile/dto/influencer/get-profile.dto";
 
 // Interface for AdminActionsHistoryService
 export interface IAdminActionsHistory {
@@ -29,6 +33,9 @@ export interface IAdminActionsHistory {
 
     // Get 10 last actions history updates
     getLatestUpdates(limit?: number): Promise<AdminInfActionsHistoryLatestDto[]>;
+
+    // Search by social account username
+    search(query: SearchQueryDto): Promise<AdminSocialAccountSearchResponseDto>;
 }
 
 @Injectable()
@@ -37,6 +44,7 @@ export class AdminActionsHistoryService implements IAdminActionsHistory {
         private readonly influencerRepo: InfluencerRepository,
         private readonly historyRepo: InfluencerHistoryRepository,
         private readonly campaignRepo: CampaignRepository,
+        private readonly profileService: ProfileService,
     ) {
     }
 
@@ -154,5 +162,33 @@ export class AdminActionsHistoryService implements IAdminActionsHistory {
         }
 
         return exists;
+    }
+
+    // Search by social account's username
+    async search(query: SearchQueryDto): Promise<AdminSocialAccountSearchResponseDto> {
+        const input = query.search?.trim();
+        const limit = query.limit ?? 10;
+
+        const searchResult: FoundAccountDto[] = await this.profileService.searchSocialAccounts({
+            query: input,
+            socialMedias: Object.values(SocialMediaEnum),
+            limit: limit
+        })
+
+        if (!searchResult || searchResult.length === 0) return null;
+
+        return {
+            items: searchResult.map((i: FoundAccountDto): SearchedSocialAccountDto => ({
+                influencerId: i.influencerId,
+                accountId: i.accountId,
+                socialMedia: i.socialMedia,
+                username: i.username,
+                ...i.logoUrl ? {logoUrl: i.logoUrl} : {}
+            })),
+            total: searchResult.length,
+            page: 1,
+            totalPages: 1,
+            limit: limit
+        } satisfies AdminSocialAccountSearchResponseDto;
     }
 }

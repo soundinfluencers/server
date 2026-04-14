@@ -282,4 +282,6 @@ export class InfluencerRepository extends BaseRepository<Influencer> implements 
             totalPages: Math.ceil(total / limit),
         };
     }
+
+    
 }

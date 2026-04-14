@@ -26,7 +26,7 @@ export class AdminSocialAccountForListDto {
     @ApiProperty({ type: String })
     accountId: string; // social account _id
 
-    @ApiProperty({ type: String })
+    @ApiProperty({ type: String }) 
     username: string;
 
     @ApiProperty({ type: String, enum: SocialMediaEnum })
@@ -67,4 +67,27 @@ export class AdminSocialAccountForListDto {
 export class AdminInfluencersListDto extends PaginatedListResponseDto<AdminSocialAccountForListDto>{
     @ApiProperty({ type: AdminSocialAccountForListDto, isArray: true })
     items: AdminSocialAccountForListDto[];
+}
+
+export class SearchedSocialAccountDto {
+    @ApiProperty({ type: String })
+    influencerId: string;
+
+    @ApiProperty({ type: String })
+    accountId: string;
+
+    @ApiProperty({ type: String, enum: SocialMediaEnum })
+    socialMedia: SocialMediaEnum;
+
+    @ApiProperty({ type: String })
+    username: string;
+
+    @ApiPropertyOptional({ type: String })
+    logoUrl?: string;
+}
+
+// DTO response for searching social account
+export class AdminSocialAccountSearchResponseDto extends PaginatedListResponseDto<SearchedSocialAccountDto>{
+    @ApiProperty({ type: SearchedSocialAccountDto, isArray: true })
+    items: SearchedSocialAccountDto[];
 }

@@ -8,6 +8,8 @@ import {ApiResponseDto} from "../../../common/decorators/api/response/api-respon
 import {OneHistoryResponseDto} from "../../influencer-actions-history/dto/get-history.dto";
 import {AdminInfActionsHistoryDto, AdminInfActionsHistoryLatestDto} from "../dto/histories/admin-inf-history.dto";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
+import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
+import {AdminSocialAccountSearchResponseDto} from "../dto/influencers/admin-influencers.dto";
 
 @Auth()
 @Roles(Role.admin)
@@ -27,6 +29,24 @@ export class AdminActionsHistoryController implements IAdminActionsHistory {
     @Get('/latest')
     getLatestUpdates(@Query('limit') limit?: number): Promise<AdminInfActionsHistoryLatestDto[]> {
         return this.adminService.getLatestUpdates(limit ? Number(limit) : undefined);
+    }
+
+    @ApiOperation({summary: "Search influencer's actions history by social account username"})
+    @ApiResponseDto(AdminSocialAccountSearchResponseDto)
+    @ApiQuery({
+        name: 'search',
+        type: String,
+        required: false
+    })
+    @ApiQuery({
+        name: 'limit',
+        type: Number,
+        required: false
+    })
+    @Get('search')
+    search(@Query() query: SearchQueryDto): Promise<AdminSocialAccountSearchResponseDto> {
+        if (typeof query.search !== 'string' || query.search?.trim() === '') return null;
+        return this.adminService.search(query);
     }
 
     @ApiResponseDto(OneHistoryResponseDto)
