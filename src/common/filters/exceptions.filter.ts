@@ -6,11 +6,15 @@ import {
     HttpStatus,
     Logger,
 } from '@nestjs/common';
-import { Response } from 'express';
+import {Response} from 'express';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
     private readonly logger = new Logger(AllExceptionsFilter.name);
+
+    private readonly bannedLogs = [
+        'invalid refresh token',
+    ]
 
     catch(exception: unknown, host: ArgumentsHost) {
         const ctx = host.switchToHttp();
@@ -40,7 +44,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
         }
 
         if (exception instanceof Error) {
-            this.logger.error(exception.message, exception.stack);
+            if (!this.bannedLogs.includes(exception.message?.toLowerCase())) {
+                this.logger.error(exception.message, exception.stack);
+            }
         } else {
             this.logger.error(exception);
         }
