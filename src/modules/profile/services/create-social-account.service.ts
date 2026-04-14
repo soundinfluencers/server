@@ -5,7 +5,7 @@ import {InfluencerRepository} from "../../../database/repositories/users/influen
 import {ExchangeRateService} from "../../../integrations/exchange-rate/exchange-rate.service";
 // import {EmailService} from "../../../integrations/email/email.service";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
-import {CreateSocialAccountDto, MusicGenreDto} from "../../auth/dto/create-influencer.dto";
+import {AdminCreateSocialAccountDto, CreateSocialAccountDto, MusicGenreDto} from "../../auth/dto/create-influencer.dto";
 import {CurrencyCode, getAvailableCurrenciesLabel} from "../../../common/types/finance.types";
 import {Types} from "mongoose";
 import {AccountVerifiedStatus} from "../../../common/types/user.types";
@@ -166,13 +166,21 @@ export class CreateSocialAccountService implements ICreateSocialAccountService {
 
     // Build account object
     private buildAccount(params: {
-        payload: CreateSocialAccountDto;
+        payload: CreateSocialAccountDto | AdminCreateSocialAccountDto;
         normalized: any;
         price: number;
         publicPrice: number;
         isForAdmin: boolean;
     }): SocialAccount {
         const { payload, normalized, price, publicPrice, isForAdmin } = params;
+
+        const engagementRate: number | null = isForAdmin
+            ? (payload as AdminCreateSocialAccountDto).engagementRate ?? null
+            : null;
+
+        const averageViews: number | null = isForAdmin
+            ? (payload as AdminCreateSocialAccountDto).averageViews ?? null
+            : null;
 
         return {
             _id: new Types.ObjectId(),
@@ -195,8 +203,8 @@ export class CreateSocialAccountService implements ICreateSocialAccountService {
             countries: normalized.countries,
             categories: payload.categories,
 
-            engagementRate: null,
-            averageViews: null,
+            engagementRate: engagementRate,
+            averageViews: averageViews,
 
             isHidden: false,
             isDeleted: false,

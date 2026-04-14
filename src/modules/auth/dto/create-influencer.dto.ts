@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 import { IsString, IsNumber, IsOptional, IsEnum, IsArray, ValidateNested, Min, Max, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 import { InfluencerProfileCategory } from '../../../common/types/influencer/influencer.types';
@@ -80,6 +80,20 @@ export class CreateSocialAccountDto {
     @IsString({ each: true })
     @IsOptional()
     categories?: string[];
+}
+
+export class AdminCreateSocialAccountDto extends CreateSocialAccountDto {
+    @ApiPropertyOptional({type: Number})
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    engagementRate?: number;
+
+    @ApiPropertyOptional({type: Number})
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    averageViews?: number;
 }
 
 export class CreateInfluencerDto {
