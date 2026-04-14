@@ -270,7 +270,7 @@ export class ProfileController {
     }
 
     @Auth()
-    @Roles(Role.influencer, Role.admin)
+    @Roles(Role.influencer)
     @ApiOperation({summary: "Gets detailed influencer's social account"})
     @ApiResponseDto(SocialAccountDetailsDto)
     @ApiParam({
@@ -301,7 +301,7 @@ export class ProfileController {
     }
 
     @Auth()
-    @Roles(Role.influencer, Role.admin)
+    @Roles(Role.influencer)
     @ApiOperation({summary: "Deletes influencer's social account"})
     @ApiResponseDto()
     @Delete('social-account')
@@ -312,7 +312,7 @@ export class ProfileController {
     }
 
     @Auth()
-    @Roles(Role.influencer, Role.admin)
+    @Roles(Role.influencer)
     @ApiOperation({summary: "Adds new social account and returns updated influencer"})
     @ApiResponseDto(InfluencerAccountDetailsDto, {successStatusCode: 201})
     @Post('social-account')
@@ -352,7 +352,7 @@ export class ProfileController {
     }
 
     @Auth()
-    @Roles(Role.client)
+    @Roles(Role.client, Role.admin)
     @ApiResponseDto(GetFilterOptionsDataDto)
     @ApiOperation({summary: "Gets filters for getting social accounts"})
     @Get('filters')
@@ -361,7 +361,7 @@ export class ProfileController {
     }
 
     @Auth()
-    @Roles(Role.client)
+    @Roles(Role.client, Role.admin)
     @ApiOperation({summary: "Gets filtered social accounts"})
     @ApiResponseDto(FoundAccountsDto, {successStatusCode: 200})
     @ApiQuery({
