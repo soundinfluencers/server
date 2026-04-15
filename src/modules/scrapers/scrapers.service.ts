@@ -252,7 +252,7 @@ export class ScrapersService {
             throw new ConflictException(`Post link is missing for account ${accountPostDetails.username} in campaign ${data.campaignId}`);
         }
 
-        this.scrapersGateway.startAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
+        // this.scrapersGateway.startAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
 
         const resultMap = await this.scrapePostDetailsBatch(
             [
@@ -272,7 +272,7 @@ export class ScrapersService {
 
         // if everything was perfect, but for some reason scraper didn't do his work correctly
         if (!scraped?.success) {
-            this.scrapersGateway.finishAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
+            // this.scrapersGateway.finishAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
             throw new BadGatewayException('Failed to scrape post details from external service');
         }
 
@@ -289,7 +289,7 @@ export class ScrapersService {
             },
         );
 
-        this.scrapersGateway.finishAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
+        // this.scrapersGateway.finishAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
 
         const durationSec = ((Date.now() - startTime) / 1000).toFixed(2);
         this.logger.log(`[SCRAPER] updatePostDetailsInCampaign executed in ${durationSec}s`);
@@ -423,10 +423,10 @@ export class ScrapersService {
 
             return {message: `Processed ${accounts.length} accounts in batches of ${BATCH_SIZE}, retried ${failed.length}`};
         } catch (e) {
-            this.scrapersGateway.notificationFinishedRefreshingPostDetails(data.socketId, {
-                campaignName: data.campaignName,
-                statusCode: 500,
-            });
+            // this.scrapersGateway.notificationFinishedRefreshingPostDetails(data.socketId, {
+            //     campaignName: data.campaignName,
+            //     statusCode: 500,
+            // });
             throw e;
         }
     }

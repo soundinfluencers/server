@@ -25,16 +25,16 @@ export class ReqUpdatePostDetailsDto {
     })
     accountId: string;
 
-    @IsString({
-        message: 'Invalid socket id',
-    })
-    @IsNotEmpty({
-        message: 'Socket id cannot be empty',
-    })
-    @ApiProperty({
-        example: '234g1h2b'
-    })
-    socketId: string;
+    // @IsString({
+    //     message: 'Invalid socket id',
+    // })
+    // @IsNotEmpty({
+    //     message: 'Socket id cannot be empty',
+    // })
+    // @ApiProperty({
+    //     example: '234g1h2b'
+    // })
+    // socketId: string;
 
     refreshInitiatorId: string;
 }
