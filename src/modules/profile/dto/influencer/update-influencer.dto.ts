@@ -65,6 +65,16 @@ export class InfluencerUpdatedPersonalDto {
     @IsOptional()
     @IsString()
     phone: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    internalNote?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    currencyNote?: string;
 }
 
 // DTO for adding new social accounts

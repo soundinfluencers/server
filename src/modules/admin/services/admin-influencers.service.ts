@@ -118,7 +118,9 @@ export class AdminInfluencersService implements IAdminInfluencersService {
                 lastName: updated.lastName,
                 logoUrl: updated.logoUrl,
                 email: updated.email,
-                phone: updated.phone
+                phone: updated.phone,
+                internalNote: updated?.internalNote,
+                currencyNote: updated?.currencyNote,
             } satisfies InfluencerUpdatedPersonalDto;
         }
     }

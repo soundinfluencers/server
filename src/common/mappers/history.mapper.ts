@@ -61,7 +61,7 @@ function mapInvoiceActionToDto(
         amount: action.amount,
         paymentMethod: action.paymentMethod,
         currentBalance: action.currentBalance,
-        date: formatDateTime(action.date),
+        dateAndTime: formatDateTime(action.date),
     };
 }
 

@@ -58,4 +58,9 @@ export class AdminUpdateInfluencerPersonalDto extends UpdateInfluencerPersonalDt
     @Type(() => Number)
     @IsNumber()
     balance?: number;
+
+    @ApiPropertyOptional({type: String, description: "Internal note"})
+    @IsOptional()
+    @IsString()
+    currencyNote?: string;
 }

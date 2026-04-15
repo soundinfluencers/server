@@ -64,7 +64,7 @@ export class AdminInfInvoiceActionDto {
     currentBalance: number;
 
     @ApiProperty({ type: String, example: "22.10.2026 07:21" })
-    date: string; // example: 22.10.2026 07:21
+    dateAndTime: string; // example: 22.10.2026 07:21
 }
 
 // DTO with short social account info

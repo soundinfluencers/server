@@ -6,14 +6,12 @@ import {
     Patch,
     Post,
     Query,
-    Req,
-    UnauthorizedException,
     UploadedFile,
     UseInterceptors
 } from "@nestjs/common";
-import {AdminInfluencersService, IAdminInfluencersService} from "../services/admin-influencers.service";
+import {AdminInfluencersService} from "../services/admin-influencers.service";
 import {Auth} from "../../../common/decorators/auth.decorator";
-import {AuthenticatedRequest, Role} from "../../../common/types/user.types";
+import {Role} from "../../../common/types/user.types";
 import {Roles} from "../../../common/decorators/roles.decorator";
 import {ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
@@ -23,14 +21,11 @@ import {AdminInfluencersQueryDto} from "../dto/influencers/admin-influencers-que
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
 import {FileInterceptor} from "@nestjs/platform-express";
 import {
-    GetSocialAccountDetailsParamsDto,
     InfluencerAccountDetailsDto,
     SocialAccountDetailsDto
 } from "../../profile/dto/influencer/get-profile.dto";
 import {
-    AddSocialAccountDto,
     InfluencerUpdatedPersonalDto,
-    UpdateSocialAccountDto
 } from "../../profile/dto/influencer/update-influencer.dto";
 import {
     AdminUpdateInfluencerPersonalDto,
