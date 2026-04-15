@@ -1,5 +1,5 @@
 import {
-    BadRequestException,
+    BadRequestException, ConflictException,
     HttpException,
     Injectable,
     InternalServerErrorException,
@@ -54,7 +54,12 @@ import {InfluencerRepository} from "../../../database/repositories/users/influen
 import {
     ProposalCampaignOptionRepository
 } from "../../../database/repositories/campaigns/proposal-campaign-option.repository";
-import {InfluencerPromoClosedStatusEnum} from "../../../common/types/influencer/promo.types";
+import {
+    InfluencerConfirmationStatusEnum,
+    InfluencerPromoClosedStatusEnum
+} from "../../../common/types/influencer/promo.types";
+import {InvoiceStatusEnum} from "../../../common/types/invoice.types";
+import {InfluencerActionsHistoryService} from "../../influencer-actions-history/influencer-actions-history.service";
 
 // Interface for admin campaigns service and controller
 export interface IAdminCampaignsService {
@@ -120,6 +125,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         private readonly proposalCampaignDetailsService: ProposalCampaignDetailsService,
         private readonly proposalCampaignUpdateService: ProposalCampaignUpdateService,
         private readonly proposalAccountsBuilderService: ProposalAccountsBuilderService,
+        private readonly actionsHistoryService: InfluencerActionsHistoryService,
         private readonly xlsxImporter: XlsxImporter,
     ) {
     }
@@ -215,12 +221,12 @@ export class AdminCampaignsService implements IAdminCampaignsService {
             campaignId,
             optionIndex,
             {
-                findCampaign: (id) => this.proposalCampaignRepository.findById(id, { lean: true }),
+                findCampaign: (id) => this.proposalCampaignRepository.findById(id, {lean: true}),
 
                 findOption: (campaignId, index) =>
                     this.proposalOptionsRepository.findOneByIndex(
-                        { campaignId, optionIndex: index },
-                        { lean: true },
+                        {campaignId, optionIndex: index},
+                        {lean: true},
                     ),
 
                 mapResult: (campaign, option) => {
@@ -250,7 +256,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
 
                 findOption: (campaignId, index) =>
                     this.proposalOptionsRepository.findOneByIndex(
-                        { campaignId, optionIndex: index },
+                        {campaignId, optionIndex: index},
                     ) as any,
 
                 buildProposalAccountsBatch:
@@ -282,7 +288,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
             AdminCampaignDetailsDto
         >(campaignId, data, {
             findCampaign: (campaignId: string) =>
-                this.campaignsRepository.findOne({ _id: new ObjId(campaignId) }),
+                this.campaignsRepository.findOne({_id: new ObjId(campaignId)}),
 
             buildCampaignAccountsBatch:
                 this.campaignAccountsBuilderService.buildCampaignAccountsBatch.bind(
@@ -867,6 +873,70 @@ export class AdminCampaignsService implements IAdminCampaignsService {
 
     // Closes influencer's promo and give him money for this campaign
     async closePromoAndPay(campaignId: string, promoId: string): Promise<void> {
-        return null;
+        // Getting campaign
+        const campaign = await this.campaignsRepository.findById(campaignId);
+        if (!campaign) throw new NotFoundException("Campaign not found");
+
+        // Finding needed promo in this campaign
+        const promo: CampaignAccount = campaign.addedAccounts.find((i) => i._id?.toString() === promoId);
+        if (!promo) throw new NotFoundException("Promo not found");
+
+        // Checking if promo was already closed
+        if (promo.closePromo === InfluencerPromoClosedStatusEnum.close) throw new ConflictException("Promo already closed");
+
+        const session = await this.campaignsRepository.startSession();
+        // Starting transaction
+        session.startTransaction();
+
+        try {
+            // Updating closePromo and confirmation in promo
+            await this.campaignsRepository.findOneAndUpdate(
+                {
+                    _id: new ObjId(campaignId),
+                    'addedAccounts._id': new ObjId(promoId)
+                },
+                {
+                    $set: {
+                        'addedAccounts.$.closePromo': InfluencerPromoClosedStatusEnum.close,
+                        'addedAccounts.$.confirmation': InfluencerConfirmationStatusEnum.accept,
+                        'addedAccounts.$.invoiceStatus': InvoiceStatusEnum.wait,
+                    }
+                },
+                {session}
+            );
+
+            // Updating influencer's balance
+            await this.influencersRepository.findOneAndUpdate(
+                {_id: promo.influencerId},
+                {
+                    $inc: {
+                        balance: promo.price
+                    }
+                },
+                {session}
+            );
+
+            // Saving new campaign action (2 - insights submitted) to influencer's history
+            await this.actionsHistoryService.upsertInfluencerCampaignActionsHistory({
+                influencerId: promo.influencerId.toString(),
+                campaignId: campaignId,
+                campaignName: campaign.campaignName,
+                updatedCampaignAction: {
+                    addedAccountsId: promo._id,
+                    socialAccountId: promo.accountId,
+                    actionNumber: 2,
+                    networkUsername: promo.username,
+                    rewardForInfluencer: promo.price,
+                    socialMedia: promo.socialMedia
+                }
+            }, session);
+
+            await session.commitTransaction();
+        } catch (err) {
+            await session.abortTransaction();
+            throw new InternalServerErrorException("Something went wrong while closing promo");
+        } finally {
+            await session.endSession();
+        }
     }
 }
