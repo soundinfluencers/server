@@ -7,13 +7,15 @@ import {CampaignDraftLatestStep} from "../../../common/types/client/campaign.typ
 
 // DTO with selected content items _ids
 export class SelectedCampaignContentItemDto {
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsMongoId()
-    campaignContentItemId: string;
+    campaignContentItemId?: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsMongoId()
-    descriptionId: string;
+    descriptionId?: string;
 }
 
 export class SelectInfluencerDto {
