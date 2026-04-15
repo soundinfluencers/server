@@ -31,6 +31,16 @@ export enum InfluencerDetailedPromoStatusRequest {
     close = 'close',
 }
 
+// Enum for returning status label for admin detailed campaign information
+export enum AdminPromoStatusLabelEnum {
+    requested = 'Requested',
+    accepted = 'Accepted',
+    declined = 'Declined',
+    posted = 'Posted',
+    insightsSubmitted = 'Insights Submitted',
+    na = 'N/A',
+}
+
 // base for other promo interfaces
 export interface InfluencerPromoBase {
     // id of campaign

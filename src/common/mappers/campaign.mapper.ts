@@ -18,7 +18,11 @@ import {CampaignContentItemDto} from "../../modules/campaigns/dto/create-campaig
 import {Types} from "mongoose";
 import {SocialMediaEnum} from "../types/social-media.types";
 import {formatDate} from "../utils/formatters";
-import {InfluencerConfirmationStatusEnum, InfluencerPromoClosedStatusEnum} from "../types/influencer/promo.types";
+import {
+    AdminPromoStatusLabelEnum,
+    InfluencerConfirmationStatusEnum,
+    InfluencerPromoClosedStatusEnum
+} from "../types/influencer/promo.types";
 import {safeParseToNumber} from "../utils/base.util";
 import {CompletedCampaign} from "../../database/schemas/campaign/completed-campaign.schema";
 import {CampaignAccountDto, CampaignDetailsDto} from "../../modules/campaigns/dto/get-campaigns.dto";
@@ -30,6 +34,7 @@ import {
     AdminCampaignsListStatusEnum
 } from "../../modules/admin/dto/campaigns/admin-campaigns.dto";
 import {CurrencyCode} from "../types/finance.types";
+import {InternalServerErrorException} from "@nestjs/common";
 
 // builds object with CampaignContentItemDto type from CampaignContentItem (dto which using for creating and updating campaigns)
 export const mapContentItemDtoToModel = (campaignContentItem: CampaignContentItemDto): CampaignContentItem => {
@@ -472,6 +477,17 @@ export const mapToCampaignDetailsDto = (campaign: ICampaignDetails): CampaignDet
 
 // Map IAdminCampaignDetails read model to AdminCampaignDetailsDto
 export const mapToAdminCampaignDetailsDto = (campaign: IAdminCampaignDetails): AdminCampaignDetailsDto => {
+    if (!campaign.addedAccounts.length) throw new InternalServerErrorException("Can't get promos list for this campaign");
+
+    let internalCost: number = 0;
+
+    if (campaign.socialMedia !== SocialMediaEnum.press) {
+        internalCost = campaign.addedAccounts.reduce(
+            (sum, acc) => sum + (acc.publicPrice ?? 0),
+            0
+        );
+    }
+
     return {
         campaignId: campaign._id.toString(),
         campaignName: campaign.campaignName,
@@ -493,7 +509,8 @@ export const mapToAdminCampaignDetailsDto = (campaign: IAdminCampaignDetails): A
                 ...i.selectedContentItem,
                 _id: i.selectedContentItem?._id?.toString(),
             },
-            ...(i.cpm !== undefined ? { cpm: i.cpm } : {})
+            ...campaign.status as any !== 'proposal' ? {statusLabel: getAdminPromoStatusLabel(i)} : {},
+            ...(i.cpm !== undefined ? {cpm: i.cpm} : {})
         })),
         campaignContent: campaign.campaignContent ?? (campaign as any).videos ?? [],
         shareLink: campaign.shareLink,
@@ -503,6 +520,7 @@ export const mapToAdminCampaignDetailsDto = (campaign: IAdminCampaignDetails): A
         totalSaves: campaign.totalSaves,
         totalComments: campaign.totalComments,
         totalShares: campaign.totalShares,
+        internalCost: internalCost,
         isCpmAndResultHidden: campaign.isCpmAndResultHidden,
         isPriceHidden: campaign.isPriceHidden,
         canEdit: campaign.canEdit,
@@ -524,14 +542,14 @@ export const mapToIProposalCampaign = (campaign: ProposalCampaign): IProposalCam
 
 // Map ProposalCampaignOption mongoose model to IProposalOption
 export const mapToIProposalOption = (campaignOption: ProposalCampaignOption): IProposalOption => {
-  return {
-      _id: campaignOption._id,
-      proposalCampaignId: campaignOption.proposalCampaignId,
-      publicCampaignPrice: campaignOption.publicCampaignPrice,
-      privateCampaignPrice: campaignOption.privateCampaignPrice,
-      addedAccounts: campaignOption.addedAccounts.map((acc: ProposalCampaignAccount): ICampaignAccount => mapToICampaignAccount(acc)),
-      campaignContent: campaignOption.campaignContent ?? [],
-  }
+    return {
+        _id: campaignOption._id,
+        proposalCampaignId: campaignOption.proposalCampaignId,
+        publicCampaignPrice: campaignOption.publicCampaignPrice,
+        privateCampaignPrice: campaignOption.privateCampaignPrice,
+        addedAccounts: campaignOption.addedAccounts.map((acc: ProposalCampaignAccount): ICampaignAccount => mapToICampaignAccount(acc)),
+        campaignContent: campaignOption.campaignContent ?? [],
+    }
 };
 
 // Map ProposalCampaign + ProposalCampaignOption to IAdminCampaignDetails
@@ -565,7 +583,8 @@ export const mapProposalToIAdminCampaignDetails = (
                                     pd._id?.toString() ===
                                     account.selectedContent?.descriptionId?.toString(),
                             )?.description ?? '';
-                    } catch {}
+                    } catch {
+                    }
 
                     selectedCampaignContentItem = {
                         _id: contentItem._id,
@@ -636,19 +655,31 @@ export const mapToAdminCampaignForListDto = (
         campaignName: campaign.campaignName,
         creatorRole: campaign.creatorRole,
         creatorName: campaign.creatorName,
-        ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? { followers: campaign.totalFollowers } : null,
-        ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? { cost: campaign.price } : null,
-        ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? { salePrice: campaign.publicPrice } : null,
+        ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? {followers: campaign.totalFollowers} : null,
+        ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? {cost: campaign.price} : null,
+        ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? {salePrice: campaign.publicPrice} : null,
         date: formatDate(campaign.createdAt),
         status: campaign.status,
         statusLabel: campaign.statusLabel,
         reportSent: campaign.reportSent,
-        ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? { paymentStatus: campaign.paymentStatus } : null,
-        ...campaign.invoiceId ? { invoiceId: campaign.invoiceId.toString() } : null,
-        ...campaign.invoiceId ? { shortInvoiceNumber: campaign.shortInvoiceNumber } : null,
+        ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? {paymentStatus: campaign.paymentStatus} : null,
+        ...campaign.invoiceId ? {invoiceId: campaign.invoiceId.toString()} : null,
+        ...campaign.invoiceId ? {shortInvoiceNumber: campaign.shortInvoiceNumber} : null,
         notes: campaign.notes,
         affiliatePartner: campaign.affiliatePartner,
         affiliateCommission: campaign.affiliateCommission,
         affiliatePaid: campaign.affiliatePaid,
     };
 };
+
+// Get AdminPromoStatusLabelEnum from promo info
+const getAdminPromoStatusLabel = (promo: IAdminCampaignAccount): AdminPromoStatusLabelEnum => {
+    if (promo.confirmation === InfluencerConfirmationStatusEnum.wait) return AdminPromoStatusLabelEnum.requested;
+    if (promo.confirmation === InfluencerConfirmationStatusEnum.decline) return AdminPromoStatusLabelEnum.declined;
+    if (promo.confirmation === InfluencerConfirmationStatusEnum.accept && promo.closePromo === InfluencerPromoClosedStatusEnum.wait)
+        return AdminPromoStatusLabelEnum.accepted;
+    if (promo.confirmation === InfluencerConfirmationStatusEnum.accept && promo.closePromo === InfluencerPromoClosedStatusEnum.close)
+        return AdminPromoStatusLabelEnum.insightsSubmitted;
+
+    return AdminPromoStatusLabelEnum.na;
+}
