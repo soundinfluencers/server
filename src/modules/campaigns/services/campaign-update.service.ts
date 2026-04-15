@@ -28,6 +28,7 @@ export type CampaignDocumentLike<TAccount extends CampaignAccountLike> = {
     addedAccounts: TAccount[];
     campaignContent: CampaignContentItem[];
     displayCurrency: CurrencyCode;
+    socialMedia: SocialMediaEnum | 'multipromo';
     isCpmAndResultHidden?: boolean;
     isPriceHidden?: boolean;
     save: () => Promise<unknown>;
@@ -171,6 +172,17 @@ export class CampaignUpdateService {
             }
 
             campaign.addedAccounts = updatedAccounts;
+
+            // If need to update campaign's socialMedia field
+            const uniqueSocialMedias: SocialMediaEnum[] = [
+                ...new Set(data.addedAccounts.map(acc => acc.socialMedia)),
+            ];
+
+            if (uniqueSocialMedias.length > 1) {
+                campaign.socialMedia = 'multipromo';
+            } else {
+                campaign.socialMedia = uniqueSocialMedias[0] ?? campaign.socialMedia;
+            }
         }
 
         if (data.campaignContent) {

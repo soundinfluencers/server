@@ -1,4 +1,4 @@
-import {ApiPropertyOptional} from "@nestjs/swagger";
+import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
 import {
     ArrayNotEmpty,
     IsArray,
@@ -12,6 +12,7 @@ import {
 import {Type} from "class-transformer";
 import {CampaignContentItemDto, SelectInfluencerDto} from "./create-campaign.dto";
 import {CurrencyCode} from "../../../common/types/finance.types";
+import {SocialMediaEnum} from "../../../common/types/social-media.types";
 
 // dto for requesting campaign update
 export class UpdateCampaignDto {
