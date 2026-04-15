@@ -267,4 +267,30 @@ export class AdminCampaignsController {
         }
         return this.adminService.getDetailedCampaign(status, campaignId, optionIndex);
     }
+
+    @ApiOperation({summary: "Close promo for influencer and give him money (ONGOING CAMPAIGN)"})
+    @ApiResponseDto()
+    @ApiParam({
+        name: 'campaignId',
+        type: String,
+        required: true,
+    })
+    @ApiParam({
+        name: 'promoId',
+        type: String,
+        required: true,
+    })
+    @Patch(':campaignId/pay/:promoId')
+    closePromoAndPay(
+        @Param(
+            'campaignId',
+            new ParseObjectIdPipe()
+        ) campaignId: string,
+        @Param(
+            'promoId',
+            new ParseObjectIdPipe()
+        ) promoId: string,
+    ): Promise<void> {
+        return this.adminService.closePromoAndPay(campaignId, promoId);
+    }
 }

@@ -4,7 +4,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { Types } from 'mongoose';
-import {AdminUpdateCampaignDto, UpdateCampaignDto} from '../dto/update-campaign.dto';
+import {AdminUpdateCampaignDto, AdminUpdatePromoDto, UpdateCampaignDto} from '../dto/update-campaign.dto';
 import { MediaService } from '../../media/media.service';
 import {CampaignContentItem} from "../../../database/schemas/campaign/campaign.schema";
 import {CampaignContentItemDto, SelectInfluencerDto} from "../dto/create-campaign.dto";
@@ -21,6 +21,14 @@ export type CampaignAccountLike = {
         descriptionId?: Types.ObjectId;
     };
     dateRequest?: string | null;
+    postLink?: string | null;
+    screenshot?: string | null;
+    impressions?: number | null;
+    like?: number | null;
+    comments?: number | null;
+    shares?: number | null;
+    saves?: number | null;
+    rating?: number | null;
 };
 
 export type CampaignDocumentLike<TAccount extends CampaignAccountLike> = {
@@ -152,6 +160,17 @@ export class CampaignUpdateService {
                             : undefined;
 
                     existingAcc.dateRequest = accDto.dateRequest ?? null;
+
+                    if (accDto instanceof AdminUpdatePromoDto) {
+                        if (accDto.postLink) existingAcc.postLink = accDto.postLink;
+                        if (accDto.screenshot) existingAcc.screenshot = accDto.screenshot;
+                        if (accDto.impressions) existingAcc.impressions = accDto.impressions;
+                        if (accDto.like) existingAcc.like = accDto.like;
+                        if (accDto.comments) existingAcc.comments = accDto.comments;
+                        if (accDto.shares) existingAcc.shares = accDto.shares;
+                        if (accDto.saves) existingAcc.saves = accDto.saves;
+                        if (accDto.rating) existingAcc.rating = accDto.rating;
+                    }
 
                     updatedAccounts.push(existingAcc);
                 } else {

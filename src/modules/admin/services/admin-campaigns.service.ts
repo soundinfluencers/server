@@ -101,6 +101,9 @@ export interface IAdminCampaignsService {
 
     // Imports xlsx file with campaign and save data as proposal campaign
     importXlsx(file: Express.Multer.File): Promise<void>;
+
+    // Closes influencer's promo and give him money for this campaign (ONGOING CAMPAIGN)
+    closePromoAndPay(campaignId: string, promoId: string): Promise<void>;
 }
 
 @Injectable()
@@ -860,5 +863,10 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         } finally {
             await session.endSession();
         }
+    }
+
+    // Closes influencer's promo and give him money for this campaign
+    async closePromoAndPay(campaignId: string, promoId: string): Promise<void> {
+        return null;
     }
 }

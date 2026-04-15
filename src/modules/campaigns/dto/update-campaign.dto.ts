@@ -4,7 +4,7 @@ import {
     IsArray,
     IsBoolean,
     IsEnum,
-    IsNotEmpty,
+    IsNotEmpty, IsNumber,
     IsOptional,
     IsString,
     ValidateNested
@@ -42,8 +42,65 @@ export class UpdateCampaignDto {
     campaignContent?: CampaignContentItemDto[];
 }
 
+// dto for updating addedAccounts array in campaign from admin side
+export class AdminUpdatePromoDto extends SelectInfluencerDto {
+    @ApiPropertyOptional({type: String})
+    @IsOptional()
+    @IsString()
+    postLink?: string;
+
+    @ApiPropertyOptional({type: String})
+    @IsOptional()
+    @IsString()
+    screenshot?: string;
+
+    @ApiPropertyOptional({type: Number})
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    impressions?: number;
+
+    @ApiPropertyOptional({type: Number})
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    like?: number;
+
+    @ApiPropertyOptional({type: Number})
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    comments?: number;
+
+    @ApiPropertyOptional({type: Number})
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    shares?: number;
+
+    @ApiPropertyOptional({type: Number})
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    saves?: number;
+
+    @ApiPropertyOptional({type: Number})
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    rating?: number;
+}
+
 // dto for updating campaign from admin side
 export class AdminUpdateCampaignDto extends UpdateCampaignDto {
+    @ApiPropertyOptional({type: () => [AdminUpdatePromoDto]})
+    @IsOptional()
+    @Type(() => AdminUpdatePromoDto)
+    @IsArray()
+    @ArrayNotEmpty()
+    @ValidateNested({ each: true })
+    addedAccounts?: AdminUpdatePromoDto[];
+
     @ApiPropertyOptional({type: Boolean})
     @IsOptional()
     @IsBoolean()
