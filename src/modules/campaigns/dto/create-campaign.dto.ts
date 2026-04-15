@@ -9,12 +9,12 @@ import {CampaignDraftLatestStep} from "../../../common/types/client/campaign.typ
 export class SelectedCampaignContentItemDto {
     @ApiPropertyOptional()
     @IsOptional()
-    @IsMongoId()
+    @IsString()
     campaignContentItemId?: string;
 
     @ApiPropertyOptional()
     @IsOptional()
-    @IsMongoId()
+    @IsString()
     descriptionId?: string;
 }
 
