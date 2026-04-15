@@ -180,7 +180,7 @@ export class SaveDraftCampaignDto {
     @ApiPropertyOptional({type: String})
     @IsOptional()
     @IsString()
-    draftId: string;
+    draftId?: string;
 
     @ApiPropertyOptional({type: [CampaignContentItemDto]})
     @IsOptional()
