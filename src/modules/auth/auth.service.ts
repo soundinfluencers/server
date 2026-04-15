@@ -7,6 +7,7 @@ import {
     NotFoundException,
     UnauthorizedException
 } from '@nestjs/common';
+import {createHash, randomUUID, timingSafeEqual} from "crypto";
 import {CreateClientDto} from './dto/create-client.dto';
 import {CreateInfluencerDto, CreateSocialAccountDto} from './dto/create-influencer.dto';
 import {ClientSession, Types} from 'mongoose';
@@ -40,6 +41,16 @@ import {ObjId} from "../../common/types/base.types";
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
+type AuthUser = Client | Influencer | Admin;
+
+type RefreshTokenPayload = {
+    _id: string;
+    role: Role;
+    jti: string;
+    iat?: number;
+    exp?: number;
+};
+
 function generateRandomDigits(length) {
     const result = [];
     for (let i = 0; i < length; i++) {
@@ -67,6 +78,78 @@ export class AuthService {
     private readonly logger = new Logger('AuthService');
     private readonly accessKey = process.env.JWT_SECRET;
     private readonly refreshKey = process.env.JWT_REFRESH_SECRET;
+
+    private hashToken(token: string): string {
+        return createHash('sha256').update(token).digest('hex');
+    }
+
+    private isRefreshTokenMatch(storedTokenHash: string | null | undefined, refreshToken: string): boolean {
+        if (!storedTokenHash) return false;
+
+        const incomingTokenHash = this.hashToken(refreshToken);
+
+        if (storedTokenHash.length !== incomingTokenHash.length) return false;
+
+        return timingSafeEqual(
+            Buffer.from(storedTokenHash),
+            Buffer.from(incomingTokenHash),
+        );
+    }
+
+    private async getUserByRole(userId: string, role: Role): Promise<AuthUser | null> {
+        switch (role) {
+            case Role.client:
+                return this.clientRepo.findById(userId);
+            case Role.influencer:
+                return this.influencerRepo.findById(userId);
+            case Role.admin:
+                return this.adminRepo.findById(userId);
+            default:
+                throw new BadRequestException('Unsupported role');
+        }
+    }
+
+    private async clearStoredRefreshToken(userId: string, role: Role): Promise<void> {
+        switch (role) {
+            case Role.client:
+                await this.clientRepo.updateOne({_id: userId}, {$unset: {refreshToken: ''}});
+                break;
+            case Role.influencer:
+                await this.influencerRepo.updateOne({_id: userId}, {$unset: {refreshToken: ''}});
+                break;
+            case Role.admin:
+                await this.adminRepo.updateOne({_id: userId}, {$unset: {refreshToken: ''}});
+                break;
+            default:
+                throw new BadRequestException('Unsupported role');
+        }
+    }
+
+    private async revokeInvalidRefreshToken(userId: string, role: Role, res: Response): Promise<never> {
+        await this.clearStoredRefreshToken(userId, role);
+        clearRefreshTokenCookie(res);
+        throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    async issueAuthTokens(user: AuthUser, res: Response): Promise<LoginResponseDto> {
+        const accessToken = this.generateAccessToken(user);
+        const refreshToken = this.generateRefreshToken(user);
+
+        await this.saveRefreshToken(user._id, user.role, refreshToken);
+        setRefreshTokenCookie(res, refreshToken);
+
+        return {accessToken};
+    }
+
+    private ensureUserCanAuthenticate(user: AuthUser, res?: Response) {
+        if (![AccountVerifiedStatus.accept, AccountVerifiedStatus.waitForUser].includes(user.verifiedStatus)) {
+            if (res) {
+                clearRefreshTokenCookie(res);
+            }
+
+            throw new ForbiddenException('Account not verified by admin');
+        }
+    }
 
     // Signup client
     async createClient(data: CreateClientDto): Promise<void> {
@@ -297,18 +380,9 @@ export class AuthService {
 
         if (!isPassword) throw new UnauthorizedException('Wrong password');
 
-        if (![AccountVerifiedStatus.accept, AccountVerifiedStatus.waitForUser].includes(user.verifiedStatus)) throw new ForbiddenException('Account not verified by admin');
+        this.ensureUserCanAuthenticate(user);
 
-        const accessToken = this.generateAccessToken(user);
-        const refreshToken = this.generateRefreshToken(user);
-
-        await this.saveRefreshToken(user._id, refreshToken);
-
-        setRefreshTokenCookie(res, refreshToken);
-
-        return {
-            accessToken,
-        };
+        return this.issueAuthTokens(user, res);
     }
 
     // refresh and token replace
@@ -316,72 +390,71 @@ export class AuthService {
         if (!refreshToken)
             throw new UnauthorizedException('No refresh token provided');
 
-        let payload;
+        let payload: RefreshTokenPayload;
         try {
-            payload = jwt.verify(refreshToken, this.refreshKey);
+            payload = jwt.verify(refreshToken, this.refreshKey) as RefreshTokenPayload;
         } catch {
             clearRefreshTokenCookie(res);
             throw new UnauthorizedException('Invalid refresh token');
         }
 
-        const user =
-            (await this.clientRepo.findById(payload._id)) ||
-            (await this.influencerRepo.findById(payload._id)) ||
-            (await this.adminRepo.findById(payload._id));
-
-        if (!user || (user as any).refreshToken !== refreshToken) {
+        if (!payload?._id || !payload.role || !payload.jti) {
             clearRefreshTokenCookie(res);
             throw new UnauthorizedException('Invalid refresh token');
         }
 
-        const newRefreshToken = this.generateRefreshToken(user);
-        await this.saveRefreshToken(user._id, newRefreshToken);
+        const user = await this.getUserByRole(payload._id, payload.role);
 
-        setRefreshTokenCookie(res, newRefreshToken);
+        if (!user) {
+            clearRefreshTokenCookie(res);
+            throw new UnauthorizedException('Invalid refresh token');
+        }
 
-        return {
-            accessToken: this.generateAccessToken(user),
-        };
+        if (!this.isRefreshTokenMatch((user as any).refreshToken, refreshToken)) {
+            await this.revokeInvalidRefreshToken(payload._id, payload.role, res);
+        }
+
+        this.ensureUserCanAuthenticate(user, res);
+
+        return this.issueAuthTokens(user, res);
     }
 
     // Logout
-    async logout(refreshToken: string, userRole: Role, res: Response) {
-        if (refreshToken && userRole) {
-            switch (userRole) {
-                case Role.client:
-                    await this.clientRepo.updateOne(
-                        {refreshToken},
-                        {$unset: {refreshToken: ''}},
-                    );
-                    break;
-                case Role.influencer:
-                    await this.influencerRepo.updateOne(
-                        {refreshToken},
-                        {$unset: {refreshToken: ''}},
-                    );
-                    break;
-                case Role.admin:
-                    await this.adminRepo.updateOne(
-                        {refreshToken},
-                        {$unset: {refreshToken: ''}},
-                    );
-                    break;
-                default:
-                    throw new BadRequestException('Unsupported role');
+    async logout(refreshToken: string | undefined, res: Response): Promise<void> {
+        clearRefreshTokenCookie(res);
+
+        if (!refreshToken) {
+            return;
+        }
+
+        try {
+            const payload = jwt.verify(refreshToken, this.refreshKey) as RefreshTokenPayload;
+
+            if (!payload?._id || !payload.role) {
+                return;
             }
-            clearRefreshTokenCookie(res);
-        } else {
-            throw new UnauthorizedException('Invalid refresh token');
+
+            const user = await this.getUserByRole(payload._id, payload.role);
+
+            if (!user) {
+                return;
+            }
+
+            await this.clearStoredRefreshToken(payload._id, payload.role);
+        } catch {
+            return;
         }
     }
 
     // Generates access token
-    generateAccessToken(user: any) {
+    generateAccessToken(user: AuthUser) {
+        const clientUser = user.role === Role.client ? user as Client : null;
+
         return jwt.sign(
             {
                 _id: user._id,
                 role: user.role,
-                ...(user.role === Role.client ? {isProposalClient: !!user.isProposalClient} : {}),
+                ...(clientUser ? {isProposalClient: !!clientUser.isProposalClient} : {}),
             },
             this.accessKey,
             {expiresIn: '30m'},
@@ -389,19 +462,35 @@ export class AuthService {
     }
 
     // Generates refresh token
-    generateRefreshToken(user) {
+    generateRefreshToken(user: AuthUser, jti: string = randomUUID()) {
         return jwt.sign(
-            {_id: user._id},
+            {
+                _id: user._id,
+                role: user.role,
+                jti,
+            },
             this.refreshKey,
             {expiresIn: '7d'},
         );
     }
 
     // Saves refresh token
-    async saveRefreshToken(userId, token) {
-        await this.clientRepo.updateOne({_id: userId}, {refreshToken: token});
-        await this.influencerRepo.updateOne({_id: userId}, {refreshToken: token});
-        await this.adminRepo.updateOne({_id: userId}, {refreshToken: token});
+    async saveRefreshToken(userId: Types.ObjectId | string, role: Role, token: string) {
+        const refreshTokenHash = this.hashToken(token);
+
+        switch (role) {
+            case Role.client:
+                await this.clientRepo.updateOne({_id: userId}, {refreshToken: refreshTokenHash});
+                break;
+            case Role.influencer:
+                await this.influencerRepo.updateOne({_id: userId}, {refreshToken: refreshTokenHash});
+                break;
+            case Role.admin:
+                await this.adminRepo.updateOne({_id: userId}, {refreshToken: refreshTokenHash});
+                break;
+            default:
+                throw new BadRequestException('Unsupported role');
+        }
     }
 
     // Verify influencer with sending mail

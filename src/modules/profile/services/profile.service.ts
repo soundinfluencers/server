@@ -82,7 +82,6 @@ import {
 import {InvoicePaymentMethodEnum} from "../../../common/types/invoice.types";
 import {AuthService} from "../../auth/auth.service";
 import {LoginResponseDto} from "../../auth/dto/login.dto";
-import {setRefreshTokenCookie} from "../../../common/utils/cookie.util";
 import {EmailService} from "../../../integrations/email/email.service";
 import {areCountriesValid} from "../../../common/utils/countries.util";
 import {AdminToInfluencerEmails, InfluencerToAdminEmails} from "../../../integrations/email/email.templates";
@@ -725,15 +724,7 @@ export class ProfileService {
 
         if (isAccepted) {
             const updatedInfluencer = await this.influencerRepo.findById(influencerId, {lean: true});
-            const accessToken = this.authService.generateAccessToken(updatedInfluencer);
-            const refreshToken = this.authService.generateRefreshToken(updatedInfluencer);
-
-            await this.authService.saveRefreshToken(updatedInfluencer._id, refreshToken);
-            setRefreshTokenCookie(res, refreshToken);
-
-            return {
-                accessToken,
-            };
+            return this.authService.issueAuthTokens(updatedInfluencer, res);
         }
     }
 

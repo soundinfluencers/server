@@ -14,6 +14,7 @@ jest.mock('../../common/utils/cookie.util', () => ({
 }));
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { createHash } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -186,7 +187,10 @@ describe('AuthService', () => {
       const result = await service.login(baseDto, mockRes);
 
       expect(result).toEqual({ accessToken: 'mock-token' });
-      expect(clientRepo.updateOne).toHaveBeenCalled();
+      expect(clientRepo.updateOne).toHaveBeenCalledWith(
+        { _id: 'u1' },
+        { refreshToken: expect.any(String) },
+      );
     });
   });
 
@@ -213,24 +217,57 @@ describe('AuthService', () => {
       ).rejects.toThrow('Invalid refresh token');
       expect(clearRefreshTokenCookie).toHaveBeenCalledWith(mockRes);
     });
+
+    it('should rotate refresh token for a valid refresh token', async () => {
+      (jwt.verify as jest.Mock).mockReturnValue({
+        _id: 'u1',
+        role: Role.client,
+        jti: 'session-1',
+      });
+      clientRepo.findById.mockResolvedValue({
+        _id: 'u1',
+        role: Role.client,
+        verifiedStatus: AccountVerifiedStatus.accept,
+        refreshToken: createHash('sha256').update('mock-token').digest('hex'),
+        isProposalClient: false,
+      });
+
+      const result = await service.refresh('mock-token', mockRes);
+
+      expect(result).toEqual({ accessToken: 'mock-token' });
+      expect(clientRepo.updateOne).toHaveBeenCalledWith(
+        { _id: 'u1' },
+        { refreshToken: expect.any(String) },
+      );
+    });
   });
 
   describe('logout', () => {
-    it('should throw UnauthorizedException if no refreshToken', async () => {
+    it('should clear cookie even if refreshToken is missing', async () => {
       await expect(
-        service.logout(undefined as unknown as string, Role.client, mockRes),
-      ).rejects.toThrow(UnauthorizedException);
-      await expect(
-        service.logout('', Role.client, mockRes),
-      ).rejects.toThrow('Invalid refresh token');
+        service.logout(undefined as unknown as string, mockRes),
+      ).resolves.toBeUndefined();
+
+      expect(clearRefreshTokenCookie).toHaveBeenCalledWith(mockRes);
     });
 
     it('should clear cookie on success for client', async () => {
       const token = 'rt-1';
-      await service.logout(token, Role.client, mockRes);
+      (jwt.verify as jest.Mock).mockReturnValue({
+        _id: 'u1',
+        role: Role.client,
+        jti: 'session-1',
+      });
+      clientRepo.findById.mockResolvedValue({
+        _id: 'u1',
+        role: Role.client,
+        refreshToken: 'unused-hash',
+      });
+
+      await service.logout(token, mockRes);
 
       expect(clientRepo.updateOne).toHaveBeenCalledWith(
-        { refreshToken: token },
+        { _id: 'u1' },
         { $unset: { refreshToken: '' } },
       );
       expect(clearRefreshTokenCookie).toHaveBeenCalledWith(mockRes);

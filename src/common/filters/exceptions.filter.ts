@@ -14,6 +14,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     private readonly bannedLogs = [
         'invalid refresh token',
+        'no refresh token provided',
     ]
 
     catch(exception: unknown, host: ArgumentsHost) {

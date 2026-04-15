@@ -85,7 +85,6 @@ describe('AuthController', () => {
       const refreshToken = 'refresh-token-value';
       const req = {
         cookies: { refreshToken },
-        user: { role: Role.client },
       } as unknown as Parameters<AuthController['logout']>[0];
       const res = { clearCookie: jest.fn() } as unknown as Response;
       mockAuthService.logout.mockResolvedValue(undefined);
@@ -94,7 +93,6 @@ describe('AuthController', () => {
 
       expect(mockAuthService.logout).toHaveBeenCalledWith(
         refreshToken,
-        Role.client,
         res,
       );
     });

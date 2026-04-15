@@ -55,7 +55,7 @@ export class AuthController {
         return this.authService.refresh(req.cookies.refreshToken, res);
     }
 
-    @Auth()
+    @Public()
     @ApiOperation({ summary: 'Logout user' })
     @ApiResponseDto()
     @Post('logout')
@@ -63,7 +63,7 @@ export class AuthController {
         @Req() req,
         @Res({ passthrough: true }) res: Response,
     ): Promise<void> {
-        return this.authService.logout(req.cookies.refreshToken, req?.user?.role, res);
+        return this.authService.logout(req.cookies.refreshToken, res);
     }
 
     @Public()
