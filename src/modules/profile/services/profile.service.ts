@@ -1686,7 +1686,9 @@ export class ProfileService {
                     }
                 },
                 creatorCategories: {$ifNull: ['$allAccounts.creatorCategories', []]},
-                categories: {$ifNull: ['$allAccounts.categories', []]}
+                categories: {$ifNull: ['$allAccounts.categories', []]},
+                averageViews: {$ifNull: ['$allAccounts.averageViews', 0]},
+                engagementRate: {$ifNull: ['$allAccounts.engagementRate', 0]},
             }
         });
 
