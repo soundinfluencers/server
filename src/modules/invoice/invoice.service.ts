@@ -379,7 +379,7 @@ export class InvoiceService {
 
     // Updates user's invoice
     async updateInvoice(invoiceId: string, data: UpdateClientInvoiceDto, userInfo: UserPayload): Promise<void> {
-        if (!data.poNumber && !data.company && !data.address) {
+        if (!data.poNumber && !data.company && !data.address && !data.country && !data.vatNumber) {
             throw new BadRequestException('Nothing to update');
         }
 
