@@ -36,7 +36,7 @@ import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {normalizeDtoToMusicGenres, normalizeStringToMusicGenres} from "../../../common/utils/genres";
 import {
     AgreementType,
-    InfluencerAccountDetails,
+    InfluencerAccountDetails, InfluencerProfileCategory,
     SocialAccountDetails,
     SocialAccountLabelStatus,
 } from "../../../common/types/influencer/influencer.types";
@@ -1651,6 +1651,7 @@ export class ProfileService {
                     },
                 },
                 socialMedia: '$allAccounts.socialMedia',
+                profileType: {$ifNull: ['$allAccounts.profileCategory', InfluencerProfileCategory.community]},
                 countries: {
                     $map: {
                         input: {$ifNull: ['$allAccounts.countries', []]},

@@ -11,6 +11,7 @@ import {Influencer} from "../../database/schemas/users/influencer.schema";
 import {FilteredPublishedOffersByGenreAndSocialMedia, GetFilteredPublishedOffers} from "./dto/get-offers.dto";
 import {FoundAccountDto} from "../profile/dto/influencer/get-profile.dto";
 import {getArrayFromAccountMusicGenres} from "../../common/utils/genres";
+import {InfluencerProfileCategory} from "../../common/types/influencer/influencer.types";
 
 @Injectable()
 export class OffersService {
@@ -158,6 +159,7 @@ export class OffersService {
                         'GBP': 0
                     },
                     socialMedia: socialMedia,
+                    profileType: influencer.profileCategory ?? InfluencerProfileCategory.community,
                     countries: influencer.countries?.length > 0 ? influencer.countries : null,
                     musicGenres: influencer.musicGenres?.length > 0 ? getArrayFromAccountMusicGenres(influencer.musicGenres) : null,
                     creatorCategories: influencer.creatorCategories?.length > 0 ? influencer.creatorCategories : null,

@@ -219,6 +219,9 @@ export class FoundAccountDto {
     @ApiProperty({example: 'instagram', enum: SocialMediaEnum})
     socialMedia: SocialMediaEnum;
 
+    @ApiProperty({example: InfluencerProfileCategory.community, enum: InfluencerProfileCategory})
+    profileType: InfluencerProfileCategory;
+
     @ApiProperty()
     countries: {
         country: string,
