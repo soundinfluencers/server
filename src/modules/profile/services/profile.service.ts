@@ -1447,6 +1447,7 @@ export class ProfileService {
             page = 1,
             limit = 20,
             sortBy = 'bestMatch',
+            budgetCurrency = CurrencyCode.EUR,
         } = filters;
 
         const skip = (page - 1) * limit;
@@ -1467,6 +1468,25 @@ export class ProfileService {
 
         // Getting latest exchanging rates for available currencies
         const exchangeRates: Record<CurrencyCode, number> = await this.exchangeRateService.getAllRates();
+
+        let budgetInEur: number | undefined;
+
+        if (typeof filters.budget === 'number') {
+            if (budgetCurrency === CurrencyCode.EUR) {
+                budgetInEur = filters.budget;
+            } else {
+                const rate = exchangeRates[budgetCurrency];
+
+                if (!rate) {
+                    throw new BadRequestException(
+                        `Exchange rate for ${budgetCurrency} not found`,
+                    );
+                }
+
+                // Если rate означает: 1 EUR = X currency
+                budgetInEur = filters.budget / rate;
+            }
+        }
 
         const eurPriceExpr = {$ifNull: ['$allAccounts.publicPrice', 0]};
 
@@ -1521,10 +1541,10 @@ export class ProfileService {
         }
 
         // budget + currency
-        if (filters.budget) {
+        if (filters.budget && typeof budgetInEur === 'number') {
             pipeline.push({
                 $match: {
-                    'allAccounts.publicPrice': {$lte: filters.budget}
+                    'allAccounts.publicPrice': { $lte: budgetInEur }
                 }
             });
         }

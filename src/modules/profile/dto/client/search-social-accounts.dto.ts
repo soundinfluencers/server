@@ -14,6 +14,7 @@ import {
 } from "class-validator";
 import {InfluencerProfileCategory, SocialAccountSortByEnum} from "../../../../common/types/influencer/influencer.types";
 import {Type} from "class-transformer";
+import {CurrencyCode} from "../../../../common/types/finance.types";
 
 export class GetFilteredAccountsQueryDto {
     @ApiProperty()
@@ -112,6 +113,16 @@ export class GetFilteredAccountsBodyDto {
     })
     @IsOptional()
     budget?: number;
+
+    @ApiPropertyOptional({
+        name: 'budgetCurrency',
+        enum: CurrencyCode,
+    })
+    @IsOptional()
+    @IsEnum(CurrencyCode, {
+        message: 'budgetCurrency must be a valid CurrencyCode',
+    })
+    budgetCurrency?: CurrencyCode;
 
     @ApiPropertyOptional({
         name: 'musicCategories',
