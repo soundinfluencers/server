@@ -40,5 +40,6 @@ export enum InvoicePaymentMethodEnum {
 export interface ClientDetailedInvoice extends BaseDetailedInvoice {
     campaignName: string;
     campaignFollowers: number;
+    referenceNumber: string;
     poNumber?: string;
 }

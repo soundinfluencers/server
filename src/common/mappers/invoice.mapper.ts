@@ -56,6 +56,7 @@ export const mapDtoToClientInvoice = (
         campaignId: new ObjId(data.campaignId),
         campaignName: data.campaignName,
         campaignFollowers: data.campaignFollowers,
+        referenceNumber: data.referenceNumber,
         ...(data.company ? {company: data.company} : {}),
         ...(data.vatNumber ? {vatNumber: data.vatNumber} : {}),
     } satisfies CreateClientInvoiceDbShape;
@@ -141,6 +142,7 @@ export const mapToDetailedInvoice = (data: ClientInvoiceDocument | InfluencerInv
         (baseDetailedInvoice as ClientDetailedInvoice).campaignName = (data as ClientInvoice).campaignName ?? "Unknown";
         (baseDetailedInvoice as ClientDetailedInvoice).campaignFollowers = (data as ClientInvoice).campaignFollowers ?? null;
         (baseDetailedInvoice as ClientDetailedInvoice).poNumber = (data as ClientInvoice).poNumber;
+        (baseDetailedInvoice as ClientDetailedInvoice).referenceNumber = (data as ClientInvoice).referenceNumber ?? "Unknown";
     }
 
     return baseDetailedInvoice as ClientDetailedInvoice;

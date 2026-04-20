@@ -36,6 +36,9 @@ export class ClientInvoice {
     })
     selectedPaymentMethod: CampaignPaymentMethodEnum;
 
+    @Prop({required: true, type: String})
+    referenceNumber: string;
+
     @Prop({required: false, type: String})
     poNumber?: string;
 }

@@ -119,6 +119,11 @@ export class CreateCampaignInvoiceDto {
     country: string;
 
     @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    referenceNumber: string;
+
+    @ApiProperty()
     @IsNumber()
     amount: number;
 
