@@ -10,15 +10,20 @@ import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
 import {
     AdminClientInvoicesListResponseDto,
-    AdminClientInvoicesSearchResponseDto
+    AdminClientInvoicesSearchResponseDto,
+    AdminInfluencerInvoicesListResponseDto, AdminInfluencerInvoicesSearchResponseDto
 } from "../dto/invoices/admin-invoices.dto";
+import {AdminInfluencerInvoicesService} from "../services/invoices/admin-influencer-invoices.service";
 
 @Auth()
 @Roles(Role.admin)
 @ApiTags('admin/invoices')
 @Controller('admin/invoices')
 export class AdminInvoicesController {
-    constructor(private readonly clientInvoiceService: AdminClientInvoicesService) {
+    constructor(
+        private readonly clientInvoiceService: AdminClientInvoicesService,
+        private readonly influencerInvoiceService: AdminInfluencerInvoicesService,
+    ) {
     }
 
     // Orchestrator for getting service based on role
@@ -29,7 +34,7 @@ export class AdminInvoicesController {
             case Role.admin:
                 throw new BadRequestException("Invalid role");
             case Role.influencer:
-                throw new BadRequestException("Currently unsupported role");
+                return this.influencerInvoiceService;
             case Role.client:
                 return this.clientInvoiceService;
             default:
@@ -79,7 +84,12 @@ export class AdminInvoicesController {
             ]),
         )
         query: SearchQueryDto | PaginationQueryDto,
-    ): Promise<AdminClientInvoicesListResponseDto | AdminClientInvoicesSearchResponseDto> {
+    ):
+        Promise<AdminInfluencerInvoicesSearchResponseDto> |
+        Promise<AdminClientInvoicesSearchResponseDto> |
+        Promise<AdminClientInvoicesListResponseDto> |
+        Promise<AdminInfluencerInvoicesListResponseDto>
+    {
         const service = this.getService(role);
 
         if ('search' in query && query.search?.trim()) {

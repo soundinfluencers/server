@@ -8,7 +8,6 @@ import {
     AdminClientInvoicesSearchResponseDto
 } from "../../dto/invoices/admin-invoices.dto";
 import {IAdminClientInvoice} from "../../../../common/types/invoice.types";
-import {Role} from "../../../../common/types/user.types";
 import {formatDate} from "../../../../common/utils/formatters";
 
 // Interface for AdminClientInvoicesService
@@ -25,7 +24,7 @@ export class AdminClientInvoicesService implements IAdminClientInvoicesService {
     }
 
     async getList(data: PaginationQueryDto): Promise<AdminClientInvoicesListResponseDto> {
-        const list = await this.invoiceRepository.findPaginated(data, Role.client);
+        const list = await this.invoiceRepository.findPaginatedClientInvoices(data);
         return {
             ...list,
             items: list.items.map((i: IAdminClientInvoice): AdminClientInvoiceRow => ({
@@ -40,7 +39,7 @@ export class AdminClientInvoicesService implements IAdminClientInvoicesService {
     }
 
     async search(data: SearchQueryDto): Promise<AdminClientInvoicesSearchResponseDto> {
-        const searchResult = await this.invoiceRepository.findBySearch(data, Role.client);
+        const searchResult = await this.invoiceRepository.findBySearchClientInvoices(data);
         return {
             ...searchResult,
             items: searchResult.items.map((i: IAdminClientInvoice): AdminClientInvoiceRow => ({

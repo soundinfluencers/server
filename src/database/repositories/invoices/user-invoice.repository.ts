@@ -35,13 +35,12 @@ export interface IUserInvoiceRepository {
     // Updates client's invoice fields. Finds invoice by _id and userId.
     updateClientInvoiceById(invoiceId: string, payload: UpdateClientInvoiceDto): Promise<ClientInvoiceDocument | null>;
 
-    // Returns one invoice that was found by campaignId
+    // Returns one invoice found by campaignId
     findInvoiceByCampaignId(campaignId: string): Promise<UserInvoiceDocument | null>;
 
-    // Return paginated list of IAdminClientInvoice or IAdminInfluencerInvoice objects
-    findPaginated(
+    // Return paginated list of IAdminClientInvoice objects
+    findPaginatedClientInvoices(
         query: PaginationQueryDto,
-        role: Role.client | Role.influencer,
     ): Promise<{
         items: IAdminClientInvoice[] | IAdminInfluencerInvoice[];
         total: number;
@@ -50,12 +49,31 @@ export interface IUserInvoiceRepository {
         totalPages: number;
     }>
 
-    // Search for invoices by query and get IAdminClientInvoice or IAdminInfluencerInvoice objects
-    findBySearch(
+    // Search for invoices by query and get IAdminClientInvoice objects
+    findBySearchClientInvoices(
         query: SearchQueryDto,
-        role: Role.client | Role.influencer,
     ): Promise<{
         items: IAdminClientInvoice[] | IAdminInfluencerInvoice[];
+        total: number;
+        limit: number;
+    }>
+
+    // Return paginated list of IAdminInfluencerInvoice objects
+    findPaginatedInfluencerInvoices(
+        query: PaginationQueryDto,
+    ): Promise<{
+        items: IAdminInfluencerInvoice[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    }>
+
+    // Search for invoices by query and get IAdminInfluencerInvoice objects
+    findBySearchInfluencerInvoices(
+        query: SearchQueryDto,
+    ): Promise<{
+        items: IAdminInfluencerInvoice[];
         total: number;
         limit: number;
     }>
@@ -131,11 +149,10 @@ export class UserInvoiceRepository extends BaseRepository<UserInvoiceDocument> i
         return applyQueryOptions(query, options);
     }
 
-    async findPaginated(
+    async findPaginatedClientInvoices(
         query: PaginationQueryDto,
-        role: Role.client | Role.influencer,
     ): Promise<{
-        items: IAdminClientInvoice[] | IAdminInfluencerInvoice[];
+        items: IAdminClientInvoice[];
         total: number;
         page: number;
         limit: number;
@@ -145,10 +162,8 @@ export class UserInvoiceRepository extends BaseRepository<UserInvoiceDocument> i
         const limit = query.limit ?? 10;
         const skip = (page - 1) * limit;
 
-        const model = role === Role.client ? this.clientInvoiceModel : this.influencerInvoiceModel;
-
         const [items, totalResult] = await Promise.all([
-            model.aggregate<IAdminClientInvoice | IAdminInfluencerInvoice>([
+            this.clientInvoiceModel.aggregate<IAdminClientInvoice>([
                 {$sort: {createdAt: -1}},
                 {$skip: skip},
                 {$limit: limit},
@@ -164,7 +179,7 @@ export class UserInvoiceRepository extends BaseRepository<UserInvoiceDocument> i
                     },
                 },
             ]),
-            model.aggregate([{$count: 'total'}]),
+            this.clientInvoiceModel.aggregate([{$count: 'total'}]),
         ]);
 
         const total = totalResult[0]?.total ?? 0;
@@ -178,11 +193,10 @@ export class UserInvoiceRepository extends BaseRepository<UserInvoiceDocument> i
         };
     }
 
-    async findBySearch(
+    async findBySearchClientInvoices(
         query: SearchQueryDto,
-        role: Role.client | Role.influencer,
     ): Promise<{
-        items: IAdminClientInvoice[] | IAdminInfluencerInvoice[];
+        items: IAdminClientInvoice[];
         total: number;
         limit: number;
     }> {
@@ -230,11 +244,329 @@ export class UserInvoiceRepository extends BaseRepository<UserInvoiceDocument> i
             {$count: 'total'},
         ];
 
-        const model = role === Role.client ? this.clientInvoiceModel : this.influencerInvoiceModel;
+        const [items, totalResult] = await Promise.all([
+            this.clientInvoiceModel.aggregate<IAdminClientInvoice>(basePipeline),
+            this.clientInvoiceModel.aggregate(totalPipeline),
+        ]);
+
+        const total = totalResult[0]?.total ?? 0;
+
+        return {
+            items,
+            total,
+            limit,
+        };
+    }
+
+    async findPaginatedInfluencerInvoices(
+        query: PaginationQueryDto,
+    ): Promise<{
+        items: IAdminInfluencerInvoice[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    }> {
+        const page = query.page ?? 1;
+        const limit = query.limit ?? 10;
+        const skip = (page - 1) * limit;
 
         const [items, totalResult] = await Promise.all([
-            model.aggregate<IAdminClientInvoice | IAdminInfluencerInvoice>(basePipeline),
-            model.aggregate(totalPipeline),
+            this.influencerInvoiceModel.aggregate<IAdminInfluencerInvoice>([
+                { $sort: { createdAt: -1, _id: -1 } },
+                { $skip: skip },
+                { $limit: limit },
+
+                {
+                    $lookup: {
+                        from: 'influencers',
+                        localField: 'userId',
+                        foreignField: '_id',
+                        as: 'userInfo',
+                    },
+                },
+
+                {
+                    $unwind: {
+                        path: '$userInfo',
+                        preserveNullAndEmptyArrays: true,
+                    },
+                },
+
+                {
+                    $addFields: {
+                        firstSocialAccount: {
+                            $ifNull: [
+                                { $arrayElemAt: [{ $ifNull: ['$userInfo.instagram', []] }, 0] },
+                                {
+                                    $ifNull: [
+                                        { $arrayElemAt: [{ $ifNull: ['$userInfo.tiktok', []] }, 0] },
+                                        {
+                                            $ifNull: [
+                                                { $arrayElemAt: [{ $ifNull: ['$userInfo.spotify', []] }, 0] },
+                                                {
+                                                    $ifNull: [
+                                                        { $arrayElemAt: [{ $ifNull: ['$userInfo.soundcloud', []] }, 0] },
+                                                        {
+                                                            $ifNull: [
+                                                                { $arrayElemAt: [{ $ifNull: ['$userInfo.facebook', []] }, 0] },
+                                                                {
+                                                                    $ifNull: [
+                                                                        { $arrayElemAt: [{ $ifNull: ['$userInfo.youtube', []] }, 0] },
+                                                                        { $arrayElemAt: [{ $ifNull: ['$userInfo.press', []] }, 0] },
+                                                                    ],
+                                                                },
+                                                            ],
+                                                        },
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+
+                        socialMedia: {
+                            $switch: {
+                                branches: [
+                                    {
+                                        case: { $gt: [{ $size: { $ifNull: ['$userInfo.instagram', []] } }, 0] },
+                                        then: 'instagram',
+                                    },
+                                    {
+                                        case: { $gt: [{ $size: { $ifNull: ['$userInfo.tiktok', []] } }, 0] },
+                                        then: 'tiktok',
+                                    },
+                                    {
+                                        case: { $gt: [{ $size: { $ifNull: ['$userInfo.spotify', []] } }, 0] },
+                                        then: 'spotify',
+                                    },
+                                    {
+                                        case: { $gt: [{ $size: { $ifNull: ['$userInfo.soundcloud', []] } }, 0] },
+                                        then: 'soundcloud',
+                                    },
+                                    {
+                                        case: { $gt: [{ $size: { $ifNull: ['$userInfo.facebook', []] } }, 0] },
+                                        then: 'facebook',
+                                    },
+                                    {
+                                        case: { $gt: [{ $size: { $ifNull: ['$userInfo.youtube', []] } }, 0] },
+                                        then: 'youtube',
+                                    },
+                                    {
+                                        case: { $gt: [{ $size: { $ifNull: ['$userInfo.press', []] } }, 0] },
+                                        then: 'press',
+                                    },
+                                ],
+                                default: null,
+                            },
+                        },
+
+                        paymentDetails: {
+                            $ifNull: [
+                                '$paypal',
+                                {
+                                    $ifNull: [
+                                        '$ukBankTransfer',
+                                        '$internationalBankTransfer',
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
+
+                {
+                    $project: {
+                        _id: 1,
+                        firstName: { $ifNull: ['$userInfo.firstName', null] },
+                        lastName: { $ifNull: ['$userInfo.lastName', null] },
+                        socialMedia: 1,
+                        username: { $ifNull: ['$firstSocialAccount.username', null] },
+                        createdAt: 1,
+                        amount: 1,
+                        paymentMethod: '$selectedPaymentMethod',
+                        paymentDetails: 1,
+                        status: 1,
+                    },
+                },
+            ]),
+            this.influencerInvoiceModel.aggregate([{$count: 'total'}]),
+        ]);
+
+        const total = totalResult[0]?.total ?? 0;
+
+        return {
+            items,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        };
+    }
+
+    async findBySearchInfluencerInvoices(
+        query: SearchQueryDto,
+    ): Promise<{
+        items: IAdminInfluencerInvoice[];
+        total: number;
+        limit: number;
+    }> {
+        const limit = query.limit ?? 10;
+        const rawSearch = query.search?.trim();
+
+        const escapedSearch = rawSearch
+            ? rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            : null;
+
+        const matchStage = escapedSearch
+            ? {
+                $match: {
+                    $or: [
+                        {firstName: {$regex: escapedSearch, $options: 'i'}},
+                        {lastName: {$regex: escapedSearch, $options: 'i'}},
+                        {company: {$regex: escapedSearch, $options: 'i'}},
+                        {_id: {$regex: escapedSearch, $options: 'i'}},
+                    ],
+                },
+            }
+            : null;
+
+        const basePipeline: PipelineStage[] = [
+            ...(matchStage ? [matchStage] : []),
+
+            {
+                $sort: { createdAt: -1, _id: -1 },
+            },
+            {
+                $limit: limit,
+            },
+
+            {
+                $lookup: {
+                    from: 'influencers',
+                    localField: 'userId',
+                    foreignField: '_id',
+                    as: 'userInfo',
+                },
+            },
+
+            {
+                $unwind: {
+                    path: '$userInfo',
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+
+            {
+                $addFields: {
+                    firstSocialAccount: {
+                        $ifNull: [
+                            { $arrayElemAt: [{ $ifNull: ['$userInfo.instagram', []] }, 0] },
+                            {
+                                $ifNull: [
+                                    { $arrayElemAt: [{ $ifNull: ['$userInfo.tiktok', []] }, 0] },
+                                    {
+                                        $ifNull: [
+                                            { $arrayElemAt: [{ $ifNull: ['$userInfo.spotify', []] }, 0] },
+                                            {
+                                                $ifNull: [
+                                                    { $arrayElemAt: [{ $ifNull: ['$userInfo.soundcloud', []] }, 0] },
+                                                    {
+                                                        $ifNull: [
+                                                            { $arrayElemAt: [{ $ifNull: ['$userInfo.facebook', []] }, 0] },
+                                                            {
+                                                                $ifNull: [
+                                                                    { $arrayElemAt: [{ $ifNull: ['$userInfo.youtube', []] }, 0] },
+                                                                    { $arrayElemAt: [{ $ifNull: ['$userInfo.press', []] }, 0] },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+
+                    socialMedia: {
+                        $switch: {
+                            branches: [
+                                {
+                                    case: { $gt: [{ $size: { $ifNull: ['$userInfo.instagram', []] } }, 0] },
+                                    then: 'instagram',
+                                },
+                                {
+                                    case: { $gt: [{ $size: { $ifNull: ['$userInfo.tiktok', []] } }, 0] },
+                                    then: 'tiktok',
+                                },
+                                {
+                                    case: { $gt: [{ $size: { $ifNull: ['$userInfo.spotify', []] } }, 0] },
+                                    then: 'spotify',
+                                },
+                                {
+                                    case: { $gt: [{ $size: { $ifNull: ['$userInfo.soundcloud', []] } }, 0] },
+                                    then: 'soundcloud',
+                                },
+                                {
+                                    case: { $gt: [{ $size: { $ifNull: ['$userInfo.facebook', []] } }, 0] },
+                                    then: 'facebook',
+                                },
+                                {
+                                    case: { $gt: [{ $size: { $ifNull: ['$userInfo.youtube', []] } }, 0] },
+                                    then: 'youtube',
+                                },
+                                {
+                                    case: { $gt: [{ $size: { $ifNull: ['$userInfo.press', []] } }, 0] },
+                                    then: 'press',
+                                },
+                            ],
+                            default: null,
+                        },
+                    },
+
+                    paymentDetails: {
+                        $ifNull: [
+                            '$paypal',
+                            {
+                                $ifNull: [
+                                    '$ukBankTransfer',
+                                    '$internationalBankTransfer',
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+
+            {
+                $project: {
+                    _id: 1,
+                    firstName: { $ifNull: ['$userInfo.firstName', null] },
+                    lastName: { $ifNull: ['$userInfo.lastName', null] },
+                    socialMedia: 1,
+                    username: { $ifNull: ['$firstSocialAccount.username', null] },
+                    createdAt: 1,
+                    amount: 1,
+                    paymentMethod: '$selectedPaymentMethod',
+                    paymentDetails: 1,
+                    status: 1,
+                },
+            },
+        ];
+
+        const totalPipeline: PipelineStage[] = [
+            ...(matchStage ? [matchStage] : []),
+            {$count: 'total'},
+        ];
+
+        const [items, totalResult] = await Promise.all([
+            this.influencerInvoiceModel.aggregate<IAdminInfluencerInvoice>(basePipeline),
+            this.influencerInvoiceModel.aggregate(totalPipeline),
         ]);
 
         const total = totalResult[0]?.total ?? 0;

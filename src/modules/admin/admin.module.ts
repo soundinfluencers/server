@@ -24,6 +24,7 @@ import {AdminPaymentsHistoryController} from "./controllers/admin-payments-histo
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
 import {AdminInvoicesController} from "./controllers/admin-invoices.controller";
 import {AdminClientInvoicesService} from "./services/invoices/admin-client-invoices.service";
+import {AdminInfluencerInvoicesService} from "./services/invoices/admin-influencer-invoices.service";
 
 @Module({
   controllers: [
@@ -54,6 +55,7 @@ import {AdminClientInvoicesService} from "./services/invoices/admin-client-invoi
       AdminPaymentsHistoryService,
       InfluencerActionsHistoryService,
       AdminClientInvoicesService,
+      AdminInfluencerInvoicesService,
   ],
 })
 export class AdminModule {}

@@ -1,5 +1,6 @@
 // invoice that influencer will see on the invoices dashboard
 import {Types} from "mongoose";
+import {SocialMediaEnum} from "./social-media.types";
 
 export interface InvoiceForDashboard {
     invoiceId: string;
@@ -57,14 +58,13 @@ export interface IAdminClientInvoice {
 
 export interface IAdminInfluencerInvoice {
     _id: Types.ObjectId;
-    company: string;
-    campaignName: string;
+    firstName: string;
+    lastName: string;
+    socialMedia: SocialMediaEnum; // influencer first social account social media
+    username: string; // influencer first social account username
     createdAt: Date;
     amount: number;
+    paymentMethod: InvoicePaymentMethodEnum;
+    paymentDetails: string;
     status: InvoiceStatusEnum;
-}
-
-// influencer detailed invoice
-export interface InfluencerDetailedInvoice extends BaseDetailedInvoice {
-
 }
