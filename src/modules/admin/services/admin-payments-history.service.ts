@@ -1,35 +1,9 @@
 import {Injectable} from "@nestjs/common";
-
-// Example query dto for page data.
-// Replace with your real dto.
-export interface GetAdminPaymentsHistoryMatrixQuery {
-    // Horizontal pagination for campaigns
-    campaignsCursor?: string;
-    campaignsTake?: number;
-
-    // Vertical pagination for account rows
-    accountsCursor?: string;
-    accountsTake?: number;
-
-    // Shared filters / search
-    search?: string;
-    socialMedia?: string;
-    effectiveStatus?: string;
-}
-
-// Example response dto shape.
-// Replace with your real dto.
-export interface AdminPaymentsHistoryMatrixResponse {
-    campaigns: any[];
-    accounts: any[];
-    cells: any[];
-    meta: {
-        campaignsNextCursor?: string | null;
-        accountsNextCursor?: string | null;
-        campaignsCount?: number;
-        accountsCount?: number;
-    };
-}
+import {
+    AdminPaymentsHistoryMatrixDto,
+    GetAdminPaymentsHistoryMatrixQuery
+} from "../dto/payments-history/admin-payments-history.dto";
+import {PaymentHistoryCellRepository} from "../../../database/repositories/histories/payment-history-cell.repository";
 
 // Interface for admin payment history page service.
 // This service is responsible only for READING projection data
@@ -38,7 +12,7 @@ interface IAdminPaymentsHistoryService {
     // Returns paginated matrix data for the admin payment history page.
     getMatrix(
         query: GetAdminPaymentsHistoryMatrixQuery,
-    ): Promise<AdminPaymentsHistoryMatrixResponse>;
+    ): Promise<AdminPaymentsHistoryMatrixDto>;
 }
 
 @Injectable()
@@ -46,7 +20,7 @@ export class AdminPaymentsHistoryService implements IAdminPaymentsHistoryService
     constructor(
         // Inject only projection read repository / service here.
         // This service should NOT know how cells are rebuilt from campaigns.
-        // private readonly paymentHistoryCellRepository: PaymentHistoryCellRepository,
+        private readonly paymentHistoryCellRepository: PaymentHistoryCellRepository,
     ) {}
 
     // Main page method.
@@ -57,7 +31,7 @@ export class AdminPaymentsHistoryService implements IAdminPaymentsHistoryService
     // 4. map everything into final response dto
     async getMatrix(
         query: GetAdminPaymentsHistoryMatrixQuery,
-    ): Promise<AdminPaymentsHistoryMatrixResponse> {
+    ): Promise<AdminPaymentsHistoryMatrixDto> {
         // 1. Load paginated campaign headers from projection collection
         const campaignsPage = await this.getCampaignHeadersPage(query);
 
@@ -160,7 +134,7 @@ export class AdminPaymentsHistoryService implements IAdminPaymentsHistoryService
         campaignsPage: { items: any[]; nextCursor?: string | null; total?: number };
         accountsPage: { items: any[]; nextCursor?: string | null; total?: number };
         cells: any[];
-    }): AdminPaymentsHistoryMatrixResponse {
+    }): AdminPaymentsHistoryMatrixDto {
         const { campaignsPage, accountsPage, cells } = params;
 
         return {

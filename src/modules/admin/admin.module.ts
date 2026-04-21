@@ -22,6 +22,8 @@ import DropboxService from "../../integrations/dropbox/dropbox";
 import {AdminPaymentsHistoryService} from "./services/admin-payments-history.service";
 import {AdminPaymentsHistoryController} from "./controllers/admin-payments-history.controller";
 import {InfluencerActionsHistoryService} from "../influencer-actions-history/influencer-actions-history.service";
+import {AdminInvoicesController} from "./controllers/admin-invoices.controller";
+import {AdminClientInvoicesService} from "./services/invoices/admin-client-invoices.service";
 
 @Module({
   controllers: [
@@ -30,6 +32,7 @@ import {InfluencerActionsHistoryService} from "../influencer-actions-history/inf
       AdminActionsHistoryController,
       AdminInfluencersController,
       AdminPaymentsHistoryController,
+      AdminInvoicesController,
   ],
   providers: [
       AdminClientsService,
@@ -49,7 +52,8 @@ import {InfluencerActionsHistoryService} from "../influencer-actions-history/inf
       ProposalCampaignUpdateService,
       ProposalAccountsBuilderService,
       AdminPaymentsHistoryService,
-      InfluencerActionsHistoryService
+      InfluencerActionsHistoryService,
+      AdminClientInvoicesService,
   ],
 })
 export class AdminModule {}

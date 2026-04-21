@@ -1,4 +1,6 @@
 // invoice that influencer will see on the invoices dashboard
+import {Types} from "mongoose";
+
 export interface InvoiceForDashboard {
     invoiceId: string;
     shortInvoiceId: string;
@@ -42,4 +44,27 @@ export interface ClientDetailedInvoice extends BaseDetailedInvoice {
     campaignFollowers: number;
     referenceNumber: string;
     poNumber?: string;
+}
+
+export interface IAdminClientInvoice {
+    _id: Types.ObjectId;
+    company: string;
+    campaignName: string;
+    createdAt: Date;
+    amount: number;
+    status: InvoiceStatusEnum;
+}
+
+export interface IAdminInfluencerInvoice {
+    _id: Types.ObjectId;
+    company: string;
+    campaignName: string;
+    createdAt: Date;
+    amount: number;
+    status: InvoiceStatusEnum;
+}
+
+// influencer detailed invoice
+export interface InfluencerDetailedInvoice extends BaseDetailedInvoice {
+
 }

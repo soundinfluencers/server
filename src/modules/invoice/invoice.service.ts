@@ -185,8 +185,8 @@ export class InvoiceService {
     // Creates new client invoice (after creating new campaign)
     async createClientCampaignInvoice(data: CreateCampaignInvoiceDto, session?: ClientSession): Promise<void> {
         const invoice = await this.userInvoiceRepository.createClientInvoice(data, session);
-        const pdfInvoice = await InvoicePdfExporter.buildPdfBuffer(invoice);
-        await this.emailService.send(AdminToClientEmails.campaignInvoice(process.env.EMAIL_USER, pdfInvoice));
+        // const pdfInvoice = await InvoicePdfExporter.buildPdfBuffer(invoice);
+        // await this.emailService.send(AdminToClientEmails.campaignInvoice(process.env.EMAIL_USER, pdfInvoice));
     }
 
     // Returns list of invoices (sorted from newest)
