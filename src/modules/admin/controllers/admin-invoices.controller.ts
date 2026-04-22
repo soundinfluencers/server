@@ -2,7 +2,7 @@ import {Auth} from "../../../common/decorators/auth.decorator";
 import {Roles} from "../../../common/decorators/roles.decorator";
 import {Role} from "../../../common/types/user.types";
 import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
-import {BadRequestException, Controller, Get, Param, Query} from "@nestjs/common";
+import {BadRequestException, Controller, Get, Param, Patch, Query} from "@nestjs/common";
 import {AdminClientInvoicesService} from "../services/invoices/admin-client-invoices.service";
 import {ApiResponseDtoOneOf} from "../../../common/decorators/api/response/api-response-one-of.decorator";
 import {OneOfQueryPipe} from "../../../common/pipes/one-of-query.pipe";
@@ -14,6 +14,8 @@ import {
     AdminInfluencerInvoicesListResponseDto, AdminInfluencerInvoicesSearchResponseDto
 } from "../dto/invoices/admin-invoices.dto";
 import {AdminInfluencerInvoicesService} from "../services/invoices/admin-influencer-invoices.service";
+import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
+import {ParseObjectIdPipe} from "../../../common/pipes/parse-oid.pipe";
 
 @Auth()
 @Roles(Role.admin)
@@ -97,5 +99,16 @@ export class AdminInvoicesController {
         }
 
         return service.getList(query);
+    }
+
+    @ApiResponseDto()
+    @ApiParam({
+        name: 'invoiceId',
+        type: String,
+        required: true
+    })
+    @Patch('mark-paid/:invoiceId')
+    markPaid(@Param('invoiceId', new ParseObjectIdPipe()) invoiceId: string): Promise<void> {
+        return this.influencerInvoiceService.markPaid(invoiceId);
     }
 }

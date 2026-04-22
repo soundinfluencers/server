@@ -79,7 +79,7 @@ export class InvoiceService {
             }
 
             // Updating invoice status in these promos
-            await this.campaignRepo.updateManyInvoiceStatuses(data.userId, InvoiceStatusEnum.wait, InvoiceStatusEnum.submitted, session);
+            await this.campaignRepo.updateManyInvoiceStatusesByStatus(data.userId, InvoiceStatusEnum.wait, InvoiceStatusEnum.submitted, session);
 
             // throw new Error('expected error');
 

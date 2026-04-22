@@ -51,7 +51,16 @@ export interface ICampaignRepository {
     findAllWaitingForPayment(influencerId: string, invoiceStatus: InvoiceStatusEnum, session?: ClientSession): Promise<CampaignAccount[]>;
 
     // Find influencer's promos by invoice status and update this status
-    updateManyInvoiceStatuses(influencerId: string, oldInvoiceStatus: InvoiceStatusEnum, newInvoiceStatus: InvoiceStatusEnum, session?: ClientSession): Promise<any>;
+    updateManyInvoiceStatusesByStatus(influencerId: string, oldInvoiceStatus: InvoiceStatusEnum, newInvoiceStatus: InvoiceStatusEnum, session?: ClientSession): Promise<any>;
+
+    // Find influencer's promos by promo ids and update their status
+    updateManyInvoiceStatusesByPromoIds(payload: {
+        // influencerId: string,
+        campaignIds: ObjId[],
+        promoIds: ObjId[],
+        newInvoiceStatus: InvoiceStatusEnum,
+        session?: ClientSession
+    }): Promise<void>;
 
     // Check if social account still in campaign
     checkIfAccountStillInCampaign(campaignId: string, addedAccountsId: string): Promise<boolean>;
@@ -228,7 +237,7 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
         return [...ongoingPromos, ...completedPromos];
     }
 
-    async updateManyInvoiceStatuses(
+    async updateManyInvoiceStatusesByStatus(
         influencerId: string,
         oldInvoiceStatus: InvoiceStatusEnum,
         newInvoiceStatus: InvoiceStatusEnum,
@@ -257,6 +266,58 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
                     'elem.confirmation': InfluencerConfirmationStatusEnum.accept,
                     'elem.closePromo': InfluencerPromoClosedStatusEnum.close,
                     'elem.invoiceStatus': oldInvoiceStatus,
+                },
+            ],
+        };
+
+        await Promise.all([
+            this.campaignModel.updateMany(
+                {addedAccounts: {$elemMatch: elemMatch}},
+                update,
+                options
+            ),
+            this.completedCampaignModel.updateMany(
+                {addedAccounts: {$elemMatch: elemMatch}},
+                update,
+                options
+            ),
+        ]);
+    }
+
+    async updateManyInvoiceStatusesByPromoIds(payload: {
+        // influencerId: string,
+        campaignIds: ObjId[],
+        promoIds: ObjId[],
+        newInvoiceStatus: InvoiceStatusEnum,
+        session?: ClientSession
+    }): Promise<void> {
+        const {campaignIds, promoIds, newInvoiceStatus, session} = payload;
+
+        // const infId = new ObjId(influencerId);
+        // const campaignObjectIds = campaignIds.map(id => new ObjId(id));
+        // const promoObjectIds = promoIds.map(id => new ObjId(id));
+
+        const elemMatch = {
+            // influencerId: infId,
+            _id: {$in: campaignIds},
+            confirmation: InfluencerConfirmationStatusEnum.accept,
+            closePromo: InfluencerPromoClosedStatusEnum.close,
+        };
+
+        const update = {
+            $set: {
+                'addedAccounts.$[elem].invoiceStatus': newInvoiceStatus,
+            },
+        };
+
+        const options = {
+            session,
+            arrayFilters: [
+                {
+                    // 'elem.influencerId': infId,
+                    'elem._id': {$in: promoIds},
+                    'elem.confirmation': InfluencerConfirmationStatusEnum.accept,
+                    'elem.closePromo': InfluencerPromoClosedStatusEnum.close,
                 },
             ],
         };
@@ -365,19 +426,19 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
             {
                 $lookup: {
                     from: 'userinvoices',
-                    let: { campaignId: '$_id' },
+                    let: {campaignId: '$_id'},
                     pipeline: [
                         {
                             $setWindowFields: {
-                                sortBy: { _id: 1 },
+                                sortBy: {_id: 1},
                                 output: {
-                                    shortInvoiceNumber: { $documentNumber: {} }
+                                    shortInvoiceNumber: {$documentNumber: {}}
                                 }
                             }
                         },
                         {
                             $match: {
-                                $expr: { $eq: ['$campaignId', '$$campaignId'] }
+                                $expr: {$eq: ['$campaignId', '$$campaignId']}
                             }
                         },
                         {
@@ -404,20 +465,20 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
                     campaignName: 1,
                     creatorRole: '$client.role',
                     creatorName: '$client.firstName',
-                    totalFollowers: { $sum: '$addedAccounts.followers' },
-                    price: { $sum: '$addedAccounts.price' },
+                    totalFollowers: {$sum: '$addedAccounts.followers'},
+                    price: {$sum: '$addedAccounts.price'},
                     publicPrice: '$campaignPrice',
                     createdAt: 1,
                     status: {
                         $cond: [
-                            { $eq: ['$statusCampaign', 'distributing'] },
+                            {$eq: ['$statusCampaign', 'distributing']},
                             AdminCampaignsListStatusEnum.distributing,
                             AdminCampaignsListStatusEnum.pending,
                         ],
                     },
                     statusLabel: {
                         $cond: [
-                            { $eq: ['$statusCampaign', 'distributing'] },
+                            {$eq: ['$statusCampaign', 'distributing']},
                             AdminCampaignStatusEnum.distributing,
                             AdminCampaignStatusEnum.pending,
                         ]
@@ -466,7 +527,7 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
                         [`adminMeta.${field}`]: value,
                     },
                 },
-                { new: true },
+                {new: true},
             )
             .lean();
     }
