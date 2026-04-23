@@ -1750,6 +1750,10 @@ export class ProfileService {
         const q = this.escapeRegex(queryRaw);
         const usernameRegex = new RegExp(`^${q}`, 'i');
 
+        // Getting latest exchanging rates for available currencies
+        const exchangeRates: Record<CurrencyCode, number> = await this.exchangeRateService.getAllRates();
+        const eurPriceExpr = { $ifNull: ['$acc.publicPrice', 0] };
+
         const concatParts = socialMedias.map((sm) => ({
             $map: {
                 input: `$${sm}`,
@@ -1804,12 +1808,26 @@ export class ProfileService {
                     creatorCategories: {$ifNull: ['$acc.creatorCategories', '$$REMOVE']},
                     categories: {$ifNull: ['$acc.categories', '$$REMOVE']},
 
-                    // todo: currency conversion
                     prices: {
-                        EUR: {$ifNull: ['$acc.publicPrice', {$literal: 0}]},
-                        USD: {$literal: 0},
-                        GBP: {$literal: 0},
+                        EUR: eurPriceExpr,
+
+                        USD: {
+                            $round: [
+                                {$multiply: [eurPriceExpr, exchangeRates[CurrencyCode.USD] ?? 1.08]},
+                                0
+                            ]
+                        },
+
+                        GBP: {
+                            $round: [
+                                {$multiply: [eurPriceExpr, exchangeRates[CurrencyCode.GBP] ?? 0.92]},
+                                0
+                            ]
+                        },
                     },
+
+                    averageViews: {$ifNull: ['$acc.averageViews', 0]},
+                    engagementRate: {$ifNull: ['$acc.engagementRate', 0]},
                 },
             },
         ];

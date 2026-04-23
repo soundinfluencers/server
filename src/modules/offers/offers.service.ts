@@ -12,6 +12,8 @@ import {FilteredPublishedOffersByGenreAndSocialMedia, GetFilteredPublishedOffers
 import {FoundAccountDto} from "../profile/dto/influencer/get-profile.dto";
 import {getArrayFromAccountMusicGenres} from "../../common/utils/genres";
 import {InfluencerProfileCategory} from "../../common/types/influencer/influencer.types";
+import {CurrencyCode} from "../../common/types/finance.types";
+import {ExchangeRateService} from "../../integrations/exchange-rate/exchange-rate.service";
 
 @Injectable()
 export class OffersService {
@@ -20,6 +22,7 @@ export class OffersService {
     constructor(
         @InjectModel(Offer.name) private offersModel: Model<Offer>,
         @InjectModel(Influencer.name) private readonly influencerModel: Model<Influencer>,
+        private readonly exchangeRateService: ExchangeRateService,
     ) {
     }
 
@@ -54,6 +57,9 @@ export class OffersService {
 
         if (!offers?.length) return [];
 
+        // Getting latest exchanging rates for available currencies
+        const exchangeRates: Record<CurrencyCode, number> = await this.exchangeRateService.getAllRates();
+
         // Уникальные пары influencerId и accountId
         const accountIdsMap = new Map<string, Set<string>>();
         offers.forEach((offer) => {
@@ -71,6 +77,8 @@ export class OffersService {
         const pairs = Array.from(accountIdsMap.entries()).flatMap(([influencerId, accountIds]) =>
             Array.from(accountIds).map((accountId) => `${influencerId}_${accountId}`),
         );
+
+        const eurPriceExpr = {$ifNull: [`$${socialMedia}.publicPrice`, 0]};
 
         // Агрегация инфлюенсеров и извлекание нужных для FoundAccountDto полей
         const influencers = await this.influencerModel
@@ -135,7 +143,27 @@ export class OffersService {
                                 `$${socialMedia}.categories`,
                                 []
                             ]
-                        }
+                        },
+                        prices: {
+                            EUR: eurPriceExpr,
+
+                            USD: {
+                                $round: [
+                                    {$multiply: [eurPriceExpr, exchangeRates[CurrencyCode.USD] ?? 1.08]},
+                                    0
+                                ]
+                            },
+
+                            GBP: {
+                                $round: [
+                                    {$multiply: [eurPriceExpr, exchangeRates[CurrencyCode.GBP] ?? 0.92]},
+                                    0
+                                ]
+                            },
+                        },
+
+                        averageViews: {$ifNull: [`$${socialMedia}.averageViews`, 0]},
+                        engagementRate: {$ifNull: [`$${socialMedia}.engagementRate`, 0]},
                     },
                 },
             ])
@@ -151,13 +179,9 @@ export class OffersService {
                     username: influencer.username,
                     logoUrl: influencer.logo,
                     followers: influencer.followers,
-
-                    // todo: parse prices
-                    prices: {
-                        'EUR': influencer.publicPrice,
-                        'USD': 0,
-                        'GBP': 0
-                    },
+                    prices: influencer.prices,
+                    averageViews: influencer.averageViews,
+                    engagementRate: influencer.engagementRate,
                     socialMedia: socialMedia,
                     profileType: influencer.profileCategory ?? InfluencerProfileCategory.community,
                     countries: influencer.countries?.length > 0 ? influencer.countries : null,

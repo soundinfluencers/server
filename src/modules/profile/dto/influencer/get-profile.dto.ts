@@ -231,6 +231,12 @@ export class FoundAccountDto {
     @ApiPropertyOptional()
     musicGenres?: string[]; // FORMATTED music genres (InfluencerMusicGenre[] -> string[])
 
+    @ApiProperty({ type: Number })
+    engagementRate: number;
+
+    @ApiProperty({ type: Number })
+    averageViews: number;
+
     @ApiPropertyOptional()
     creatorCategories?: string[];
 
