@@ -55,12 +55,18 @@ export interface ICampaignRepository {
 
     // Find influencer's promos by promo ids and update their status
     updateManyInvoiceStatusesByPromoIds(payload: {
-        // influencerId: string,
-        campaignIds: ObjId[],
-        promoIds: ObjId[],
-        newInvoiceStatus: InvoiceStatusEnum,
-        session?: ClientSession
-    }): Promise<void>;
+        campaignIds: ObjId[];
+        promoIds: ObjId[];
+        newInvoiceStatus: InvoiceStatusEnum;
+        session?: ClientSession;
+    }): Promise<
+        {
+            campaignId: ObjId;
+            promoId: ObjId;
+            accountId: ObjId;
+            influencerId: ObjId;
+        }[]
+    >
 
     // Check if social account still in campaign
     checkIfAccountStillInCampaign(campaignId: string, addedAccountsId: string): Promise<boolean>;
@@ -285,24 +291,23 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
     }
 
     async updateManyInvoiceStatusesByPromoIds(payload: {
-        // influencerId: string,
-        campaignIds: ObjId[],
-        promoIds: ObjId[],
-        newInvoiceStatus: InvoiceStatusEnum,
-        session?: ClientSession
-    }): Promise<void> {
-        const {campaignIds, promoIds, newInvoiceStatus, session} = payload;
+        campaignIds: ObjId[];
+        promoIds: ObjId[];
+        newInvoiceStatus: InvoiceStatusEnum;
+        session?: ClientSession;
+    }): Promise<
+        {
+            campaignId: ObjId;
+            promoId: ObjId;
+            accountId: ObjId;
+            influencerId: ObjId;
+        }[]
+    > {
+        const { campaignIds, promoIds, newInvoiceStatus, session } = payload;
 
-        // const infId = new ObjId(influencerId);
-        // const campaignObjectIds = campaignIds.map(id => new ObjId(id));
-        // const promoObjectIds = promoIds.map(id => new ObjId(id));
-
-        const elemMatch = {
-            // influencerId: infId,
-            _id: {$in: campaignIds},
-            confirmation: InfluencerConfirmationStatusEnum.accept,
-            closePromo: InfluencerPromoClosedStatusEnum.close,
-        };
+        if (!campaignIds.length || !promoIds.length) {
+            return [];
+        }
 
         const update = {
             $set: {
@@ -310,30 +315,71 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
             },
         };
 
-        const options = {
+        const updateFilter = {
+            _id: { $in: campaignIds },
+            addedAccounts: {
+                $elemMatch: {
+                    _id: { $in: promoIds },
+                },
+            },
+        };
+
+        const updateOptions = {
             session,
             arrayFilters: [
                 {
-                    // 'elem.influencerId': infId,
-                    'elem._id': {$in: promoIds},
-                    'elem.confirmation': InfluencerConfirmationStatusEnum.accept,
-                    'elem.closePromo': InfluencerPromoClosedStatusEnum.close,
+                    'elem._id': { $in: promoIds },
                 },
             ],
         };
 
         await Promise.all([
-            this.campaignModel.updateMany(
-                {addedAccounts: {$elemMatch: elemMatch}},
-                update,
-                options
-            ),
-            this.completedCampaignModel.updateMany(
-                {addedAccounts: {$elemMatch: elemMatch}},
-                update,
-                options
-            ),
+            this.campaignModel.updateMany(updateFilter, update, updateOptions),
+            this.completedCampaignModel.updateMany(updateFilter, update, updateOptions),
         ]);
+
+        const projectionPipeline = [
+            {
+                $match: {
+                    _id: { $in: campaignIds },
+                },
+            },
+            {
+                $unwind: '$addedAccounts',
+            },
+            {
+                $match: {
+                    'addedAccounts._id': { $in: promoIds },
+                    'addedAccounts.invoiceStatus': newInvoiceStatus,
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    campaignId: '$_id',
+                    promoId: '$addedAccounts._id',
+                    accountId: '$addedAccounts.accountId',
+                    influencerId: '$addedAccounts.influencerId',
+                },
+            },
+        ];
+
+        const [openCampaignRows, completedCampaignRows] = await Promise.all([
+            this.campaignModel.aggregate<{
+                campaignId: ObjId;
+                promoId: ObjId;
+                accountId: ObjId;
+                influencerId: ObjId;
+            }>(projectionPipeline).session(session ?? null),
+            this.completedCampaignModel.aggregate<{
+                campaignId: ObjId;
+                promoId: ObjId;
+                accountId: ObjId;
+                influencerId: ObjId;
+            }>(projectionPipeline).session(session ?? null),
+        ]);
+
+        return [...openCampaignRows, ...completedCampaignRows];
     }
 
     async checkIfAccountStillInCampaign(

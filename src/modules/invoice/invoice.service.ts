@@ -30,6 +30,8 @@ import {
 } from "../../database/schemas/invoices/user-invoice.schema";
 import {formatDate} from "../../common/utils/formatters";
 import {UpdateClientInvoiceDto} from "./dto/update-invoice.dto";
+import {PaymentHistoryAdminOverrideStatusEnum, PaymentHistorySystemStatusEnum} from "../../common/types/history.types";
+import {PaymentsHistoryService} from "../payments-history/payments-history.service";
 
 @Injectable()
 export class InvoiceService {
@@ -42,7 +44,8 @@ export class InvoiceService {
         // services
         private readonly influencerHistoryService: InfluencerActionsHistoryService,
         private readonly profileService: ProfileService,
-        private readonly emailService: EmailService
+        private readonly emailService: EmailService,
+        private readonly paymentsHistoryService: PaymentsHistoryService,
     ) {
     }
 
@@ -107,6 +110,7 @@ export class InvoiceService {
                 session
             );
 
+            // Updating influencer's balance
             const updatedInfluencer = await this.influencerRepo.findOneAndUpdate(
                 {
                     _id: new Types.ObjectId(data.userId),
@@ -135,6 +139,24 @@ export class InvoiceService {
                 },
                 session
             );
+
+            // Building cells info for updating in payment history cell collection
+            const cellsInfo: {
+                campaignId: string;
+                accountId: string;
+                newAdminOverrideStatus?: PaymentHistoryAdminOverrideStatusEnum;
+                newSystemStatus?: PaymentHistorySystemStatusEnum;
+            }[] = promosWaitForPayment.map(i => ({
+                campaignId: i.campaignId.toString(),
+                accountId: i.accountId.toString(),
+                newSystemStatus: PaymentHistorySystemStatusEnum.done
+            }));
+
+            // Update each payment history cell for each linked promo
+            await this.paymentsHistoryService.rebuildSpecifiedCells({
+                session: session,
+                cellsInfo: cellsInfo
+            })
 
             // Mapping accounts name for email
             const instagramAccounts = updatedInfluencer.instagram

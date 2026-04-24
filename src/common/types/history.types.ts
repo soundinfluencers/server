@@ -1,5 +1,8 @@
 import {ObjId} from "./base.types";
 import {SocialMediaEnum} from "./social-media.types";
+import {PaymentHistoryCampaignSource} from "../../database/schemas/histories/payment-history-cell.schema";
+import {CampaignStatusEnum} from "./client/campaign.types";
+import {InvoiceStatusEnum} from "./invoice.types";
 
 // Enum of available history actions types
 export enum InfluencerHistoryActionType {
@@ -92,4 +95,26 @@ export enum PaymentHistoryEffectiveStatusEnum {
     // Final status is "paid" when an admin manually marks the cell as paid.
     // This value has priority over the automatic system status.
     paid = 'paid',
+}
+
+export type PaymentHistoryProjection = {
+    _id?: ObjId;
+    campaignSource: PaymentHistoryCampaignSource;
+    campaignId: ObjId;
+    accountId: ObjId;
+    influencerId: ObjId;
+    campaignName: string;
+    campaignCreatedAt: Date;
+    campaignStatus: CampaignStatusEnum;
+    socialMedia: SocialMediaEnum;
+    username: string;
+    price: number;
+    followers: number;
+    invoiceStatus: InvoiceStatusEnum;
+    influencerName: string;
+    influencerEmail: string;
+    influencerLogoUrl: string;
+    systemStatus: PaymentHistorySystemStatusEnum;
+    adminOverrideStatus?: PaymentHistoryAdminOverrideStatusEnum;
+    effectiveStatus: PaymentHistoryEffectiveStatusEnum;
 }

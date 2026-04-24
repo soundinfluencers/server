@@ -1,5 +1,6 @@
 import {
-    BadRequestException, ConflictException,
+    BadRequestException,
+    ConflictException,
     HttpException,
     Injectable,
     InternalServerErrorException,
@@ -60,6 +61,8 @@ import {
 } from "../../../common/types/influencer/promo.types";
 import {InvoiceStatusEnum} from "../../../common/types/invoice.types";
 import {InfluencerActionsHistoryService} from "../../influencer-actions-history/influencer-actions-history.service";
+import {PaymentsHistoryService} from "../../payments-history/payments-history.service";
+import {PaymentHistorySystemStatusEnum} from "../../../common/types/history.types";
 
 // Interface for admin campaigns service and controller
 export interface IAdminCampaignsService {
@@ -127,6 +130,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         private readonly proposalAccountsBuilderService: ProposalAccountsBuilderService,
         private readonly actionsHistoryService: InfluencerActionsHistoryService,
         private readonly xlsxImporter: XlsxImporter,
+        private readonly paymentsHistoryService: PaymentsHistoryService,
     ) {
     }
 
@@ -281,26 +285,49 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         campaignId: string,
         data: AdminUpdateCampaignDto,
     ): Promise<AdminCampaignDetailsDto> {
-        return this.campaignUpdateService.execute<
-            HydratedDocument<Campaign>,
-            CampaignAccount,
-            IAdminCampaignDetails,
-            AdminCampaignDetailsDto
-        >(campaignId, data, {
-            findCampaign: (campaignId: string) =>
-                this.campaignsRepository.findOne({_id: new ObjId(campaignId)}),
+        const session = await this.campaignsRepository.startSession();
+        session.startTransaction();
 
-            buildCampaignAccountsBatch:
-                this.campaignAccountsBuilderService.buildCampaignAccountsBatch.bind(
-                    this.campaignAccountsBuilderService,
-                ),
+        try {
+            const result = await this.campaignUpdateService.execute<
+                HydratedDocument<Campaign>,
+                CampaignAccount,
+                IAdminCampaignDetails,
+                AdminCampaignDetailsDto
+            >(campaignId, data, {
+                findCampaign: (campaignId: string) =>
+                    this.campaignsRepository.findOne({_id: new ObjId(campaignId)}),
 
-            toReadModel: (campaign: HydratedDocument<Campaign>): IAdminCampaignDetails =>
-                mapSchemaToIAdminCampaignDetails(campaign.toObject() as Campaign),
+                buildCampaignAccountsBatch:
+                    this.campaignAccountsBuilderService.buildCampaignAccountsBatch.bind(
+                        this.campaignAccountsBuilderService,
+                    ),
 
-            mapResult: (readModel: IAdminCampaignDetails): AdminCampaignDetailsDto =>
-                mapToAdminCampaignDetailsDto(readModel),
-        });
+                toReadModel: (campaign: HydratedDocument<Campaign>): IAdminCampaignDetails =>
+                    mapSchemaToIAdminCampaignDetails(campaign.toObject() as Campaign),
+
+                mapResult: (readModel: IAdminCampaignDetails): AdminCampaignDetailsDto =>
+                    mapToAdminCampaignDetailsDto(readModel),
+
+                session,
+
+                afterSave: async (campaign, sessionArg) => {
+                    await this.paymentsHistoryService.rebuildForCampaign(
+                        data.campaignId,
+                        'campaign',
+                        sessionArg,
+                    );
+                },
+            });
+
+            await session.commitTransaction();
+            return result;
+        } catch (err) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            await session.endSession();
+        }
     }
 
     async getCampaignsList(data: GetAdminCampaignsListQueryDto): Promise<AdminCampaignsListResponseDto> {
@@ -408,7 +435,29 @@ export class AdminCampaignsService implements IAdminCampaignsService {
 
     async deleteCampaign(status: AdminCampaignsListStatusEnum, campaignId: string): Promise<void> {
         const repository = this.getRepository(status);
-        await repository.deleteById(campaignId);
+
+        if (repository instanceof ProposalCampaignRepository) {
+            await repository.deleteById(campaignId);
+            return;
+        }
+
+        const session = await repository.startSession();
+        session.startTransaction();
+
+        try {
+            // deleting campaign
+            await repository.deleteById(campaignId, {session});
+
+            // deleting all payment history cells that are connected to this campaign
+            await this.paymentsHistoryService.deleteManyByCampaignId(campaignId, session);
+
+            await session.commitTransaction();
+        } catch (err) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            await session.endSession();
+        }
     }
 
     async getDetailedCampaign(

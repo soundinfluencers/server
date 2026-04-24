@@ -78,6 +78,7 @@ import {
 import {CampaignUpdateService} from "./campaign-update.service";
 import {CampaignDetailsService} from "./campaign-details.service";
 import {CampaignAccountsBuilderService} from "./campaign-accounts-builder.service";
+import {PaymentsHistoryService} from "../../payments-history/payments-history.service";
 
 @Injectable()
 export class CampaignsService {
@@ -98,6 +99,7 @@ export class CampaignsService {
         private readonly campaignDetailsService: CampaignDetailsService,
         private readonly campaignUpdateService: CampaignUpdateService,
         private readonly campaignAccountsBuilderService: CampaignAccountsBuilderService,
+        private readonly paymentsHistoryService: PaymentsHistoryService,
     ) {
     }
 
@@ -307,6 +309,7 @@ export class CampaignsService {
 
         const campaignId: ObjId = new ObjId();
         try {
+            // Saving new campaign
             createdCampaign = await this.campaignRepo.create({
                 ...data,
                 _id: campaignId,
@@ -323,6 +326,14 @@ export class CampaignsService {
                 schemaVersion: 2
             } as Campaign, {session});
 
+            // Saving payment history projections for all of campaign's accounts
+            await this.paymentsHistoryService.rebuildForCampaign(
+                campaignId.toString(),
+                'campaign',
+                session
+            );
+
+            // Getting client data
             client = await this.clientRepo.findById(data.clientId, {session});
 
             data.paymentDetails.userId = data.clientId;
@@ -332,7 +343,7 @@ export class CampaignsService {
             data.paymentDetails.campaignFollowers = campaignTotalFollowers;
             data.paymentDetails.company = client.company;
 
-            // create and send invoice to client
+            // Create and send invoice to client
             await this.invoiceService.createClientCampaignInvoice(data.paymentDetails, session);
 
             await session.commitTransaction();
@@ -562,32 +573,54 @@ export class CampaignsService {
         userInfo: UserPayload,
     ): Promise<CampaignDetailsDto> {
         const userId = new Types.ObjectId(userInfo._id);
+        const session = await this.campaignRepo.startSession();
+        session.startTransaction();
 
-        return this.campaignUpdateService.execute<
-            HydratedDocument<Campaign>,
-            CampaignAccount,
-            ICampaignDetails,
-            CampaignDetailsDto
-        >(data.campaignId, data, {
-            findCampaign: (campaignId: string) =>
-                this.campaignRepo.findOne({
-                    _id: new Types.ObjectId(campaignId),
-                    clientId: userId,
-                    canEdit: true,
-                    statusCampaign: CampaignStatusEnum.pending,
-                }),
+        try {
+            const result = await this.campaignUpdateService.execute<
+                HydratedDocument<Campaign>,
+                CampaignAccount,
+                ICampaignDetails,
+                CampaignDetailsDto
+            >(data.campaignId, data, {
+                findCampaign: (campaignId: string) =>
+                    this.campaignRepo.findOne({
+                        _id: new Types.ObjectId(campaignId),
+                        clientId: userId,
+                        canEdit: true,
+                        statusCampaign: CampaignStatusEnum.pending,
+                    }),
 
-            buildCampaignAccountsBatch:
-                this.campaignAccountsBuilderService.buildCampaignAccountsBatch.bind(
-                    this.campaignAccountsBuilderService,
-                ),
+                buildCampaignAccountsBatch:
+                    this.campaignAccountsBuilderService.buildCampaignAccountsBatch.bind(
+                        this.campaignAccountsBuilderService,
+                    ),
 
-            toReadModel: (campaign: HydratedDocument<Campaign>): ICampaignDetails =>
-                mapSchemaToICampaignDetails(campaign.toObject() as Campaign),
+                toReadModel: (campaign: HydratedDocument<Campaign>): ICampaignDetails =>
+                    mapSchemaToICampaignDetails(campaign.toObject() as Campaign),
 
-            mapResult: (readModel: ICampaignDetails): CampaignDetailsDto =>
-                mapToCampaignDetailsDto(readModel),
-        });
+                mapResult: (readModel: ICampaignDetails): CampaignDetailsDto =>
+                    mapToCampaignDetailsDto(readModel),
+
+                session,
+
+                afterSave: async (campaign, sessionArg) => {
+                    await this.paymentsHistoryService.rebuildForCampaign(
+                        data.campaignId,
+                        'campaign',
+                        sessionArg,
+                    );
+                },
+            });
+
+            await session.commitTransaction();
+            return result;
+        } catch (err) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            await session.endSession();
+        }
     }
 
     async createBespokeCampaignRequest(data: CreateBespokeCampaignDto, userInfo: UserPayload) {

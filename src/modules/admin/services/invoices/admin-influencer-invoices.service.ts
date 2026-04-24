@@ -1,4 +1,4 @@
-import {Injectable, NotFoundException} from "@nestjs/common";
+import {Injectable, InternalServerErrorException, NotFoundException} from "@nestjs/common";
 import {UserInvoiceRepository} from "../../../../database/repositories/invoices/user-invoice.repository";
 import {PaginationQueryDto} from "../../../../common/dto/requests/pagination-query.dto";
 import {SearchQueryDto} from "../../../../common/dto/requests/search-query.dto";
@@ -11,8 +11,11 @@ import {IAdminInfluencerInvoice, InvoiceStatusEnum} from "../../../../common/typ
 import {formatDate} from "../../../../common/utils/formatters";
 import {ObjId} from "../../../../common/types/base.types";
 import {CampaignRepository} from "../../../../database/repositories/campaigns/campaign.repository";
-import {CompletedCampaignRepository} from "../../../../database/repositories/campaigns/completed-campaign.repository";
-import {InfluencerInvoice} from "../../../../database/schemas/invoices/user-invoice.schema";
+import {PaymentsHistoryService} from "../../../payments-history/payments-history.service";
+import {
+    PaymentHistoryAdminOverrideStatusEnum,
+    PaymentHistorySystemStatusEnum
+} from "../../../../common/types/history.types";
 
 // Interface for AdminInfluencerInvoicesService
 interface IAdminInfluencerInvoicesService {
@@ -20,7 +23,7 @@ interface IAdminInfluencerInvoicesService {
 
     search(data: SearchQueryDto): Promise<AdminInfluencerInvoicesSearchResponseDto>;
 
-    markPaid(invoiceId: string): Promise<void>; // marks invoice as paid
+    markPaid(invoiceId: string, adminId: string): Promise<void>; // marks invoice as paid
 }
 
 @Injectable()
@@ -28,6 +31,7 @@ export class AdminInfluencerInvoicesService implements IAdminInfluencerInvoicesS
     constructor(
         private readonly invoiceRepository: UserInvoiceRepository,
         private readonly campaignRepository: CampaignRepository,
+        private readonly paymentsHistoryService: PaymentsHistoryService,
     ) {
     }
 
@@ -73,7 +77,7 @@ export class AdminInfluencerInvoicesService implements IAdminInfluencerInvoicesS
         }
     }
 
-    async markPaid(invoiceId: string): Promise<void> {
+    async markPaid(invoiceId: string, adminId: string): Promise<void> {
         const invoice = await this.invoiceRepository.findById(invoiceId);
 
         if (!invoice) {
@@ -84,6 +88,7 @@ export class AdminInfluencerInvoicesService implements IAdminInfluencerInvoicesS
         session.startTransaction();
 
         try {
+            // 1. Updating invoice status to a paid in invoice collection
             await this.invoiceRepository.findOneAndUpdate(
                 {
                     _id: new ObjId(invoiceId)
@@ -94,12 +99,43 @@ export class AdminInfluencerInvoicesService implements IAdminInfluencerInvoicesS
                 {session}
             );
 
-            await this.campaignRepository.updateManyInvoiceStatusesByPromoIds({
+            // 2. Updating invoice statuses to a paid in campaign collection
+            const campaignsUpdateResult: {
+                campaignId: ObjId;
+                promoId: ObjId;
+                accountId: ObjId;
+                influencerId: ObjId;
+            }[] = await this.campaignRepository.updateManyInvoiceStatusesByPromoIds({
                 campaignIds: (invoice as any)?.linkedPromos?.map(i => i.campaignId),
                 promoIds: (invoice as any)?.linkedPromos?.map(i => i.promoId),
                 newInvoiceStatus: InvoiceStatusEnum.paid,
                 session,
             });
+
+            if (campaignsUpdateResult.length === 0) {
+                throw new InternalServerErrorException('No campaigns found for the invoice');
+            }
+
+            // 3. Building cells info for updating in payments history cell collection
+            const cellsInfo: {
+                campaignId: string;
+                accountId: string;
+                newAdminOverrideStatus?: PaymentHistoryAdminOverrideStatusEnum;
+                newSystemStatus?: PaymentHistorySystemStatusEnum;
+            }[] = campaignsUpdateResult.map(i => ({
+                campaignId: i.campaignId.toString(),
+                accountId: i.accountId.toString(),
+                newAdminOverrideStatus: PaymentHistoryAdminOverrideStatusEnum.paid,
+                newSystemStatus: PaymentHistorySystemStatusEnum.done
+            }));
+
+            // 4. Updating admin override status to paid in payments history cell
+            // Update each payment history cell for each linked promo
+            await this.paymentsHistoryService.rebuildSpecifiedCells({
+                adminId: adminId,
+                session: session,
+                cellsInfo: cellsInfo
+            })
 
             await session.commitTransaction();
         } catch (err) {

@@ -3,7 +3,7 @@ import {
     Injectable, Logger,
     NotFoundException,
 } from '@nestjs/common';
-import { Types } from 'mongoose';
+import {ClientSession, Types} from 'mongoose';
 import {AdminUpdateCampaignDto, AdminUpdatePromoDto, UpdateCampaignDto} from '../dto/update-campaign.dto';
 import { MediaService } from '../../media/media.service';
 import {CampaignContentItem} from "../../../database/schemas/campaign/campaign.schema";
@@ -39,7 +39,7 @@ export type CampaignDocumentLike<TAccount extends CampaignAccountLike> = {
     socialMedia: SocialMediaEnum | 'multipromo';
     isCpmAndResultHidden?: boolean;
     isPriceHidden?: boolean;
-    save: () => Promise<unknown>;
+    save: (options?: { session?: ClientSession }) => Promise<unknown>;
     toObject: () => unknown;
 };
 
@@ -55,6 +55,8 @@ export type CampaignUpdateContext<
     ) => Promise<TAccount[]>;
     toReadModel: (campaign: TCampaignDoc) => TReadModel;
     mapResult: (campaign: TReadModel) => TResult;
+    session?: ClientSession;
+    afterSave?: (campaign: TCampaignDoc, session?: ClientSession) => Promise<void>;
 };
 
 @Injectable()
@@ -85,7 +87,12 @@ export class CampaignUpdateService {
             campaign,
             data,
             context.buildCampaignAccountsBatch,
+            context.session,
         );
+
+        if (context.afterSave) {
+            await context.afterSave(campaign, context.session);
+        }
 
         try {
             const readModel = context.toReadModel(campaign);
@@ -110,6 +117,7 @@ export class CampaignUpdateService {
         buildCampaignAccountsBatch: (
             addedAccountsData: SelectInfluencerDto[],
         ) => Promise<TAccount[]>,
+        session?: ClientSession,
     ): Promise<void> {
         if (data.campaignName && data.campaignName.trim() !== campaign.campaignName) {
             campaign.campaignName = data.campaignName.trim();
@@ -216,6 +224,6 @@ export class CampaignUpdateService {
                 );
         }
 
-        await campaign.save();
+        await campaign.save(session ? { session } : undefined);
     }
 }
