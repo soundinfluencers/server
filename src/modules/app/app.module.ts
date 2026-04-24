@@ -32,6 +32,7 @@ import {ScheduleModule} from "@nestjs/schedule";
 import {JobsModule} from "../../jobs/jobs.module";
 import {ConfigModule} from "@nestjs/config";
 import {AdminModule} from "../admin/admin.module";
+import {PaymentsHistoryModule} from "../payments-history/payments-history.module";
 
 @Module({
     imports: [
@@ -69,6 +70,7 @@ import {AdminModule} from "../admin/admin.module";
         CreateSocialAccountModule,
         UpdateSocialAccountModule,
         UpdateInfluencerModule,
+        PaymentsHistoryModule
     ],
     controllers: [AppController, HealthController],
     providers: [AppService],
