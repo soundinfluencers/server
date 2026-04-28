@@ -208,7 +208,7 @@ export class ScrapersService {
                         accountsBatch.forEach(acc => {
                             results[acc.accountId] = {success: false};
                             if (userId) {
-                                this.scrapersGateway.refreshPostDetailsStatusUpdate(userId, {
+                                this.scrapersGateway.refreshAccountStatusUpdate(userId, {
                                     accountId: acc.accountId,
                                     account: acc.socialMediaUsername,
                                     success: false,
@@ -439,7 +439,7 @@ export class ScrapersService {
         this.areAccountsRefreshing = true;
 
         const startTime = Date.now();
-        const {socialMedia, socketId} = data;
+        const { socialMedia, refreshInitiatorId } = data;
 
         if (!this.availableSocialMedias.includes(socialMedia)) {
             throw new BadRequestException("Not supported social media");
@@ -504,7 +504,7 @@ export class ScrapersService {
                 const resultMap = await this.scrapeAccountDetailsBatch(
                     formattedBatch,
                     socialMedia,
-                    socketId
+                    refreshInitiatorId
                 );
 
                 for (const acc of batch) {
