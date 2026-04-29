@@ -116,11 +116,23 @@ export class CampaignsController {
         return this.campaignsService.deleteDraftCampaign(draftId, request.user._id);
     }
 
-    @ApiExcludeEndpoint()
+    // @ApiExcludeEndpoint()
+    @ApiQuery({
+        name: 'campaignId',
+        type: String,
+        required: true
+    })
+    @ApiQuery({
+        name: 'status',
+        type: String,
+        required: true
+    })
     @Public()
     @ApiOperation({summary: 'Verify campaign (For email)'})
     @Get('verify')
     async verifyCampaign(@Query() args: { campaignId: string; status: string }, @Res() res: Response) {
+        console.log(args, 'args')
+
         const result: {
             code: number,
             message: string

@@ -226,10 +226,16 @@ export class PaymentHistoryCellRepository extends BaseRepository<PaymentHistoryC
         }
 
         if (search?.trim()) {
-            matchStage.campaignName = {
+            const searchRegex = {
                 $regex: search.trim(),
                 $options: 'i',
             };
+
+            matchStage.$or = [
+                { campaignName: searchRegex },
+                { username: searchRegex },
+                { influencerName: searchRegex },
+            ];
         }
 
         const pipeline: PipelineStage[] = [];
@@ -317,10 +323,16 @@ export class PaymentHistoryCellRepository extends BaseRepository<PaymentHistoryC
         }
 
         if (search?.trim()) {
-            matchStage.username = {
+            const searchRegex = {
                 $regex: search.trim(),
                 $options: 'i',
             };
+
+            matchStage.$or = [
+                { username: searchRegex },
+                { influencerName: searchRegex },
+                { campaignName: searchRegex },
+            ];
         }
 
         const pipeline: PipelineStage[] = [
