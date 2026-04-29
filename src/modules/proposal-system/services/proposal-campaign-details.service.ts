@@ -64,7 +64,7 @@ export class ProposalCampaignDetailsService {
         option: TOption,
     ): Promise<void> {
         const influencerIds = [
-            ...new Set(option.addedAccounts.map(acc => acc.influencerId.toString())),
+            ...new Set(option.addedAccounts.map(acc => acc.influencerId)),
         ];
 
         const influencers = await this.influencerRepo.findMany(
@@ -80,6 +80,13 @@ export class ProposalCampaignDetailsService {
                     'spotify._id', 'spotify.logoUrl',
                     'soundcloud._id', 'soundcloud.logoUrl',
                     'press._id', 'press.logoUrl',
+                    'instagram._id', 'instagram.profileCategory',
+                    'tiktok._id', 'tiktok.profileCategory',
+                    'youtube._id', 'youtube.profileCategory',
+                    'facebook._id', 'facebook.profileCategory',
+                    'spotify._id', 'spotify.profileCategory',
+                    'soundcloud._id', 'soundcloud.profileCategory',
+                    'press._id', 'press.profileCategory',
                 ],
             },
         );
@@ -97,9 +104,12 @@ export class ProposalCampaignDetailsService {
                 a => a._id?.toString() === acc.accountId?.toString(),
             );
 
+            console.log(matchedAccount, 'matchedAccount')
+
             return {
                 ...acc,
                 logoUrl: matchedAccount?.logoUrl ?? null,
+                profileType: matchedAccount?.profileCategory ?? null,
             };
         });
     }

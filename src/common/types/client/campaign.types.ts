@@ -5,6 +5,7 @@ import {CampaignContentMediaCache} from "../../../database/schemas/campaign/camp
 import {Role} from "../user.types";
 import {AdminCampaignsListStatusEnum} from "../../../modules/admin/dto/campaigns/admin-campaigns.dto";
 import {CurrencyCode} from "../finance.types";
+import {InfluencerProfileCategory} from "../influencer/influencer.types";
 
 // Campaign verify status
 export enum CampaignConfirmationEnum {
@@ -124,6 +125,7 @@ export interface ICampaignAccount {
     influencerId: Types.ObjectId;
     socialMedia: SocialMediaEnum;
     logoUrl?: string;
+    profileType?: InfluencerProfileCategory;
     username: string;
     // price: number
     publicPrice: number;

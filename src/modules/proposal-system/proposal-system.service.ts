@@ -35,9 +35,10 @@ import {
 } from "../../database/schemas/campaign/proposal-campaign-option.schema";
 import {
     mapContentItemDtoToModel,
-    mapToICampaignAccount, mapToIProposalCampaign, mapToIProposalOption
+    mapToIProposalCampaign,
+    mapToIProposalOption
 } from "../../common/mappers/campaign.mapper";
-import {safeParseToNumber, uniq} from "../../common/utils/base.util";
+import {uniq} from "../../common/utils/base.util";
 import {ObjId, toObjIdSafe} from "../../common/types/base.types";
 import {UpdateCampaignDto} from "../campaigns/dto/update-campaign.dto";
 import {MediaService} from "../media/media.service";
@@ -555,6 +556,13 @@ export class ProposalSystemService {
                     'soundcloud.logoUrl',
                     'press._id',
                     'press.logoUrl',
+                    'instagram.profileCategory',
+                    'tiktok.profileCategory',
+                    'youtube.profileCategory',
+                    'facebook.profileCategory',
+                    'spotify.profileCategory',
+                    'soundcloud.profileCategory',
+                    'press.profileCategory',
                 ]
             }
         );
@@ -576,7 +584,8 @@ export class ProposalSystemService {
 
             return {
                 ...acc,
-                logoUrl: matchedAccount?.logoUrl ?? null
+                logoUrl: matchedAccount?.logoUrl ?? null,
+                profileType: matchedAccount?.profileCategory ?? null,
             };
         });
 

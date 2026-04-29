@@ -17,6 +17,7 @@ import {
 import {CampaignContentMediaCache} from "../../../database/schemas/campaign/campaign.schema";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
 import {CurrencyCode} from "../../../common/types/finance.types";
+import {InfluencerProfileCategory} from "../../../common/types/influencer/influencer.types";
 
 export class ClientGetDashboardCampaignsQueryDto extends PaginationQueryDto {
     @ApiPropertyOptional({
@@ -162,6 +163,9 @@ export class CampaignAccountDto {
 
     @ApiPropertyOptional({ type: String })
     logoUrl?: string;
+
+    @ApiPropertyOptional({ type: String, enum: InfluencerProfileCategory })
+    profileType?: InfluencerProfileCategory;
 }
 
 // DTO with detailed campaign's content item (added mediaCache object)
@@ -242,6 +246,9 @@ export class DraftCampaignAccountDto extends DraftCampaignNewAccountDto {
 
     @ApiProperty()
     logoUrl: string;
+
+    @ApiProperty()
+    profileType: InfluencerProfileCategory;
 
     @ApiProperty()
     followers: number;

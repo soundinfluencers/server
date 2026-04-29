@@ -19,16 +19,10 @@ import {
 import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";
 import {formatClientCampaignStatus, formatDate} from "../../../common/utils/formatters";
 import {
-    CampaignContentItemDto,
     CreateCampaignDto,
     SaveDraftCampaignDto,
-    SelectInfluencerDto
 } from "../dto/create-campaign.dto";
-import {XlsxCampaignDto} from "../../admin/dto/campaigns/xlsx-campaign.dto";
 import {CreateBespokeCampaignDto} from "../dto/bespoke-request.dto";
-import axios from "axios";
-import {getSocialMediaGroup} from "../../../common/utils/socialMedia";
-import {returnMusicStyles} from "../../../common/utils/genres";
 import {
     DashboardCampaignDto,
     ClientGetDashboardCampaignsQueryDto,
@@ -47,20 +41,16 @@ import {
 import {Client} from "../../../database/schemas/users/client.schema";
 import {InfluencerActionsHistoryService} from "../../influencer-actions-history/influencer-actions-history.service";
 import {DraftCampaignRepository} from "../../../database/repositories/campaigns/draft-campaign.repository";
-import {
-    InfluencerConfirmationStatusEnum,
-    InfluencerPromoClosedStatusEnum
-} from "../../../common/types/influencer/promo.types";
 import {EmailService} from "../../../integrations/email/email.service";
-import {AccountVerifiedStatus, Role, UserPayload} from "../../../common/types/user.types";
+import {Role, UserPayload} from "../../../common/types/user.types";
 import {UpdateCampaignDto} from "../dto/update-campaign.dto";
 import {
     mapContentItemDtoToModel,
     mapSchemaToICampaignDetails,
     mapToCampaignDetailsDto
 } from "../../../common/mappers/campaign.mapper";
-import {buildSafeFileName, uniq} from "../../../common/utils/base.util";
-import {ObjId, toObjIdSafe} from "../../../common/types/base.types";
+import {buildSafeFileName} from "../../../common/utils/base.util";
+import {ObjId} from "../../../common/types/base.types";
 import {
     AccountObjectForCreateNewPromoRequestMessage,
     BuildRequestEditTemplateDto

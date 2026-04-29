@@ -270,6 +270,7 @@ export class DraftCampaignRepository extends BaseRepository<DraftCampaignDocumen
                                 },
                                 username: "$account.username",
                                 logoUrl: "$account.logoUrl",
+                                profileType: "$account.profileCategory",
                                 followers: { $ifNull: ["$account.followers", 0] },
                                 price: { $ifNull: ["$account.publicPrice", 0] },
                                 socialMedia: "$account.socialMedia",
@@ -300,6 +301,9 @@ export class DraftCampaignRepository extends BaseRepository<DraftCampaignDocumen
                                 },
                                 logoUrl: {
                                     $ifNull: ["$accountMeta.logoUrl", ""],
+                                },
+                                profileType: {
+                                    $ifNull: ["$accountMeta.profileType", ""],
                                 },
                                 followers: {
                                     $ifNull: ["$accountMeta.followers", 0],

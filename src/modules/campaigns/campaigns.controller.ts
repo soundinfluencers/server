@@ -131,8 +131,6 @@ export class CampaignsController {
     @ApiOperation({summary: 'Verify campaign (For email)'})
     @Get('verify')
     async verifyCampaign(@Query() args: { campaignId: string; status: string }, @Res() res: Response) {
-        console.log(args, 'args')
-
         const result: {
             code: number,
             message: string

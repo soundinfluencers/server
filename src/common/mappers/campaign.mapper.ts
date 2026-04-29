@@ -107,6 +107,7 @@ export const mapToIAdminCampaignAccount = (
         socialMedia: account.socialMedia,
         username: account.username,
         logoUrl: (account as any)?.logoUrl ?? null,
+        profileType: (account as any)?.profileType ?? (account as any)?.profileCategory ?? null,
         publicPrice: account.publicPrice,
         followers: safeParseToNumber(account.followers),
         selectedContent: account.selectedContent,
@@ -435,7 +436,7 @@ export const mapSchemaToIAdminCampaignDetails = (campaign: Campaign | CompletedC
 
 // Map ICampaignDetails read model to CampaignDetailsDto
 export const mapToCampaignDetailsDto = (campaign: ICampaignDetails): CampaignDetailsDto => {
-    // console.log(campaign, 'campaign')
+    if (!campaign.addedAccounts.length) throw new InternalServerErrorException("Can't get promos list for this campaign");
 
     return {
         campaignId: campaign._id.toString(),

@@ -32,7 +32,7 @@ export class CampaignDetailsService {
         campaign: TCampaign,
     ): Promise<TCampaign> {
         const influencerIds = [
-            ...new Set(campaign.addedAccounts.map(acc => acc.influencerId.toString()))
+            ...new Set(campaign.addedAccounts.map(acc => acc.influencerId))
         ];
 
         const influencers = await this.influencerRepo.findMany(
@@ -48,26 +48,35 @@ export class CampaignDetailsService {
                     'spotify._id', 'spotify.logoUrl',
                     'soundcloud._id', 'soundcloud.logoUrl',
                     'press._id', 'press.logoUrl',
+                    'instagram._id', 'instagram.profileCategory',
+                    'tiktok._id', 'tiktok.profileCategory',
+                    'youtube._id', 'youtube.profileCategory',
+                    'facebook._id', 'facebook.profileCategory',
+                    'spotify._id', 'spotify.profileCategory',
+                    'soundcloud._id', 'soundcloud.profileCategory',
+                    'press._id', 'press.profileCategory',
                 ],
             },
         );
 
         const influencerMap = new Map(
-            influencers.map(inf => [inf._id.toString(), inf]),
+            influencers.map(inf => [inf._id?.toString(), inf]),
         );
 
         campaign.addedAccounts = campaign.addedAccounts.map(acc => {
-            const influencer = influencerMap.get(acc.influencerId.toString());
+            const influencer = influencerMap.get(acc.influencerId?.toString());
             if (!influencer) return acc;
 
             const accountsArray = influencer[acc.socialMedia] ?? [];
-            const matchedAccount = accountsArray.find(
-                a => a._id?.toString() === acc.addedAccountsId?.toString(),
+            console.log(accountsArray, 'accountsArray in attachLogos')
+            const matchedAccount = accountsArray?.find(
+                a => a._id?.toString() === acc.socialAccountId?.toString(),
             );
 
             return {
                 ...acc,
                 logoUrl: matchedAccount?.logoUrl ?? null,
+                profileType: matchedAccount?.profileCategory ?? null,
             };
         });
 
