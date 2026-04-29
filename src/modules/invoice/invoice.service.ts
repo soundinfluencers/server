@@ -26,7 +26,7 @@ import {ObjId} from "../../common/types/base.types";
 import {PaymentMethodRequestEnum} from "../profile/dto/payment-details.dto";
 import {ProfileService} from "../profile/services/profile.service";
 import {InvoicePdfExporter} from "../../common/utils/export/pdf/invoice-pdf.exporter";
-import {AdminToClientEmails, InfluencerToAdminEmails} from "../../integrations/email/email.templates";
+import {InfluencerToAdminEmails} from "../../integrations/email/email.templates";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
 import {mapPromosToInvoiceLinkedPromos, mapToDetailedInvoice} from "../../common/mappers/invoice.mapper";
 import {
@@ -37,6 +37,7 @@ import {formatDate} from "../../common/utils/formatters";
 import {UpdateClientInvoiceDto} from "./dto/update-invoice.dto";
 import {PaymentHistoryAdminOverrideStatusEnum, PaymentHistorySystemStatusEnum} from "../../common/types/history.types";
 import {PaymentsHistoryService} from "../payments-history/payments-history.service";
+import {InvoiceDetails} from "../../database/schemas/invoices/invoice-details.schema";
 
 @Injectable()
 export class InvoiceService {
@@ -211,7 +212,27 @@ export class InvoiceService {
 
     // Creates new client invoice (after creating new campaign)
     async createClientCampaignInvoice(data: CreateCampaignInvoiceDto, session?: ClientSession): Promise<void> {
+        const invoiceDetails = await this.invoiceDetailsRepo.findOne({
+            userId: new ObjId(data.userId),
+            userRole: data.userRole
+        }, {session});
+
+        if (!invoiceDetails) {
+            await this.invoiceDetailsRepo.create<InvoiceDetails>({
+                _id: new ObjId(),
+                userId: new ObjId(data.userId),
+                userRole: data.userRole,
+                firstName: data.firstName,
+                lastName: data.lastName,
+                address: data.address,
+                country: data.country,
+                company: data.company,
+                vatNumber: data.vatNumber
+            }, {session})
+        }
+
         const invoice = await this.userInvoiceRepository.createClientInvoice(data, session);
+
         // const pdfInvoice = await InvoicePdfExporter.buildPdfBuffer(invoice);
         // await this.emailService.send(AdminToClientEmails.campaignInvoice(process.env.EMAIL_USER, pdfInvoice));
     }
