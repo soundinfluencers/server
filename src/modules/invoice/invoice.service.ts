@@ -13,7 +13,12 @@ import {InfluencerActionsHistoryService} from "../influencer-actions-history/inf
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {UserInvoiceRepository} from "../../database/repositories/invoices/user-invoice.repository";
 import {GetInvoicesQueryDto} from "./dto/invoice.dto";
-import {ClientDetailedInvoice, InvoiceForDashboard, InvoiceStatusEnum,} from "../../common/types/invoice.types";
+import {
+    ClientDetailedInvoice,
+    InvoiceForDashboard,
+    InvoicePaymentMethodEnum,
+    InvoiceStatusEnum,
+} from "../../common/types/invoice.types";
 import {EmailService} from "../../integrations/email/email.service";
 import {InvoiceDetailsRepository} from "../../database/repositories/invoices/invoice-details.repository";
 import {Role, UserPayload} from "../../common/types/user.types";
@@ -372,16 +377,74 @@ export class InvoiceService {
             lean: true
         });
 
-        const paymentDetails = await this.profileService.getPaymentDetails(userInfo, PaymentMethodRequestEnum.all)
+        let paymentDetails = await this.profileService.getPaymentDetails(userInfo, PaymentMethodRequestEnum.all)
         let latestInvoice = null;
 
-        if (!paymentDetails.ukBankTransfer && !paymentDetails.internationalBankTransfer && !paymentDetails.paypal) {
-            latestInvoice = await this.userInvoiceRepository.findOne({
-                influencerId: new Types.ObjectId(influencerId)
+        if (!paymentDetails.ukBankTransfer) {
+            const latestUkBankTransfer = await this.userInvoiceRepository.findOne({
+                influencerId: new Types.ObjectId(influencerId),
+                selectedPaymentMethod: InvoicePaymentMethodEnum.ukBankTransfer
             }, {
                 lean: true,
-                sort: ({createdAt: -1})
+                sort: ({createdAt: -1}),
             })
+
+            if (latestUkBankTransfer) {
+                paymentDetails.ukBankTransfer = {
+                    beneficiary: latestUkBankTransfer.ukBankTransfer.beneficiary,
+                    beneficiaryAddress: latestUkBankTransfer.ukBankTransfer.beneficiaryAddress,
+                    sortCode: latestUkBankTransfer.ukBankTransfer.sortCode,
+                    accountNumber: latestUkBankTransfer.ukBankTransfer.accountNumber
+                }
+
+                latestInvoice = latestUkBankTransfer;
+            }
+        }
+
+        if (!paymentDetails.internationalBankTransfer) {
+            const latestInternationalBankTransfer = await this.userInvoiceRepository.findOne({
+                influencerId: new Types.ObjectId(influencerId),
+                selectedPaymentMethod: InvoicePaymentMethodEnum.internationalBankTransfer
+            }, {
+                lean: true,
+                sort: ({createdAt: -1}),
+            })
+
+            if (latestInternationalBankTransfer) {
+                paymentDetails.internationalBankTransfer = {
+                    beneficiary: latestInternationalBankTransfer.internationalBankTransfer.beneficiary,
+                    beneficiaryAddress: latestInternationalBankTransfer.internationalBankTransfer.beneficiaryAddress,
+                    iban: latestInternationalBankTransfer.internationalBankTransfer.iban,
+                    bankName: latestInternationalBankTransfer.internationalBankTransfer.bankName,
+                    bankCountry: latestInternationalBankTransfer.internationalBankTransfer.bankCountry,
+                    bankAccountCurrency: latestInternationalBankTransfer.internationalBankTransfer.bankAccountCurrency,
+                    swiftBicCode: latestInternationalBankTransfer.internationalBankTransfer.swiftBicCode,
+                }
+
+                if (!latestInvoice || latestInternationalBankTransfer.createdAt.getTime() > latestInvoice.createdAt.getTime()) {
+                    latestInvoice = latestInternationalBankTransfer;
+                }
+            }
+        }
+
+        if (!paymentDetails.paypal) {
+            const latestPaypal = await this.userInvoiceRepository.findOne({
+                influencerId: new Types.ObjectId(influencerId),
+                selectedPaymentMethod: InvoicePaymentMethodEnum.internationalBankTransfer
+            }, {
+                lean: true,
+                sort: ({createdAt: -1}),
+            })
+
+            if (latestPaypal) {
+                paymentDetails.paypal = {
+                    paypalEmail: latestPaypal.paypal.paypalEmail,
+                }
+
+                if (!latestInvoice || latestPaypal.createdAt.getTime() > latestPaypal.createdAt.getTime()) {
+                    latestInvoice = latestPaypal;
+                }
+            }
         }
 
         return {
