@@ -403,7 +403,7 @@ export class InvoiceService {
 
         if (!paymentDetails.ukBankTransfer) {
             const latestUkBankTransfer = await this.userInvoiceRepository.findOne({
-                influencerId: new Types.ObjectId(influencerId),
+                userId: new Types.ObjectId(influencerId),
                 selectedPaymentMethod: InvoicePaymentMethodEnum.ukBankTransfer
             }, {
                 lean: true,
@@ -424,7 +424,7 @@ export class InvoiceService {
 
         if (!paymentDetails.internationalBankTransfer) {
             const latestInternationalBankTransfer = await this.userInvoiceRepository.findOne({
-                influencerId: new Types.ObjectId(influencerId),
+                userId: new Types.ObjectId(influencerId),
                 selectedPaymentMethod: InvoicePaymentMethodEnum.internationalBankTransfer
             }, {
                 lean: true,
@@ -450,8 +450,8 @@ export class InvoiceService {
 
         if (!paymentDetails.paypal) {
             const latestPaypal = await this.userInvoiceRepository.findOne({
-                influencerId: new Types.ObjectId(influencerId),
-                selectedPaymentMethod: InvoicePaymentMethodEnum.internationalBankTransfer
+                userId: new Types.ObjectId(influencerId),
+                selectedPaymentMethod: InvoicePaymentMethodEnum.paypal
             }, {
                 lean: true,
                 sort: ({createdAt: -1}),
@@ -462,25 +462,30 @@ export class InvoiceService {
                     paypalEmail: latestPaypal.paypal.paypalEmail,
                 }
 
-                if (!latestInvoice || latestPaypal.createdAt.getTime() > latestPaypal.createdAt.getTime()) {
+                if (!latestInvoice || latestPaypal.createdAt.getTime() > latestInvoice.createdAt.getTime()) {
                     latestInvoice = latestPaypal;
                 }
             }
         }
 
         return {
-            firstName: invoiceDetails.firstName ?? latestInvoice?.firstName ?? null,
-            lastName: invoiceDetails.lastName ?? latestInvoice?.lastName ?? null,
-            address: invoiceDetails.address ?? latestInvoice?.address ?? null,
-            country: invoiceDetails.country ?? latestInvoice?.country ?? null,
-            company: invoiceDetails.company ?? latestInvoice?.company ?? null,
-            vatNumber: invoiceDetails.vatNumber ?? latestInvoice?.vatNumber ?? null,
+            firstName: invoiceDetails?.firstName ?? latestInvoice?.firstName ?? null,
+            lastName: invoiceDetails?.lastName ?? latestInvoice?.lastName ?? null,
+            address: invoiceDetails?.address ?? latestInvoice?.address ?? null,
+            country: invoiceDetails?.country ?? latestInvoice?.country ?? null,
+            company: invoiceDetails?.company ?? latestInvoice?.company ?? null,
+            vatNumber: invoiceDetails?.vatNumber ?? latestInvoice?.vatNumber ?? null,
+
             amount: influencerBalance.balance,
             selectedPaymentMethod: latestInvoice?.selectedPaymentMethod ?? null,
+
             ukBankTransfer: paymentDetails.ukBankTransfer ?? latestInvoice?.ukBankTransfer ?? null,
-            internationalBankTransfer: paymentDetails.internationalBankTransfer ?? latestInvoice?.internationalBankTransfer ?? null,
-            paypal: paymentDetails.paypal ?? latestInvoice?.paypal ?? null
-        }
+            internationalBankTransfer:
+                paymentDetails.internationalBankTransfer ??
+                latestInvoice?.internationalBankTransfer ??
+                null,
+            paypal: paymentDetails.paypal ?? latestInvoice?.paypal ?? null,
+        };
     }
 
     // Updates user's invoice
