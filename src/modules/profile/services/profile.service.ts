@@ -1069,8 +1069,10 @@ export class ProfileService {
         };
     }
 
-    // Returns filters for getting filtered social accounts (currently using at create campaign page)
-    async getFilterOptions(): Promise<GetFilterOptionsDataDto> {
+// Returns filters for getting filtered social accounts (currently using at create campaign page)
+    async getFilterOptions(
+        filters: GetFilteredAccountsBodyDto = {} as GetFilteredAccountsBodyDto,
+    ): Promise<GetFilterOptionsDataDto> {
         const CANONICAL_ALLOWED_GENRES = [
             'Techno (Melodic, Minimal)',
             'Techno (Hard, Peak)',
@@ -1086,250 +1088,444 @@ export class ProfileService {
         ] as const;
 
         const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
-        const allowedKeys = CANONICAL_ALLOWED_GENRES.map(norm);
-        const canonicalByKey = new Map<string, string>(
-            CANONICAL_ALLOWED_GENRES.map(v => [norm(v), v]),
-        );
 
         const cap = (s: string) => {
             if (!s) return s;
             return s.charAt(0).toUpperCase() + s.slice(1);
         };
 
-        // ----------------------------
-        // 1) Собираем allAccounts из всех соцсетей
-        // ----------------------------
-        const socialFields = Object.values(SocialMediaEnum);
-        const socialFieldEntries = socialFields.map(f => ({k: f, v: `$${f}`}));
+        const canonicalByKey = new Map<string, string>(
+            CANONICAL_ALLOWED_GENRES.map(v => [norm(v), v]),
+        );
 
-        // ----------------------------
-        // 2) BASE агрегация: platforms/profileTypes/countries/categories/creatorCategories
-        // ----------------------------
-        const basePipeline: PipelineStage[] = [
+        const allowedKeys = CANONICAL_ALLOWED_GENRES.map(norm);
+
+        /**
+         * ВАЖНО:
+         * Если selected socialMedias = ['tiktok'], то мы разворачиваем только tiktok.
+         * Поэтому остальные платформы в counts будут 0.
+         */
+        const socialFields = filters.socialMedias?.length
+            ? filters.socialMedias
+            : Object.values(SocialMediaEnum);
+
+        const socialFieldEntries = socialFields.map(f => ({
+            k: f,
+            v: `$${f}`,
+        }));
+
+        const pipeline: PipelineStage[] = [
+            this.buildAllAccountsProjectStage(socialFieldEntries),
+
             {
-                $project: {
-                    allAccounts: {
-                        $reduce: {
-                            input: socialFieldEntries,
-                            initialValue: [],
-                            in: {
-                                $concatArrays: [
-                                    '$$value',
-                                    {
-                                        $map: {
-                                            input: {$ifNull: ['$$this.v', []]},
-                                            as: 'acc',
-                                            in: {$mergeObjects: ['$$acc', {socialMedia: '$$this.k'}]},
-                                        },
-                                    },
-                                ],
-                            },
-                        },
-                    },
-                },
+                $unwind: '$allAccounts',
             },
-            {$unwind: '$allAccounts'},
-            {
-                $match: {
-                    'allAccounts.verifiedStatus': AccountVerifiedStatus.accept,
-                    'allAccounts.isDeleted': {$ne: true},
-                    'allAccounts.isHidden': {$ne: true},
-                },
-            },
+
+            this.buildBaseAcceptedAccountMatchStage(),
+
+            ...this.buildAccountFilterMatchStages(filters),
+
             {
                 $facet: {
                     platforms: [
-                        {$group: {_id: '$allAccounts.socialMedia', count: {$sum: 1}}},
-                        {$project: {_id: 0, id: '$_id', count: 1}},
-                        {$sort: {count: -1, id: 1}},
+                        {
+                            $group: {
+                                _id: '$allAccounts.socialMedia',
+                                count: { $sum: 1 },
+                            },
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                id: '$_id',
+                                count: 1,
+                            },
+                        },
+                        {
+                            $sort: {
+                                count: -1,
+                                id: 1,
+                            },
+                        },
                     ],
 
                     profileTypes: [
-                        {$match: {'allAccounts.profileCategory': {$type: 'string', $ne: ''}}},
-                        {$group: {_id: '$allAccounts.profileCategory', count: {$sum: 1}}},
-                        {$project: {_id: 0, id: '$_id', count: 1}},
-                        {$sort: {count: -1, id: 1}},
+                        {
+                            $match: {
+                                'allAccounts.profileCategory': {
+                                    $type: 'string',
+                                    $ne: '',
+                                },
+                            },
+                        },
+                        {
+                            $group: {
+                                _id: '$allAccounts.profileCategory',
+                                count: { $sum: 1 },
+                            },
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                id: '$_id',
+                                count: 1,
+                            },
+                        },
+                        {
+                            $sort: {
+                                count: -1,
+                                id: 1,
+                            },
+                        },
                     ],
 
                     countries: [
-                        {$unwind: {path: '$allAccounts.countries', preserveNullAndEmptyArrays: false}},
-                        {$match: {'allAccounts.countries.country': {$type: 'string', $ne: ''}}},
-                        {$group: {_id: '$allAccounts.countries.country', count: {$sum: 1}}},
-                        {$project: {_id: 0, id: '$_id', count: 1}},
-                        {$sort: {count: -1, id: 1}},
+                        {
+                            $unwind: {
+                                path: '$allAccounts.countries',
+                                preserveNullAndEmptyArrays: false,
+                            },
+                        },
+                        {
+                            $match: {
+                                'allAccounts.countries.country': {
+                                    $type: 'string',
+                                    $ne: '',
+                                },
+                            },
+                        },
+                        {
+                            $group: {
+                                _id: '$allAccounts.countries.country',
+                                count: { $sum: 1 },
+                            },
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                id: '$_id',
+                                count: 1,
+                            },
+                        },
+                        {
+                            $sort: {
+                                count: -1,
+                                id: 1,
+                            },
+                        },
                     ],
 
-                    // 4) categories counts (allAccounts.categories)  -> additional topics
                     categories: [
-                        {$unwind: {path: '$allAccounts.categories', preserveNullAndEmptyArrays: false}},
+                        {
+                            $unwind: {
+                                path: '$allAccounts.categories',
+                                preserveNullAndEmptyArrays: false,
+                            },
+                        },
                         {
                             $project: {
                                 cat: {
                                     $toLower: {
-                                        $trim: {input: '$allAccounts.categories'},
+                                        $trim: {
+                                            input: '$allAccounts.categories',
+                                        },
                                     },
                                 },
                             },
                         },
                         {
                             $match: {
-                                cat: {$type: 'string', $ne: ''},
+                                cat: {
+                                    $type: 'string',
+                                    $ne: '',
+                                },
                             },
                         },
-                        {$group: {_id: '$cat', count: {$sum: 1}}},
-                        {$project: {_id: 0, id: '$_id', count: 1}},
-                        {$sort: {count: -1, id: 1}},
+                        {
+                            $group: {
+                                _id: '$cat',
+                                count: { $sum: 1 },
+                            },
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                id: '$_id',
+                                count: 1,
+                            },
+                        },
+                        {
+                            $sort: {
+                                count: -1,
+                                id: 1,
+                            },
+                        },
                     ],
 
-                    // music categories = creatorCategories
                     creatorCategories: [
-                        {$unwind: {path: '$allAccounts.creatorCategories', preserveNullAndEmptyArrays: false}},
-                        {$match: {'allAccounts.creatorCategories': {$type: 'string', $ne: ''}}},
-                        {$group: {_id: '$allAccounts.creatorCategories', count: {$sum: 1}}},
-                        {$project: {_id: 0, id: '$_id', count: 1}},
-                        {$sort: {count: -1, id: 1}},
+                        {
+                            $unwind: {
+                                path: '$allAccounts.creatorCategories',
+                                preserveNullAndEmptyArrays: false,
+                            },
+                        },
+                        {
+                            $match: {
+                                'allAccounts.creatorCategories': {
+                                    $type: 'string',
+                                    $ne: '',
+                                },
+                            },
+                        },
+                        {
+                            $group: {
+                                _id: '$allAccounts.creatorCategories',
+                                count: { $sum: 1 },
+                            },
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                id: '$_id',
+                                count: 1,
+                            },
+                        },
+                        {
+                            $sort: {
+                                count: -1,
+                                id: 1,
+                            },
+                        },
+                    ],
+
+                    genres: [
+                        {
+                            $unwind: {
+                                path: '$allAccounts.musicGenres',
+                                preserveNullAndEmptyArrays: false,
+                            },
+                        },
+                        {
+                            $project: {
+                                genre: '$allAccounts.musicGenres.genre',
+                                subGenres: {
+                                    $ifNull: ['$allAccounts.musicGenres.subGenres', []],
+                                },
+                            },
+                        },
+                        {
+                            $match: {
+                                genre: {
+                                    $type: 'string',
+                                    $ne: '',
+                                },
+                            },
+                        },
+                        {
+                            $project: {
+                                genreNorm: {
+                                    $toLower: {
+                                        $trim: {
+                                            input: '$genre',
+                                        },
+                                    },
+                                },
+                                subNorms: {
+                                    $map: {
+                                        input: '$subGenres',
+                                        as: 's',
+                                        in: {
+                                            $toLower: {
+                                                $trim: {
+                                                    input: '$$s',
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        {
+                            $project: {
+                                flat: {
+                                    $cond: [
+                                        {
+                                            $gt: [
+                                                {
+                                                    $size: '$subNorms',
+                                                },
+                                                0,
+                                            ],
+                                        },
+                                        {
+                                            $map: {
+                                                input: '$subNorms',
+                                                as: 'sub',
+                                                in: {
+                                                    $concat: [
+                                                        '$genreNorm',
+                                                        ' (',
+                                                        '$$sub',
+                                                        ')',
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                        ['$genreNorm'],
+                                    ],
+                                },
+                            },
+                        },
+                        {
+                            $unwind: '$flat',
+                        },
+                        {
+                            $project: {
+                                flat: {
+                                    $toLower: {
+                                        $trim: {
+                                            input: '$flat',
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        {
+                            $match: {
+                                flat: {
+                                    $in: allowedKeys,
+                                },
+                            },
+                        },
+                        {
+                            $group: {
+                                _id: '$flat',
+                                count: { $sum: 1 },
+                            },
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                key: '$_id',
+                                count: 1,
+                            },
+                        },
+                        {
+                            $sort: {
+                                count: -1,
+                                key: 1,
+                            },
+                        },
                     ],
                 },
             },
         ];
 
-        const [aggBase] = await this.influencerRepo.aggregate<{
+        const [agg] = await this.influencerRepo.aggregate<{
             platforms: { id: string; count: number }[];
             profileTypes: { id: string; count: number }[];
             countries: { id: string; count: number }[];
             categories: { id: string; count: number }[];
             creatorCategories: { id: string; count: number }[];
-        }>(basePipeline).exec();
+            genres: { key: string; count: number }[];
+        }>(pipeline).exec();
 
-        // ----------------------------
-        // 3) GENRES агрегация: flatten + normalize + whitelist
-        // ----------------------------
-        const genresPipeline: PipelineStage[] = [
-            {
-                $project: {
-                    allAccounts: {
-                        $reduce: {
-                            input: socialFieldEntries,
-                            initialValue: [],
-                            in: {
-                                $concatArrays: [
-                                    '$$value',
-                                    {
-                                        $map: {
-                                            input: {$ifNull: ['$$this.v', []]},
-                                            as: 'acc',
-                                            in: {$mergeObjects: ['$$acc', {socialMedia: '$$this.k'}]},
-                                        },
-                                    },
-                                ],
-                            },
-                        },
-                    },
-                },
-            },
-            {$unwind: '$allAccounts'},
-            {
-                $match: {
-                    'allAccounts.verifiedStatus': AccountVerifiedStatus.accept,
-                    'allAccounts.isDeleted': {$ne: true},
-                    'allAccounts.isHidden': {$ne: true},
-                },
-            },
-            {$unwind: {path: '$allAccounts.musicGenres', preserveNullAndEmptyArrays: false}},
-            {
-                $project: {
-                    genre: '$allAccounts.musicGenres.genre',
-                    subGenres: {$ifNull: ['$allAccounts.musicGenres.subGenres', []]},
-                },
-            },
-            {$match: {genre: {$type: 'string', $ne: ''}}},
+        const platformCountMap = new Map(
+            (agg?.platforms ?? []).map(x => [x.id, x.count]),
+        );
 
-            // normalize genre + subs in mongo (lower + trim + collapse spaces "  ")
-            {
-                $project: {
-                    genreNorm: {
-                        $toLower: {
-                            $replaceAll: {
-                                input: {$trim: {input: '$genre'}},
-                                find: '  ',
-                                replacement: ' ',
-                            },
-                        },
-                    },
-                    subNorms: {
-                        $map: {
-                            input: '$subGenres',
-                            as: 's',
-                            in: {
-                                $toLower: {
-                                    $replaceAll: {
-                                        input: {$trim: {input: '$$s'}},
-                                        find: '  ',
-                                        replacement: ' ',
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
+        /**
+         * Чтобы выбранный TikTok не удалял Instagram/Facebook из UI,
+         * а показывал их с count: 0.
+         */
+        const platformsFilters = Object.values(SocialMediaEnum).map(platform => ({
+            id: platform,
+            group: 'socialMedia',
+            filterName: cap(platform),
+            count: platformCountMap.get(platform) ?? 0,
+        }));
 
-            // flatten: ["techno (hard, peak)"] or ["edm"]
-            {
-                $project: {
-                    flat: {
-                        $cond: [
-                            {$gt: [{$size: '$subNorms'}, 0]},
-                            {
-                                $map: {
-                                    input: '$subNorms',
-                                    as: 'sub',
-                                    in: {$concat: ['$genreNorm', ' (', '$$sub', ')']},
-                                },
-                            },
-                            ['$genreNorm'],
-                        ],
-                    },
-                },
-            },
-            {$unwind: '$flat'},
+        const profileTypeFilters = Object.values(InfluencerProfileCategory).map(type => {
+            const found = (agg?.profileTypes ?? []).find(x => x.id === type);
 
-            // whitelist only
-            {$match: {flat: {$in: allowedKeys}}},
+            return {
+                id: type,
+                group: 'profileType',
+                filterName: cap(type),
+                count: found?.count ?? 0,
+            };
+        });
 
-            {$group: {_id: '$flat', count: {$sum: 1}}},
-            {$project: {_id: 0, key: '$_id', count: 1}},
-            {$sort: {count: -1, key: 1}},
-        ];
-
-        const flatGenreCounts = await this.influencerRepo.aggregate<{
-            key: string;
-            count: number
-        }>(genresPipeline).exec();
-
-        // ----------------------------
-        // 4) Собираем music-genre block: parent + children (строго из canonical)
-        // ----------------------------
         const byGenre = new Map<string, { total: number; subs: Map<string, number> }>();
 
-        for (const row of flatGenreCounts) {
+        for (const row of agg?.genres ?? []) {
             const canonical = canonicalByKey.get(row.key);
+
             if (!canonical) continue;
 
-            const m = canonical.match(/^(.+?)\s*\((.+)\)$/);
-            if (m) {
-                const parent = m[1].trim();
-                const sub = m[2].trim();
+            const match = canonical.match(/^(.+?)\s*\((.+)\)$/);
 
-                if (!byGenre.has(parent)) byGenre.set(parent, {total: 0, subs: new Map()});
-                const obj = byGenre.get(parent)!;
+            if (match) {
+                const parent = match[1].trim();
+                const sub = match[2].trim();
 
-                obj.total += row.count;
-                obj.subs.set(sub, (obj.subs.get(sub) ?? 0) + row.count);
+                if (!byGenre.has(parent)) {
+                    byGenre.set(parent, {
+                        total: 0,
+                        subs: new Map(),
+                    });
+                }
+
+                const item = byGenre.get(parent)!;
+
+                item.total += row.count;
+                item.subs.set(sub, (item.subs.get(sub) ?? 0) + row.count);
             } else {
                 const parent = canonical.trim();
-                if (!byGenre.has(parent)) byGenre.set(parent, {total: 0, subs: new Map()});
+
+                if (!byGenre.has(parent)) {
+                    byGenre.set(parent, {
+                        total: 0,
+                        subs: new Map(),
+                    });
+                }
+
                 byGenre.get(parent)!.total += row.count;
+            }
+        }
+
+        /**
+         * Собираем жанры строго по CANONICAL_ALLOWED_GENRES,
+         * чтобы даже при count = 0 они не исчезали с UI.
+         */
+        for (const canonical of CANONICAL_ALLOWED_GENRES) {
+            const match = canonical.match(/^(.+?)\s*\((.+)\)$/);
+
+            if (match) {
+                const parent = match[1].trim();
+                const sub = match[2].trim();
+
+                if (!byGenre.has(parent)) {
+                    byGenre.set(parent, {
+                        total: 0,
+                        subs: new Map(),
+                    });
+                }
+
+                const item = byGenre.get(parent)!;
+
+                if (!item.subs.has(sub)) {
+                    item.subs.set(sub, 0);
+                }
+            } else {
+                const parent = canonical.trim();
+
+                if (!byGenre.has(parent)) {
+                    byGenre.set(parent, {
+                        total: 0,
+                        subs: new Map(),
+                    });
+                }
             }
         }
 
@@ -1350,46 +1546,33 @@ export class ProfileService {
                     filterName: parent,
                     count: data.total,
                     group: 'genres',
-                    ...(children.length ? {children} : {}),
+                    ...(children.length ? { children } : {}),
                 };
             });
 
-        // ----------------------------
-        // 5) Build blocks for frontend
-        // ----------------------------
         const platformsBlock = {
             id: 'social-platforms-1',
             title: 'Social Media Platforms',
-            filters: (aggBase?.platforms ?? []).map(p => ({
-                id: p.id,
-                group: 'socialMedia',
-                filterName: cap(p.id),
-                count: p.count,
-            })),
-        };
-
-        const musicGenreBlock = {
-            id: 'music-genre',
-            title: 'Music Genre',
-            AndOrFlag: [{method: 'And'}, {method: 'Or'}],
-            filters: musicGenreFilters,
+            filters: platformsFilters,
         };
 
         const profileTypeBlock = {
             id: 'profile-type',
             title: 'Profile Type',
-            filters: (aggBase?.profileTypes ?? []).map(p => ({
-                id: cap(p.id)?.toLowerCase(), // UI label
-                group: 'profileType',
-                filterName: cap(p.id),
-                count: p.count,
-            })),
+            filters: profileTypeFilters,
+        };
+
+        const musicGenreBlock = {
+            id: 'music-genre',
+            title: 'Music Genre',
+            AndOrFlag: [{ method: 'And' }, { method: 'Or' }],
+            filters: musicGenreFilters,
         };
 
         const musicCategoriesBlock = {
             id: 'music-categories',
             title: 'Music Categories',
-            filters: (aggBase?.creatorCategories ?? []).map(x => ({
+            filters: (agg?.creatorCategories ?? []).map(x => ({
                 id: x.id,
                 group: 'musicCategories',
                 filterName: x.id,
@@ -1400,7 +1583,7 @@ export class ProfileService {
         const countriesBlock = {
             id: 'countries',
             title: 'Countries of Following',
-            filters: (aggBase?.countries ?? []).map(c => ({
+            filters: (agg?.countries ?? []).map(c => ({
                 id: c.id,
                 group: 'countries',
                 filterName: c.id,
@@ -1411,7 +1594,7 @@ export class ProfileService {
         const additionalTopicsBlock = {
             id: 'additional-topics',
             title: 'Additional Topics',
-            filters: (aggBase.categories ?? []).map((x: any) => ({
+            filters: (agg?.categories ?? []).map(x => ({
                 id: x.id,
                 group: 'addTopics',
                 filterName: this.capitalize(x.id),
@@ -1419,9 +1602,6 @@ export class ProfileService {
             })),
         };
 
-        // ----------------------------
-        // 6) Final response
-        // ----------------------------
         return {
             filterArr: [
                 platformsBlock,
@@ -1434,13 +1614,14 @@ export class ProfileService {
         };
     }
 
-    // Returns filtered social accounts (currently using at create campaign page)
+
+// Returns filtered social accounts (currently using at create campaign page)
     async findAccountsByFilter(
         filters: GetFilteredAccountsBodyDto & {
             page?: number;
             limit?: number;
             sortBy?: string;
-        }
+        },
     ): Promise<FoundAccountDto[]> {
         const {
             socialMedias,
@@ -1452,45 +1633,243 @@ export class ProfileService {
 
         const skip = (page - 1) * limit;
 
-        // Какие соцсети разворачиваем
         const socialFields = socialMedias?.length
             ? socialMedias
             : Object.values(SocialMediaEnum);
 
-        // Pipeline
-        const pipeline: any[] = [];
-
-        // Объединяем все выбранные соцсети в один массив
         const socialFieldEntries = socialFields.map(f => ({
             k: f,
-            v: `$${f}`
+            v: `$${f}`,
         }));
 
-        // Getting latest exchanging rates for available currencies
-        const exchangeRates: Record<CurrencyCode, number> = await this.exchangeRateService.getAllRates();
+        const exchangeRates: Record<CurrencyCode, number> =
+            await this.exchangeRateService.getAllRates();
 
-        let budgetInEur: number | undefined;
+        const eurPriceExpr = {
+            $ifNull: ['$allAccounts.publicPrice', 0],
+        };
 
-        if (typeof filters.budget === 'number') {
-            if (budgetCurrency === CurrencyCode.EUR) {
-                budgetInEur = filters.budget;
-            } else {
-                const rate = exchangeRates[budgetCurrency];
+        const pipeline: PipelineStage[] = [
+            this.buildAllAccountsProjectStage(socialFieldEntries),
 
-                if (!rate) {
-                    throw new BadRequestException(
-                        `Exchange rate for ${budgetCurrency} not found`,
-                    );
-                }
+            {
+                $unwind: '$allAccounts',
+            },
 
-                // Если rate означает: 1 EUR = X currency
-                budgetInEur = filters.budget / rate;
-            }
+            this.buildBaseAcceptedAccountMatchStage(),
+
+            ...this.buildAccountFilterMatchStages(filters),
+        ];
+
+        if (sortBy === 'bestMatch') {
+            pipeline.push({
+                $addFields: {
+                    score: {
+                        $cond: [
+                            {
+                                $gt: ['$allAccounts.followers', 0],
+                            },
+                            {
+                                $divide: [
+                                    '$allAccounts.publicPrice',
+                                    '$allAccounts.followers',
+                                ],
+                            },
+                            Number.MAX_SAFE_INTEGER,
+                        ],
+                    },
+                },
+            });
         }
 
-        const eurPriceExpr = {$ifNull: ['$allAccounts.publicPrice', 0]};
+        pipeline.push({
+            $project: {
+                _id: 0,
+                accountId: '$allAccounts._id',
+                influencerId: '$_id',
+                username: '$allAccounts.username',
+                logoUrl: '$allAccounts.logoUrl',
+                followers: '$allAccounts.followers',
+
+                prices: {
+                    EUR: eurPriceExpr,
+
+                    USD: {
+                        $round: [
+                            {
+                                $multiply: [
+                                    eurPriceExpr,
+                                    exchangeRates[CurrencyCode.USD] ?? 1.08,
+                                ],
+                            },
+                            0,
+                        ],
+                    },
+
+                    GBP: {
+                        $round: [
+                            {
+                                $multiply: [
+                                    eurPriceExpr,
+                                    exchangeRates[CurrencyCode.GBP] ?? 0.92,
+                                ],
+                            },
+                            0,
+                        ],
+                    },
+                },
+
+                socialMedia: '$allAccounts.socialMedia',
+
+                profileType: {
+                    $ifNull: [
+                        '$allAccounts.profileCategory',
+                        InfluencerProfileCategory.community,
+                    ],
+                },
+
+                countries: {
+                    $map: {
+                        input: {
+                            $ifNull: ['$allAccounts.countries', []],
+                        },
+                        as: 'c',
+                        in: {
+                            country: '$$c.country',
+                            percentage: {
+                                $ifNull: ['$$c.percentage', 0],
+                            },
+                        },
+                    },
+                },
+
+                musicGenres: {
+                    $reduce: {
+                        input: {
+                            $ifNull: ['$allAccounts.musicGenres', []],
+                        },
+                        initialValue: [],
+                        in: {
+                            $concatArrays: [
+                                '$$value',
+                                {
+                                    $cond: [
+                                        {
+                                            $gt: [
+                                                {
+                                                    $size: {
+                                                        $ifNull: ['$$this.subGenres', []],
+                                                    },
+                                                },
+                                                0,
+                                            ],
+                                        },
+                                        {
+                                            $map: {
+                                                input: '$$this.subGenres',
+                                                as: 'sg',
+                                                in: {
+                                                    $concat: [
+                                                        '$$this.genre',
+                                                        ' (',
+                                                        '$$sg',
+                                                        ')',
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                        ['$$this.genre'],
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
+
+                creatorCategories: {
+                    $ifNull: ['$allAccounts.creatorCategories', []],
+                },
+
+                categories: {
+                    $ifNull: ['$allAccounts.categories', []],
+                },
+
+                averageViews: {
+                    $ifNull: ['$allAccounts.averageViews', 0],
+                },
+
+                engagementRate: {
+                    $ifNull: ['$allAccounts.engagementRate', 0],
+                },
+            },
+        });
+
+        const sortStage: Record<string, 1 | -1> = {};
+
+        switch (sortBy) {
+            case 'bestMatch':
+                sortStage.score = 1;
+                break;
+
+            case 'lowestPrice':
+                sortStage['prices.EUR'] = 1;
+                break;
+
+            case 'highestPrice':
+                sortStage['prices.EUR'] = -1;
+                break;
+
+            case 'lowestFollowers':
+                sortStage.followers = 1;
+                break;
+
+            case 'highestFollowers':
+                sortStage.followers = -1;
+                break;
+
+            default:
+                sortStage.followers = -1;
+                break;
+        }
 
         pipeline.push({
+            $sort: sortStage,
+        });
+
+        pipeline.push({
+            $facet: {
+                data: [
+                    {
+                        $skip: skip,
+                    },
+                    {
+                        $limit: limit,
+                    },
+                ],
+                total: [
+                    {
+                        $count: 'count',
+                    },
+                ],
+            },
+        });
+
+        const result = await this.influencerRepo.aggregate<{
+            data: FoundAccountDto[];
+            total: { count: number }[];
+        }>(pipeline).exec();
+
+        return result[0]?.data ?? [];
+    }
+
+
+    /**
+     * Общий stage для сборки всех social accounts в один массив allAccounts.
+     */
+    private buildAllAccountsProjectStage(
+        socialFieldEntries: { k: string; v: string }[],
+    ): PipelineStage.Project {
+        return {
             $project: {
                 influencerId: '$_id',
                 allAccounts: {
@@ -1502,237 +1881,192 @@ export class ProfileService {
                                 '$$value',
                                 {
                                     $map: {
-                                        input: {$ifNull: ['$$this.v', []]},
+                                        input: {
+                                            $ifNull: ['$$this.v', []],
+                                        },
                                         as: 'acc',
                                         in: {
                                             $mergeObjects: [
                                                 '$$acc',
-                                                {socialMedia: '$$this.k'}
-                                            ]
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        });
+                                                {
+                                                    socialMedia: '$$this.k',
+                                                },
+                                            ],
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+        };
+    }
 
-        // Разворачиваем аккаунты
-        pipeline.push({$unwind: '$allAccounts'});
 
-        // Базовые фильтры аккаунта
-        pipeline.push({
+    /**
+     * Базовое условие: показываем только подтверждённые, не удалённые и не скрытые аккаунты.
+     */
+    private buildBaseAcceptedAccountMatchStage(): PipelineStage.Match {
+        return {
             $match: {
-                'allAccounts.isDeleted': {$ne: true},
-                'allAccounts.isHidden': {$ne: true},
+                'allAccounts.isDeleted': {
+                    $ne: true,
+                },
+                'allAccounts.isHidden': {
+                    $ne: true,
+                },
                 'allAccounts.verifiedStatus': AccountVerifiedStatus.accept,
-            }
-        });
+            },
+        };
+    }
 
-        // profileCategory
+
+    /**
+     * Общая логика фильтров.
+     *
+     * Используется и в findAccountsByFilter(), и в getFilterOptions(),
+     * чтобы список аккаунтов и counts фильтров считались одинаково.
+     */
+    private buildAccountFilterMatchStages(
+        filters: GetFilteredAccountsBodyDto & {
+            budgetCurrency?: CurrencyCode;
+        },
+    ): PipelineStage[] {
+        const stages: PipelineStage[] = [];
+
         if (filters.profileTypes?.length) {
-            pipeline.push({
+            stages.push({
                 $match: {
-                    'allAccounts.profileCategory': {$in: filters.profileTypes}
-                }
+                    'allAccounts.profileCategory': {
+                        $in: filters.profileTypes,
+                    },
+                },
             });
         }
 
-        // budget + currency
-        if (filters.budget && typeof budgetInEur === 'number') {
-            pipeline.push({
+        if (typeof filters.budget === 'number') {
+            stages.push({
                 $match: {
-                    'allAccounts.publicPrice': { $lte: budgetInEur }
-                }
+                    'allAccounts.publicPrice': {
+                        $lte: filters.budget,
+                    },
+                },
             });
         }
 
-        // musicGenres (and / or)
         if (filters.musicGenres?.length) {
-            const normalizedGenres: InfluencerMusicGenre[] = normalizeStringToMusicGenres(filters.musicGenres);
+            const normalizedGenres: InfluencerMusicGenre[] =
+                normalizeStringToMusicGenres(filters.musicGenres);
 
-            if (filters.musicGenresFilterMethod === 'and') {
-                pipeline.push({
-                    $match: {
-                        $and: normalizedGenres.flatMap(g =>
-                            (g.subGenres.length ? g.subGenres : [null]).map(sub =>
-                                sub
-                                    ? {'allAccounts.musicGenres': {$elemMatch: {genre: g.genre, subGenres: sub}}}
-                                    : {'allAccounts.musicGenres': {$elemMatch: {genre: g.genre}}}
-                            )
-                        )
+            const genreConditions = normalizedGenres.flatMap(g => {
+                const subGenres = g.subGenres?.length ? g.subGenres : [null];
+
+                return subGenres.map(sub => {
+                    if (sub) {
+                        return {
+                            'allAccounts.musicGenres': {
+                                $elemMatch: {
+                                    genre: g.genre,
+                                    subGenres: sub,
+                                },
+                            },
+                        };
                     }
+
+                    return {
+                        'allAccounts.musicGenres': {
+                            $elemMatch: {
+                                genre: g.genre,
+                            },
+                        },
+                    };
                 });
-            } else {
-                pipeline.push({
-                    $match: {
-                        $or: normalizedGenres.flatMap(g =>
-                            (g.subGenres.length ? g.subGenres : [null]).map(sub =>
-                                sub
-                                    ? {'allAccounts.musicGenres': {$elemMatch: {genre: g.genre, subGenres: sub}}}
-                                    : {'allAccounts.musicGenres': {$elemMatch: {genre: g.genre}}}
-                            )
-                        )
-                    }
+            });
+
+            if (genreConditions.length) {
+                stages.push({
+                    $match:
+                        filters.musicGenresFilterMethod === 'and'
+                            ? {
+                                $and: genreConditions,
+                            }
+                            : {
+                                $or: genreConditions,
+                            },
                 });
             }
         }
 
-        // countries
         if (filters.countries?.length) {
-            pipeline.push({
+            stages.push({
                 $match: {
-                    'allAccounts.countries.country': {$in: filters.countries}
-                }
+                    'allAccounts.countries.country': {
+                        $in: filters.countries,
+                    },
+                },
             });
         }
 
-        // categories
-        const categories = [
-            ...(filters.additionalTopics || []),
-            ...(filters.musicCategories || []),
-            ...(filters.entertainmentCategories || []),
-        ];
+        if (filters.additionalTopics?.length) {
+            const normalizedAdditionalTopics = filters.additionalTopics.map(x =>
+                x.trim().toLowerCase(),
+            );
 
-        if (categories.length) {
-            pipeline.push({
+            stages.push({
                 $match: {
-                    'allAccounts.categories': {$in: categories}
-                }
-            });
-        }
-
-        // bestMatch score (для сортировки)
-        if (sortBy === 'bestMatch') {
-            pipeline.push({
-                $addFields: {
-                    score: {
-                        $cond: [
-                            {$gt: ['$allAccounts.followers', 0]},
+                    $expr: {
+                        $gt: [
                             {
-                                $divide: [
-                                    '$allAccounts.publicPrice',
-                                    '$allAccounts.followers'
-                                ]
-                            },
-                            Number.MAX_SAFE_INTEGER
-                        ]
-                    }
-                }
-            });
-        }
-
-        // Возвращаем только нужные поля DTO
-        pipeline.push({
-            $project: {
-                _id: 0,
-                accountId: '$allAccounts._id',
-                influencerId: '$_id',
-                username: '$allAccounts.username',
-                logoUrl: '$allAccounts.logoUrl',
-                followers: '$allAccounts.followers',
-                prices: {
-                    EUR: eurPriceExpr,
-
-                    USD: {
-                        $round: [
-                            {$multiply: [eurPriceExpr, exchangeRates[CurrencyCode.USD] ?? 1.08]},
-                            0
-                        ]
-                    },
-
-                    GBP: {
-                        $round: [
-                            {$multiply: [eurPriceExpr, exchangeRates[CurrencyCode.GBP] ?? 0.92]},
-                            0
-                        ]
-                    },
-                },
-                socialMedia: '$allAccounts.socialMedia',
-                profileType: {$ifNull: ['$allAccounts.profileCategory', InfluencerProfileCategory.community]},
-                countries: {
-                    $map: {
-                        input: {$ifNull: ['$allAccounts.countries', []]},
-                        as: 'c',
-                        in: {
-                            country: '$$c.country',
-                            percentage: {$ifNull: ['$$c.percentage', 0]}
-                        }
-                    }
-                },
-                musicGenres: {
-                    $reduce: {
-                        input: {$ifNull: ['$allAccounts.musicGenres', []]},
-                        initialValue: [],
-                        in: {
-                            $concatArrays: [
-                                '$$value',
-                                {
-                                    $cond: [
-                                        {$gt: [{$size: {$ifNull: ['$$this.subGenres', []]}}, 0]},
+                                $size: {
+                                    $setIntersection: [
                                         {
                                             $map: {
-                                                input: '$$this.subGenres',
-                                                as: 'sg',
-                                                in: {$concat: ['$$this.genre', ' (', '$$sg', ')']}
-                                            }
+                                                input: {
+                                                    $ifNull: ['$allAccounts.categories', []],
+                                                },
+                                                as: 'category',
+                                                in: {
+                                                    $toLower: {
+                                                        $trim: {
+                                                            input: '$$category',
+                                                        },
+                                                    },
+                                                },
+                                            },
                                         },
-                                        ['$$this.genre']
-                                    ]
-                                }
-                            ]
-                        }
-                    }
+                                        normalizedAdditionalTopics,
+                                    ],
+                                },
+                            },
+                            0,
+                        ],
+                    },
                 },
-                creatorCategories: {$ifNull: ['$allAccounts.creatorCategories', []]},
-                categories: {$ifNull: ['$allAccounts.categories', []]},
-                averageViews: {$ifNull: ['$allAccounts.averageViews', 0]},
-                engagementRate: {$ifNull: ['$allAccounts.engagementRate', 0]},
-            }
-        });
-
-        // сортировка
-        const sortStage: any = {};
-        switch (sortBy) {
-            case 'bestMatch':
-                sortStage['score'] = 1;
-                break;
-            case 'lowestPrice':
-                sortStage['prices.EUR'] = 1;
-                break;
-            case 'highestPrice':
-                sortStage['prices.EUR'] = -1;
-                break;
-            case 'lowestFollowers':
-                sortStage['followers'] = 1;
-                break;
-            case 'highestFollowers':
-                sortStage['followers'] = -1;
-                break;
-            default:
-                sortStage['followers'] = -1;
-                break;
+            });
         }
-        pipeline.push({$sort: sortStage});
 
-        // Пагинация
-        pipeline.push({
-            $facet: {
-                data: [
-                    {$skip: skip},
-                    {$limit: limit}
-                ],
-                total: [
-                    {$count: 'count'}
-                ]
-            }
-        });
+        if (filters.musicCategories?.length) {
+            stages.push({
+                $match: {
+                    'allAccounts.creatorCategories': {
+                        $in: filters.musicCategories,
+                    },
+                },
+            });
+        }
 
-        const result = await this.influencerRepo.aggregate(pipeline);
+        if (filters.entertainmentCategories?.length) {
+            stages.push({
+                $match: {
+                    'allAccounts.categories': {
+                        $in: filters.entertainmentCategories,
+                    },
+                },
+            });
+        }
 
-        return result[0]?.data || [];
+        return stages;
     }
 
     // Searching social accounts

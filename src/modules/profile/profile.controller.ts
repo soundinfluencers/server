@@ -354,10 +354,12 @@ export class ProfileController {
     @Auth()
     @Roles(Role.client, Role.admin)
     @ApiResponseDto(GetFilterOptionsDataDto)
-    @ApiOperation({summary: "Gets filters for getting social accounts"})
-    @Get('filters')
-    async getFilters(): Promise<GetFilterOptionsDataDto> {
-        return this.profileService.getFilterOptions();
+    @ApiOperation({ summary: 'Gets filters for getting social accounts' })
+    @Post('filters')
+    async getFilters(
+        @Body() filters: GetFilteredAccountsBodyDto,
+    ): Promise<GetFilterOptionsDataDto> {
+        return this.profileService.getFilterOptions(filters ?? {} as GetFilteredAccountsBodyDto);
     }
 
     @Auth()
