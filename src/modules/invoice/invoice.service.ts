@@ -387,9 +387,9 @@ export class InvoiceService {
         if (!influencerBalance) {
             throw new NotFoundException('Influencer not found');
         }
-        if (influencerBalance.balance <= 0) {
-            throw new ForbiddenException('Balance must be greater than 0');
-        }
+        // if (influencerBalance.balance <= 0) {
+        //     throw new ForbiddenException('Balance must be greater than 0');
+        // }
 
         const invoiceDetails = await this.invoiceDetailsRepo.findOne({
             userId: new Types.ObjectId(influencerId),

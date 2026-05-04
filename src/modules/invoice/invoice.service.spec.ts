@@ -8,6 +8,7 @@ import { CampaignRepository } from '../../database/repositories/campaigns/campai
 import { InfluencerActionsHistoryService } from '../influencer-actions-history/influencer-actions-history.service';
 import { ProfileService } from '../profile/services/profile.service';
 import { EmailService } from '../../integrations/email/email.service';
+import { PaymentsHistoryService } from '../payments-history/payments-history.service';
 import { Role } from '../../common/types/user.types';
 import { Types } from 'mongoose';
 
@@ -54,6 +55,7 @@ describe('InvoiceService', () => {
         { provide: InfluencerActionsHistoryService, useValue: {} },
         { provide: ProfileService, useValue: profileService },
         { provide: EmailService, useValue: {} },
+        { provide: PaymentsHistoryService, useValue: {} },
       ],
     }).compile();
 
