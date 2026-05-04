@@ -13,6 +13,7 @@ import {
 import {MediaKindEnum, MediaProviderEnum} from "../../../common/types/file/file.types";
 import {InvoiceStatusEnum} from "../../../common/types/invoice.types";
 import {CurrencyCode} from "../../../common/types/finance.types";
+import {InfluencerProfileCategory} from "../../../common/types/influencer/influencer.types";
 
 @Schema({_id: false, timestamps: false})
 export class SelectedContent {
@@ -163,6 +164,9 @@ export class CampaignContentItem {
 
     @Prop({type: [CampaignContentDescriptionItemSchema], required: false})
     descriptions?: CampaignContentDescriptionItem[]; // was postDescriptions
+
+    @Prop({type: String, enum: InfluencerProfileCategory, required: false})
+    profileType?: InfluencerProfileCategory;
 
     @Prop({required: false, type: String})
     taggedUser?: string;

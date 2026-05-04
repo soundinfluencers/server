@@ -4,6 +4,7 @@ import {IsArray, IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString, 
 import {Type} from "class-transformer";
 import {CreateCampaignInvoiceDto} from "../../invoice/dto/create-invoice.dto";
 import {CampaignDraftLatestStep} from "../../../common/types/client/campaign.types";
+import {InfluencerProfileCategory} from "../../../common/types/influencer/influencer.types";
 
 // DTO with selected content items _ids
 export class SelectedCampaignContentItemDto {
@@ -64,6 +65,10 @@ export class CampaignContentItemDto {
     @ApiProperty({required: true, enum: SocialMediaEnum})
     @IsEnum(SocialMediaEnum)
     socialMedia: SocialMediaEnum;
+
+    @ApiPropertyOptional({required: false, type: String, enum: InfluencerProfileCategory})
+    @IsEnum(InfluencerProfileCategory)
+    profileType?: InfluencerProfileCategory;
 
     @ApiProperty({required: true})
     @IsString()

@@ -17,6 +17,7 @@ import { EmailService } from '../../../integrations/email/email.service';
 import { CampaignDetailsService } from './campaign-details.service';
 import { CampaignUpdateService } from './campaign-update.service';
 import { CampaignAccountsBuilderService } from './campaign-accounts-builder.service';
+import { PaymentsHistoryService } from '../../payments-history/payments-history.service';
 import {
     CampaignConfirmationEnum,
     CampaignStatusEnum,
@@ -84,6 +85,7 @@ describe('CampaignsService', () => {
                 { provide: CampaignDetailsService, useValue: {} },
                 { provide: CampaignUpdateService, useValue: {} },
                 { provide: CampaignAccountsBuilderService, useValue: {} },
+                { provide: PaymentsHistoryService, useValue: {} },
             ],
         }).compile();
 

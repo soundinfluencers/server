@@ -23,7 +23,6 @@ import {
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {Auth} from "../../common/decorators/auth.decorator";
 import {Public} from "../../common/decorators/public.decorator";
-import {XlsxCampaignDto} from "../admin/dto/campaigns/xlsx-campaign.dto";
 import {CreateCampaignDto, SaveDraftCampaignDto} from "./dto/create-campaign.dto";
 import {Response} from 'express';
 import {CampaignTypeEnumForDevelopment, IPublicCampaignForTable} from "../../common/types/client/campaign.types";
