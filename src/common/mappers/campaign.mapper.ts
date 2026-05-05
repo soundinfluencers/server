@@ -47,6 +47,7 @@ export const mapContentItemDtoToModel = (campaignContentItem: CampaignContentIte
             _id: new Types.ObjectId(pd._id),
             description: pd.description.trim(),
         })) ?? undefined,
+        profileType: campaignContentItem.profileType ?? undefined,
         taggedUser: campaignContentItem.taggedUser?.trim() ?? undefined,
         taggedLink: campaignContentItem.taggedLink?.trim() ?? undefined,
         additionalBrief: campaignContentItem.additionalBrief?.trim() ?? undefined,
