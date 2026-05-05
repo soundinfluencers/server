@@ -104,8 +104,6 @@ export class ProposalCampaignDetailsService {
                 a => a._id?.toString() === acc.accountId?.toString(),
             );
 
-            console.log(matchedAccount, 'matchedAccount')
-
             return {
                 ...acc,
                 logoUrl: matchedAccount?.logoUrl ?? null,

@@ -76,9 +76,11 @@ describe('ProfileController', () => {
     });
 
     it('getFilters delegates to getFilterOptions', async () => {
-      await controller.getFilters();
+      const body = {} as any;
 
-      expect(profileService.getFilterOptions).toHaveBeenCalled();
+      await controller.getFilters(body);
+
+      expect(profileService.getFilterOptions).toHaveBeenCalledWith(body);
     });
 
     it('throws UnauthorizedException when influencer profile requested without user id', () => {

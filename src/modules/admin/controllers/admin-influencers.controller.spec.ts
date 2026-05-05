@@ -3,21 +3,18 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AdminInfluencersController } from './admin-influencers.controller';
 import { AdminInfluencersService } from '../services/admin-influencers.service';
 import { SocialMediaEnum } from '../../../common/types/social-media.types';
-import { PaginationQueryDto } from '../../../common/dto/requests/pagination-query.dto';
-import { SearchQueryDto } from '../../../common/dto/requests/search-query.dto';
+import { AdminInfluencersQueryDto } from '../dto/influencers/admin-influencers-query.dto';
 
 describe('AdminInfluencersController', () => {
     let controller: AdminInfluencersController;
     let adminInfluencersService: {
-        getInfluencersList: jest.Mock;
-        searchSocialAccounts: jest.Mock;
+        getPaginated: jest.Mock;
         importXlsxSocialAccounts: jest.Mock;
     };
 
     beforeEach(async () => {
         adminInfluencersService = {
-            getInfluencersList: jest.fn(),
-            searchSocialAccounts: jest.fn(),
+            getPaginated: jest.fn(),
             importXlsxSocialAccounts: jest.fn(),
         };
 
@@ -33,25 +30,25 @@ describe('AdminInfluencersController', () => {
         expect(controller).toBeDefined();
     });
 
-    it('getInfluencersList delegates to service', async () => {
-        const query = { page: 1, limit: 10 } as PaginationQueryDto;
+    it('getPaginated delegates to service', async () => {
+        const query = { page: 1, limit: 10, platform: SocialMediaEnum.instagram } as AdminInfluencersQueryDto;
         const emptyList = { items: [], total: 0, page: 1, limit: 10, totalPages: 0 };
-        adminInfluencersService.getInfluencersList.mockResolvedValueOnce(emptyList);
+        adminInfluencersService.getPaginated.mockResolvedValueOnce(emptyList);
 
-        const result = await controller.getInfluencersList(SocialMediaEnum.instagram, query);
+        const result = await controller.getPaginated(query);
 
-        expect(adminInfluencersService.getInfluencersList).toHaveBeenCalledWith(SocialMediaEnum.instagram, query);
+        expect(adminInfluencersService.getPaginated).toHaveBeenCalledWith(query);
         expect(result).toBe(emptyList);
     });
 
-    it('searchSocialAccounts delegates to service', async () => {
-        const query = { search: 'user', limit: 5 } as SearchQueryDto;
-        const searchResult = { items: [], total: 0 };
-        adminInfluencersService.searchSocialAccounts.mockResolvedValueOnce(searchResult);
+    it('getPaginated forwards search query to service', async () => {
+        const query = { page: 1, limit: 5, search: 'user' } as AdminInfluencersQueryDto;
+        const searchResult = { items: [], total: 0, page: 1, limit: 5, totalPages: 0 };
+        adminInfluencersService.getPaginated.mockResolvedValueOnce(searchResult);
 
-        const result = await controller.searchSocialAccounts(query);
+        const result = await controller.getPaginated(query);
 
-        expect(adminInfluencersService.searchSocialAccounts).toHaveBeenCalledWith(query);
+        expect(adminInfluencersService.getPaginated).toHaveBeenCalledWith(query);
         expect(result).toBe(searchResult);
     });
 });

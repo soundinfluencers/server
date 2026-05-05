@@ -6,6 +6,7 @@ import { AdminActionsHistoryService } from './admin-actions-history.service';
 import { InfluencerRepository } from '../../../database/repositories/users/influencer.repository';
 import { InfluencerHistoryRepository } from '../../../database/repositories/histories/influencer-history.repository';
 import { CampaignRepository } from '../../../database/repositories/campaigns/campaign.repository';
+import { ProfileService } from '../../profile/services/profile.service';
 import { PaginationQueryDto } from '../../../common/dto/requests/pagination-query.dto';
 import { SocialMediaEnum } from '../../../common/types/social-media.types';
 
@@ -47,6 +48,7 @@ describe('AdminActionsHistoryService', () => {
                 { provide: InfluencerRepository, useValue: influencerRepo },
                 { provide: InfluencerHistoryRepository, useValue: historyRepo },
                 { provide: CampaignRepository, useValue: campaignRepo },
+                { provide: ProfileService, useValue: { searchSocialAccounts: jest.fn() } },
             ],
         }).compile();
 

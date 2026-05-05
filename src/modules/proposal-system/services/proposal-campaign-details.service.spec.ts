@@ -29,13 +29,18 @@ function makeOption(overrides: Record<string, unknown> = {}) {
     };
 }
 
-function makeContext<T>(overrides: Partial<ProposalCampaignDetailsContext<T>> = {}): ProposalCampaignDetailsContext<T> {
+type TestCampaign = ReturnType<typeof makeCampaign>;
+type TestOption = ReturnType<typeof makeOption>;
+
+function makeContext(
+    overrides: Partial<ProposalCampaignDetailsContext<TestCampaign, TestOption, string>> = {},
+): ProposalCampaignDetailsContext<TestCampaign, TestOption, string> {
     return {
         findCampaign: jest.fn().mockResolvedValue(null),
         findOption: jest.fn().mockResolvedValue(null),
         mapResult: jest.fn().mockReturnValue('mapped'),
         ...overrides,
-    } as any;
+    };
 }
 
 // ─── test suite ─────────────────────────────────────────────────────────────

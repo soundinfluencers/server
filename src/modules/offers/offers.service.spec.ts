@@ -1,8 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { OffersService } from './offers.service';
-import { Offer } from './schemas/offer.schema';
+import { Offer } from '../../database/schemas/offer/offer.schema';
 import { Influencer } from '../../database/schemas/users/influencer.schema';
+import { ExchangeRateService } from '../../integrations/exchange-rate/exchange-rate.service';
+import { OfferAccountLinkRepository } from '../../database/repositories/offers/offer-account-link.repository';
 
 describe('OffersService', () => {
   let service: OffersService;
@@ -24,6 +26,18 @@ describe('OffersService', () => {
         OffersService,
         { provide: getModelToken(Offer.name), useValue: offersModel },
         { provide: getModelToken(Influencer.name), useValue: {} },
+        {
+          provide: ExchangeRateService,
+          useValue: { getAllRates: jest.fn().mockResolvedValue({}) },
+        },
+        {
+          provide: OfferAccountLinkRepository,
+          useValue: {
+            insertLinks: jest.fn(),
+            findByOfferIds: jest.fn().mockResolvedValue([]),
+            deleteByOfferId: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

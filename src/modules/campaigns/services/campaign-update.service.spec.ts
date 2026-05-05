@@ -10,6 +10,7 @@ import {
 import { MediaService } from '../../media/media.service';
 import { UpdateCampaignDto } from '../dto/update-campaign.dto';
 import { SocialMediaEnum } from '../../../common/types/social-media.types';
+import { CurrencyCode } from '../../../common/types/finance.types';
 import { CampaignContentItem } from '../../../database/schemas/campaign/campaign.schema';
 
 type TestAccount = CampaignAccountLike;
@@ -46,6 +47,8 @@ describe('CampaignUpdateService', () => {
         campaignName: 'Original Campaign',
         addedAccounts: [],
         campaignContent: [],
+        displayCurrency: CurrencyCode.EUR,
+        socialMedia: SocialMediaEnum.instagram,
         save: jest.fn().mockResolvedValue(undefined),
         toObject: jest.fn().mockReturnValue({}),
         ...overrides,

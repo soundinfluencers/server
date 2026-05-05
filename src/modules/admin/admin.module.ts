@@ -25,8 +25,14 @@ import {InfluencerActionsHistoryService} from "../influencer-actions-history/inf
 import {AdminInvoicesController} from "./controllers/admin-invoices.controller";
 import {AdminClientInvoicesService} from "./services/invoices/admin-client-invoices.service";
 import {AdminInfluencerInvoicesService} from "./services/invoices/admin-influencer-invoices.service";
+import {OffersModule} from "../offers/offers.module";
+import {AdminOffersService} from "./services/admin-offers.service";
+import {AdminOffersController} from "./controllers/admin-offers.controller";
 
 @Module({
+  imports: [
+      OffersModule,
+  ],
   controllers: [
       AdminClientsController,
       AdminCampaignsController,
@@ -34,6 +40,7 @@ import {AdminInfluencerInvoicesService} from "./services/invoices/admin-influenc
       AdminInfluencersController,
       AdminPaymentsHistoryController,
       AdminInvoicesController,
+      AdminOffersController,
   ],
   providers: [
       AdminClientsService,
@@ -56,6 +63,7 @@ import {AdminInfluencerInvoicesService} from "./services/invoices/admin-influenc
       InfluencerActionsHistoryService,
       AdminClientInvoicesService,
       AdminInfluencerInvoicesService,
+      AdminOffersService,
   ],
 })
 export class AdminModule {}

@@ -5,6 +5,9 @@ import { Types } from 'mongoose';
 import { AdminInfluencersService } from './admin-influencers.service';
 import { InfluencerRepository } from '../../../database/repositories/users/influencer.repository';
 import { XlsxImporter } from '../../../common/utils/import/xlsx/xlsx-import';
+import { UpdateInfluencerService } from '../../profile/services/update-influencer.service';
+import { CreateSocialAccountService } from '../../profile/services/create-social-account.service';
+import { UpdateSocialAccountService } from '../../profile/services/update-social-account.service';
 import { SocialMediaEnum } from '../../../common/types/social-media.types';
 import { PaginationQueryDto } from '../../../common/dto/requests/pagination-query.dto';
 import { CurrencyCode } from '../../../common/types/finance.types';
@@ -12,8 +15,7 @@ import { CurrencyCode } from '../../../common/types/finance.types';
 describe('AdminInfluencersService', () => {
     let service: AdminInfluencersService;
     let influencerRepo: {
-        findPaginated: jest.Mock;
-        findSocialAccountBySearch: jest.Mock;
+        findInfluencers: jest.Mock;
         findMany: jest.Mock;
         bulkWrite: jest.Mock;
     };
@@ -42,14 +44,13 @@ describe('AdminInfluencersService', () => {
 
     beforeEach(async () => {
         influencerRepo = {
-            findPaginated: jest.fn().mockResolvedValue({
+            findInfluencers: jest.fn().mockResolvedValue({
                 items: [],
                 total: 0,
                 page: 1,
                 limit: 10,
                 totalPages: 0,
             }),
-            findSocialAccountBySearch: jest.fn(),
             findMany: jest.fn(),
             bulkWrite: jest.fn(),
         };
@@ -60,6 +61,9 @@ describe('AdminInfluencersService', () => {
                 AdminInfluencersService,
                 { provide: InfluencerRepository, useValue: influencerRepo },
                 { provide: XlsxImporter, useValue: xlsxImporter },
+                { provide: UpdateInfluencerService, useValue: { exec: jest.fn() } },
+                { provide: CreateSocialAccountService, useValue: { execute: jest.fn() } },
+                { provide: UpdateSocialAccountService, useValue: {} },
             ],
         }).compile();
 
@@ -70,9 +74,11 @@ describe('AdminInfluencersService', () => {
         expect(service).toBeDefined();
     });
 
-    it('getInfluencersList maps items', async () => {
-        const query = { page: 1, limit: 10 } as PaginationQueryDto;
-        influencerRepo.findPaginated.mockResolvedValueOnce({
+    it('getPaginated maps items from findInfluencers', async () => {
+        const query = { page: 1, limit: 10, platform: SocialMediaEnum.instagram } as PaginationQueryDto & {
+            platform: SocialMediaEnum;
+        };
+        influencerRepo.findInfluencers.mockResolvedValueOnce({
             items: [baseListItem],
             total: 1,
             page: 1,
@@ -80,17 +86,19 @@ describe('AdminInfluencersService', () => {
             totalPages: 1,
         });
 
-        const result = await service.getInfluencers(SocialMediaEnum.instagram, query);
+        const result = await service.getPaginated(query);
 
-        expect(influencerRepo.findPaginated).toHaveBeenCalledWith(SocialMediaEnum.instagram, query);
+        expect(influencerRepo.findInfluencers).toHaveBeenCalledWith(query);
         expect(result.items).toHaveLength(1);
         expect(result.items[0].influencerId).toBe(baseListItem.influencerId.toString());
         expect(result.items[0].accountId).toBe(baseListItem.accountId.toString());
     });
 
-    it('getInfluencersList returns empty items for empty list', async () => {
-        const query = { page: 1, limit: 10 } as PaginationQueryDto;
-        influencerRepo.findPaginated.mockResolvedValueOnce({
+    it('getPaginated returns empty items for empty list', async () => {
+        const query = { page: 1, limit: 10, platform: SocialMediaEnum.tiktok } as PaginationQueryDto & {
+            platform: SocialMediaEnum;
+        };
+        influencerRepo.findInfluencers.mockResolvedValueOnce({
             items: [],
             total: 0,
             page: 1,
@@ -98,7 +106,7 @@ describe('AdminInfluencersService', () => {
             totalPages: 0,
         });
 
-        const result = await service.getInfluencers(SocialMediaEnum.tiktok, query);
+        const result = await service.getPaginated(query);
 
         expect(result.items).toEqual([]);
     });

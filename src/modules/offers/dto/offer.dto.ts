@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
+import {IsGenreAllowedForSocialMedia} from "../../../common/decorators/dto/genre-for-social-media.decorator";
 
 export class OfferDto {
   @IsString({
@@ -36,21 +37,9 @@ export class OfferDto {
   price: number;
 
   @IsOptional()
-  @IsEnum({
-    enum: [
-      'Techno (Melodic, Minimal)',
-      'Techno (Hard, Peak)',
-      'House (Tech House)',
-      'House (Melodic, Afro)',
-      'EDM',
-      'D&B',
-      'Bass',
-      'Psy, Trance',
-      'Dubstep',
-      'Garage',
-      'Dance Pop',
-    ],
-    message: (args: ValidationArguments) => `${args.value} is not a valid genre for offer`,
+  @IsGenreAllowedForSocialMedia({
+    message: (args: ValidationArguments) =>
+      `${args.value} is not a valid genre for this social media (see allowedGenresMap)`,
   })
   genre?: string | null;
 

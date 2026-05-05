@@ -4,7 +4,9 @@ import { Types } from 'mongoose';
 import { AdminCampaignsService } from './admin-campaigns.service';
 import { CampaignRepository } from '../../../database/repositories/campaigns/campaign.repository';
 import { CompletedCampaignRepository } from '../../../database/repositories/campaigns/completed-campaign.repository';
-import { ProposalCampaignRepository } from '../../../database/repositories/campaigns/proposal-campaign.repository';
+import {
+    ProposalCampaignRepository,
+} from '../../../database/repositories/campaigns/proposal-campaign.repository';
 import { ProposalCampaignOptionRepository } from '../../../database/repositories/campaigns/proposal-campaign-option.repository';
 import { InfluencerRepository } from '../../../database/repositories/users/influencer.repository';
 import { CampaignDetailsService } from '../../campaigns/services/campaign-details.service';
@@ -14,6 +16,8 @@ import { ProposalCampaignDetailsService } from '../../proposal-system/services/p
 import { ProposalCampaignUpdateService } from '../../proposal-system/services/proposal-campaign-update.service';
 import { ProposalAccountsBuilderService } from '../../proposal-system/services/proposal-accounts-builder.service';
 import { XlsxImporter } from '../../../common/utils/import/xlsx/xlsx-import';
+import { InfluencerActionsHistoryService } from '../../influencer-actions-history/influencer-actions-history.service';
+import { PaymentsHistoryService } from '../../payments-history/payments-history.service';
 import {
     AdminCampaignsListStatusEnum,
     GetAdminCampaignsListQueryDto,
@@ -25,6 +29,15 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { UpdateCampaignDto } from '../../campaigns/dto/update-campaign.dto';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
+
+function makeMockSession() {
+    return {
+        startTransaction: jest.fn(),
+        commitTransaction: jest.fn().mockResolvedValue(undefined),
+        abortTransaction: jest.fn().mockResolvedValue(undefined),
+        endSession: jest.fn().mockResolvedValue(undefined),
+    };
+}
 
 function makeListItem(overrides: Record<string, unknown> = {}) {
     return {
@@ -61,12 +74,14 @@ describe('AdminCampaignsService', () => {
         updateAdminMetaField: jest.Mock;
         deleteById: jest.Mock;
         getDetailedCampaignForAdmin: jest.Mock;
+        startSession: jest.Mock;
     };
     let completedRepo: {
         getCompletedCampaignsForAdmin: jest.Mock;
         updateAdminMetaField: jest.Mock;
         deleteById: jest.Mock;
         getDetailedCampaignForAdmin: jest.Mock;
+        startSession: jest.Mock;
     };
     let proposalRepo: {
         getProposalCampaignsForAdmin: jest.Mock;
@@ -81,23 +96,28 @@ describe('AdminCampaignsService', () => {
     const emptyResult = { items: [], total: 0 };
 
     beforeEach(async () => {
+        const ongoingSession = makeMockSession();
+        const completedSession = makeMockSession();
         campaignRepo = {
             getOngoingCampaignsForAdmin: jest.fn().mockResolvedValue(emptyResult),
             updateAdminMetaField: jest.fn(),
-            deleteById: jest.fn(),
+            deleteById: jest.fn().mockResolvedValue(undefined),
             getDetailedCampaignForAdmin: jest.fn(),
+            startSession: jest.fn().mockResolvedValue(ongoingSession),
         };
         completedRepo = {
             getCompletedCampaignsForAdmin: jest.fn().mockResolvedValue(emptyResult),
             updateAdminMetaField: jest.fn(),
-            deleteById: jest.fn(),
+            deleteById: jest.fn().mockResolvedValue(undefined),
             getDetailedCampaignForAdmin: jest.fn(),
+            startSession: jest.fn().mockResolvedValue(completedSession),
         };
         proposalRepo = {
             getProposalCampaignsForAdmin: jest.fn().mockResolvedValue(emptyResult),
             updateAdminMetaField: jest.fn(),
-            deleteById: jest.fn(),
+            deleteById: jest.fn().mockResolvedValue(undefined),
         };
+        Object.setPrototypeOf(proposalRepo, ProposalCampaignRepository.prototype);
         campaignDetailsService = { execute: jest.fn() };
         campaignUpdateService = { execute: jest.fn() };
         proposalDetailsService = { execute: jest.fn() };
@@ -117,7 +137,15 @@ describe('AdminCampaignsService', () => {
                 { provide: ProposalCampaignDetailsService, useValue: proposalDetailsService },
                 { provide: ProposalCampaignUpdateService, useValue: proposalUpdateService },
                 { provide: ProposalAccountsBuilderService, useValue: { buildProposalAccountsBatch: jest.fn() } },
+                { provide: InfluencerActionsHistoryService, useValue: {} },
                 { provide: XlsxImporter, useValue: {} },
+                {
+                    provide: PaymentsHistoryService,
+                    useValue: {
+                        deleteManyByCampaignId: jest.fn().mockResolvedValue(undefined),
+                        rebuildForCampaign: jest.fn().mockResolvedValue(undefined),
+                    },
+                },
             ],
         }).compile();
 
@@ -381,14 +409,15 @@ describe('AdminCampaignsService', () => {
         const campaignId = new Types.ObjectId().toString();
         const fakeResult = { campaignId, campaignName: 'Updated' };
 
-        it('routes to proposalCampaignUpdateService.execute when data.optionIndex is defined', async () => {
+        it('routes to proposalCampaignUpdateService.execute when optionIndex argument is provided', async () => {
             proposalUpdateService.execute.mockResolvedValueOnce(fakeResult);
-            const data = { optionIndex: 1 } as UpdateCampaignDto;
+            const data = {} as UpdateCampaignDto;
 
             const result = await service.updateCampaign(
                 AdminCampaignsListStatusEnum.proposal,
                 campaignId,
                 data,
+                1,
             );
 
             expect(proposalUpdateService.execute).toHaveBeenCalledTimes(1);
@@ -439,7 +468,7 @@ describe('AdminCampaignsService', () => {
 
             await expect(
                 service.updateCampaign(AdminCampaignsListStatusEnum.proposal, campaignId, data),
-            ).rejects.toThrow('Proposal campaign requires optionIndex');
+            ).rejects.toThrow('For updating proposal campaign, you must provide optionIndex');
         });
 
         it('throws BadRequestException when status is completed and no optionIndex', async () => {
@@ -572,7 +601,10 @@ describe('AdminCampaignsService', () => {
         it('calls campaignRepo.deleteById for pending status', async () => {
             await service.deleteCampaign(AdminCampaignsListStatusEnum.pending, campaignId);
 
-            expect(campaignRepo.deleteById).toHaveBeenCalledWith(campaignId);
+            expect(campaignRepo.deleteById).toHaveBeenCalledWith(
+                campaignId,
+                expect.objectContaining({ session: expect.any(Object) }),
+            );
             expect(completedRepo.deleteById).not.toHaveBeenCalled();
             expect(proposalRepo.deleteById).not.toHaveBeenCalled();
         });
@@ -580,7 +612,10 @@ describe('AdminCampaignsService', () => {
         it('calls completedRepo.deleteById for completed status', async () => {
             await service.deleteCampaign(AdminCampaignsListStatusEnum.completed, campaignId);
 
-            expect(completedRepo.deleteById).toHaveBeenCalledWith(campaignId);
+            expect(completedRepo.deleteById).toHaveBeenCalledWith(
+                campaignId,
+                expect.objectContaining({ session: expect.any(Object) }),
+            );
             expect(campaignRepo.deleteById).not.toHaveBeenCalled();
             expect(proposalRepo.deleteById).not.toHaveBeenCalled();
         });
@@ -596,7 +631,10 @@ describe('AdminCampaignsService', () => {
         it('calls campaignRepo.deleteById for distributing status', async () => {
             await service.deleteCampaign(AdminCampaignsListStatusEnum.distributing, campaignId);
 
-            expect(campaignRepo.deleteById).toHaveBeenCalledWith(campaignId);
+            expect(campaignRepo.deleteById).toHaveBeenCalledWith(
+                campaignId,
+                expect.objectContaining({ session: expect.any(Object) }),
+            );
         });
     });
 });

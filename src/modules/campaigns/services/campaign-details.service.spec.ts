@@ -2,10 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { CampaignDetailsService, CampaignDetailsContext } from './campaign-details.service';
-import { ClientRepository } from '../../../database/repositories/users/client.repository';
 import { InfluencerRepository } from '../../../database/repositories/users/influencer.repository';
 import { ICampaignDetails, ICampaignAccount, CampaignStatusEnum } from '../../../common/types/client/campaign.types';
 import { SocialMediaEnum } from '../../../common/types/social-media.types';
+import { CurrencyCode } from '../../../common/types/finance.types';
 import { InfluencerConfirmationStatusEnum, InfluencerPromoClosedStatusEnum } from '../../../common/types/influencer/promo.types';
 
 describe('CampaignDetailsService', () => {
@@ -37,6 +37,7 @@ describe('CampaignDetailsService', () => {
         socialMedia: 'instagram',
         createdAt: new Date('2025-01-01'),
         price: 500,
+        displayCurrency: CurrencyCode.EUR,
         status: CampaignStatusEnum.pending,
         addedAccounts: [],
         campaignContent: [],
@@ -56,10 +57,6 @@ describe('CampaignDetailsService', () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 CampaignDetailsService,
-                {
-                    provide: ClientRepository,
-                    useValue: {},
-                },
                 {
                     provide: InfluencerRepository,
                     useValue: {
@@ -156,7 +153,7 @@ describe('CampaignDetailsService', () => {
         await service.execute('id', context);
 
         expect(influencerRepo.findMany).toHaveBeenCalledWith(
-            { _id: { $in: [influencerId.toString()] } },
+            { _id: { $in: [influencerId] } },
             {
                 lean: true,
                 select: expect.arrayContaining([
@@ -173,7 +170,8 @@ describe('CampaignDetailsService', () => {
         const accountId = makeObjectId();
 
         const account = makeAccount({
-            addedAccountsId: accountId,
+            addedAccountsId: makeObjectId(),
+            socialAccountId: accountId,
             influencerId,
             socialMedia: SocialMediaEnum.instagram,
         });
@@ -224,7 +222,8 @@ describe('CampaignDetailsService', () => {
         const differentAccountId = makeObjectId();
 
         const account = makeAccount({
-            addedAccountsId: accountId,
+            addedAccountsId: makeObjectId(),
+            socialAccountId: accountId,
             influencerId,
             socialMedia: SocialMediaEnum.instagram,
         });
@@ -265,7 +264,7 @@ describe('CampaignDetailsService', () => {
 
         const calledIds = influencerRepo.findMany.mock.calls[0][0]._id.$in;
         expect(calledIds).toHaveLength(1);
-        expect(calledIds[0]).toBe(influencerId.toString());
+        expect(calledIds[0].toString()).toBe(influencerId.toString());
     });
 
     it('should handle multiple accounts from different influencers', async () => {
@@ -275,12 +274,14 @@ describe('CampaignDetailsService', () => {
         const acc2Id = makeObjectId();
 
         const acc1 = makeAccount({
-            addedAccountsId: acc1Id,
+            addedAccountsId: makeObjectId(),
+            socialAccountId: acc1Id,
             influencerId: inf1Id,
             socialMedia: SocialMediaEnum.tiktok,
         });
         const acc2 = makeAccount({
-            addedAccountsId: acc2Id,
+            addedAccountsId: makeObjectId(),
+            socialAccountId: acc2Id,
             influencerId: inf2Id,
             socialMedia: SocialMediaEnum.youtube,
         });

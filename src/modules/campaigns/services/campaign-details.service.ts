@@ -68,7 +68,6 @@ export class CampaignDetailsService {
             if (!influencer) return acc;
 
             const accountsArray = influencer[acc.socialMedia] ?? [];
-            console.log(accountsArray, 'accountsArray in attachLogos')
             const matchedAccount = accountsArray?.find(
                 a => a._id?.toString() === acc.socialAccountId?.toString(),
             );

@@ -1,22 +1,9 @@
 import {ApiProperty} from "@nestjs/swagger";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
-import {IsEnum} from "class-validator";
+import {IsEnum, IsNotEmpty, IsString} from "class-validator";
 import {FoundAccountDto} from "../../profile/dto/influencer/get-profile.dto";
-
-const allowedGenres = [
-    'Techno (Melodic, Minimal)',
-    'Techno (Hard, Peak)',
-    'House (Tech House)',
-    'House (Melodic, Afro)',
-    'EDM',
-    'D&B',
-    'Bass',
-    'Psy',
-    'Trance',
-    'Dubstep',
-    'Garage',
-    'Dance Pop',
-]
+import {allAllowedOfferGenres} from "../../../common/types/genres.types";
+import {IsGenreAllowedForSocialMedia} from "../../../common/decorators/dto/genre-for-social-media.decorator";
 
 export class GetFilteredPublishedOffers {
     @ApiProperty({
@@ -28,27 +15,16 @@ export class GetFilteredPublishedOffers {
     @IsEnum(SocialMediaEnum)
     socialMedia: SocialMediaEnum;
 
-    // todo: создать кастомный валидатор и декоратор, которые будут проверять наличие жанра в соц. сети
     @ApiProperty({
         name: 'genre',
         type: 'string',
-        enum: [
-            'Techno (Melodic, Minimal)',
-            'Techno (Hard, Peak)',
-            'House (Tech House)',
-            'House (Melodic, Afro)',
-            'EDM',
-            'D&B',
-            'Bass',
-            'Psy',
-            'Trance',
-            'Dubstep',
-            'Garage',
-            'Dance Pop',
-        ],
-        required: true
+        enum: [...allAllowedOfferGenres],
+        required: true,
+        description: 'Must be one of the genres allowed for the selected socialMedia (see allowedGenresMap).',
     })
-    @IsEnum(allowedGenres)
+    @IsString()
+    @IsNotEmpty()
+    @IsGenreAllowedForSocialMedia()
     genre: string;
 }
 
@@ -75,7 +51,7 @@ export class FilteredPublishedOffersByGenreAndSocialMedia {
     combinedFollowers?: string;
 
     @ApiProperty()
-    networksAmount?: number;
+    networksAmount?: string;
 
     @ApiProperty()
     storyAndPostDetails?: string;

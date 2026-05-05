@@ -63,6 +63,10 @@ import {NegotiationRepository} from "./repositories/negotiation/negotiation.repo
 import {Role} from "../common/types/user.types";
 import {PaymentHistoryCell, PaymentHistoryCellSchema} from "./schemas/histories/payment-history-cell.schema";
 import {PaymentHistoryCellRepository} from "./repositories/histories/payment-history-cell.repository";
+import {Offer, OfferSchema} from "./schemas/offer/offer.schema";
+import {OfferAccountLink, OfferAccountLinkSchema} from "./schemas/offer/offer-account-link.schema";
+import {OfferRepository} from "./repositories/offers/offer.repository";
+import {OfferAccountLinkRepository} from "./repositories/offers/offer-account-link.repository";
 
 @Global()
 @Module({
@@ -88,6 +92,8 @@ import {PaymentHistoryCellRepository} from "./repositories/histories/payment-his
             { name: Negotiation.name, schema: NegotiationSchema },
             { name: NegotiationOffer.name, schema: NegotiationOfferSchema },
             { name: PaymentHistoryCell.name, schema: PaymentHistoryCellSchema },
+            { name: Offer.name, schema: OfferSchema },
+            { name: OfferAccountLink.name, schema: OfferAccountLinkSchema },
             {
                 name: UserInvoice.name,
                 schema: UserInvoiceSchema,
@@ -137,6 +143,8 @@ import {PaymentHistoryCellRepository} from "./repositories/histories/payment-his
         ReportSizeRepository,
         NegotiationRepository,
         PaymentHistoryCellRepository,
+        OfferRepository,
+        OfferAccountLinkRepository,
     ],
     exports: [
         ClientRepository,
@@ -159,6 +167,8 @@ import {PaymentHistoryCellRepository} from "./repositories/histories/payment-his
         ReportSizeRepository,
         NegotiationRepository,
         PaymentHistoryCellRepository,
+        OfferRepository,
+        OfferAccountLinkRepository,
     ],
 })
 export class DatabaseModule {}

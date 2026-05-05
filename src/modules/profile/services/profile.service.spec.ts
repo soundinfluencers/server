@@ -14,6 +14,9 @@ import { UkBankTransferDetailsRepository } from '../../../database/repositories/
 import { InternationalBankTransferDetailsRepository } from '../../../database/repositories/invoices/international-transfer-details.repository';
 import { PaypalDetailsRepository } from '../../../database/repositories/invoices/paypal-details.repository';
 import { NegotiationRepository } from '../../../database/repositories/negotiation/negotiation.repository';
+import { UpdateInfluencerService } from './update-influencer.service';
+import { CreateSocialAccountService } from './create-social-account.service';
+import { UpdateSocialAccountService } from './update-social-account.service';
 import { Role } from '../../../common/types/user.types';
 import * as clientMapper from '../../../common/mappers/client.mapper';
 import * as influencerMapper from '../../../common/mappers/influencer.mapper';
@@ -87,6 +90,9 @@ describe('ProfileService', () => {
         { provide: InternationalBankTransferDetailsRepository, useValue: {} },
         { provide: PaypalDetailsRepository, useValue: {} },
         { provide: NegotiationRepository, useValue: {} },
+        { provide: UpdateInfluencerService, useValue: { exec: jest.fn() } },
+        { provide: CreateSocialAccountService, useValue: { execute: jest.fn() } },
+        { provide: UpdateSocialAccountService, useValue: {} },
       ],
     }).compile();
 
