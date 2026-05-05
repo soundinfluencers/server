@@ -68,6 +68,7 @@ export class CampaignContentItemDto {
 
     @ApiPropertyOptional({required: false, type: String, enum: InfluencerProfileCategory})
     @IsEnum(InfluencerProfileCategory)
+    @IsOptional()
     profileType?: InfluencerProfileCategory;
 
     @ApiProperty({required: true})
