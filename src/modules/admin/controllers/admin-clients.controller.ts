@@ -1,4 +1,4 @@
-import {Body, Controller, Get, Param, Patch, Query} from '@nestjs/common';
+import {Body, Controller, Delete, Get, Param, Patch, Query} from '@nestjs/common';
 import {AdminClientsService} from '../services/admin-clients.service';
 import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
@@ -93,5 +93,17 @@ export class AdminClientsController {
         @Body() data: AdminUpdateClientDto,
     ) {
         return this.adminService.updateClient(clientId, data);
+    }
+
+    @ApiOperation({summary: "Deletes client"})
+    @ApiResponseDto()
+    @ApiParam({
+        name: 'clientId',
+        type: String,
+        required: true
+    })
+    @Delete(':clientId')
+    deleteClient(@Param('clientId', new ParseObjectIdPipe()) clientId: string) {
+        return this.adminService.deleteClient(clientId);
     }
 }

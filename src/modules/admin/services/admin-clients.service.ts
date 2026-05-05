@@ -67,4 +67,8 @@ export class AdminClientsService {
 
         return this.getClientDetails(clientId);
     }
+
+    async deleteClient(clientId: string): Promise<void> {
+        await this.clientsRepository.deleteById(clientId);
+    }
 }
