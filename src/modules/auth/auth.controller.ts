@@ -9,7 +9,6 @@ import {Public} from '../../common/decorators/public.decorator';
 import {Auth} from "../../common/decorators/auth.decorator";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/user.types";
-import {Roles} from "../../common/decorators/roles.decorator";
 
 @ApiTags('auth')
 @Controller('auth')

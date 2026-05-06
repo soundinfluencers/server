@@ -6,7 +6,7 @@
 import mongoose from 'mongoose';
 
 const OFFERS = 'offers';
-const LINKS = 'offer_account_links';
+const LINKS = 'offeraccountlinks';
 
 async function main() {
     const uri = process.env.DATABASE_ROOT;

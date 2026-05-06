@@ -1,4 +1,16 @@
-import {Body, Controller, Delete, Get, Injectable, Param, Patch, Query, UsePipes, ValidationPipe} from '@nestjs/common';
+import {
+    Body,
+    Controller,
+    Delete,
+    Get,
+    Injectable,
+    Param,
+    ParseBoolPipe,
+    Patch,
+    Query,
+    UsePipes,
+    ValidationPipe
+} from '@nestjs/common';
 import {Auth} from '../../../common/decorators/auth.decorator';
 import {Roles} from '../../../common/decorators/roles.decorator';
 import {Role} from '../../../common/types/user.types';
@@ -28,15 +40,6 @@ export class AdminOffersController {
         return this.adminOffersService.getMatrix(query);
     }
 
-    @ApiExcludeEndpoint()
-    @ApiOperation({summary: 'Add or remove one account–offer link (updates networksAmount)'})
-    @Patch('links')
-    @UsePipes(new ValidationPipe({transform: true}))
-    toggleLink(@Body() body: AdminOffersMatrixToggleLinkDto): Promise<{ ok: boolean }> {
-        return this.adminOffersService.toggleLink(body);
-    }
-
-    @ApiExcludeEndpoint()
     @ApiOperation({summary: 'Set offer isPublished (visible to clients)'})
     @ApiResponseDto()
     @ApiQuery({
@@ -45,8 +48,46 @@ export class AdminOffersController {
         required: false
     })
     @Patch('published')
-    setPublished(@Query('offerId', new ParseObjectIdPipe()) offerId?: string): Promise<void> {
+    setPublished(@Query('offerId') offerId?: string): Promise<void> {
         return this.adminOffersService.setPublishedStatus(offerId);
+    }
+
+    @ApiOperation({summary: 'Add or remove one account–offer link'})
+    @ApiParam({
+        name: 'offerId',
+        type: String,
+        required: true
+    })
+    @ApiParam({
+        name: 'influencerId',
+        type: String,
+        required: true
+    })
+    @ApiParam({
+        name: 'accountId',
+        type: String,
+        required: true
+    })
+    @ApiParam({
+        name: 'connected',
+        type: Boolean,
+        required: true
+    })
+    @Patch(':offerId/links/:influencerId/:accountId/:connected')
+    toggleLink(
+        @Param('offerId', new ParseObjectIdPipe()) offerId: string,
+        @Param('influencerId', new ParseObjectIdPipe()) influencerId: string,
+        @Param('accountId', new ParseObjectIdPipe()) accountId: string,
+        @Param('connected', new ParseBoolPipe()) connected: boolean,
+    ): Promise<{ ok: boolean }> {
+        const payload = {
+            offerId,
+            influencerId,
+            accountId,
+            connected
+        } satisfies AdminOffersMatrixToggleLinkDto;
+
+        return this.adminOffersService.toggleLink(payload);
     }
 
     @ApiExcludeEndpoint()
@@ -65,7 +106,6 @@ export class AdminOffersController {
         return this.adminOffersService.updateField(offerId, payload);
     }
 
-    @ApiExcludeEndpoint()
     @ApiOperation({summary: 'Permanently deletes offer'})
     @ApiResponseDto()
     @ApiParam({

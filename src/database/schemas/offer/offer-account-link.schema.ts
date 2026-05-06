@@ -4,7 +4,6 @@ import {HydratedDocument, Types} from 'mongoose';
 export type OfferAccountLinkDocument = HydratedDocument<OfferAccountLink>;
 
 @Schema({
-    collection: 'offer_account_links',
     timestamps: true,
 })
 export class OfferAccountLink {

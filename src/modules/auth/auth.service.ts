@@ -217,8 +217,6 @@ export class AuthService {
 
     // Signup influencer
     async createInfluencer(data: CreateInfluencerDto): Promise<void> {
-        if (!data) throw new BadRequestException('Not enough arguments');
-
         const checkUser =
             (await this.influencerRepo.exists({email: data.email})) ||
             (await this.clientRepo.exists({email: data.email})) ||

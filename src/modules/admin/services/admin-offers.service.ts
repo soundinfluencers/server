@@ -121,6 +121,7 @@ export class AdminOffersService {
         const accountId = new ObjId(dto.accountId);
 
         const session = await this.offerAccountLinkRepository.startSession();
+        session.startTransaction();
 
         try {
             if (dto.connected) {
