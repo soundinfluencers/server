@@ -210,8 +210,13 @@ export class InvoicePdfExporter {
         if (this.fontFaceCss) return this.fontFaceCss;
 
         const load = (file: string) => {
-            const p = path.resolve(__dirname, "../../../../../assets/fonts", file);
-            return fs.readFileSync(p).toString("base64");
+            const p = path.resolve(process.cwd(), "assets", "fonts", file);
+
+            if (!fs.existsSync(p)) {
+                throw new Error(`Font file not found: ${p}`);
+            }
+
+            return fs.readFileSync(p, "base64");
         };
 
         this.fontFaceCss = `
