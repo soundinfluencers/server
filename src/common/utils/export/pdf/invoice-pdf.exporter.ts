@@ -314,7 +314,7 @@ export class InvoicePdfExporter {
             ? `
           <div class="table__head table__row">
             <div class="cell">Item Description</div>
-            <div class="cell">Brand</div>
+            <div class="cell"></div>
             <div class="cell">Project</div>
             <div class="cell">PO</div>
             <div class="cell">Reach</div>
@@ -322,7 +322,7 @@ export class InvoicePdfExporter {
           </div>
           <div class="table__row">
             <div class="cell">${this.escapeHtml("Influencer Marketing Campaign")}</div>
-            <div class="cell">${this.escapeHtml(brandName)}</div>
+            <div class="cell"></div>
             <div class="cell">${this.escapeHtml(campaignName)}</div>
             <div class="cell">${this.escapeHtml(poNumber)}</div>
             <div class="cell">${this.escapeHtml(reach)}</div>
