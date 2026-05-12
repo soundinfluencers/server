@@ -37,6 +37,7 @@ import {
 } from "../../integrations/email/email.templates";
 import {mapCreateInfluencerToSignupEmailDto} from "../../integrations/email/mappers/profile-email.mapper";
 import {ObjId} from "../../common/types/base.types";
+import {AuthSessionRepository} from "../../database/repositories/auth/auth-session.repository";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -44,12 +45,21 @@ const bcrypt = require('bcryptjs');
 type AuthUser = Client | Influencer | Admin;
 
 type RefreshTokenPayload = {
-    _id: string;
+    sub: string;
+    sid: string;
     role: Role;
     jti: string;
+    _id?: string;
     iat?: number;
     exp?: number;
 };
+
+type LoginSessionContext = {
+    userAgent?: string;
+    ipAddress?: string;
+};
+
+const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function generateRandomDigits(length) {
     const result = [];
@@ -68,6 +78,7 @@ export class AuthService {
         private readonly adminRepo: AdminRepository,
         private readonly verifyClientRepo: VerifyClientRepository,
         private readonly verifyInfluencerRepo: VerifyInfluencerRepository,
+        private readonly authSessionRepo: AuthSessionRepository,
         // For parsing currencies
         private readonly exchangeRateService: ExchangeRateService,
         // For sending emails
@@ -109,33 +120,54 @@ export class AuthService {
         }
     }
 
-    private async clearStoredRefreshToken(userId: string, role: Role): Promise<void> {
-        switch (role) {
-            case Role.client:
-                await this.clientRepo.updateOne({_id: userId}, {$unset: {refreshToken: ''}});
-                break;
-            case Role.influencer:
-                await this.influencerRepo.updateOne({_id: userId}, {$unset: {refreshToken: ''}});
-                break;
-            case Role.admin:
-                await this.adminRepo.updateOne({_id: userId}, {$unset: {refreshToken: ''}});
-                break;
-            default:
-                throw new BadRequestException('Unsupported role');
-        }
+    private getRefreshTokenExpiresAt(): Date {
+        return new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
     }
 
-    private async revokeInvalidRefreshToken(userId: string, role: Role, res: Response): Promise<never> {
-        await this.clearStoredRefreshToken(userId, role);
+    private async revokeInvalidRefreshToken(sessionId: string | undefined, res: Response): Promise<never> {
+        if (sessionId) {
+            await this.authSessionRepo.revokeById(sessionId);
+        }
+
         clearRefreshTokenCookie(res);
         throw new UnauthorizedException('Invalid refresh token');
     }
 
-    async issueAuthTokens(user: AuthUser, res: Response): Promise<LoginResponseDto> {
-        const accessToken = this.generateAccessToken(user);
-        const refreshToken = this.generateRefreshToken(user);
+    async issueAuthTokens(user: AuthUser, res: Response, context: LoginSessionContext & { sessionId?: string } = {}): Promise<LoginResponseDto> {
+        const sessionId = context.sessionId ?? new Types.ObjectId().toString();
+        const refreshTokenId = randomUUID();
+        const refreshToken = this.generateRefreshToken(user, sessionId, refreshTokenId);
+        const accessToken = this.generateAccessToken(user, sessionId);
+        const refreshTokenHash = this.hashToken(refreshToken);
+        const expiresAt = this.getRefreshTokenExpiresAt();
 
-        await this.saveRefreshToken(user._id, user.role, refreshToken);
+        if (context.sessionId) {
+            const updatedSession = await this.authSessionRepo.rotateRefreshToken(
+                sessionId,
+                refreshTokenHash,
+                refreshTokenId,
+                expiresAt,
+            );
+
+            if (!updatedSession) {
+                clearRefreshTokenCookie(res);
+                throw new UnauthorizedException('Invalid session');
+            }
+        } else {
+            await this.authSessionRepo.create({
+                _id: new Types.ObjectId(sessionId),
+                userId: user._id,
+                role: user.role,
+                refreshTokenHash,
+                refreshTokenId,
+                expiresAt,
+                revokedAt: null,
+                userAgent: context.userAgent,
+                ipAddress: context.ipAddress,
+                lastSeenAt: new Date(),
+            });
+        }
+
         setRefreshTokenCookie(res, refreshToken);
 
         return {accessToken};
@@ -353,7 +385,7 @@ export class AuthService {
     }
 
     // Login
-    async login(dto: LoginDto, res: Response): Promise<LoginResponseDto> {
+    async login(dto: LoginDto, res: Response, context: LoginSessionContext = {}): Promise<LoginResponseDto> {
         const email = dto.email.toLowerCase().trim();
 
         let user: Client | Influencer | Admin = null;
@@ -380,7 +412,7 @@ export class AuthService {
 
         this.ensureUserCanAuthenticate(user);
 
-        return this.issueAuthTokens(user, res);
+        return this.issueAuthTokens(user, res, context);
     }
 
     // refresh and token replace
@@ -396,25 +428,38 @@ export class AuthService {
             throw new UnauthorizedException('Invalid refresh token');
         }
 
-        if (!payload?._id || !payload.role || !payload.jti) {
+        const userId = payload?.sub ?? payload?._id;
+        const sessionId = payload?.sid;
+
+        if (!userId || !sessionId || !payload.role || !payload.jti) {
             clearRefreshTokenCookie(res);
             throw new UnauthorizedException('Invalid refresh token');
         }
 
-        const user = await this.getUserByRole(payload._id, payload.role);
+        const user = await this.getUserByRole(userId, payload.role);
 
         if (!user) {
             clearRefreshTokenCookie(res);
             throw new UnauthorizedException('Invalid refresh token');
         }
 
-        if (!this.isRefreshTokenMatch((user as any).refreshToken, refreshToken)) {
-            await this.revokeInvalidRefreshToken(payload._id, payload.role, res);
+        const session = await this.authSessionRepo.findActiveForUser(sessionId, userId, payload.role);
+
+        if (!session) {
+            clearRefreshTokenCookie(res);
+            throw new UnauthorizedException('Invalid refresh token');
+        }
+
+        if (
+            session.refreshTokenId !== payload.jti ||
+            !this.isRefreshTokenMatch(session.refreshTokenHash, refreshToken)
+        ) {
+            await this.revokeInvalidRefreshToken(sessionId, res);
         }
 
         this.ensureUserCanAuthenticate(user, res);
 
-        return this.issueAuthTokens(user, res);
+        return this.issueAuthTokens(user, res, {sessionId});
     }
 
     // Logout
@@ -428,29 +473,28 @@ export class AuthService {
         try {
             const payload = jwt.verify(refreshToken, this.refreshKey) as RefreshTokenPayload;
 
-            if (!payload?._id || !payload.role) {
+            const sessionId = payload?.sid;
+
+            if (!sessionId) {
                 return;
             }
 
-            const user = await this.getUserByRole(payload._id, payload.role);
-
-            if (!user) {
-                return;
-            }
-
-            await this.clearStoredRefreshToken(payload._id, payload.role);
+            await this.authSessionRepo.revokeById(sessionId);
         } catch {
             return;
         }
     }
 
     // Generates access token
-    generateAccessToken(user: AuthUser) {
+    generateAccessToken(user: AuthUser, sessionId: string) {
         const clientUser = user.role === Role.client ? user as Client : null;
+        const userId = user._id.toString();
 
         return jwt.sign(
             {
-                _id: user._id,
+                sub: userId,
+                sid: sessionId,
+                _id: userId,
                 role: user.role,
                 ...(clientUser ? {isProposalClient: !!clientUser.isProposalClient} : {}),
             },
@@ -460,35 +504,20 @@ export class AuthService {
     }
 
     // Generates refresh token
-    generateRefreshToken(user: AuthUser, jti: string = randomUUID()) {
+    generateRefreshToken(user: AuthUser, sessionId: string, jti: string = randomUUID()) {
+        const userId = user._id.toString();
+
         return jwt.sign(
             {
-                _id: user._id,
+                sub: userId,
+                sid: sessionId,
+                _id: userId,
                 role: user.role,
                 jti,
             },
             this.refreshKey,
             {expiresIn: '7d'},
         );
-    }
-
-    // Saves refresh token
-    async saveRefreshToken(userId: Types.ObjectId | string, role: Role, token: string) {
-        const refreshTokenHash = this.hashToken(token);
-
-        switch (role) {
-            case Role.client:
-                await this.clientRepo.updateOne({_id: userId}, {refreshToken: refreshTokenHash});
-                break;
-            case Role.influencer:
-                await this.influencerRepo.updateOne({_id: userId}, {refreshToken: refreshTokenHash});
-                break;
-            case Role.admin:
-                await this.adminRepo.updateOne({_id: userId}, {refreshToken: refreshTokenHash});
-                break;
-            default:
-                throw new BadRequestException('Unsupported role');
-        }
     }
 
     // Verify influencer with sending mail

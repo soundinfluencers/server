@@ -17,7 +17,7 @@ import {PromosModule} from "../promos/promos.module";
 import {FileModule} from "../file/file.module";
 import {InfluencerActionsHistoryModule} from "../influencer-actions-history/influencer-actions-history.module";
 import {ProposalSystemModule} from "../proposal-system/proposal-system.module";
-import {WebsocketModule} from "../websocket/app.gateway";
+import {WebsocketModule} from "../websocket/websocket.module";
 import {OffersModule} from "../offers/offers.module";
 import {ScrapersModule} from "../scrapers/scrapers.module";
 import {ReportsSizesModule} from "../reports-sizes/reports-sizes.module";
@@ -33,6 +33,7 @@ import {JobsModule} from "../../jobs/jobs.module";
 import {ConfigModule} from "@nestjs/config";
 import {AdminModule} from "../admin/admin.module";
 import {PaymentsHistoryModule} from "../payments-history/payments-history.module";
+import {WhatsappModule} from "../whatsapp/whatsapp.module";
 
 @Module({
     imports: [
@@ -70,7 +71,8 @@ import {PaymentsHistoryModule} from "../payments-history/payments-history.module
         CreateSocialAccountModule,
         UpdateSocialAccountModule,
         UpdateInfluencerModule,
-        PaymentsHistoryModule
+        PaymentsHistoryModule,
+        WhatsappModule
     ],
     controllers: [AppController, HealthController],
     providers: [AppService],

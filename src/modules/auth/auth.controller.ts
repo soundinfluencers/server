@@ -37,9 +37,13 @@ export class AuthController {
     @Post('login')
     async login(
         @Body() dto: LoginDto,
+        @Req() req: Request,
         @Res({ passthrough: true }) res: Response,
     ): Promise<LoginResponseDto> {
-        return this.authService.login(dto, res);
+        return this.authService.login(dto, res, {
+            userAgent: req.get('user-agent'),
+            ipAddress: req.ip ?? req.socket?.remoteAddress,
+        });
     }
 
     @Public()

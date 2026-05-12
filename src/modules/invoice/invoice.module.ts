@@ -9,7 +9,7 @@ import {AuthService} from "../auth/auth.service";
 
 @Module({
     controllers: [InvoiceController],
-    providers: [InvoiceService, InfluencerActionsHistoryService, ProfileService, EmailService, AppGateway, AuthService],
+    providers: [InvoiceService, InfluencerActionsHistoryService, ProfileService, EmailService, AuthService],
     exports: [InvoiceService]
 })
 export class InvoiceModule {

@@ -2,6 +2,10 @@ import { Request } from 'express';
 
 export interface UserPayload {
     _id: string;
+    userId?: string;
+    sub?: string;
+    sid?: string;
+    sessionId?: string;
     role: Role;
     email?: string;
 }

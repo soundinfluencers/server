@@ -67,6 +67,8 @@ import {Offer, OfferSchema} from "./schemas/offer/offer.schema";
 import {OfferAccountLink, OfferAccountLinkSchema} from "./schemas/offer/offer-account-link.schema";
 import {OfferRepository} from "./repositories/offers/offer.repository";
 import {OfferAccountLinkRepository} from "./repositories/offers/offer-account-link.repository";
+import {AuthSession, AuthSessionSchema} from "./schemas/auth/auth-session.schema";
+import {AuthSessionRepository} from "./repositories/auth/auth-session.repository";
 
 @Global()
 @Module({
@@ -94,6 +96,7 @@ import {OfferAccountLinkRepository} from "./repositories/offers/offer-account-li
             { name: PaymentHistoryCell.name, schema: PaymentHistoryCellSchema },
             { name: Offer.name, schema: OfferSchema },
             { name: OfferAccountLink.name, schema: OfferAccountLinkSchema },
+            { name: AuthSession.name, schema: AuthSessionSchema },
             {
                 name: UserInvoice.name,
                 schema: UserInvoiceSchema,
@@ -145,6 +148,7 @@ import {OfferAccountLinkRepository} from "./repositories/offers/offer-account-li
         PaymentHistoryCellRepository,
         OfferRepository,
         OfferAccountLinkRepository,
+        AuthSessionRepository,
     ],
     exports: [
         ClientRepository,
@@ -169,6 +173,7 @@ import {OfferAccountLinkRepository} from "./repositories/offers/offer-account-li
         PaymentHistoryCellRepository,
         OfferRepository,
         OfferAccountLinkRepository,
+        AuthSessionRepository,
     ],
 })
 export class DatabaseModule {}

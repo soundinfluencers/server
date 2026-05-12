@@ -19,10 +19,8 @@ import {
     UpdateSocialAccountDto
 } from '../dto/influencer/update-influencer.dto';
 import * as process from 'node:process';
-import {AppGateway} from '../../websocket/app.gateway';
 import {
     Influencer,
-    InfluencerCountryStats,
     InfluencerMusicGenre,
     SocialAccount,
     UserNotificationMethods
@@ -33,7 +31,7 @@ import {InfluencerRepository} from "../../../database/repositories/users/influen
 import {ClientRepository} from "../../../database/repositories/users/client.repository";
 import {AccountVerifiedStatus, NotificationMethodsEnum, Role, UserPayload} from "../../../common/types/user.types";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
-import {normalizeDtoToMusicGenres, normalizeStringToMusicGenres} from "../../../common/utils/genres";
+import {normalizeStringToMusicGenres} from "../../../common/utils/genres";
 import {
     AgreementType,
     InfluencerAccountDetails, InfluencerProfileCategory,
@@ -83,10 +81,9 @@ import {InvoicePaymentMethodEnum} from "../../../common/types/invoice.types";
 import {AuthService} from "../../auth/auth.service";
 import {LoginResponseDto} from "../../auth/dto/login.dto";
 import {EmailService} from "../../../integrations/email/email.service";
-import {areCountriesValid} from "../../../common/utils/countries.util";
-import {AdminToInfluencerEmails, InfluencerToAdminEmails} from "../../../integrations/email/email.templates";
+import {AdminToInfluencerEmails} from "../../../integrations/email/email.templates";
 import {ExchangeRateService} from "../../../integrations/exchange-rate/exchange-rate.service";
-import {CurrencyCode, getAvailableCurrenciesLabel} from "../../../common/types/finance.types";
+import {CurrencyCode} from "../../../common/types/finance.types";
 import {NegotiationRepository} from "../../../database/repositories/negotiation/negotiation.repository";
 import {UpdateSocialAccountService} from "./update-social-account.service";
 import {UpdateInfluencerService} from "./update-influencer.service";
@@ -99,7 +96,6 @@ export class ProfileService {
     private readonly logger = new Logger('ProfileService');
 
     constructor(
-        private readonly webSocketService: AppGateway,
         private readonly authService: AuthService,
         private readonly emailService: EmailService,
         private readonly exchangeRateService: ExchangeRateService,
