@@ -141,6 +141,9 @@ export class ProposalCampaignUpdateService {
             if (!option.displayCurrency) {
                 option.displayCurrency = CurrencyCode.EUR;
             }
+            if (data.campaignPrice) {
+                option.publicCampaignPrice = data.campaignPrice;
+            }
         }
 
         if (data.addedAccounts) {

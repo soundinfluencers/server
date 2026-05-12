@@ -313,7 +313,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
 
                 afterSave: async (campaign, sessionArg) => {
                     await this.paymentsHistoryService.rebuildForCampaign(
-                        data.campaignId,
+                        campaignId,
                         'campaign',
                         sessionArg,
                     );

@@ -101,6 +101,12 @@ export class AdminUpdateCampaignDto extends UpdateCampaignDto {
     @ValidateNested({ each: true })
     addedAccounts?: AdminUpdatePromoDto[];
 
+    @ApiPropertyOptional({type: Number})
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    campaignPrice?: number;
+
     @ApiPropertyOptional({type: Boolean})
     @IsOptional()
     @IsBoolean()

@@ -35,6 +35,7 @@ export type CampaignDocumentLike<TAccount extends CampaignAccountLike> = {
     campaignName: string;
     addedAccounts: TAccount[];
     campaignContent: CampaignContentItem[];
+    campaignPrice: number;
     displayCurrency: CurrencyCode;
     socialMedia: SocialMediaEnum | 'multipromo';
     isCpmAndResultHidden?: boolean;
@@ -134,6 +135,9 @@ export class CampaignUpdateService {
             }
             if (!campaign.displayCurrency) {
                 campaign.displayCurrency = CurrencyCode.EUR;
+            }
+            if (data.campaignPrice) {
+                campaign.campaignPrice = data.campaignPrice;
             }
         }
 
