@@ -1,5 +1,5 @@
-import { IsEnum } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {ScraperAvailableSocialMedias} from "../types/scraper.types";
 
 export class ReqUpdateAllAccountsDto {
@@ -13,4 +13,13 @@ export class ReqUpdateAllAccountsDto {
     socialMedia: ScraperAvailableSocialMedias;
 
     refreshInitiatorId: string;
+
+    refreshSessionId?: string;
+
+    @ApiPropertyOptional({
+        description: 'Frontend-generated tab correlation key stored in sessionStorage.',
+    })
+    @IsOptional()
+    @IsString()
+    clientId?: string;
 }

@@ -27,8 +27,14 @@ export class ScrapersController {
     @Patch('post-details/one')
     async updatePostDetails(@Req() req: AuthenticatedRequest, @Body() data: ReqUpdatePostDetailsDto): Promise<UpdatePostDetailsResponseDto> {
         if (!req.user._id) throw new UnauthorizedException('Unauthorized');
+        const sessionId = req.user.sessionId ?? req.user.sid;
+        if (!sessionId) throw new UnauthorizedException('Authenticated session is required');
 
-        return this.scrapersService.updatePostDetailsInCampaign({...data, refreshInitiatorId: req.user._id});
+        return this.scrapersService.updatePostDetailsInCampaign({
+            ...data,
+            refreshInitiatorId: req.user._id,
+            refreshSessionId: sessionId,
+        });
     }
 
     @Auth()
@@ -38,8 +44,14 @@ export class ScrapersController {
     @Patch('post-details/all')
     async updateAllPostsDetails(@Req() req: AuthenticatedRequest, @Body() data: ReqUpdateAllPostsDetailsDto): Promise<UpdateAllPostDetailsResponseDto> {
         if (!req.user._id) throw new UnauthorizedException('Unauthorized');
+        const sessionId = req.user.sessionId ?? req.user.sid;
+        if (!sessionId) throw new UnauthorizedException('Authenticated session is required');
 
-        return this.scrapersService.updateAllPostsDetailsInCampaign({...data, refreshInitiatorId: req.user._id});
+        return this.scrapersService.updateAllPostsDetailsInCampaign({
+            ...data,
+            refreshInitiatorId: req.user._id,
+            refreshSessionId: sessionId,
+        });
     }
 
     @Auth()
@@ -48,7 +60,13 @@ export class ScrapersController {
     @Patch('account-details/all')
     async updateAllAccountsDetails(@Req() req: AuthenticatedRequest, @Body() data: ReqUpdateAllAccountsDto): Promise<UpdateAllAccountsResponseDto> {
         if (!req.user._id) throw new UnauthorizedException('Unauthorized');
+        const sessionId = req.user.sessionId ?? req.user.sid;
+        if (!sessionId) throw new UnauthorizedException('Authenticated session is required');
 
-        return this.scrapersService.updateAllAccountsDetails({...data, refreshInitiatorId: req.user._id});
+        return this.scrapersService.updateAllAccountsDetails({
+            ...data,
+            refreshInitiatorId: req.user._id,
+            refreshSessionId: sessionId,
+        });
     }
 }

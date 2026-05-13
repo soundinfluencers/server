@@ -1,5 +1,5 @@
-import {IsNotEmpty, IsString} from 'class-validator';
-import {ApiProperty} from "@nestjs/swagger";
+import {IsNotEmpty, IsOptional, IsString} from 'class-validator';
+import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
 
 export class ReqUpdatePostDetailsDto {
     @IsString({
@@ -37,4 +37,13 @@ export class ReqUpdatePostDetailsDto {
     // socketId: string;
 
     refreshInitiatorId: string;
+
+    refreshSessionId?: string;
+
+    @ApiPropertyOptional({
+        description: 'Frontend-generated tab correlation key stored in sessionStorage.',
+    })
+    @IsOptional()
+    @IsString()
+    clientId?: string;
 }

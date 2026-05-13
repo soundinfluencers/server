@@ -4,12 +4,13 @@ import {Offer, OfferSchema} from "../../database/schemas/offer/offer.schema";
 import {OfferAccountLink, OfferAccountLinkSchema} from "../../database/schemas/offer/offer-account-link.schema";
 import {Campaign, CampaignSchema} from "../../database/schemas/campaign/campaign.schema";
 import {ScrapersService} from "./scrapers.service";
-import {ScrapersGateway} from "./scrapers.gateway";
 import {ScrapersController} from "./scrapers.controller";
 import {Influencer, InfluencerSchema} from "../../database/schemas/users/influencer.schema";
+import {WebsocketModule} from "../websocket/websocket.module";
 
 @Module({
     imports: [
+        WebsocketModule,
         MongooseModule.forFeature([
             {name: Offer.name, schema: OfferSchema},
             {name: OfferAccountLink.name, schema: OfferAccountLinkSchema},
@@ -17,9 +18,9 @@ import {Influencer, InfluencerSchema} from "../../database/schemas/users/influen
             {name: Campaign.name, schema: CampaignSchema},
         ]),
     ],
-    exports: [ScrapersService, ScrapersGateway],
+    exports: [ScrapersService],
     controllers: [ScrapersController],
-    providers: [ScrapersService, ScrapersGateway],
+    providers: [ScrapersService],
 })
 export class ScrapersModule {
 }

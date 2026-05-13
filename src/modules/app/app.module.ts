@@ -33,7 +33,7 @@ import {JobsModule} from "../../jobs/jobs.module";
 import {ConfigModule} from "@nestjs/config";
 import {AdminModule} from "../admin/admin.module";
 import {PaymentsHistoryModule} from "../payments-history/payments-history.module";
-import {WhatsappModule} from "../whatsapp/whatsapp.module";
+import {WhatsappModule} from "../../integrations/whatsapp/whatsapp.module";
 
 @Module({
     imports: [

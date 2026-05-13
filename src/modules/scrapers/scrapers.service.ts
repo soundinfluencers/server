@@ -9,7 +9,6 @@ import {
 import {Types} from 'mongoose';
 import {ReqUpdatePostDetailsDto} from './dto/req-update-post-details.dto';
 import {ReqUpdateAllPostsDetailsDto} from "./dto/req-update-all-posts-details-dto";
-import {ScrapersGateway} from "./scrapers.gateway";
 import {InstagramAdapter} from "./adapters/instagram.adapter";
 import {TikTokAdapter} from "./adapters/tiktok.adapter";
 import {findScrapedAccountDetailsMatch, findScrapedPostDetailsMatch} from "./adapters/scraper.adapter";
@@ -21,6 +20,13 @@ import {CampaignRepository} from "../../database/repositories/campaigns/campaign
 import {InfluencerRepository} from "../../database/repositories/users/influencer.repository";
 import {UpdatePostDetailsResponse} from "./types/scraper-response.types";
 import {ScraperAvailableSocialMedias} from "./types/scraper.types";
+import {AppGateway} from "../websocket/app.gateway";
+
+type ScrapersRealtimeTarget = {
+    userId?: string;
+    sessionId?: string;
+    clientId?: string;
+};
 
 @Injectable()
 export class ScrapersService {
@@ -37,15 +43,139 @@ export class ScrapersService {
     // Limitations to avoid overloading Apify
     private currentRuns: number = 0;
     private areAccountsRefreshing = false;
+    private activePostDetailsUpdates: Record<string, { campaignId: string; accountIds: string[] }[]> = {};
+    private activeAccountsUpdates: Record<string, { socialMedia: string; accountIds: string[] }[]> = {};
 
     constructor(
         private readonly campaignRepository: CampaignRepository,
         private readonly influencerRepository: InfluencerRepository,
-        private readonly scrapersGateway: ScrapersGateway,
+        private readonly appGateway: AppGateway,
     ) {
     }
 
-    // todo: remove socketId from each dto. client doesn't need to send this. better to make websocket service understand which socket is using (by userId)
+    private getRealtimeTarget(data: { refreshInitiatorId?: string; refreshSessionId?: string; clientId?: string }): ScrapersRealtimeTarget {
+        return {
+            userId: data.refreshInitiatorId,
+            sessionId: data.refreshSessionId,
+            clientId: data.clientId,
+        };
+    }
+
+    private hasRealtimeTarget(target: ScrapersRealtimeTarget): boolean {
+        return Boolean(target.userId || target.sessionId);
+    }
+
+    private startAccountPostDetailsUpdate(target: ScrapersRealtimeTarget, campaignId: string, accountIds: string[]) {
+        const targetKey = this.getRealtimeTargetKey(target);
+        if (!targetKey) return;
+
+        if (!this.activePostDetailsUpdates[targetKey]) this.activePostDetailsUpdates[targetKey] = [];
+
+        const existing = this.activePostDetailsUpdates[targetKey].find(u => u.campaignId === campaignId);
+        if (existing) {
+            existing.accountIds.push(...accountIds.filter(id => !existing.accountIds.includes(id)));
+        } else {
+            this.activePostDetailsUpdates[targetKey].push({ campaignId, accountIds });
+        }
+
+        this.broadcastActivePostDetailsUpdates(target);
+    }
+
+    private finishAccountPostDetailsUpdate(target: ScrapersRealtimeTarget, campaignId: string, accountIds: string[]) {
+        const targetKey = this.getRealtimeTargetKey(target);
+        if (!targetKey || !this.activePostDetailsUpdates[targetKey]) return;
+
+        const campaign = this.activePostDetailsUpdates[targetKey].find(u => u.campaignId === campaignId);
+        if (campaign) {
+            campaign.accountIds = campaign.accountIds.filter(id => !accountIds.includes(id));
+            if (campaign.accountIds.length === 0) {
+                this.activePostDetailsUpdates[targetKey] = this.activePostDetailsUpdates[targetKey].filter(u => u.campaignId !== campaignId);
+            }
+        }
+
+        if (this.activePostDetailsUpdates[targetKey]?.length === 0) delete this.activePostDetailsUpdates[targetKey];
+
+        this.broadcastActivePostDetailsUpdates(target);
+    }
+
+    private startAccountAccountsUpdate(target: ScrapersRealtimeTarget, socialMedia: string, accountIds: string[]) {
+        const targetKey = this.getRealtimeTargetKey(target);
+        if (!targetKey) return;
+
+        if (!this.activeAccountsUpdates[targetKey]) this.activeAccountsUpdates[targetKey] = [];
+
+        const existing = this.activeAccountsUpdates[targetKey].find(u => u.socialMedia === socialMedia);
+        if (existing) {
+            existing.accountIds.push(...accountIds.filter(id => !existing.accountIds.includes(id)));
+        } else {
+            this.activeAccountsUpdates[targetKey].push({ socialMedia, accountIds });
+        }
+
+        this.broadcastActiveAccountsUpdates(target);
+    }
+
+    private finishAccountAccountsUpdate(target: ScrapersRealtimeTarget, socialMedia: string, accountIds: string[]) {
+        const targetKey = this.getRealtimeTargetKey(target);
+        if (!targetKey || !this.activeAccountsUpdates[targetKey]) return;
+
+        const campaign = this.activeAccountsUpdates[targetKey].find(u => u.socialMedia === socialMedia);
+        if (campaign) {
+            campaign.accountIds = campaign.accountIds.filter(id => !accountIds.includes(id));
+            if (campaign.accountIds.length === 0) {
+                this.activeAccountsUpdates[targetKey] = this.activeAccountsUpdates[targetKey].filter(u => u.socialMedia !== socialMedia);
+            }
+        }
+
+        if (this.activeAccountsUpdates[targetKey]?.length === 0) delete this.activeAccountsUpdates[targetKey];
+
+        this.broadcastActiveAccountsUpdates(target);
+    }
+
+    private broadcastActivePostDetailsUpdates(target: ScrapersRealtimeTarget) {
+        const targetKey = this.getRealtimeTargetKey(target);
+        if (!targetKey) return;
+
+        this.emitRealtime(target, 'activeAccountPostDetailsUpdates', this.activePostDetailsUpdates[targetKey] ?? []);
+    }
+
+    private broadcastActiveAccountsUpdates(target: ScrapersRealtimeTarget) {
+        const targetKey = this.getRealtimeTargetKey(target);
+        if (!targetKey) return;
+
+        this.emitRealtime(target, 'activeAccountAccountsUpdates', this.activeAccountsUpdates[targetKey] ?? []);
+    }
+
+    private emitRealtime(target: ScrapersRealtimeTarget, event: string, payload: unknown): void {
+        if (target.sessionId && target.clientId) {
+            this.appGateway.emitToClient(target.sessionId, target.clientId, event, payload);
+            return;
+        }
+
+        if (target.sessionId) {
+            this.appGateway.emitToSession(target.sessionId, event, payload);
+            return;
+        }
+
+        if (target.userId) {
+            this.appGateway.emitToUser(target.userId, event, payload);
+        }
+    }
+
+    private getRealtimeTargetKey(target: ScrapersRealtimeTarget): string | null {
+        if (target.sessionId && target.clientId) {
+            return `client:${target.sessionId}:${target.clientId}`;
+        }
+
+        if (target.sessionId) {
+            return `session:${target.sessionId}`;
+        }
+
+        if (target.userId) {
+            return `user:${target.userId}`;
+        }
+
+        return null;
+    }
 
     // Scrapes batches of post details
     private async scrapePostDetailsBatch(
@@ -57,7 +187,7 @@ export class ScrapersService {
             like: number;
         }[],
         socialMedia: string,
-        userId: string,
+        realtimeTarget: ScrapersRealtimeTarget,
         maxRetries: number | undefined = 2,
     ): Promise<Record<string, any>> {
         this.currentRuns++;
@@ -92,8 +222,8 @@ export class ScrapersService {
                                 newImpressions: newImpressions > 0 ? newImpressions : acc.impressions,
                                 newLikes: newLikes > 0 ? newLikes : acc.like,
                             };
-                            if (userId) {
-                                this.scrapersGateway.refreshPostDetailsStatusUpdate(userId, {
+                            if (this.hasRealtimeTarget(realtimeTarget)) {
+                                this.emitRealtime(realtimeTarget, 'refreshPostDetailsStatusUpdate', {
                                     accountId: acc.accountId,
                                     account: acc.socialMediaUsername,
                                     success: true,
@@ -112,8 +242,8 @@ export class ScrapersService {
                     if (attempt > maxRetries) {
                         accountsBatch.forEach(acc => {
                             results[acc.accountId] = {success: false};
-                            if (userId) {
-                                this.scrapersGateway.refreshPostDetailsStatusUpdate(userId, {
+                            if (this.hasRealtimeTarget(realtimeTarget)) {
+                                this.emitRealtime(realtimeTarget, 'refreshPostDetailsStatusUpdate', {
                                     accountId: acc.accountId,
                                     account: acc.socialMediaUsername,
                                     success: false,
@@ -145,7 +275,7 @@ export class ScrapersService {
             oldAverageViews: number;
         }[],
         socialMedia: string,
-        userId: string,
+        realtimeTarget: ScrapersRealtimeTarget,
         maxRetries: number | undefined = 2,
     ): Promise<Record<string, any>> {
         this.currentRuns++;
@@ -185,8 +315,8 @@ export class ScrapersService {
                                 newEngagementRate: newEngagementRate ?? acc.oldEngagementRate,
                                 newAverageViews: newAverageViews ?? acc.oldAverageViews,
                             };
-                            if (userId) {
-                                this.scrapersGateway.refreshAccountStatusUpdate(userId, {
+                            if (this.hasRealtimeTarget(realtimeTarget)) {
+                                this.emitRealtime(realtimeTarget, 'refreshAccountStatusUpdate', {
                                     accountId: acc.accountId,
                                     account: acc.socialMediaUsername,
                                     success: true,
@@ -207,8 +337,8 @@ export class ScrapersService {
                     if (attempt > maxRetries) {
                         accountsBatch.forEach(acc => {
                             results[acc.accountId] = {success: false};
-                            if (userId) {
-                                this.scrapersGateway.refreshAccountStatusUpdate(userId, {
+                            if (this.hasRealtimeTarget(realtimeTarget)) {
+                                this.emitRealtime(realtimeTarget, 'refreshAccountStatusUpdate', {
                                     accountId: acc.accountId,
                                     account: acc.socialMediaUsername,
                                     success: false,
@@ -235,6 +365,7 @@ export class ScrapersService {
         if (this.currentRuns >= 30) throw new ServiceUnavailableException('Service unavailable currently')
 
         const startTime = Date.now();
+        const realtimeTarget = this.getRealtimeTarget(data);
         const campaign = await this.campaignRepository.findById(data.campaignId);
         if (!campaign) throw new NotFoundException(`Campaign ${data.campaignId} not found`)
 
@@ -252,8 +383,6 @@ export class ScrapersService {
             throw new ConflictException(`Post link is missing for account ${accountPostDetails.username} in campaign ${data.campaignId}`);
         }
 
-        // this.scrapersGateway.startAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
-
         const resultMap = await this.scrapePostDetailsBatch(
             [
                 {
@@ -265,14 +394,13 @@ export class ScrapersService {
                 },
             ],
             accountPostDetails.socialMedia,
-            data.refreshInitiatorId
+            realtimeTarget
         );
 
         const scraped = resultMap[accountPostDetails._id.toString()];
 
         // if everything was perfect, but for some reason scraper didn't do his work correctly
         if (!scraped?.success) {
-            // this.scrapersGateway.finishAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
             throw new BadGatewayException('Failed to scrape post details from external service');
         }
 
@@ -288,8 +416,6 @@ export class ScrapersService {
                 },
             },
         );
-
-        // this.scrapersGateway.finishAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [data.accountId]);
 
         const durationSec = ((Date.now() - startTime) / 1000).toFixed(2);
         this.logger.log(`[SCRAPER] updatePostDetailsInCampaign executed in ${durationSec}s`);
@@ -308,6 +434,7 @@ export class ScrapersService {
         }
 
         const startTime = Date.now();
+        const realtimeTarget = this.getRealtimeTarget(data);
         const campaign = await this.campaignRepository.findById(data.campaignId);
         if (!campaign) {
             throw new NotFoundException(`Campaign not found: ${data.campaignId}`);
@@ -326,8 +453,8 @@ export class ScrapersService {
         const active: Promise<void>[] = [];
 
         try {
-            this.scrapersGateway.startAccountPostDetailsUpdate(
-                data.refreshInitiatorId,
+            this.startAccountPostDetailsUpdate(
+                realtimeTarget,
                 data.campaignId,
                 accounts.map(a => a._id.toString())
             );
@@ -348,7 +475,7 @@ export class ScrapersService {
                     like: acc.like,
                 }));
 
-                const resultMap = await this.scrapePostDetailsBatch(formattedBatch, batch[0].socialMedia, data.refreshInitiatorId);
+                const resultMap = await this.scrapePostDetailsBatch(formattedBatch, batch[0].socialMedia, realtimeTarget);
 
                 for (const acc of batch) {
                     const result = resultMap[acc._id.toString()];
@@ -358,7 +485,7 @@ export class ScrapersService {
                     } else {
                         failed.push(acc);
                     }
-                    this.scrapersGateway.finishAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [acc._id.toString()]);
+                    this.finishAccountPostDetailsUpdate(realtimeTarget, data.campaignId, [acc._id.toString()]);
                 }
             };
 
@@ -396,7 +523,7 @@ export class ScrapersService {
                             like: acc.like,
                         })),
                         socialMedia,
-                        data.refreshInitiatorId
+                        realtimeTarget
                     );
 
                     for (const acc of retryGrouped[socialMedia]) {
@@ -404,7 +531,7 @@ export class ScrapersService {
                         if (result?.success) {
                             acc.impressions = result.newImpressions ?? acc.impressions;
                             acc.like = result.newLikes ?? acc.like;
-                            this.scrapersGateway.finishAccountPostDetailsUpdate(data.refreshInitiatorId, data.campaignId, [acc._id.toString()]);
+                            this.finishAccountPostDetailsUpdate(realtimeTarget, data.campaignId, [acc._id.toString()]);
                         }
                     }
                 }
@@ -413,7 +540,7 @@ export class ScrapersService {
             campaign.markModified("selectInfluencers");
             await campaign.save();
 
-            this.scrapersGateway.notificationFinishedRefreshingPostDetails(data.refreshInitiatorId, {
+            this.emitRealtime(realtimeTarget, 'notificationFinishedRefreshingPostDetails', {
                 campaignName: campaign.campaignName,
                 statusCode: 201,
             });
@@ -423,10 +550,6 @@ export class ScrapersService {
 
             return {message: `Processed ${accounts.length} accounts in batches of ${BATCH_SIZE}, retried ${failed.length}`};
         } catch (e) {
-            // this.scrapersGateway.notificationFinishedRefreshingPostDetails(data.socketId, {
-            //     campaignName: data.campaignName,
-            //     statusCode: 500,
-            // });
             throw e;
         }
     }
@@ -439,7 +562,8 @@ export class ScrapersService {
         this.areAccountsRefreshing = true;
 
         const startTime = Date.now();
-        const { socialMedia, refreshInitiatorId } = data;
+        const realtimeTarget = this.getRealtimeTarget(data);
+        const { socialMedia } = data;
 
         if (!this.availableSocialMedias.includes(socialMedia)) {
             throw new BadRequestException("Not supported social media");
@@ -483,11 +607,11 @@ export class ScrapersService {
         const active: Promise<void>[] = [];
 
         try {
-            // this.scrapersGateway.startAccountAccountsUpdate(
-            //     socketId,
-            //     socialMedia,
-            //     accounts.map(a => (a as any)._id.toString())
-            // );
+            this.startAccountAccountsUpdate(
+                realtimeTarget,
+                socialMedia,
+                accounts.map(a => (a as any)._id.toString())
+            );
 
             // Func for processing one batch of accounts
             const processBatch = async (batch: typeof accounts) => {
@@ -504,7 +628,7 @@ export class ScrapersService {
                 const resultMap = await this.scrapeAccountDetailsBatch(
                     formattedBatch,
                     socialMedia,
-                    refreshInitiatorId
+                    realtimeTarget
                 );
 
                 for (const acc of batch) {
@@ -517,11 +641,11 @@ export class ScrapersService {
                     acc.engagementRate = result?.newEngagementRate ?? acc.engagementRate;
                     acc.averageViews = result?.newAverageViews ?? 0;
 
-                    // this.scrapersGateway.finishAccountAccountsUpdate(
-                    //     socketId,
-                    //     socialMedia,
-                    //     [acc._id.toString()]
-                    // );
+                    this.finishAccountAccountsUpdate(
+                        realtimeTarget,
+                        socialMedia,
+                        [acc._id.toString()]
+                    );
                 }
             };
 
@@ -567,10 +691,10 @@ export class ScrapersService {
                 );
             }
 
-            // this.scrapersGateway.notificationFinishedRefreshingAccounts(socketId, {
-            //     socialMedia,
-            //     statusCode: 201,
-            // });
+            this.emitRealtime(realtimeTarget, 'notificationFinishedRefreshingAccounts', {
+                socialMedia,
+                statusCode: 201,
+            });
 
             const duration = ((Date.now() - startTime) / 1000).toFixed(2);
             this.logger.log(`[SCRAPER] updateAllAccountsDetails completed in ${duration}s`);
@@ -579,10 +703,6 @@ export class ScrapersService {
                 message: `Processed ${accounts.length} ${socialMedia} accounts in batches of ${BATCH_SIZE}`,
             };
         } catch (e) {
-            // this.scrapersGateway.notificationFinishedRefreshingAccounts(data.socketId, {
-            //     socialMedia: data.socialMedia,
-            //     statusCode: 500,
-            // });
             throw e;
         } finally {
             this.areAccountsRefreshing = false;

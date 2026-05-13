@@ -12,6 +12,6 @@ import { RealtimeNotificationService } from './realtime-notification.service';
         }),
     ],
     providers: [AppGateway, RealtimeNotificationService],
-    exports: [RealtimeNotificationService],
+    exports: [AppGateway, RealtimeNotificationService],
 })
 export class WebsocketModule {}

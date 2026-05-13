@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ScrapersService } from './scrapers.service';
 import { CampaignRepository } from '../../database/repositories/campaigns/campaign.repository';
 import { InfluencerRepository } from '../../database/repositories/users/influencer.repository';
-import { ScrapersGateway } from './scrapers.gateway';
+import { AppGateway } from '../websocket/app.gateway';
 
 describe('ScrapersService', () => {
   let service: ScrapersService;
@@ -13,7 +13,7 @@ describe('ScrapersService', () => {
         ScrapersService,
         { provide: CampaignRepository, useValue: {} },
         { provide: InfluencerRepository, useValue: {} },
-        { provide: ScrapersGateway, useValue: {} },
+        { provide: AppGateway, useValue: {} },
       ],
     }).compile();
 
