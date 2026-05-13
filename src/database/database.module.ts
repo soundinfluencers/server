@@ -69,6 +69,12 @@ import {OfferRepository} from "./repositories/offers/offer.repository";
 import {OfferAccountLinkRepository} from "./repositories/offers/offer-account-link.repository";
 import {AuthSession, AuthSessionSchema} from "./schemas/auth/auth-session.schema";
 import {AuthSessionRepository} from "./repositories/auth/auth-session.repository";
+import {RequestForAdminType} from "../common/types/request-for-admin/request-for-admin.types";
+import {PriceUpdateAdminRequestSchema} from "./schemas/requests/price-update-admin-request.schema";
+import {NewInfluencerAdminRequestSchema} from "./schemas/requests/new-influencer-request.schema";
+import {NewClientAdminRequestSchema} from "./schemas/requests/new-client-request.schema";
+import {RequestForAdmin, RequestForAdminSchema} from "./schemas/requests/request-for-admin.schema";
+import {RequestForAdminRepository} from "./repositories/requests/request-for-admin.repository";
 
 @Global()
 @Module({
@@ -103,6 +109,24 @@ import {AuthSessionRepository} from "./repositories/auth/auth-session.repository
                 discriminators: [
                     { name: Role.client, schema: ClientInvoiceSchema },
                     { name: Role.influencer, schema: InfluencerInvoiceSchema },
+                ],
+            },
+            {
+                name: RequestForAdmin.name,
+                schema: RequestForAdminSchema,
+                discriminators: [
+                    {
+                        name: RequestForAdminType.NEW_CLIENT_REQUEST,
+                        schema: NewClientAdminRequestSchema,
+                    },
+                    {
+                        name: RequestForAdminType.NEW_INFLUENCER_REQUEST,
+                        schema: NewInfluencerAdminRequestSchema,
+                    },
+                    {
+                        name: RequestForAdminType.PRICE_UPDATE_REQUEST,
+                        schema: PriceUpdateAdminRequestSchema,
+                    },
                 ],
             },
         ]),
@@ -149,6 +173,7 @@ import {AuthSessionRepository} from "./repositories/auth/auth-session.repository
         OfferRepository,
         OfferAccountLinkRepository,
         AuthSessionRepository,
+        RequestForAdminRepository,
     ],
     exports: [
         ClientRepository,
@@ -174,6 +199,7 @@ import {AuthSessionRepository} from "./repositories/auth/auth-session.repository
         OfferRepository,
         OfferAccountLinkRepository,
         AuthSessionRepository,
+        RequestForAdminRepository,
     ],
 })
 export class DatabaseModule {}

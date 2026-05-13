@@ -9,7 +9,7 @@ import {Admin} from "../../schemas/users/admin.schema";
 @Injectable()
 export class AdminRepository extends BaseRepository<Admin> {
     constructor(
-        @InjectModel('Admin')
+        @InjectModel(Admin.name)
         private readonly adminModel: Model<Admin>,
     ) {
         super(adminModel);

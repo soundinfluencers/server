@@ -8,6 +8,7 @@ import {AuthService} from "../auth/auth.service";
 import {UpdateSocialAccountService} from "./services/update-social-account.service";
 import {UpdateInfluencerService} from "./services/update-influencer.service";
 import {CreateSocialAccountService} from "./services/create-social-account.service";
+import {AuthModule} from "../auth/auth.module";
 
 @Global()
 @Module({
@@ -16,9 +17,10 @@ import {CreateSocialAccountService} from "./services/create-social-account.servi
             {name: Client.name, schema: ClientSchema},
             {name: Influencer.name, schema: InfluencerSchema},
         ]),
+        AuthModule
     ],
     controllers: [ProfileController],
-    providers: [ProfileService, AuthService],
+    providers: [ProfileService],
     exports: [ProfileService],
 })
 export class ProfileModule {

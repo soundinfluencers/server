@@ -1,7 +1,7 @@
 import {
     BadRequestException,
     ConflictException,
-    ForbiddenException,
+    ForbiddenException, Inject,
     Injectable,
     Logger,
     NotFoundException,
@@ -38,6 +38,9 @@ import {
 import {mapCreateInfluencerToSignupEmailDto} from "../../integrations/email/mappers/profile-email.mapper";
 import {ObjId} from "../../common/types/base.types";
 import {AuthSessionRepository} from "../../database/repositories/auth/auth-session.repository";
+import {
+    CREATE_NEW_CLIENT_REQUEST_HANDLER, CreateNewClientRequestHandler
+} from "../admin/services/requests/new-client-request/create-new-client-request.handler";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -82,7 +85,9 @@ export class AuthService {
         // For parsing currencies
         private readonly exchangeRateService: ExchangeRateService,
         // For sending emails
-        private readonly emailService: EmailService
+        private readonly emailService: EmailService,
+        @Inject(CREATE_NEW_CLIENT_REQUEST_HANDLER)
+        private readonly createNewClientRequestHandler: CreateNewClientRequestHandler
     ) {
     }
 
@@ -133,7 +138,9 @@ export class AuthService {
         throw new UnauthorizedException('Invalid refresh token');
     }
 
-    async issueAuthTokens(user: AuthUser, res: Response, context: LoginSessionContext & { sessionId?: string } = {}): Promise<LoginResponseDto> {
+    async issueAuthTokens(user: AuthUser, res: Response, context: LoginSessionContext & {
+        sessionId?: string
+    } = {}): Promise<LoginResponseDto> {
         const sessionId = context.sessionId ?? new Types.ObjectId().toString();
         const refreshTokenId = randomUUID();
         const refreshToken = this.generateRefreshToken(user, sessionId, refreshTokenId);
@@ -228,6 +235,12 @@ export class AuthService {
                 clientId: userId,
             }, {session});
 
+            await this.createNewClientRequestHandler.exec({
+                clientId: userId.toString(),
+                clientName: data.firstName,
+                session: session
+            });
+
             await session.commitTransaction();
         } catch (err) {
             await session.abortTransaction();
@@ -242,9 +255,9 @@ export class AuthService {
                 acceptLink: `${process.env.SERVER}/auth/verify/client?verifyId=${verifyId.toString()}&responseVerify=accept`,
                 declineLink: `${process.env.SERVER}/auth/verify/client?verifyId=${verifyId.toString()}&responseVerify=cancel`,
             }))
-          } catch (err) {
-              this.logger.warn(`Client ${userId.toString()} created but email failed`, err);
-          }
+        } catch (err) {
+            this.logger.warn(`Client ${userId.toString()} created but email failed`, err);
+        }
     };
 
     // Signup influencer
