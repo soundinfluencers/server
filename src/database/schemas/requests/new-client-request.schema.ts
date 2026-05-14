@@ -1,5 +1,5 @@
 import {Prop, Schema, SchemaFactory} from '@nestjs/mongoose';
-import {HydratedDocument, Schema as MongooseSchema, Types} from 'mongoose';
+import {HydratedDocument, Types} from 'mongoose';
 import {Client} from '../users/client.schema';
 import {
     NewClientRequestStatus,
@@ -25,7 +25,7 @@ export class NewClientAdminRequest {
 
     @Prop({
         required: true,
-        type: MongooseSchema.Types.ObjectId,
+        type: Types.ObjectId,
         ref: Client.name,
         index: true,
     })

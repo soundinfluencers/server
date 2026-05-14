@@ -5,7 +5,10 @@ import {Role} from "../../../common/types/user.types";
 import {ApiOperation, ApiParam, ApiQuery, ApiTags} from "@nestjs/swagger";
 import {AdminRequestsService} from "../services/requests/admin-requests.service";
 import {ParseObjectIdPipe} from "../../../common/pipes/parse-oid.pipe";
-import {AdminRequestResponseAction} from "../../../common/types/request-for-admin/request-for-admin.types";
+import {
+    AdminRequestResponseAction,
+    RequestForAdminType
+} from "../../../common/types/request-for-admin/request-for-admin.types";
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
 import {OneOfQueryPipe} from "../../../common/pipes/one-of-query.pipe";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
@@ -63,6 +66,25 @@ export class AdminRequestsController {
 
         return this.adminService.getRequestsList(query);
     }
+
+    @ApiOperation({summary: "Returns detailed request's information"})
+    @ApiResponseDto()
+    @ApiParam({
+        name: 'requestId',
+        type: String,
+        required: true
+    })
+    @ApiParam({
+        name: 'requestType',
+        type: String,
+        enum: RequestForAdminType,
+        required: true
+    })
+    @Get(':requestId/:requestType')
+    getRequestDetails(@Param('requestId', new ParseObjectIdPipe()) requestId: string, @Param('requestType') requestType: RequestForAdminType) {
+        return this.adminService.getRequestDetails(requestId, requestType);
+    }
+
 
     @ApiOperation({summary: "Responds to request. Finds request by id, defines types and updates it"})
     @ApiResponseDto()

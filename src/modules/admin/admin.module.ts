@@ -31,10 +31,15 @@ import {AdminOffersController} from './controllers/admin-offers.controller';
 import {WhatsappModule} from '../../integrations/whatsapp/whatsapp.module';
 import {AdminRequestsService} from "./services/requests/admin-requests.service";
 import {AdminRequestsController} from "./controllers/admin-requests.controller";
-import {NEW_CLIENT_REQUEST_HANDLER, NewClientRequestHandler} from "./services/requests/new-client-request/new-client-request.handler";
+import {NEW_CLIENT_REQUEST_HANDLER, NewClientRequestHandler} from "./services/requests/handlers/new-client-request.handler";
 import {
-    CREATE_NEW_CLIENT_REQUEST_HANDLER, CreateNewClientRequestHandler
-} from "./services/requests/new-client-request/create-new-client-request.handler";
+    CREATE_ADMIN_REQUEST_SERVICE,
+    CreateAdminRequestService
+} from "./services/requests/create-admin-request.service";
+import {
+    GET_ADMIN_REQUEST_DETAILS_SERVICE,
+    GetAdminRequestDetailsService
+} from "./services/requests/get-admin-request-details.service";
 
 @Module({
     controllers: [AdminRequestsController],
@@ -45,12 +50,16 @@ import {
             useClass: NewClientRequestHandler,
         },
         {
-            provide: CREATE_NEW_CLIENT_REQUEST_HANDLER,
-            useClass: CreateNewClientRequestHandler,
+            provide: CREATE_ADMIN_REQUEST_SERVICE,
+            useClass: CreateAdminRequestService,
+        },
+        {
+            provide: GET_ADMIN_REQUEST_DETAILS_SERVICE,
+            useClass: GetAdminRequestDetailsService,
         },
     ],
     exports: [
-        CREATE_NEW_CLIENT_REQUEST_HANDLER,
+        CREATE_ADMIN_REQUEST_SERVICE,
     ],
 })
 export class AdminRequestsModule {}

@@ -5,8 +5,13 @@ import {InjectModel} from "@nestjs/mongoose";
 import {Document, Model, PipelineStage, Types} from "mongoose";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
-import {IAdminRequest, RequestForAdminType} from "../../../common/types/request-for-admin/request-for-admin.types";
+import {
+    IAdminRequest, NewClientRequestDetails, NewClientRequestStatus,
+    RequestForAdminType,
+    RequestLifecycleState
+} from "../../../common/types/request-for-admin/request-for-admin.types";
 import {NewClientAdminRequest, NewClientAdminRequestDocument} from "../../schemas/requests/new-client-request.schema";
+import {Role} from "../../../common/types/user.types";
 
 // Interface for admin requests repository
 interface IRequestForAdminRepository {
@@ -25,6 +30,11 @@ interface IRequestForAdminRepository {
         limit: number;
         totalPages: number;
     }>;
+
+    // Get details of NEW_CLIENT_REQUEST request
+    getNewClientRequestDetails(
+        requestId: string,
+    ): Promise<NewClientRequestDetails | null>;
 }
 
 @Injectable()
@@ -94,13 +104,7 @@ export class RequestForAdminRepository extends BaseRepository<RequestForAdmin> i
     }
 
     // Get paginated list of admin requests
-    async getPaginatedList(query: PaginationQueryDto): Promise<{
-        items: IAdminRequest[];
-        total: number;
-        page: number;
-        limit: number;
-        totalPages: number;
-    }> {
+    async getPaginatedList(query: PaginationQueryDto): Promise<{ items: IAdminRequest[]; total: number; page: number; limit: number; totalPages: number; }> {
         const page = query.page ?? 1;
         const limit = query.limit ?? 10;
         const skip = (page - 1) * limit;
@@ -132,5 +136,89 @@ export class RequestForAdminRepository extends BaseRepository<RequestForAdmin> i
             limit,
             totalPages: Math.ceil(total / limit),
         }
+    }
+
+    // Get details of NEW_CLIENT_REQUEST request
+    async getNewClientRequestDetails(
+        requestId: string,
+    ): Promise<NewClientRequestDetails | null> {
+        if (!Types.ObjectId.isValid(requestId)) {
+            return null;
+        }
+
+        const [result] = await this.requestForAdmin.aggregate<NewClientRequestDetails>([
+            {
+                $match: {
+                    _id: new Types.ObjectId(requestId),
+                    type: RequestForAdminType.NEW_CLIENT_REQUEST,
+                },
+            },
+            {
+                $lookup: {
+                    from: 'clients',
+                    localField: 'clientId',
+                    foreignField: '_id',
+                    as: 'clientInfo',
+                    pipeline: [
+                        {
+                            $project: {
+                                _id: 1,
+                                lastName: 1,
+                                email: 1,
+                                phone: 1,
+                                company: 1,
+                                companyType: 1,
+                                referalCode: 1,
+                            },
+                        },
+                    ],
+                },
+            },
+            {
+                $unwind: {
+                    path: '$clientInfo',
+                    preserveNullAndEmptyArrays: false,
+                },
+            },
+            {
+                $project: {
+                    _id: 1,
+                    type: 1,
+                    state: 1,
+                    userFirstName: 1,
+                    userRole: 1,
+                    reviewedAt: 1,
+                    adminNote: 1,
+                    createdAt: 1,
+                    updatedAt: 1,
+
+                    status: 1,
+                    clientId: 1,
+                    rejectionReason: 1,
+
+                    lastName: {
+                        $ifNull: ['$clientInfo.lastName', ''],
+                    },
+                    phone: {
+                        $ifNull: ['$clientInfo.phone', ''],
+                    },
+                    email: {
+                        $ifNull: ['$clientInfo.email', ''],
+                    },
+                    company: {
+                        $ifNull: ['$clientInfo.company', ''],
+                    },
+                    companyType: {
+                        $ifNull: ['$clientInfo.companyType', ''],
+                    },
+
+                    referralCode: {
+                        $ifNull: ['$clientInfo.referalCode', ''],
+                    },
+                },
+            },
+        ]);
+
+        return result ?? null;
     }
 }

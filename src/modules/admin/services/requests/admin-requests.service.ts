@@ -4,7 +4,6 @@ import {
     AdminRequestResponseAction, IAdminRequest,
     RequestForAdminType,
 } from "../../../../common/types/request-for-admin/request-for-admin.types";
-import {NEW_CLIENT_REQUEST_HANDLER, NewClientRequestHandler} from "./new-client-request/new-client-request.handler";
 import {
     NewClientAdminRequestDocument
 } from "../../../../database/schemas/requests/new-client-request.schema";
@@ -16,6 +15,8 @@ import {
 import {SearchQueryDto} from "../../../../common/dto/requests/search-query.dto";
 import {PaginationQueryDto} from "../../../../common/dto/requests/pagination-query.dto";
 import {formatDate} from "../../../../common/utils/formatters";
+import {NEW_CLIENT_REQUEST_HANDLER, NewClientRequestHandler} from "./handlers/new-client-request.handler";
+import {GET_ADMIN_REQUEST_DETAILS_SERVICE, GetAdminRequestDetailsService} from "./get-admin-request-details.service";
 
 // Interface for AdminRequestsService
 interface IAdminRequestsService {
@@ -24,6 +25,9 @@ interface IAdminRequestsService {
 
     // Search for admin requests
     searchRequests(query: SearchQueryDto): Promise<AdminRequestsSearchResponseDto>;
+
+    // Get request's details
+    getRequestDetails(requestId: string, requestType: RequestForAdminType): Promise<any>;
 
     // Respond to request
     respond(requestId: string, response: string): Promise<any>;
@@ -35,6 +39,8 @@ export class AdminRequestsService implements IAdminRequestsService {
         private readonly requestRepository: RequestForAdminRepository,
         @Inject(NEW_CLIENT_REQUEST_HANDLER)
         private readonly newClientRequestHandler: NewClientRequestHandler,
+        @Inject(GET_ADMIN_REQUEST_DETAILS_SERVICE)
+        private readonly getAdminRequestDetailsService: GetAdminRequestDetailsService,
     ) {
     }
 
@@ -70,6 +76,17 @@ export class AdminRequestsService implements IAdminRequestsService {
         }
     }
 
+    // Get request's details
+    async getRequestDetails(requestId: string, requestType: RequestForAdminType): Promise<any> {
+        const request = await this.getAdminRequestDetailsService.exec(requestId, requestType);
+
+        if (!request) {
+            throw new NotFoundException('Request not found');
+        }
+
+        return request;
+    }
+
     // Respond to request
     async respond(requestId: string, response: AdminRequestResponseAction): Promise<void> {
         const request = await this.requestRepository.findById(requestId);
@@ -85,13 +102,21 @@ export class AdminRequestsService implements IAdminRequestsService {
         }
 
         switch (request.type) {
-            case RequestForAdminType.NEW_CLIENT_REQUEST:
+            case RequestForAdminType.NEW_CLIENT_REQUEST: {
                 const result = await this.handleNewClientRequest(requestId, response, (request as NewClientAdminRequestDocument).clientId.toString());
 
                 if (result.success !== true) {
                     throw new InternalServerErrorException("Something went wrong during request handling. Please try again later.")
                 }
-                break;
+            }
+
+            case RequestForAdminType.CAMPAIGN_REQUEST: {
+                const result = await this.handleCampaignRequest(requestId, response);
+
+                if (result.success !== true) {
+                    throw new InternalServerErrorException("Something went wrong during request handling. Please try again later.")
+                }
+            }
 
             default:
                 throw new InternalServerErrorException(
@@ -124,5 +149,12 @@ export class AdminRequestsService implements IAdminRequestsService {
             response,
             clientId,
         })
+    }
+
+    private handleCampaignRequest(
+        requestId: string,
+        response: AdminRequestResponseAction,
+    ): Promise<{success: boolean, action: AdminRequestResponseAction}> {
+        throw new Error("Method not implemented.");
     }
 }

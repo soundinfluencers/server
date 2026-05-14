@@ -1,8 +1,10 @@
 import {
     BadRequestException,
     ConflictException,
-    ForbiddenException, Inject,
+    ForbiddenException,
+    Inject,
     Injectable,
+    InternalServerErrorException,
     Logger,
     NotFoundException,
     UnauthorizedException
@@ -32,15 +34,18 @@ import {CurrencyCode, getAvailableCurrenciesLabel} from "../../common/types/fina
 import {EmailService} from "../../integrations/email/email.service";
 import {
     AdminToClientEmails,
-    AdminToInfluencerEmails, ClientToAdminEmails,
+    AdminToInfluencerEmails,
+    ClientToAdminEmails,
     InfluencerToAdminEmails
 } from "../../integrations/email/email.templates";
 import {mapCreateInfluencerToSignupEmailDto} from "../../integrations/email/mappers/profile-email.mapper";
 import {ObjId} from "../../common/types/base.types";
 import {AuthSessionRepository} from "../../database/repositories/auth/auth-session.repository";
 import {
-    CREATE_NEW_CLIENT_REQUEST_HANDLER, CreateNewClientRequestHandler
-} from "../admin/services/requests/new-client-request/create-new-client-request.handler";
+    CREATE_ADMIN_REQUEST_SERVICE,
+    CreateAdminRequestService
+} from "../admin/services/requests/create-admin-request.service";
+import {RequestForAdminType} from "../../common/types/request-for-admin/request-for-admin.types";
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -86,8 +91,8 @@ export class AuthService {
         private readonly exchangeRateService: ExchangeRateService,
         // For sending emails
         private readonly emailService: EmailService,
-        @Inject(CREATE_NEW_CLIENT_REQUEST_HANDLER)
-        private readonly createNewClientRequestHandler: CreateNewClientRequestHandler
+        @Inject(CREATE_ADMIN_REQUEST_SERVICE)
+        private readonly createAdminRequestService: CreateAdminRequestService
     ) {
     }
 
@@ -235,11 +240,18 @@ export class AuthService {
                 clientId: userId,
             }, {session});
 
-            await this.createNewClientRequestHandler.exec({
-                clientId: userId.toString(),
-                clientName: data.firstName,
-                session: session
+            const createRequestResult = await this.createAdminRequestService.exec({
+                requestType: RequestForAdminType.NEW_CLIENT_REQUEST,
+                session,
+                payload: {
+                    clientId: userId.toString(),
+                    clientName: data.firstName
+                }
             });
+
+            if (createRequestResult.success !== true) {
+                throw new InternalServerErrorException("Can't create request for this action at the moment. Try again later");
+            }
 
             await session.commitTransaction();
         } catch (err) {
