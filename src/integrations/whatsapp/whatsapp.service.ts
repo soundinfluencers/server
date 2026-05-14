@@ -38,14 +38,14 @@ type BulkWhatsappStatusPayload = {
   error?: string;
 };
 
-const BOTASSIUM_WEBHOOK_URL = process.env.BOTASSIUM_WEBHOOK_URL;
-const DEVELOPMENT_WHATSAPP_PHONE = '+380935298273';
-
 @Injectable()
 export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
 
   constructor(private readonly realtimeNotificationService: RealtimeNotificationService) {}
+
+  private readonly BOTASSIUM_WEBHOOK_URL = process.env.BOTASSIUM_WEBHOOK_URL;
+  private readonly DEVELOPMENT_WHATSAPP_PHONE = '+380935298273';
 
   async sendMessage(props: SendMessageProps): Promise<{ status: 'sent' }> {
     const { message, phone, sessionId, clientId } = props;
@@ -159,11 +159,11 @@ export class WhatsappService {
   }
 
   private async sendTextMessage(message: string, phone: string): Promise<void> {
-    await axios.post(BOTASSIUM_WEBHOOK_URL, {
+    await axios.post(this.BOTASSIUM_WEBHOOK_URL, {
       action: 'send-message',
       type: 'text',
       content: message,
-      phone: process.env.NODE_ENV === 'development' ? DEVELOPMENT_WHATSAPP_PHONE : phone,
+      phone: process.env.NODE_ENV === 'development' ? this.DEVELOPMENT_WHATSAPP_PHONE : phone,
     });
   }
 
