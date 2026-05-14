@@ -2,10 +2,11 @@ import {Injectable} from "@nestjs/common";
 import {BaseRepository} from "../base.repository";
 import {RequestForAdmin} from "../../schemas/requests/request-for-admin.schema";
 import {InjectModel} from "@nestjs/mongoose";
-import {Model, PipelineStage} from "mongoose";
+import {Document, Model, PipelineStage, Types} from "mongoose";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
 import {IAdminRequest} from "../../../common/types/request-for-admin/request-for-admin.types";
+import {NewClientAdminRequest, NewClientAdminRequestDocument} from "../../schemas/requests/new-client-request.schema";
 
 // Interface for admin requests repository
 interface IRequestForAdminRepository {
@@ -24,6 +25,9 @@ interface IRequestForAdminRepository {
         limit: number;
         totalPages: number;
     }>;
+
+    // Get details of NEW_CLIENT_REQUEST request
+    getNewClientRequestDetails(requestId: string): Promise<NewClientAdminRequestDocument | null>;
 }
 
 @Injectable()
@@ -125,5 +129,10 @@ export class RequestForAdminRepository extends BaseRepository<RequestForAdmin> i
             limit,
             totalPages: Math.ceil(total / limit),
         }
+    }
+
+    // Get details of NEW_CLIENT_REQUEST request
+    async getNewClientRequestDetails(requestId: string): Promise<NewClientAdminRequestDocument | null> {
+        // Aggregation with lookup for getting
     }
 }
