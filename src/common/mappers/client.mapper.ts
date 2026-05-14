@@ -51,8 +51,9 @@ export const mapToAdminDetailedClientDto = (client: IAdminClientDetails): AdminD
         firstName: client.firstName ?? '',
         company: client.company ?? '',
         email: client.email,
+        phone: client.phone,
         companyType: client.companyType,
-        isProposal: client.isProposal,
+        proposalAccess: client.isProposal,
         ...client.lastName ? {lastName: client.lastName} : undefined,
         ...client.latestCampaignName ? {latestCampaignName: client.latestCampaignName} : undefined,
         ...client.campaignsActive && client.campaignsActive.length > 0

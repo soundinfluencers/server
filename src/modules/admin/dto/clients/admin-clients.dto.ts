@@ -81,10 +81,13 @@ export class AdminDetailedClientDto {
     email: string;
 
     @ApiProperty({ type: String })
+    phone: string;
+
+    @ApiProperty({ type: String })
     companyType: string;
 
     @ApiProperty({ type: Boolean })
-    isProposal: boolean;
+    proposalAccess: boolean;
 
     @ApiPropertyOptional({ type: String })
     lastName?: string;
