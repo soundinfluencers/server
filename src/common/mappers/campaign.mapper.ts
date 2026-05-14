@@ -95,7 +95,8 @@ export const mapToICampaignAccount = (
 export const mapToIAdminCampaignAccount = (
     account: CampaignAccount | ProposalCampaignAccount,
     selectedContentItem: IDetailedSelectedContent | null = null,
-    cpm: number | null
+    cpm: number | null,
+    firstName: string | null,
 ): IAdminCampaignAccount => {
     // NOTE: commented because sometimes users don't use website and admin close promos by them (so confirmation still wait)
     // const isPromoConfirmed = account.confirmation === InfluencerConfirmationStatusEnum.accept;
@@ -128,6 +129,7 @@ export const mapToIAdminCampaignAccount = (
         cpm: cpm ?? undefined,
         genres: "genres" in account ? account.genres : undefined,
         countries: "countries" in account ? account.countries : undefined,
+        firstName: firstName !== null ? firstName : null,
     };
 }
 
@@ -366,7 +368,9 @@ export const mapSchemaToIAdminCampaignDetails = (campaign: Campaign | CompletedC
                 totalShares = safeParseToNumber(account.shares);
             }
 
-            return mapToIAdminCampaignAccount(account, selectedCampaignContentItem, accountCpm);
+            const firstName = (account as any)?.firstName ?? null;
+
+            return mapToIAdminCampaignAccount(account, selectedCampaignContentItem, accountCpm, firstName);
         }
     ) ?? [];
 
@@ -511,6 +515,7 @@ export const mapToAdminCampaignDetailsDto = (campaign: IAdminCampaignDetails): A
                 ...i.selectedContentItem,
                 _id: i.selectedContentItem?._id?.toString(),
             },
+            ...i.firstName ? {firstName: i.firstName} : {},
             ...campaign.status as any !== 'proposal' ? {statusLabel: getAdminPromoStatusLabel(i)} : {},
             ...(i.cpm !== undefined ? {cpm: i.cpm} : {})
         })),
@@ -611,7 +616,7 @@ export const mapProposalToIAdminCampaignDetails = (
             totalComments += safeParseToNumber(account.comments);
             totalShares += safeParseToNumber(account.shares);
 
-            return mapToIAdminCampaignAccount(account, selectedCampaignContentItem, accountCpm);
+            return mapToIAdminCampaignAccount(account, selectedCampaignContentItem, accountCpm, null);
         },
     );
 

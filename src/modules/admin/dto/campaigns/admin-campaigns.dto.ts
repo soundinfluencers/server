@@ -20,7 +20,7 @@ export enum AdminCampaignsListStatusEnum {
 }
 
 export class GetAdminCampaignsListQueryDto extends PaginationQueryDto {
-    @ApiPropertyOptional({ type: String, enum: AdminCampaignsListStatusEnum })
+    @ApiPropertyOptional({type: String, enum: AdminCampaignsListStatusEnum})
     @IsOptional()
     @IsEnum(AdminCampaignsListStatusEnum)
     status?: AdminCampaignsListStatusEnum;
@@ -28,61 +28,61 @@ export class GetAdminCampaignsListQueryDto extends PaginationQueryDto {
 
 // DTO with campaign item for admin campaigns list
 export class AdminCampaignForListDto {
-    @ApiProperty({ type: String })
+    @ApiProperty({type: String})
     campaignId: string;
 
-    @ApiProperty({ type: String, enum: [...Object.values(SocialMediaEnum), 'multipromo'] })
+    @ApiProperty({type: String, enum: [...Object.values(SocialMediaEnum), 'multipromo']})
     socialMedia: SocialMediaType | 'multipromo';
 
-    @ApiProperty({ type: String })
+    @ApiProperty({type: String})
     campaignName: string;
 
-    @ApiProperty({ type: String, enum: Role })
+    @ApiProperty({type: String, enum: Role})
     creatorRole: Role;
 
-    @ApiProperty({ type: String })
+    @ApiProperty({type: String})
     creatorName: string;
 
-    @ApiPropertyOptional({ type: Number })
+    @ApiPropertyOptional({type: Number})
     followers?: number;
 
-    @ApiPropertyOptional({ type: Number })
+    @ApiPropertyOptional({type: Number})
     cost?: number; // campaignPrice
 
-    @ApiPropertyOptional({ type: Number })
+    @ApiPropertyOptional({type: Number})
     salePrice?: number; // sum of accounts public price field
 
-    @ApiProperty({ type: String })
+    @ApiProperty({type: String})
     date: string;
 
-    @ApiProperty({ type: String, enum: AdminCampaignsListStatusEnum })
+    @ApiProperty({type: String, enum: AdminCampaignsListStatusEnum})
     status: AdminCampaignsListStatusEnum;
 
-    @ApiProperty({ type: String, enum: AdminCampaignStatusEnum })
+    @ApiProperty({type: String, enum: AdminCampaignStatusEnum})
     statusLabel: AdminCampaignStatusEnum;
 
-    @ApiProperty({ type: Boolean })
+    @ApiProperty({type: Boolean})
     reportSent: boolean;
 
-    @ApiPropertyOptional({ type: String, enum: CampaignPaymentStatusEnum })
+    @ApiPropertyOptional({type: String, enum: CampaignPaymentStatusEnum})
     paymentStatus?: CampaignPaymentStatusEnum;
 
-    @ApiProperty({ type: String })
+    @ApiProperty({type: String})
     invoiceId: string;
 
-    @ApiProperty({ type: Number })
+    @ApiProperty({type: Number})
     shortInvoiceNumber: number;
 
-    @ApiPropertyOptional({ type: String })
+    @ApiPropertyOptional({type: String})
     notes?: string;
 
-    @ApiPropertyOptional({ type: String })
+    @ApiPropertyOptional({type: String})
     affiliatePartner?: string;
 
-    @ApiPropertyOptional({ type: String })
+    @ApiPropertyOptional({type: String})
     affiliateCommission?: string;
 
-    @ApiPropertyOptional({ type: String })
+    @ApiPropertyOptional({type: String})
     affiliatePaid?: string;
 }
 
@@ -104,21 +104,24 @@ export class AdminCampaignSearchResponseDto extends SearchListResponseDto<AdminC
 
 // DTO with detailed campaign's addedAccounts item for admin
 export class AdminCampaignAccountDto extends CampaignAccountDto {
-    @ApiProperty({ type: String, enum: AdminPromoStatusLabelEnum })
+    @ApiPropertyOptional({type: String})
+    firstName?: string;
+
+    @ApiProperty({type: String, enum: AdminPromoStatusLabelEnum})
     statusLabel?: AdminPromoStatusLabelEnum;
 
-    @ApiPropertyOptional({ type: Number })
+    @ApiPropertyOptional({type: Number})
     cpm?: number;
 }
 
 // DTO with detailed campaign for admin
 export class AdminCampaignDetailsDto extends CampaignDetailsDto {
-    @ApiProperty({ type: AdminCampaignAccountDto, isArray: true })
+    @ApiProperty({type: AdminCampaignAccountDto, isArray: true})
     addedAccounts: AdminCampaignAccountDto[];
 
-    @ApiProperty({ type: Number })
+    @ApiProperty({type: Number})
     internalCost: number;
 
-    @ApiPropertyOptional({ type: Number, isArray: true})
+    @ApiPropertyOptional({type: Number, isArray: true})
     existingOptions?: number[];
 }

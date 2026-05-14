@@ -146,9 +146,98 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
     async getDetailedCampaignForAdmin(
         campaignId: string,
     ): Promise<IAdminCampaignDetails> {
-        const campaign = await this.campaignModel.findOne({
-            _id: new Types.ObjectId(campaignId),
-        })
+        const [campaign] = await this.campaignModel
+            .aggregate([
+                {
+                    $match: {
+                        _id: new Types.ObjectId(campaignId),
+                    },
+                },
+
+                {
+                    $limit: 1,
+                },
+
+                {
+                    $lookup: {
+                        from: 'influencers',
+                        let: {
+                            influencerIds: {
+                                $setUnion: [
+                                    { $ifNull: ['$addedAccounts.influencerId', []] },
+                                    [],
+                                ],
+                            },
+                        },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: {
+                                        $in: ['$_id', '$$influencerIds'],
+                                    },
+                                },
+                            },
+                            {
+                                $project: {
+                                    _id: 1,
+                                    firstName: 1,
+                                },
+                            },
+                        ],
+                        as: '_influencers',
+                    },
+                },
+
+                {
+                    $set: {
+                        addedAccounts: {
+                            $map: {
+                                input: { $ifNull: ['$addedAccounts', []] },
+                                as: 'account',
+                                in: {
+                                    $let: {
+                                        vars: {
+                                            influencer: {
+                                                $first: {
+                                                    $filter: {
+                                                        input: '$_influencers',
+                                                        as: 'influencer',
+                                                        cond: {
+                                                            $eq: [
+                                                                '$$influencer._id',
+                                                                '$$account.influencerId',
+                                                            ],
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                        in: {
+                                            $mergeObjects: [
+                                                '$$account',
+                                                {
+                                                    firstName: '$$influencer.firstName',
+                                                },
+                                            ],
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+
+                {
+                    $project: {
+                        _influencers: 0,
+                    },
+                },
+            ])
+            .exec();
+
+        if (!campaign) {
+            return null;
+        }
 
         return mapSchemaToIAdminCampaignDetails(campaign);
     }
