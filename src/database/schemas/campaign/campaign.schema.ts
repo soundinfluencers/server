@@ -92,6 +92,9 @@ export class CampaignAccount {
     saves?: number;
 
     @Prop({type: Number, required: false})
+    favorites?: number;
+
+    @Prop({type: Number, required: false})
     rating?: number;
 
     @Prop({type: Boolean, required: false})

@@ -142,6 +142,7 @@ export const mapSchemaToICampaignDetails = (campaign: Campaign | CompletedCampai
     let totalSaves: number = 0;
     let totalComments: number = 0;
     let totalShares: number = 0;
+    let totalFavorites: number = 0;
 
     // getting campaign price
     const campaignPrice: number = campaign?.campaignPrice ?? (campaign as any)?.price ?? (campaign as any)?.amount ?? 0;
@@ -210,8 +211,9 @@ export const mapSchemaToICampaignDetails = (campaign: Campaign | CompletedCampai
                 totalLikes += safeParseToNumber(account.like);
                 totalImpressions += safeParseToNumber(account.impressions);
                 totalSaves += safeParseToNumber(account.saves);
-                totalComments = safeParseToNumber(account.comments);
-                totalShares = safeParseToNumber(account.shares);
+                totalComments += safeParseToNumber(account.comments);
+                totalShares += safeParseToNumber(account.shares);
+                totalFavorites += safeParseToNumber(account.favorites);
             }
 
             return mapToICampaignAccount(account, selectedCampaignContentItem);
@@ -274,6 +276,7 @@ export const mapSchemaToICampaignDetails = (campaign: Campaign | CompletedCampai
         totalSaves: totalSaves ?? 0,
         totalComments: totalComments ?? 0,
         totalShares: totalShares ?? 0,
+        totalFavorites: totalFavorites ?? 0,
 
         isCpmAndResultHidden: campaign.isCpmAndResultHidden ?? false,
         isPriceHidden: campaign.isPriceHidden ?? false,
@@ -292,6 +295,7 @@ export const mapSchemaToIAdminCampaignDetails = (campaign: Campaign | CompletedC
     let totalSaves: number = 0;
     let totalComments: number = 0;
     let totalShares: number = 0;
+    let totalFavorites: number = 0;
 
     // getting campaign price
     const campaignPrice: number = campaign.campaignPrice ?? (campaign as any).price ?? (campaign as any).amount ?? 0;
@@ -364,8 +368,9 @@ export const mapSchemaToIAdminCampaignDetails = (campaign: Campaign | CompletedC
                 totalLikes += safeParseToNumber(account.like);
                 totalImpressions += safeParseToNumber(account.impressions);
                 totalSaves += safeParseToNumber(account.saves);
-                totalComments = safeParseToNumber(account.comments);
-                totalShares = safeParseToNumber(account.shares);
+                totalComments += safeParseToNumber(account.comments);
+                totalShares += safeParseToNumber(account.shares);
+                totalFavorites += safeParseToNumber(account.favorites);
             }
 
             const firstName = (account as any)?.firstName ?? null;
@@ -430,6 +435,7 @@ export const mapSchemaToIAdminCampaignDetails = (campaign: Campaign | CompletedC
         totalSaves: totalSaves ?? 0,
         totalComments: totalComments ?? 0,
         totalShares: totalShares ?? 0,
+        totalFavorites: totalFavorites ?? 0,
 
         isCpmAndResultHidden: campaign.isCpmAndResultHidden ?? false,
         isPriceHidden: campaign.isPriceHidden ?? false,
@@ -570,6 +576,7 @@ export const mapProposalToIAdminCampaignDetails = (
     let totalSaves = 0;
     let totalComments = 0;
     let totalShares = 0;
+    let totalFavorites = 0;
 
     const proceedAccounts: IAdminCampaignAccount[] = (option.addedAccounts ?? []).map(
         (account: ProposalCampaignAccount): IAdminCampaignAccount => {
@@ -615,6 +622,7 @@ export const mapProposalToIAdminCampaignDetails = (
             totalSaves += safeParseToNumber(account.saves);
             totalComments += safeParseToNumber(account.comments);
             totalShares += safeParseToNumber(account.shares);
+            totalFavorites += safeParseToNumber(account.favorites);
 
             return mapToIAdminCampaignAccount(account, selectedCampaignContentItem, accountCpm, null);
         },
@@ -643,6 +651,7 @@ export const mapProposalToIAdminCampaignDetails = (
         totalSaves,
         totalComments,
         totalShares,
+        totalFavorites,
         isCpmAndResultHidden: false,
         isPriceHidden: false,
         canEdit: true,

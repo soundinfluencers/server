@@ -1222,7 +1222,7 @@ export class PromosService {
             (item) => item._id.toString() === addedAccountsId,
         );
 
-        if (!socialAccount) {
+        if (!socialAccount) {   
             throw new NotFoundException(
                 `Social account not found in campaign ${campaign.campaignName}`,
             );

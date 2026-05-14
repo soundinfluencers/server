@@ -172,6 +172,7 @@ export interface ICampaignDetails {
     totalSaves: number;
     totalComments: number;
     totalShares: number;
+    totalFavorites: number;
     isCpmAndResultHidden: boolean;
     cpm?: number | null;
     isPriceHidden: boolean;

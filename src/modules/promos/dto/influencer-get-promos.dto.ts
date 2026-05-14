@@ -166,6 +166,16 @@ export class InfluencerUpdatedPostDetailsDto implements InfluencerUpdatedPostDet
     saves?: number;
 
     @ApiPropertyOptional({
+        description: 'Post favorites count',
+        example: 109,
+        minimum: 0,
+    })
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    favorites?: number;
+
+    @ApiPropertyOptional({
         description: 'Internal rating for the post',
         example: 4.5,
         minimum: 0,
