@@ -84,7 +84,7 @@ export class AdminDetailedClientDto {
     companyType: string;
 
     @ApiProperty({ type: Boolean })
-    proposalAccess: boolean;
+    isProposal: boolean;
 
     @ApiPropertyOptional({ type: String })
     lastName?: string;

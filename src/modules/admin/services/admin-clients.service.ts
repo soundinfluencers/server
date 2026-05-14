@@ -55,7 +55,15 @@ export class AdminClientsService {
 
         const [field, value] = entry;
 
-        if (!['isProposalClient', 'internalNote'].includes(field)) {
+        if (![
+            'firstName',
+            'lastName',
+            'email',
+            'phone',
+            'companyType',
+            'isProposalClient',
+            'internalNote'
+        ].includes(field)) {
             throw new BadRequestException('Unknown field provided');
         }
 
