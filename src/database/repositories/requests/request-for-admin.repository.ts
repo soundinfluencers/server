@@ -5,7 +5,7 @@ import {InjectModel} from "@nestjs/mongoose";
 import {Document, Model, PipelineStage, Types} from "mongoose";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
-import {IAdminRequest} from "../../../common/types/request-for-admin/request-for-admin.types";
+import {IAdminRequest, RequestForAdminType} from "../../../common/types/request-for-admin/request-for-admin.types";
 import {NewClientAdminRequest, NewClientAdminRequestDocument} from "../../schemas/requests/new-client-request.schema";
 
 // Interface for admin requests repository
@@ -25,9 +25,6 @@ interface IRequestForAdminRepository {
         limit: number;
         totalPages: number;
     }>;
-
-    // Get details of NEW_CLIENT_REQUEST request
-    getNewClientRequestDetails(requestId: string): Promise<NewClientAdminRequestDocument | null>;
 }
 
 @Injectable()
@@ -97,7 +94,13 @@ export class RequestForAdminRepository extends BaseRepository<RequestForAdmin> i
     }
 
     // Get paginated list of admin requests
-    async getPaginatedList(query: PaginationQueryDto): Promise<{ items: IAdminRequest[]; total: number; page: number; limit: number; totalPages: number; }> {
+    async getPaginatedList(query: PaginationQueryDto): Promise<{
+        items: IAdminRequest[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    }> {
         const page = query.page ?? 1;
         const limit = query.limit ?? 10;
         const skip = (page - 1) * limit;
@@ -129,10 +132,5 @@ export class RequestForAdminRepository extends BaseRepository<RequestForAdmin> i
             limit,
             totalPages: Math.ceil(total / limit),
         }
-    }
-
-    // Get details of NEW_CLIENT_REQUEST request
-    async getNewClientRequestDetails(requestId: string): Promise<NewClientAdminRequestDocument | null> {
-        // Aggregation with lookup for getting
     }
 }
