@@ -108,6 +108,7 @@ export class AdminRequestsService implements IAdminRequestsService {
                 if (result.success !== true) {
                     throw new InternalServerErrorException("Something went wrong during request handling. Please try again later.")
                 }
+                break;
             }
 
             case RequestForAdminType.CAMPAIGN_REQUEST: {
@@ -116,6 +117,7 @@ export class AdminRequestsService implements IAdminRequestsService {
                 if (result.success !== true) {
                     throw new InternalServerErrorException("Something went wrong during request handling. Please try again later.")
                 }
+                break;
             }
 
             default:
@@ -143,7 +145,7 @@ export class AdminRequestsService implements IAdminRequestsService {
         requestId: string,
         response: AdminRequestResponseAction,
         clientId: string
-    ): Promise<{success: boolean, action: AdminRequestResponseAction}> {
+    ): Promise<{ success: boolean, action: AdminRequestResponseAction }> {
         return this.newClientRequestHandler.exec({
             requestId,
             response,
@@ -154,7 +156,7 @@ export class AdminRequestsService implements IAdminRequestsService {
     private handleCampaignRequest(
         requestId: string,
         response: AdminRequestResponseAction,
-    ): Promise<{success: boolean, action: AdminRequestResponseAction}> {
+    ): Promise<{ success: boolean, action: AdminRequestResponseAction }> {
         throw new Error("Method not implemented.");
     }
 }
