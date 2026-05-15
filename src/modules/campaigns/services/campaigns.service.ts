@@ -887,7 +887,11 @@ export class CampaignsService {
 
     // Returns .pdf completed campaign info
     async buildCampaignPdfReport(campaignId: string, userInfo: UserPayload) {
-        const campaign = await this.completedCampaignRepo.findById(campaignId);
+        let campaign: any = await this.completedCampaignRepo.findById(campaignId);
+
+        if (!campaign) {
+            campaign = await this.campaignRepo.findById(campaignId);
+        }
 
         if (!campaign) {
             throw new NotFoundException(`Campaign not found`);
