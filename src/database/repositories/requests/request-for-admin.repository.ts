@@ -80,6 +80,7 @@ export class RequestForAdminRepository extends BaseRepository<RequestForAdmin> i
                     userFirstName: 1,
                     userRole: 1,
                     createdAt: 1,
+                    state: 1,
                 }
             }
         ];
@@ -123,6 +124,7 @@ export class RequestForAdminRepository extends BaseRepository<RequestForAdmin> i
                         userFirstName: 1,
                         userRole: 1,
                         createdAt: 1,
+                        state: 1,
                     }
                 }
             ]),

@@ -83,4 +83,5 @@ export interface IAdminRequest {
     userRole: Role;
     status: RequestLifecycleState;
     createdAt: Date;
+    state: RequestLifecycleState;
 }

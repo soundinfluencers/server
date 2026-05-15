@@ -1,12 +1,12 @@
 import {BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException} from "@nestjs/common";
 import {RequestForAdminRepository} from "../../../../database/repositories/requests/request-for-admin.repository";
 import {
-    AdminRequestResponseAction, IAdminRequest,
+    AdminRequestResponseAction,
+    IAdminRequest,
     RequestForAdminType,
+    RequestLifecycleState,
 } from "../../../../common/types/request-for-admin/request-for-admin.types";
-import {
-    NewClientAdminRequestDocument
-} from "../../../../database/schemas/requests/new-client-request.schema";
+import {NewClientAdminRequestDocument} from "../../../../database/schemas/requests/new-client-request.schema";
 import {
     AdminRequestForListDto,
     AdminRequestsListResponseDto,
@@ -54,7 +54,8 @@ export class AdminRequestsService implements IAdminRequestsService {
                 requestType: i.type.toString(),
                 date: formatDate(i.createdAt),
                 firstName: i.userFirstName,
-                userType: i.userRole
+                userType: i.userRole,
+                isRequestClosed: i.state === RequestLifecycleState.CLOSED
             }))
         }
     }
@@ -71,7 +72,8 @@ export class AdminRequestsService implements IAdminRequestsService {
                 requestType: i.type.toString(),
                 date: formatDate(i.createdAt),
                 firstName: i.userFirstName,
-                userType: i.userRole
+                userType: i.userRole,
+                isRequestClosed: i.state === RequestLifecycleState.CLOSED
             }))
         }
     }

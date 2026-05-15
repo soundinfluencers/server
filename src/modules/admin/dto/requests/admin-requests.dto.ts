@@ -19,6 +19,9 @@ export class AdminRequestForListDto {
 
     @ApiProperty({type: String, enum: Role})
     userType: Role;
+
+    @ApiProperty({type: Boolean})
+    isRequestClosed: boolean;
 }
 
 // DTO for request list
