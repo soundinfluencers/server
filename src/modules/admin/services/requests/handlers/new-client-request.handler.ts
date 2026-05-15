@@ -35,7 +35,7 @@ export class NewClientRequestHandler {
                 return this.acceptNewClientRequest(requestId, clientId);
 
             case AdminRequestResponseAction.DECLINE:
-                return this.declineNewClientRequest(requestId, response);
+                return this.declineNewClientRequest(requestId, clientId);
 
             default:
                 throw new BadRequestException("Looks like this type of request doesn't support your response.");
