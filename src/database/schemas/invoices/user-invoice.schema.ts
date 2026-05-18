@@ -39,6 +39,9 @@ export class ClientInvoice {
     @Prop({required: true, type: String})
     referenceNumber: string;
 
+    @Prop({required: false, type: Number})
+    reach?: number;
+
     @Prop({required: false, type: String})
     poNumber?: string;
 }

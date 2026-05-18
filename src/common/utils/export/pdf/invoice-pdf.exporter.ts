@@ -304,7 +304,7 @@ export class InvoicePdfExporter {
         const campaignName = (invoice as ClientInvoiceDocument).campaignName ?? extraInfo?.campaignName ?? "Influencer Marketing Campaign"
         const brandName = extraInfo?.brandName ?? "—";
         const poNumber = extraInfo?.poNumber ?? "—";
-        const reach = extraInfo?.reach ?? "—";
+        const reach = (invoice as ClientInvoiceDocument)?.reach ?? "—";
 
         const paymentHtml = this.renderPaymentInfo(invoice, isClientInvoice);
 

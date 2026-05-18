@@ -26,7 +26,7 @@ import {ObjId} from "../../common/types/base.types";
 import {PaymentMethodRequestEnum} from "../profile/dto/payment-details.dto";
 import {ProfileService} from "../profile/services/profile.service";
 import {InvoicePdfExporter} from "../../common/utils/export/pdf/invoice-pdf.exporter";
-import {InfluencerToAdminEmails} from "../../integrations/email/email.templates";
+import {AdminToClientEmails, InfluencerToAdminEmails} from "../../integrations/email/email.templates";
 import {CampaignRepository} from "../../database/repositories/campaigns/campaign.repository";
 import {mapPromosToInvoiceLinkedPromos, mapToDetailedInvoice} from "../../common/mappers/invoice.mapper";
 import {
@@ -227,14 +227,19 @@ export class InvoiceService {
                 address: data.address,
                 country: data.country,
                 company: data.company,
-                vatNumber: data.vatNumber
+                vatNumber: data.vatNumber,
             }, {session})
         }
 
         const invoice = await this.userInvoiceRepository.createClientInvoice(data, session);
 
-        // const pdfInvoice = await InvoicePdfExporter.buildPdfBuffer(invoice);
-        // await this.emailService.send(AdminToClientEmails.campaignInvoice(process.env.EMAIL_USER, pdfInvoice));
+        const pdfInvoice = await InvoicePdfExporter.buildPdfBuffer(invoice);
+
+        try {
+            await this.emailService.send(AdminToClientEmails.campaignInvoice(process.env.EMAIL_USER, pdfInvoice));
+        } catch (e) {
+            this.logger.warn(`Campaign invoice ${invoice._id} created, but email failed`, e);
+        }
     }
 
     // Returns list of invoices (sorted from newest)

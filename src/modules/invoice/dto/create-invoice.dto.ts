@@ -97,6 +97,9 @@ export class CreateCampaignInvoiceDto {
     // only for client campaign invoice
     // front does not send this. this field is setting and using only by backend
     campaignFollowers?: number;
+    // only for client campaign invoice
+    // front does not send this. this field is setting and using only by backend
+    reach?: number;
 
     @ApiProperty()
     @IsString()
@@ -136,6 +139,11 @@ export class CreateCampaignInvoiceDto {
     @IsOptional()
     @IsString()
     vatNumber?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    poNumber?: string;
 
     @ApiProperty()
     @IsEnum(CampaignPaymentMethodEnum)

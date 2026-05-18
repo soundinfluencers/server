@@ -45,6 +45,7 @@ export interface ClientDetailedInvoice extends BaseDetailedInvoice {
     campaignFollowers: number;
     referenceNumber: string;
     poNumber?: string;
+    reach?: number;
 }
 
 export interface IAdminClientInvoice {
