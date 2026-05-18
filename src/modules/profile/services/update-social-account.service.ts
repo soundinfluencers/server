@@ -76,7 +76,9 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
             socialAccountId,
         );
 
-        this.validateSocialAccountBeforeUpdate(socialAccount);
+        if (isForAdmin === false) {
+            this.validateSocialAccountBeforeUpdate(socialAccount);
+        }
         this.validateCountries(data);
 
         const updateFields = this.buildUpdateFields(data, isForAdmin);

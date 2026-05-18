@@ -42,7 +42,7 @@ import {
     GetFilteredAccountsQueryDto,
     SearchSocialAccountsDto
 } from "./dto/client/search-social-accounts.dto";
-import {AgreementType, SocialAccountSortByEnum} from "../../common/types/influencer/influencer.types";
+import {SocialAccountSortByEnum} from "../../common/types/influencer/influencer.types";
 import {GetFilterOptionsDataDto} from "./dto/client/filter-options.dto";
 import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "./dto/invoice-details.dto";
 import {PaymentDetailsDto, PaymentMethodRequestEnum, UpdatePaymentDetailsDto} from "./dto/payment-details.dto";
