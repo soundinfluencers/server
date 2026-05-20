@@ -748,8 +748,8 @@ export class CampaignsService {
             campaignToReturn.totalLikes += addedAccount.like ?? 0;
             campaignToReturn.totalImpressions += addedAccount.impressions ?? 0;
             campaignToReturn.totalSaves += addedAccount.saves ?? 0;
-            campaignToReturn.totalComments = addedAccount.comments ?? 0;
-            campaignToReturn.totalShares = addedAccount.shares ?? 0;
+            campaignToReturn.totalComments += addedAccount.comments ?? 0;
+            campaignToReturn.totalShares += addedAccount.shares ?? 0;
 
             campaignToReturn.addedAccounts.push(addedAccount);
         }
