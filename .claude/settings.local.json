@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(del \"src\\\\integrations\\\\whatsapp\\\\whatsapp.controller.ts\")"
+    ]
+  }
+}

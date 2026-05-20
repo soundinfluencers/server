@@ -18,7 +18,10 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "migrate:offer-account-links": "node -r dotenv/config -r ts-node/register -r tsconfig-paths/register scripts/migrate-offer-account-links.ts"
+    "migrate:offer-account-links": "node -r dotenv/config -r ts-node/register -r tsconfig-paths/register scripts/migrate-offer-account-links.ts",
+    "migrate:payment-history": "node -r dotenv/config -r ts-node/register -r tsconfig-paths/register scripts/migrate-payment-history.ts",
+    "migrate:payment-history:campaigns": "node -r dotenv/config -r ts-node/register -r tsconfig-paths/register scripts/migrate-payment-history.ts --collection=campaigns --source=campaign",
+    "migrate:payment-history:completed": "node -r dotenv/config -r ts-node/register -r tsconfig-paths/register scripts/migrate-payment-history.ts --collection=completedcampaigns --source=completed"
   },
   "dependencies": {
     "@fast-csv/format": "^5.0.5",
