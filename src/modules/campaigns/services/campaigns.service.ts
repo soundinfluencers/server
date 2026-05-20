@@ -262,7 +262,7 @@ export class CampaignsService {
 
     // Creates new campaign (NOT DRAFT)
     async createCampaign(data: CreateCampaignDto): Promise<void> {
-        if (!data || !data.paymentDetails) throw new BadRequestException('Not enough arguments')
+        if (!data || !data.paymentDetails || data?.addedAccounts?.length <= 0) throw new BadRequestException('Not enough arguments')
 
         const createdAt = new Date();
 
@@ -387,6 +387,10 @@ export class CampaignsService {
 
     // Save campaign draft
     async createDraftCampaign(data: SaveDraftCampaignDto): Promise<void> {
+        if (data?.addedAccounts?.length <= 0) {
+            throw new BadRequestException("Can't save draft without any accounts")
+        }
+
         await this.draftCampaignRepo.saveDraftCampaign(data);
     }
 
