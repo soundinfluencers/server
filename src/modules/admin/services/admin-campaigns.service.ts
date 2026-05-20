@@ -64,7 +64,6 @@ import {
 import { InvoiceStatusEnum } from '../../../common/types/invoice.types';
 import { InfluencerActionsHistoryService } from '../../influencer-actions-history/influencer-actions-history.service';
 import { PaymentsHistoryService } from '../../payments-history/payments-history.service';
-import { PaymentHistorySystemStatusEnum } from '../../../common/types/history.types';
 
 // Interface for admin campaigns service and controller
 export interface IAdminCampaignsService {
