@@ -16,6 +16,8 @@ import {
     PaymentHistoryAdminOverrideStatusEnum,
     PaymentHistorySystemStatusEnum
 } from "../../../../common/types/history.types";
+import {InfluencerActionsHistoryService} from "../../../influencer-actions-history/influencer-actions-history.service";
+import {SocialMediaEnum} from "../../../../common/types/social-media.types";
 
 // Interface for AdminInfluencerInvoicesService
 interface IAdminInfluencerInvoicesService {
@@ -32,6 +34,7 @@ export class AdminInfluencerInvoicesService implements IAdminInfluencerInvoicesS
         private readonly invoiceRepository: UserInvoiceRepository,
         private readonly campaignRepository: CampaignRepository,
         private readonly paymentsHistoryService: PaymentsHistoryService,
+        private readonly influencerActionsHistoryService: InfluencerActionsHistoryService,
     ) {
     }
 
@@ -105,6 +108,10 @@ export class AdminInfluencerInvoicesService implements IAdminInfluencerInvoicesS
                 promoId: ObjId;
                 accountId: ObjId;
                 influencerId: ObjId;
+                campaignName: string;
+                username: string;
+                price: number;
+                socialMedia: SocialMediaEnum;
             }[] = await this.campaignRepository.updateManyInvoiceStatusesByPromoIds({
                 campaignIds: (invoice as any)?.linkedPromos?.map(i => i.campaignId),
                 promoIds: (invoice as any)?.linkedPromos?.map(i => i.promoId),
@@ -136,6 +143,24 @@ export class AdminInfluencerInvoicesService implements IAdminInfluencerInvoicesS
                 session: session,
                 cellsInfo: cellsInfo
             })
+
+            // 5. Updating influencer's actions history
+            await this.influencerActionsHistoryService.upsertInfluencerCampaignActionsHistoryMany(
+                {
+                    influencerId: campaignsUpdateResult[0].influencerId.toString(),
+                    updatedCampaignActions: campaignsUpdateResult.map(i => ({
+                        campaignId: i.campaignId.toString(),
+                        campaignName: i.campaignName,
+                        addedAccountsId: i.promoId,
+                        socialAccountId: i.accountId,
+                        actionNumber: 4,
+                        networkUsername: i.username,
+                        rewardForInfluencer: i.price,
+                        socialMedia: i.socialMedia,
+                    }))
+                },
+                session
+            );
 
             await session.commitTransaction();
         } catch (err) {

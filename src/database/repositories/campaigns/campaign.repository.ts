@@ -26,6 +26,7 @@ import {
     AdminCampaignsListStatusEnum,
     GetAdminCampaignsListQueryDto
 } from "../../../modules/admin/dto/campaigns/admin-campaigns.dto";
+import {SocialMediaEnum} from "../../../common/types/social-media.types";
 
 // Interface for campaign repository
 export interface ICampaignRepository {
@@ -390,6 +391,10 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
             promoId: ObjId;
             accountId: ObjId;
             influencerId: ObjId;
+            socialMedia: SocialMediaEnum;
+            campaignName: string;
+            username: string;
+            price: number;
         }[]
     > {
         const { campaignIds, promoIds, newInvoiceStatus, session } = payload;
@@ -446,9 +451,13 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
                 $project: {
                     _id: 0,
                     campaignId: '$_id',
+                    campaignName: '$campaignName',
                     promoId: '$addedAccounts._id',
                     accountId: '$addedAccounts.accountId',
                     influencerId: '$addedAccounts.influencerId',
+                    socialMedia: '$addedAccounts.socialMedia',
+                    username: '$addedAccounts.username',
+                    price: '$addedAccounts.price',
                 },
             },
         ];
@@ -459,12 +468,20 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
                 promoId: ObjId;
                 accountId: ObjId;
                 influencerId: ObjId;
+                socialMedia: SocialMediaEnum;
+                campaignName: string;
+                username: string;
+                price: number;
             }>(projectionPipeline).session(session ?? null),
             this.completedCampaignModel.aggregate<{
                 campaignId: ObjId;
                 promoId: ObjId;
                 accountId: ObjId;
                 influencerId: ObjId;
+                socialMedia: SocialMediaEnum;
+                campaignName: string;
+                username: string;
+                price: number;
             }>(projectionPipeline).session(session ?? null),
         ]);
 

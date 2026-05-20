@@ -504,6 +504,8 @@ export class InfluencerActionsHistoryService {
 
             const campaignDoc = openMap.get(campaignIdKey) ?? closedMap.get(campaignIdKey) ?? null;
 
+            console.log("INFLUENCER CAMPAIGNS HISTORY STATUS", item.status, HistoryCampaignActionStatusLabel[item.status as HistoryCampaignActionStatus])
+
             const processed: any = {
                 addedAccountsId: item.addedAccountsId,
                 campaignId: item.campaignId,
