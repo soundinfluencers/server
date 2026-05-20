@@ -70,6 +70,7 @@ export const mapToICampaignAccount = (
         socialMedia: account.socialMedia,
         username: account.username,
         logoUrl: (account as any)?.logoUrl ?? null,
+        price: account.price,
         publicPrice: account.publicPrice,
         followers: safeParseToNumber(account.followers),
         selectedContent: account.selectedContent,
@@ -110,6 +111,7 @@ export const mapToIAdminCampaignAccount = (
         username: account.username,
         logoUrl: (account as any)?.logoUrl ?? null,
         profileType: (account as any)?.profileType ?? (account as any)?.profileCategory ?? null,
+        price: account.price,
         publicPrice: account.publicPrice,
         followers: safeParseToNumber(account.followers),
         selectedContent: account.selectedContent,
@@ -495,7 +497,7 @@ export const mapToAdminCampaignDetailsDto = (campaign: IAdminCampaignDetails): A
 
     if (campaign.socialMedia !== SocialMediaEnum.press) {
         internalCost = campaign.addedAccounts.reduce(
-            (sum, acc) => sum + (acc.publicPrice ?? 0),
+            (sum, acc) => sum + (acc.price ?? 0),
             0
         );
     }

@@ -127,7 +127,7 @@ export interface ICampaignAccount {
     logoUrl?: string;
     profileType?: InfluencerProfileCategory;
     username: string;
-    // price: number
+    price: number
     publicPrice: number;
     followers: number;
     selectedContent: ISelectedContent;
