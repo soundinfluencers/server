@@ -898,7 +898,7 @@ export class PromosService {
 
         const elem = {
             _id: new Types.ObjectId(addedAccountsId),
-            confirmation: InfluencerConfirmationStatusEnum.accept,
+            confirmation: {$in: [InfluencerConfirmationStatusEnum.accept, InfluencerConfirmationStatusEnum.wait]},
             closePromo: InfluencerPromoClosedStatusEnum.close,
         };
 
@@ -928,8 +928,6 @@ export class PromosService {
         if (!client) throw new NotFoundException('Client not found');
 
         const selectedAccount = campaign.addedAccounts.find((influencerItem) => influencerItem._id.toString() === addedAccountsId);
-
-        console.log(selectedAccount);
 
         if (!selectedAccount) throw new NotFoundException(`Influencer's social account not found in this campaign`);
 
