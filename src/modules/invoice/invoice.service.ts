@@ -417,10 +417,10 @@ export class InvoiceService {
 
             if (latestUkBankTransfer) {
                 paymentDetails.ukBankTransfer = {
-                    beneficiary: latestUkBankTransfer.ukBankTransfer.beneficiary,
-                    beneficiaryAddress: latestUkBankTransfer.ukBankTransfer.beneficiaryAddress,
-                    sortCode: latestUkBankTransfer.ukBankTransfer.sortCode,
-                    accountNumber: latestUkBankTransfer.ukBankTransfer.accountNumber
+                    beneficiary: latestUkBankTransfer?.ukBankTransfer?.beneficiary,
+                    beneficiaryAddress: latestUkBankTransfer?.ukBankTransfer?.beneficiaryAddress,
+                    sortCode: latestUkBankTransfer?.ukBankTransfer?.sortCode,
+                    accountNumber: latestUkBankTransfer?.ukBankTransfer?.accountNumber
                 }
 
                 latestInvoice = latestUkBankTransfer;
@@ -438,13 +438,13 @@ export class InvoiceService {
 
             if (latestInternationalBankTransfer) {
                 paymentDetails.internationalBankTransfer = {
-                    beneficiary: latestInternationalBankTransfer.internationalBankTransfer.beneficiary,
-                    beneficiaryAddress: latestInternationalBankTransfer.internationalBankTransfer.beneficiaryAddress,
-                    iban: latestInternationalBankTransfer.internationalBankTransfer.iban,
-                    bankName: latestInternationalBankTransfer.internationalBankTransfer.bankName,
-                    bankCountry: latestInternationalBankTransfer.internationalBankTransfer.bankCountry,
-                    bankAccountCurrency: latestInternationalBankTransfer.internationalBankTransfer.bankAccountCurrency,
-                    swiftBicCode: latestInternationalBankTransfer.internationalBankTransfer.swiftBicCode,
+                    beneficiary: latestInternationalBankTransfer?.internationalBankTransfer?.beneficiary,
+                    beneficiaryAddress: latestInternationalBankTransfer?.internationalBankTransfer?.beneficiaryAddress,
+                    iban: latestInternationalBankTransfer?.internationalBankTransfer?.iban,
+                    bankName: latestInternationalBankTransfer?.internationalBankTransfer?.bankName,
+                    bankCountry: latestInternationalBankTransfer?.internationalBankTransfer?.bankCountry,
+                    bankAccountCurrency: latestInternationalBankTransfer?.internationalBankTransfer?.bankAccountCurrency,
+                    swiftBicCode: latestInternationalBankTransfer?.internationalBankTransfer?.swiftBicCode,
                 }
 
                 if (!latestInvoice || latestInternationalBankTransfer.createdAt.getTime() > latestInvoice.createdAt.getTime()) {
@@ -464,7 +464,7 @@ export class InvoiceService {
 
             if (latestPaypal) {
                 paymentDetails.paypal = {
-                    paypalEmail: latestPaypal.paypal.paypalEmail,
+                    paypalEmail: latestPaypal?.paypal?.paypalEmail,
                 }
 
                 if (!latestInvoice || latestPaypal.createdAt.getTime() > latestInvoice.createdAt.getTime()) {
@@ -484,12 +484,12 @@ export class InvoiceService {
             amount: influencerBalance.balance,
             selectedPaymentMethod: latestInvoice?.selectedPaymentMethod ?? null,
 
-            ukBankTransfer: paymentDetails.ukBankTransfer ?? latestInvoice?.ukBankTransfer ?? null,
+            ukBankTransfer: paymentDetails?.ukBankTransfer ?? latestInvoice?.ukBankTransfer ?? null,
             internationalBankTransfer:
-                paymentDetails.internationalBankTransfer ??
+                paymentDetails?.internationalBankTransfer ??
                 latestInvoice?.internationalBankTransfer ??
                 null,
-            paypal: paymentDetails.paypal ?? latestInvoice?.paypal ?? null,
+            paypal: paymentDetails?.paypal ?? latestInvoice?.paypal ?? null,
         };
     }
 
