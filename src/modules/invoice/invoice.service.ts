@@ -38,12 +38,14 @@ import {UpdateClientInvoiceDto} from "./dto/update-invoice.dto";
 import {PaymentHistoryAdminOverrideStatusEnum, PaymentHistorySystemStatusEnum} from "../../common/types/history.types";
 import {PaymentsHistoryService} from "../payments-history/payments-history.service";
 import {InvoiceDetails} from "../../database/schemas/invoices/invoice-details.schema";
+import {ClientRepository} from "../../database/repositories/users/client.repository";
 
 @Injectable()
 export class InvoiceService {
     constructor(
         // repositories
         private readonly influencerRepo: InfluencerRepository,
+        private readonly clientRepo: ClientRepository,
         private readonly userInvoiceRepository: UserInvoiceRepository,
         private readonly invoiceDetailsRepo: InvoiceDetailsRepository,
         private readonly campaignRepo: CampaignRepository,
@@ -211,7 +213,12 @@ export class InvoiceService {
     }
 
     // Creates new client invoice (after creating new campaign)
-    async createClientCampaignInvoice(data: CreateCampaignInvoiceDto, session?: ClientSession): Promise<void> {
+    async createClientCampaignInvoice(data: CreateCampaignInvoiceDto, clientEmail: string, session?: ClientSession): Promise<void> {
+        if (!clientEmail) {
+            this.logger.error(`Client email is not provided for campaign invoice. Client id - ${data.userId}`);
+            throw new InternalServerErrorException("Something went wrong while creating your invoice. Try again later or connect support");
+        }
+
         const invoiceDetails = await this.invoiceDetailsRepo.findOne({
             userId: new ObjId(data.userId),
             userRole: data.userRole
@@ -236,7 +243,7 @@ export class InvoiceService {
         const pdfInvoice = await InvoicePdfExporter.buildPdfBuffer(invoice);
 
         try {
-            await this.emailService.send(AdminToClientEmails.campaignInvoice(process.env.EMAIL_USER, pdfInvoice));
+            await this.emailService.send(AdminToClientEmails.campaignInvoice(clientEmail, pdfInvoice));
         } catch (e) {
             this.logger.warn(`Campaign invoice ${invoice._id} created, but email failed`, e);
         }
@@ -373,9 +380,11 @@ export class InvoiceService {
         try {
             const pdf = await InvoicePdfExporter.buildPdfBuffer(invoice);
 
+            const fileName = userInfo.role === Role.client ? `${(invoice as ClientInvoiceDocument).campaignName}_inv` : `${invoice.selectedPaymentMethod}_${formatDate(invoice.createdAt)}`;
+
             return new StreamableFile(pdf, {
                 type: 'application/pdf',
-                disposition: `attachment; filename=invoice-${formatDate(invoice.createdAt, '-')}.pdf`,
+                disposition: `attachment; filename=${fileName}.pdf`,
             });
         } catch (error) {
             this.logger.error(`Error build pdf for ${userInfo.role} invoice ${invoiceId}`, error);

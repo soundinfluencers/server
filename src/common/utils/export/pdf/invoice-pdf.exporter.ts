@@ -303,8 +303,8 @@ export class InvoicePdfExporter {
 
         const campaignName = (invoice as ClientInvoiceDocument).campaignName ?? extraInfo?.campaignName ?? "Influencer Marketing Campaign"
         const brandName = extraInfo?.brandName ?? "—";
-        const poNumber = extraInfo?.poNumber ?? "—";
-        const reach = (invoice as ClientInvoiceDocument)?.reach ?? "—";
+        const poNumber = (invoice as ClientInvoiceDocument)?.poNumber ?? "—";
+        const reach = (invoice as ClientInvoiceDocument)?.campaignFollowers ?? (invoice as ClientInvoiceDocument)?.reach ?? "—";
 
         const paymentHtml = this.renderPaymentInfo(invoice, isClientInvoice);
 
@@ -325,7 +325,7 @@ export class InvoicePdfExporter {
             <div class="cell"></div>
             <div class="cell">${this.escapeHtml(campaignName)}</div>
             <div class="cell">${this.escapeHtml(poNumber)}</div>
-            <div class="cell">${this.escapeHtml(reach)}</div>
+            <div class="cell">${reach}</div>
             <div class="cell right">${this.escapeHtml(amountStr)}</div>
           </div>
           <div class="table__footer">

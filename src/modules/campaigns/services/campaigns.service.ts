@@ -326,6 +326,11 @@ export class CampaignsService {
             // Getting client data
             client = await this.clientRepo.findById(data.clientId, {session});
 
+            if (!client) {
+                this.logger.error(`Client with id ${data.clientId} not found, while creating campaign`)
+                throw new NotFoundException("Something went wrong with saving your campaign. Try again later or connect support.")
+            }
+
             data.paymentDetails.userId = data.clientId;
             data.paymentDetails.userRole = Role.client;
             data.paymentDetails.campaignId = campaignId.toString();
@@ -334,7 +339,7 @@ export class CampaignsService {
             data.paymentDetails.company = client.company;
 
             // Create and send invoice to client
-            await this.invoiceService.createClientCampaignInvoice(data.paymentDetails, session);
+            await this.invoiceService.createClientCampaignInvoice(data.paymentDetails, client.email, session);
 
             await session.commitTransaction();
         } catch (err) {
