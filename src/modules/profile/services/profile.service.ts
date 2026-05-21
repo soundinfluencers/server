@@ -2188,6 +2188,7 @@ export class ProfileService {
           followers: '$acc.followers',
           socialMedia: '$acc.socialMedia',
           countries: { $ifNull: ['$acc.countries', []] },
+          profileType: '$acc.profileCategory',
 
           musicGenres: {
             $cond: [
