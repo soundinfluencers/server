@@ -1,2167 +1,2222 @@
 import {
-    BadRequestException,
-    ConflictException,
-    ForbiddenException,
-    Injectable,
-    InternalServerErrorException,
-    Logger,
-    NotFoundException,
-    UnauthorizedException
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
-import {ClientUpdatedPersonalDetailsDto, UpdateClientPersonalDetailsDto} from '../dto/client/update-client.dto';
-import {ClientSession, PipelineStage, Types} from 'mongoose';
-import {UpdateUserPasswordDto} from '../dto/update-password.dto';
 import {
-    AddSocialAccountDto,
-    DeleteSocialAccountDto,
-    InfluencerUpdatedPersonalDto,
-    UpdateInfluencerPersonalDto,
-    UpdateSocialAccountDto
+  ClientUpdatedPersonalDetailsDto,
+  UpdateClientPersonalDetailsDto,
+} from '../dto/client/update-client.dto';
+import { ClientSession, PipelineStage, Types } from 'mongoose';
+import { UpdateUserPasswordDto } from '../dto/update-password.dto';
+import {
+  AddSocialAccountDto,
+  DeleteSocialAccountDto,
+  InfluencerUpdatedPersonalDto,
+  UpdateInfluencerPersonalDto,
+  UpdateSocialAccountDto,
 } from '../dto/influencer/update-influencer.dto';
 import * as process from 'node:process';
 import {
-    Influencer,
-    InfluencerMusicGenre,
-    SocialAccount,
-    UserNotificationMethods
-} from "../../../database/schemas/users/influencer.schema";
-import {MigrateAccountDto} from "../../migrations/dto/migrate-account.dto";
-import {SocialAccountMigrationContext} from "../../migrations/types/migrations.types";
-import {InfluencerRepository} from "../../../database/repositories/users/influencer.repository";
-import {ClientRepository} from "../../../database/repositories/users/client.repository";
-import {AccountVerifiedStatus, NotificationMethodsEnum, Role, UserPayload} from "../../../common/types/user.types";
-import {SocialMediaEnum} from "../../../common/types/social-media.types";
-import {normalizeStringToMusicGenres} from "../../../common/utils/genres";
+  Influencer,
+  InfluencerMusicGenre,
+  SocialAccount,
+  UserNotificationMethods,
+} from '../../../database/schemas/users/influencer.schema';
+import { MigrateAccountDto } from '../../migrations/dto/migrate-account.dto';
+import { SocialAccountMigrationContext } from '../../migrations/types/migrations.types';
+import { InfluencerRepository } from '../../../database/repositories/users/influencer.repository';
+import { ClientRepository } from '../../../database/repositories/users/client.repository';
 import {
-    AgreementType,
-    InfluencerAccountDetails, InfluencerProfileCategory,
-    SocialAccountDetails,
-    SocialAccountLabelStatus,
-} from "../../../common/types/influencer/influencer.types";
+  AccountVerifiedStatus,
+  NotificationMethodsEnum,
+  Role,
+  UserPayload,
+} from '../../../common/types/user.types';
+import { SocialMediaEnum } from '../../../common/types/social-media.types';
+import { normalizeStringToMusicGenres } from '../../../common/utils/genres';
 import {
-    mapInfluencerToAccountDetailsDto,
-    mapToSocialAccountDetailsDto
-} from "../../../common/mappers/influencer.mapper";
-import {ClientAccountDetails} from "../../../common/types/client/client.types";
-import {mapClientToAccountDetailsDto} from "../../../common/mappers/client.mapper";
+  AgreementType,
+  InfluencerAccountDetails,
+  InfluencerProfileCategory,
+  SocialAccountDetails,
+  SocialAccountLabelStatus,
+} from '../../../common/types/influencer/influencer.types';
 import {
-    AgreementAccountDto,
-    AgreementAccountsListDto,
-    FoundAccountDto,
-    GetSocialAccountDetailsParamsDto,
-    InfluencerAccountDetailsDto,
-    UpdateAccountAgreementDto,
-    UpdateAccountsAgreementDto
-} from "../dto/influencer/get-profile.dto";
-import {GetFilteredAccountsBodyDto, SearchSocialAccountsDto} from "../dto/client/search-social-accounts.dto";
-import {GetFilterOptionsDataDto} from "../dto/client/filter-options.dto";
-import {InvoiceDetailsDto, UpdateInvoiceDetailsDto} from "../dto/invoice-details.dto";
-import {InvoiceDetailsRepository} from "../../../database/repositories/invoices/invoice-details.repository";
-import {mapToInvoiceDetailsDto} from "../../../common/mappers/invoice.mapper";
+  mapInfluencerToAccountDetailsDto,
+  mapToSocialAccountDetailsDto,
+} from '../../../common/mappers/influencer.mapper';
+import { ClientAccountDetails } from '../../../common/types/client/client.types';
+import { mapClientToAccountDetailsDto } from '../../../common/mappers/client.mapper';
 import {
-    InternationalBankTransferDto,
-    PaymentDetailsDto,
-    PaymentMethodRequestEnum,
-    PayPalDto,
-    UKBankTransferDto,
-    UpdatePaymentDetailsDto
-} from "../dto/payment-details.dto";
-import {UkBankTransferDetailsRepository} from "../../../database/repositories/invoices/uk-transfer-details.repository";
+  AgreementAccountDto,
+  AgreementAccountsListDto,
+  FoundAccountDto,
+  GetSocialAccountDetailsParamsDto,
+  InfluencerAccountDetailsDto,
+  UpdateAccountAgreementDto,
+  UpdateAccountsAgreementDto,
+} from '../dto/influencer/get-profile.dto';
 import {
-    InternationalBankTransferDetailsRepository
-} from "../../../database/repositories/invoices/international-transfer-details.repository";
-import {PaypalDetailsRepository} from "../../../database/repositories/invoices/paypal-details.repository";
-import {ObjId} from "../../../common/types/base.types";
+  GetFilteredAccountsBodyDto,
+  SearchSocialAccountsDto,
+} from '../dto/client/search-social-accounts.dto';
+import { GetFilterOptionsDataDto } from '../dto/client/filter-options.dto';
+import { InvoiceDetailsDto, UpdateInvoiceDetailsDto } from '../dto/invoice-details.dto';
+import { InvoiceDetailsRepository } from '../../../database/repositories/invoices/invoice-details.repository';
+import { mapToInvoiceDetailsDto } from '../../../common/mappers/invoice.mapper';
 import {
-    mapToInternationalBankTransferDto,
-    mapToPayPalDto,
-    mapToUkBankTransferDto
-} from "../../../common/mappers/payment-details.mapper";
-import {InvoicePaymentMethodEnum} from "../../../common/types/invoice.types";
-import {AuthService} from "../../auth/auth.service";
-import {LoginResponseDto} from "../../auth/dto/login.dto";
-import {EmailService} from "../../../integrations/email/email.service";
-import {AdminToInfluencerEmails} from "../../../integrations/email/email.templates";
-import {ExchangeRateService} from "../../../integrations/exchange-rate/exchange-rate.service";
-import {CurrencyCode} from "../../../common/types/finance.types";
-import {NegotiationRepository} from "../../../database/repositories/negotiation/negotiation.repository";
-import {UpdateSocialAccountService} from "./update-social-account.service";
-import {UpdateInfluencerService} from "./update-influencer.service";
-import {CreateSocialAccountService} from "./create-social-account.service";
+  InternationalBankTransferDto,
+  PaymentDetailsDto,
+  PaymentMethodRequestEnum,
+  PayPalDto,
+  UKBankTransferDto,
+  UpdatePaymentDetailsDto,
+} from '../dto/payment-details.dto';
+import { UkBankTransferDetailsRepository } from '../../../database/repositories/invoices/uk-transfer-details.repository';
+import { InternationalBankTransferDetailsRepository } from '../../../database/repositories/invoices/international-transfer-details.repository';
+import { PaypalDetailsRepository } from '../../../database/repositories/invoices/paypal-details.repository';
+import { ObjId } from '../../../common/types/base.types';
+import {
+  mapToInternationalBankTransferDto,
+  mapToPayPalDto,
+  mapToUkBankTransferDto,
+} from '../../../common/mappers/payment-details.mapper';
+import { InvoicePaymentMethodEnum } from '../../../common/types/invoice.types';
+import { AuthService } from '../../auth/auth.service';
+import { LoginResponseDto } from '../../auth/dto/login.dto';
+import { EmailService } from '../../../integrations/email/email.service';
+import { AdminToInfluencerEmails } from '../../../integrations/email/email.templates';
+import { ExchangeRateService } from '../../../integrations/exchange-rate/exchange-rate.service';
+import { CurrencyCode } from '../../../common/types/finance.types';
+import { NegotiationRepository } from '../../../database/repositories/negotiation/negotiation.repository';
+import { UpdateSocialAccountService } from './update-social-account.service';
+import { UpdateInfluencerService } from './update-influencer.service';
+import { CreateSocialAccountService } from './create-social-account.service';
 
 const bcrypt = require('bcryptjs');
 
 @Injectable()
 export class ProfileService {
-    private readonly logger = new Logger('ProfileService');
+  private readonly logger = new Logger('ProfileService');
 
-    constructor(
-        private readonly authService: AuthService,
-        private readonly emailService: EmailService,
-        private readonly exchangeRateService: ExchangeRateService,
-        // users
-        private readonly clientRepo: ClientRepository,
-        private readonly influencerRepo: InfluencerRepository,
-        // invoice details
-        private readonly invoiceDetailsRepo: InvoiceDetailsRepository,
-        // payment details
-        private readonly ukTransferDetailsRepo: UkBankTransferDetailsRepository,
-        private readonly internationalTransferDetailsRepo: InternationalBankTransferDetailsRepository,
-        private readonly paypalDetailsRepo: PaypalDetailsRepository,
-        // negotiation
-        private readonly negotiationRepo: NegotiationRepository,
-        // Update influencer personal information
-        private readonly updateInfluencerService: UpdateInfluencerService,
-        // Create social account
-        private readonly createSocialAccountService: CreateSocialAccountService,
-        // Update social account
-        private readonly updateSocialAccountService: UpdateSocialAccountService,
-    ) {
+  constructor(
+    private readonly authService: AuthService,
+    private readonly emailService: EmailService,
+    private readonly exchangeRateService: ExchangeRateService,
+    // users
+    private readonly clientRepo: ClientRepository,
+    private readonly influencerRepo: InfluencerRepository,
+    // invoice details
+    private readonly invoiceDetailsRepo: InvoiceDetailsRepository,
+    // payment details
+    private readonly ukTransferDetailsRepo: UkBankTransferDetailsRepository,
+    private readonly internationalTransferDetailsRepo: InternationalBankTransferDetailsRepository,
+    private readonly paypalDetailsRepo: PaypalDetailsRepository,
+    // negotiation
+    private readonly negotiationRepo: NegotiationRepository,
+    // Update influencer personal information
+    private readonly updateInfluencerService: UpdateInfluencerService,
+    // Create social account
+    private readonly createSocialAccountService: CreateSocialAccountService,
+    // Update social account
+    private readonly updateSocialAccountService: UpdateSocialAccountService,
+  ) {}
+
+  // ------------ UTILS ---------------
+
+  private capitalize = (s: string): string => {
+    if (!s) return s;
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  };
+
+  private escapeRegex = (input: string): string => {
+    return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  };
+
+  // ------------- ORCHESTRATORS -------------
+
+  // Updates user's payment details
+  async updatePaymentDetailsOrchestrator(
+    data: UpdatePaymentDetailsDto,
+    userInfo: UserPayload,
+  ): Promise<PaymentDetailsDto> {
+    let paymentDetails: PaymentDetailsDto = {};
+
+    switch (data.selectedPaymentMethod) {
+      case InvoicePaymentMethodEnum.ukBankTransfer:
+        paymentDetails.ukBankTransfer = await this.updateUkTransferDetails(
+          data.ukBankTransfer,
+          userInfo,
+        );
+        break;
+      case InvoicePaymentMethodEnum.internationalBankTransfer:
+        paymentDetails.internationalBankTransfer = await this.updateInternationalTransferDetails(
+          data.internationalBankTransfer,
+          userInfo,
+        );
+        break;
+      case InvoicePaymentMethodEnum.paypal:
+        paymentDetails.paypal = await this.updatePaypalDetails(data.paypal, userInfo);
+        break;
+      default:
+        throw new BadRequestException('Unsupported payment method');
     }
 
-    // ------------ UTILS ---------------
+    return paymentDetails;
+  }
 
+  // ------------- SERVICES -------------
 
-    private capitalize = (s: string): string => {
-        if (!s) return s;
-        return s.charAt(0).toUpperCase() + s.slice(1);
+  // Returns client's account details
+  async getClientAccountDetails(clientId: string): Promise<ClientAccountDetails> {
+    if (!clientId) throw new BadRequestException('Client ID is required');
+
+    const client = await this.clientRepo.findById(clientId);
+    if (!client) throw new NotFoundException('Client not found');
+
+    return mapClientToAccountDetailsDto(client);
+  }
+
+  // Returns influencer's account details
+  async getInfluencerAccountDetails(influencerId: string): Promise<InfluencerAccountDetails> {
+    if (!influencerId) throw new BadRequestException('Influencer ID is required');
+
+    const influencer = await this.influencerRepo.findById(influencerId);
+    if (!influencer) throw new NotFoundException('Influencer not found');
+
+    return mapInfluencerToAccountDetailsDto(influencer);
+  }
+
+  // Updates client's personal information
+  async updatePersonalClient(
+    data: UpdateClientPersonalDetailsDto,
+  ): Promise<ClientUpdatedPersonalDetailsDto> {
+    const { _id, firstName, logoUrl, company, email, phone } = data;
+
+    const updateData: Partial<{
+      firstName: string;
+      logoUrl: string;
+      company: string;
+      email: string;
+      phone: string;
+    }> = {};
+
+    if (firstName) updateData.firstName = firstName.trim();
+    if (logoUrl) updateData.logoUrl = logoUrl.trim();
+    if (company) updateData.company = company.trim();
+    if (email) updateData.email = email.trim().toLowerCase();
+    if (phone) updateData.phone = phone.trim();
+
+    const updatedUser = await this.clientRepo.findOneAndUpdate(
+      { _id: new Types.ObjectId(_id) },
+      { $set: updateData },
+      { new: true },
+    );
+
+    if (!updatedUser) {
+      throw new NotFoundException('Client not found');
     }
 
-    private escapeRegex = (input: string): string => {
-        return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return {
+      firstName: updatedUser.firstName,
+      logoUrl: updateData?.logoUrl,
+      company: updatedUser.company,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+    };
+  }
+
+  // Updates influencer's personal information
+  async updatePersonalInfluencer(
+    influencerId: string,
+    data: UpdateInfluencerPersonalDto,
+  ): Promise<InfluencerUpdatedPersonalDto> {
+    const res = await this.updateInfluencerService.exec(influencerId, data);
+
+    return {
+      firstName: res.firstName,
+      lastName: res?.lastName,
+      logoUrl: res?.logoUrl,
+      email: res.email,
+      phone: res.phone,
+    };
+  }
+
+  // Updates influencer's selected notification methods
+  async updateNotificationMethodsInfluencer(
+    method: NotificationMethodsEnum,
+    userInfo: UserPayload,
+  ): Promise<UserNotificationMethods> {
+    if (!Object.values(NotificationMethodsEnum).includes(method)) {
+      throw new BadRequestException('Invalid notification method');
     }
 
+    const update: Record<string, boolean> = {
+      [`notificationMethods.${NotificationMethodsEnum.whatsapp}`]:
+        method === NotificationMethodsEnum.whatsapp,
+      [`notificationMethods.${NotificationMethodsEnum.telegram}`]:
+        method === NotificationMethodsEnum.telegram,
+    };
 
-    // ------------- ORCHESTRATORS -------------
+    const influencer = await this.influencerRepo.findOneAndUpdate(
+      { _id: new ObjId(userInfo._id) },
+      { $set: update },
+      {
+        new: true,
+        select: ['notificationMethods'],
+        lean: true,
+      },
+    );
 
+    if (!influencer) {
+      throw new NotFoundException('Influencer not found');
+    }
 
-    // Updates user's payment details
-    async updatePaymentDetailsOrchestrator(data: UpdatePaymentDetailsDto, userInfo: UserPayload): Promise<PaymentDetailsDto> {
-        let paymentDetails: PaymentDetailsDto = {};
+    return influencer.notificationMethods;
+  }
 
-        switch (data.selectedPaymentMethod) {
-            case InvoicePaymentMethodEnum.ukBankTransfer:
-                paymentDetails.ukBankTransfer = await this.updateUkTransferDetails(data.ukBankTransfer, userInfo);
-                break;
-            case InvoicePaymentMethodEnum.internationalBankTransfer:
-                paymentDetails.internationalBankTransfer = await this.updateInternationalTransferDetails(data.internationalBankTransfer, userInfo);
-                break;
-            case InvoicePaymentMethodEnum.paypal:
-                paymentDetails.paypal = await this.updatePaypalDetails(data.paypal, userInfo);
-                break;
-            default:
-                throw new BadRequestException('Unsupported payment method');
+  // Returns current user invoice details
+  async getInvoiceDetails(userId: string, userRole: Role): Promise<InvoiceDetailsDto> {
+    const invoiceDetails = await this.invoiceDetailsRepo.findOne({
+      userId: new Types.ObjectId(userId),
+      userRole: userRole,
+    });
+
+    if (invoiceDetails) {
+      return mapToInvoiceDetailsDto(invoiceDetails);
+    }
+
+    return {};
+  }
+
+  // Updates user's invoice details {
+  async updateInvoiceDetails(data: UpdateInvoiceDetailsDto): Promise<InvoiceDetailsDto> {
+    const { userId, userRole, firstName, lastName, address, country, company, vatNumber } = data;
+
+    const updateData: Partial<{
+      firstName: string;
+      lastName: string;
+      address: string;
+      country: string;
+      company: string;
+      vatNumber: string;
+    }> = {};
+
+    if (firstName) updateData.firstName = firstName.trim();
+    if (lastName) updateData.lastName = lastName.trim();
+    if (address) updateData.address = address.trim();
+    if (country) updateData.country = country.trim();
+    if (company) updateData.company = company.trim();
+    if (vatNumber) updateData.vatNumber = vatNumber.trim();
+
+    const updatedInvoiceDetails = await this.invoiceDetailsRepo.findOneAndUpdate(
+      {
+        userId: new Types.ObjectId(userId),
+        userRole: userRole,
+      },
+      { $set: updateData },
+      { new: true, upsert: true },
+    );
+
+    if (!updatedInvoiceDetails) {
+      throw new InternalServerErrorException('Something went wrong');
+    }
+
+    return mapToInvoiceDetailsDto(updatedInvoiceDetails);
+  }
+
+  // Returns current user payment methods details
+  async getPaymentDetails(
+    userInfo: UserPayload,
+    selectedPaymentMethod: PaymentMethodRequestEnum = PaymentMethodRequestEnum.all,
+  ): Promise<PaymentDetailsDto> {
+    let paymentDetails: PaymentDetailsDto = {};
+    switch (selectedPaymentMethod) {
+      case PaymentMethodRequestEnum.ukBankTransfer:
+        try {
+          const ukDetails = await this.ukTransferDetailsRepo.findOne({
+            userId: new ObjId(userInfo._id),
+            userRole: userInfo.role,
+          });
+
+          if (ukDetails) {
+            paymentDetails.ukBankTransfer = mapToUkBankTransferDto(ukDetails);
+          }
+        } catch (err) {
+          this.logger.error(
+            `Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`,
+            err,
+          );
+          throw new InternalServerErrorException(`Error getting payment details`);
+        }
+        break;
+      case PaymentMethodRequestEnum.internationalBankTransfer:
+        try {
+          const internationalDetails = await this.internationalTransferDetailsRepo.findOne({
+            userId: new ObjId(userInfo._id),
+            userRole: userInfo.role,
+          });
+
+          if (internationalDetails) {
+            paymentDetails.internationalBankTransfer =
+              mapToInternationalBankTransferDto(internationalDetails);
+          }
+        } catch (err) {
+          this.logger.error(
+            `Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`,
+            err,
+          );
+          throw new InternalServerErrorException(`Error getting payment details`);
+        }
+        break;
+      case PaymentMethodRequestEnum.paypal:
+        try {
+          const paypalDetails = await this.paypalDetailsRepo.findOne({
+            userId: new ObjId(userInfo._id),
+            userRole: userInfo.role,
+          });
+
+          if (paypalDetails) {
+            paymentDetails.paypal = mapToPayPalDto(paypalDetails);
+          }
+        } catch (err) {
+          this.logger.error(
+            `Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`,
+            err,
+          );
+          throw new InternalServerErrorException(`Error getting payment details`);
+        }
+        break;
+      case PaymentMethodRequestEnum.all: {
+        try {
+          const ukDetails = await this.ukTransferDetailsRepo.findOne({
+            userId: new ObjId(userInfo._id),
+            userRole: userInfo.role,
+          });
+
+          if (ukDetails) {
+            paymentDetails.ukBankTransfer = mapToUkBankTransferDto(ukDetails);
+          }
+        } catch (err) {
+          this.logger.error(
+            `Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`,
+            err,
+          );
         }
 
-        return paymentDetails;
+        try {
+          const internationalDetails = await this.internationalTransferDetailsRepo.findOne({
+            userId: new ObjId(userInfo._id),
+            userRole: userInfo.role,
+          });
+
+          if (internationalDetails) {
+            paymentDetails.internationalBankTransfer =
+              mapToInternationalBankTransferDto(internationalDetails);
+          }
+        } catch (err) {
+          this.logger.error(
+            `Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`,
+            err,
+          );
+        }
+
+        try {
+          const paypalDetails = await this.paypalDetailsRepo.findOne({
+            userId: new ObjId(userInfo._id),
+            userRole: userInfo.role,
+          });
+
+          if (paypalDetails) {
+            paymentDetails.paypal = mapToPayPalDto(paypalDetails);
+          }
+        } catch (err) {
+          this.logger.error(
+            `Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`,
+            err,
+          );
+        }
+        break;
+      }
+      default:
+        throw new BadRequestException('Unknown payment method');
     }
 
+    return paymentDetails;
+  }
 
-    // ------------- SERVICES -------------
+  // updates uk bank transfer details
+  private async updateUkTransferDetails(
+    data: UKBankTransferDto,
+    userInfo: UserPayload,
+  ): Promise<UKBankTransferDto> {
+    const updateData: Partial<{
+      beneficiary: string;
+      beneficiaryAddress: string;
+      sortCode: string;
+      accountNumber: string;
+    }> = {};
 
+    if (data.beneficiary) updateData.beneficiary = data.beneficiary.trim();
+    if (data.beneficiaryAddress) updateData.beneficiaryAddress = data.beneficiaryAddress.trim();
+    if (data.sortCode) updateData.sortCode = data.sortCode.trim();
+    if (data.accountNumber) updateData.accountNumber = data.accountNumber.trim();
 
-    // Returns client's account details
-    async getClientAccountDetails(clientId: string): Promise<ClientAccountDetails> {
-        if (!clientId) throw new BadRequestException('Client ID is required');
+    const updatedPaymentDetails = await this.ukTransferDetailsRepo.findOneAndUpdate(
+      {
+        userId: new ObjId(userInfo._id),
+        userRole: userInfo.role,
+      },
+      { $set: updateData },
+      { new: true, upsert: true },
+    );
 
-        const client = await this.clientRepo.findById(clientId);
-        if (!client) throw new NotFoundException('Client not found');
-
-        return mapClientToAccountDetailsDto(client);
+    if (!updatedPaymentDetails) {
+      throw new InternalServerErrorException('Something went wrong');
     }
 
-    // Returns influencer's account details
-    async getInfluencerAccountDetails(influencerId: string): Promise<InfluencerAccountDetails> {
-        if (!influencerId) throw new BadRequestException('Influencer ID is required');
+    return mapToUkBankTransferDto(updatedPaymentDetails);
+  }
 
-        const influencer = await this.influencerRepo.findById(influencerId);
-        if (!influencer) throw new NotFoundException('Influencer not found');
+  // updates international bank transfer details
+  private async updateInternationalTransferDetails(
+    data: InternationalBankTransferDto,
+    userInfo: UserPayload,
+  ): Promise<InternationalBankTransferDto> {
+    const updateData: Partial<{
+      beneficiary: string;
+      beneficiaryAddress: string;
+      iban: string;
+      bankName: string;
+      bankCountry: string;
+      bankAccountCurrency: string;
+      swiftBicCode: string;
+    }> = {};
 
-        return mapInfluencerToAccountDetailsDto(influencer);
+    if (data.beneficiary) updateData.beneficiary = data.beneficiary.trim();
+    if (data.beneficiaryAddress) updateData.beneficiaryAddress = data.beneficiaryAddress.trim();
+    if (data.iban) updateData.iban = data.iban.trim();
+    if (data.bankName) updateData.bankName = data.bankName.trim();
+    if (data.bankCountry) updateData.bankCountry = data.bankCountry.trim();
+    if (data.bankAccountCurrency) updateData.bankAccountCurrency = data.bankAccountCurrency.trim();
+    if (data.swiftBicCode) updateData.swiftBicCode = data.swiftBicCode.trim();
+
+    const updatedPaymentDetails = await this.internationalTransferDetailsRepo.findOneAndUpdate(
+      {
+        userId: new ObjId(userInfo._id),
+        userRole: userInfo.role,
+      },
+      { $set: updateData },
+      { new: true, upsert: true },
+    );
+
+    if (!updatedPaymentDetails) {
+      throw new InternalServerErrorException('Something went wrong');
     }
 
-    // Updates client's personal information
-    async updatePersonalClient(data: UpdateClientPersonalDetailsDto): Promise<ClientUpdatedPersonalDetailsDto> {
-        const {_id, firstName, logoUrl, company, email, phone} = data;
+    return mapToInternationalBankTransferDto(updatedPaymentDetails);
+  }
 
-        const updateData: Partial<{
-            firstName: string;
-            logoUrl: string;
-            company: string;
-            email: string;
-            phone: string;
-        }> = {};
+  // updates paypal transfer details
+  private async updatePaypalDetails(data: PayPalDto, userInfo: UserPayload): Promise<PayPalDto> {
+    if (!data.paypalEmail) throw new BadRequestException('PayPal email required');
 
-        if (firstName) updateData.firstName = firstName.trim();
-        if (logoUrl) updateData.logoUrl = logoUrl.trim();
-        if (company) updateData.company = company.trim();
-        if (email) updateData.email = email.trim().toLowerCase();
-        if (phone) updateData.phone = phone.trim();
+    const updatedPaymentDetails = await this.paypalDetailsRepo.findOneAndUpdate(
+      {
+        userId: new ObjId(userInfo._id),
+        userRole: userInfo.role,
+      },
+      { $set: { paypalEmail: data.paypalEmail } },
+      { new: true, upsert: true },
+    );
 
-        const updatedUser = await this.clientRepo.findOneAndUpdate(
-            {_id: new Types.ObjectId(_id)},
-            {$set: updateData},
-            {new: true}
+    if (!updatedPaymentDetails) {
+      throw new InternalServerErrorException('Something went wrong');
+    }
+
+    return mapToPayPalDto(updatedPaymentDetails);
+  }
+
+  // Updates user's password
+  async updateUserPassword(data: UpdateUserPasswordDto) {
+    const { currentPassword, newPassword, _id, role } = data;
+
+    if (!currentPassword || !newPassword || !_id) {
+      throw new BadRequestException('Not enough arguments');
+    }
+
+    if (!role) {
+      throw new UnauthorizedException('Not enough access');
+    }
+
+    if (role === Role.client) {
+      const client = await this.clientRepo.findOne({ _id: new Types.ObjectId(_id) });
+
+      if (!client) {
+        throw new UnauthorizedException('Client not found');
+      }
+
+      if (bcrypt.compareSync(currentPassword, client.password)) {
+        await this.clientRepo.findOneAndUpdate(
+          { _id: new Types.ObjectId(_id) },
+          {
+            password: bcrypt.hashSync(newPassword),
+          },
+        );
+      } else {
+        throw new BadRequestException("Passwords don't match");
+      }
+    } else if (role === Role.influencer) {
+      const influencer = await this.influencerRepo.findOne({ _id: new Types.ObjectId(_id) });
+
+      if (!influencer) {
+        throw new UnauthorizedException('Influencer not found');
+      }
+
+      if (bcrypt.compareSync(data.currentPassword, influencer.password)) {
+        await this.influencerRepo.findOneAndUpdate(
+          { _id: new Types.ObjectId(_id) },
+          {
+            password: bcrypt.hashSync(newPassword),
+          },
+        );
+      } else {
+        throw new BadRequestException("Passwords don't match");
+      }
+    } else {
+      throw new UnauthorizedException('Not enough access');
+    }
+  }
+
+  // Returns detailed social account
+  async getDetailedSocialAccount(
+    data: GetSocialAccountDetailsParamsDto,
+  ): Promise<SocialAccountDetails> {
+    const { influencerId, socialMedia, accountId } = data;
+
+    if (!influencerId || !socialMedia || !accountId)
+      throw new BadRequestException('Not enough arguments');
+
+    const accountAggregation = await this.influencerRepo.aggregate([
+      {
+        $match: {
+          _id: new Types.ObjectId(influencerId),
+          isDeleted: { $ne: true },
+        },
+      },
+      {
+        $project: {
+          accounts: `$${socialMedia}`,
+        },
+      },
+      {
+        $unwind: '$accounts',
+      },
+      {
+        $match: { 'accounts._id': new Types.ObjectId(accountId) },
+      },
+      {
+        $replaceRoot: { newRoot: '$accounts' },
+      },
+    ]);
+
+    if (!accountAggregation.length) {
+      throw new NotFoundException('Social account not found');
+    }
+
+    const account: SocialAccount = accountAggregation[0];
+
+    return mapToSocialAccountDetailsDto(account);
+  }
+
+  // Updates influencer's social account
+  async updateSocialAccount(data: UpdateSocialAccountDto): Promise<SocialAccountDetails> {
+    if (!data.influencerId) throw new BadRequestException('Not enough arguments');
+    return (await this.updateSocialAccountService.execute(data)) as SocialAccountDetails;
+  }
+
+  // Returns list of social accounts that were verified by admin and need agreement from influencer
+  async getAgreementAccountsList(
+    influencerId: string,
+    role?: Role,
+  ): Promise<AgreementAccountsListDto> {
+    if (role && role !== Role.influencer) throw new ForbiddenException('Not enough access');
+
+    const influencer = await this.influencerRepo.findById(influencerId, { lean: true });
+
+    if (!influencer) throw new NotFoundException('Influencer not found');
+
+    const result: Partial<AgreementAccountsListDto> = {
+      agreementType: AgreementType.profileCreate,
+    };
+
+    for (const key of Object.values(SocialMediaEnum) as SocialMediaEnum[]) {
+      const accounts = (influencer as any)[key] as SocialAccount[] | undefined;
+      if (!accounts?.length) continue;
+
+      if (result.agreementType === AgreementType.profileCreate) {
+        const hasAccepted = accounts?.some(
+          (acc) =>
+            acc.verifiedStatus === AccountVerifiedStatus.accept &&
+            acc.labelStatus === SocialAccountLabelStatus.accept,
         );
 
-        if (!updatedUser) {
-            throw new NotFoundException("Client not found");
+        if (hasAccepted) {
+          result.agreementType = AgreementType.accountAdd;
         }
+      }
 
-        return {
-            firstName: updatedUser.firstName,
-            logoUrl: updateData?.logoUrl,
-            company: updatedUser.company,
-            email: updatedUser.email,
-            phone: updatedUser.phone,
-        };
+      const filtered = accounts
+        .filter(
+          (acc) =>
+            ![
+              AccountVerifiedStatus.accept,
+              AccountVerifiedStatus.decline,
+              AccountVerifiedStatus.waitForAdmin,
+            ].includes(acc.verifiedStatus),
+        )
+        .map(
+          (acc): AgreementAccountDto => ({
+            accountId: acc._id.toString(),
+            username: acc.username,
+            price: acc.price,
+            agreementStatus: acc.verifiedStatus,
+          }),
+        );
+
+      if (filtered.length) {
+        (result as any)[key] = filtered;
+      }
     }
 
-    // Updates influencer's personal information
-    async updatePersonalInfluencer(influencerId: string, data: UpdateInfluencerPersonalDto): Promise<InfluencerUpdatedPersonalDto> {
-        const res = await this.updateInfluencerService.exec(influencerId, data);
+    return result as AgreementAccountsListDto;
+  }
 
+  // Returns one social account that was verified by admin and need agreement from influencer
+  async getAgreementAccount(
+    socialAccountId: string,
+    influencerId: string,
+    role?: Role,
+  ): Promise<AgreementAccountDto> {
+    if (role && role !== Role.influencer) throw new ForbiddenException('Not enough access');
+
+    const influencer = await this.influencerRepo.findById(influencerId, { lean: true });
+    if (!influencer) throw new NotFoundException('Influencer not found');
+
+    for (const key of Object.values(SocialMediaEnum)) {
+      const accounts = (influencer as any)[key] as SocialAccount[] | undefined;
+      if (!accounts?.length) continue;
+
+      const account = accounts.find((a) => a._id?.toString() === socialAccountId);
+      if (account) {
         return {
-            firstName: res.firstName,
-            lastName: res?.lastName,
-            logoUrl: res?.logoUrl,
-            email: res.email,
-            phone: res.phone,
+          accountId: socialAccountId,
+          username: account.username,
+          price: account.price,
+          agreementStatus: account.verifiedStatus,
         };
+      }
     }
 
-    // Updates influencer's selected notification methods
-    async updateNotificationMethodsInfluencer(
-        method: NotificationMethodsEnum,
-        userInfo: UserPayload,
-    ): Promise<UserNotificationMethods> {
+    throw new NotFoundException('Social account not found');
+  }
 
-        if (!Object.values(NotificationMethodsEnum).includes(method)) {
-            throw new BadRequestException('Invalid notification method');
-        }
+  // Updates influencer's agreement response to new social accounts
+  async updateSocialAccountsAgreement(data: UpdateAccountsAgreementDto): Promise<LoginResponseDto> {
+    const { influencerId, status, res, role } = data;
 
-        const update: Record<string, boolean> = {
-            [`notificationMethods.${NotificationMethodsEnum.whatsapp}`]:
-                method === NotificationMethodsEnum.whatsapp,
-            [`notificationMethods.${NotificationMethodsEnum.telegram}`]:
-                method === NotificationMethodsEnum.telegram,
-        };
+    if (role && role !== Role.influencer) throw new ForbiddenException('Not enough access');
 
-        const influencer = await this.influencerRepo.findOneAndUpdate(
-            {_id: new ObjId(userInfo._id)},
-            {$set: update},
+    const isAccepted = status === 'accept';
+
+    const _id = new Types.ObjectId(influencerId);
+
+    const setObj: Record<string, any> = {};
+    for (const key of Object.values(SocialMediaEnum) as SocialMediaEnum[]) {
+      setObj[`${key}.$[acc].verifiedStatus`] = isAccepted
+        ? AccountVerifiedStatus.accept
+        : AccountVerifiedStatus.negotiation;
+
+      if (isAccepted) setObj[`${key}.$[acc].labelStatus`] = SocialAccountLabelStatus.accept;
+    }
+
+    const session = await this.influencerRepo.startSession();
+    session.startTransaction();
+
+    try {
+      await this.influencerRepo.updateOne(
+        {
+          _id,
+          verifiedStatus: {
+            $in: [null, AccountVerifiedStatus.waitForUser, AccountVerifiedStatus.negotiation],
+          },
+        },
+        {
+          $set: {
+            verifiedStatus: isAccepted
+              ? AccountVerifiedStatus.accept
+              : AccountVerifiedStatus.negotiation,
+          },
+        },
+        { session },
+      );
+
+      const updateResult = await this.influencerRepo.updateOneWithArrayFilters(
+        { _id },
+        { $set: setObj },
+        {
+          arrayFilters: [
             {
-                new: true,
-                select: ['notificationMethods'],
-                lean: true,
-            }
-        );
+              'acc.verifiedStatus': {
+                $in: [null, AccountVerifiedStatus.waitForUser, AccountVerifiedStatus.negotiation],
+              },
+            },
+          ],
+          session,
+        },
+      );
+      if (!updateResult.matchedCount) throw new NotFoundException('Influencer not found');
 
-        if (!influencer) {
-            throw new NotFoundException('Influencer not found');
-        }
-
-        return influencer.notificationMethods;
+      await session.commitTransaction();
+    } catch (err) {
+      this.logger.error(`Error updating agreement status for influencer ${influencerId}`, err);
+      await session.abortTransaction();
+      throw new InternalServerErrorException('Something went wrong');
+    } finally {
+      await session.endSession();
     }
 
-    // Returns current user invoice details
-    async getInvoiceDetails(userId: string, userRole: Role): Promise<InvoiceDetailsDto> {
-        const invoiceDetails = await this.invoiceDetailsRepo.findOne({
-            userId: new Types.ObjectId(userId),
-            userRole: userRole,
+    if (isAccepted) {
+      const updatedInfluencer = await this.influencerRepo.findById(influencerId, { lean: true });
+      return this.authService.issueAuthTokens(updatedInfluencer, res);
+    }
+  }
+
+  // Updates influencer's agreement response to one account
+  async updateSocialAccountAgreement(data: UpdateAccountAgreementDto): Promise<void> {
+    const { socialAccountId, influencerId, status, role, messageToAdmin } = data;
+
+    if (role && role !== Role.influencer) {
+      throw new ForbiddenException('Not enough access');
+    }
+
+    const isAccepted = status === 'accept';
+    const _id = new Types.ObjectId(influencerId);
+    const accId = new Types.ObjectId(socialAccountId);
+
+    const socialKeys = Object.values(SocialMediaEnum) as SocialMediaEnum[];
+
+    const influencer = await this.influencerRepo.findOne(
+      { _id },
+      {
+        lean: true,
+        select: ['_id', ...socialKeys],
+      },
+    );
+
+    if (!influencer) throw new NotFoundException('Influencer not found');
+
+    let foundKey: SocialMediaEnum | null = null;
+    let foundIndex = -1;
+    let foundVerifiedStatus: AccountVerifiedStatus | null | undefined;
+
+    for (const key of socialKeys) {
+      const arr = (influencer as any)[key] as
+        | { _id: Types.ObjectId; verifiedStatus?: any }[]
+        | undefined;
+      if (!arr?.length) continue;
+
+      const idx = arr.findIndex((a) => a?._id?.toString() === accId.toString());
+      if (idx !== -1) {
+        foundKey = key; // account social media
+        foundIndex = idx; // account index in social media account list array
+        foundVerifiedStatus = arr[idx]?.verifiedStatus; // account verified status
+        break;
+      }
+    }
+
+    if (!foundKey) throw new NotFoundException('Social account not found');
+
+    const allowed = [null, AccountVerifiedStatus.waitForUser, AccountVerifiedStatus.negotiation];
+    if (!allowed.includes(foundVerifiedStatus as any)) {
+      return;
+    }
+
+    const setObj: Record<string, any> = {
+      [`${foundKey}.${foundIndex}.verifiedStatus`]: isAccepted
+        ? AccountVerifiedStatus.accept
+        : AccountVerifiedStatus.negotiation,
+      [`${foundKey}.${foundIndex}.labelStatus`]: isAccepted
+        ? SocialAccountLabelStatus.accept
+        : SocialAccountLabelStatus.negotiation,
+    };
+
+    if (!isAccepted) {
+      try {
+        await this.negotiationRepo.startNegotiation({
+          userId: _id,
+          accountId: accId,
+          socialMedia: foundKey,
+          offerPayload: {
+            role: Role.influencer,
+            offeredPrice: influencer[foundKey][foundIndex].initialPrice,
+            currencyCode: influencer[foundKey][foundIndex].currency,
+            email: '', // put template here
+          },
         });
-
-        if (invoiceDetails) {
-            return mapToInvoiceDetailsDto(invoiceDetails);
-        }
-
-        return {};
-    }
-
-    // Updates user's invoice details {
-    async updateInvoiceDetails(data: UpdateInvoiceDetailsDto): Promise<InvoiceDetailsDto> {
-        const {userId, userRole, firstName, lastName, address, country, company, vatNumber} = data;
-
-        const updateData: Partial<{
-            firstName: string;
-            lastName: string;
-            address: string;
-            country: string;
-            company: string;
-            vatNumber: string;
-        }> = {};
-
-        if (firstName) updateData.firstName = firstName.trim();
-        if (lastName) updateData.lastName = lastName.trim();
-        if (address) updateData.address = address.trim();
-        if (country) updateData.country = country.trim();
-        if (company) updateData.company = company.trim();
-        if (vatNumber) updateData.vatNumber = vatNumber.trim();
-
-        const updatedInvoiceDetails = await this.invoiceDetailsRepo.findOneAndUpdate(
-            {
-                userId: new Types.ObjectId(userId),
-                userRole: userRole,
-            },
-            {$set: updateData},
-            {new: true, upsert: true}
+      } catch (err) {
+        this.logger.error(err);
+        throw new InternalServerErrorException(
+          `Can't start negotiation about this account now. Try again later or contact us.`,
         );
-
-        if (!updatedInvoiceDetails) {
-            throw new InternalServerErrorException("Something went wrong");
-        }
-
-        return mapToInvoiceDetailsDto(updatedInvoiceDetails);
+      }
     }
 
-    // Returns current user payment methods details
-    async getPaymentDetails(
-        userInfo: UserPayload,
-        selectedPaymentMethod: PaymentMethodRequestEnum = PaymentMethodRequestEnum.all
-    ): Promise<PaymentDetailsDto> {
-        let paymentDetails: PaymentDetailsDto = {};
-        switch (selectedPaymentMethod) {
-            case PaymentMethodRequestEnum.ukBankTransfer:
-                try {
-                    const ukDetails = await this.ukTransferDetailsRepo.findOne({
-                        userId: new ObjId(userInfo._id),
-                        userRole: userInfo.role
-                    });
+    const res = await this.influencerRepo.updateOne({ _id }, { $set: setObj });
 
-                    if (ukDetails) {
-                        paymentDetails.ukBankTransfer = mapToUkBankTransferDto(ukDetails);
-                    }
-                } catch (err) {
-                    this.logger.error(`Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`, err);
-                    throw new InternalServerErrorException(`Error getting payment details`);
-                }
-                break;
-            case PaymentMethodRequestEnum.internationalBankTransfer:
-                try {
-                    const internationalDetails = await this.internationalTransferDetailsRepo.findOne({
-                        userId: new ObjId(userInfo._id),
-                        userRole: userInfo.role
-                    });
+    if (!res.matchedCount) throw new NotFoundException('Influencer not found');
+  }
 
-                    if (internationalDetails) {
-                        paymentDetails.internationalBankTransfer = mapToInternationalBankTransferDto(internationalDetails);
-                    }
-                } catch (err) {
-                    this.logger.error(`Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`, err);
-                    throw new InternalServerErrorException(`Error getting payment details`);
-                }
-                break;
-            case PaymentMethodRequestEnum.paypal:
-                try {
-                    const paypalDetails = await this.paypalDetailsRepo.findOne({
-                        userId: new ObjId(userInfo._id),
-                        userRole: userInfo.role
-                    });
+  // Deletes influencer's social account
+  async deleteSocialAccount(data: DeleteSocialAccountDto) {
+    if (!data.influencerId) throw new BadRequestException('Not enough arguments');
 
-                    if (paypalDetails) {
-                        paymentDetails.paypal = mapToPayPalDto(paypalDetails);
-                    }
-                } catch (err) {
-                    this.logger.error(`Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`, err);
-                    throw new InternalServerErrorException(`Error getting payment details`);
-                }
-                break;
-            case PaymentMethodRequestEnum.all: {
-                try {
-                    const ukDetails = await this.ukTransferDetailsRepo.findOne({
-                        userId: new ObjId(userInfo._id),
-                        userRole: userInfo.role
-                    });
+    const influencer = await this.influencerRepo.findOne({
+      _id: new Types.ObjectId(data.influencerId),
+    });
+    if (!influencer) throw new NotFoundException('Influencer not found');
 
-                    if (ukDetails) {
-                        paymentDetails.ukBankTransfer = mapToUkBankTransferDto(ukDetails);
-                    }
-                } catch (err) {
-                    this.logger.error(`Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`, err);
-                }
+    const socialMediaAccounts = influencer[data.socialMedia];
+    if (!socialMediaAccounts || socialMediaAccounts.length === 0)
+      throw new NotFoundException(
+        `Influencer (${influencer.email}) - No social accounts found for type: ${data.socialMedia}`,
+      );
 
-                try {
-                    const internationalDetails = await this.internationalTransferDetailsRepo.findOne({
-                        userId: new ObjId(userInfo._id),
-                        userRole: userInfo.role
-                    });
+    const accountIndex = socialMediaAccounts.findIndex(
+      (account) => account._id.toString() === data.accountId,
+    );
 
-                    if (internationalDetails) {
-                        paymentDetails.internationalBankTransfer = mapToInternationalBankTransferDto(internationalDetails);
-                    }
-                } catch (err) {
-                    this.logger.error(`Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`, err);
-                }
+    if (accountIndex === -1) throw new NotFoundException(`Social account not found`);
+    const session = await this.influencerRepo.startSession();
 
-                try {
-                    const paypalDetails = await this.paypalDetailsRepo.findOne({
-                        userId: new ObjId(userInfo._id),
-                        userRole: userInfo.role
-                    });
+    try {
+      session.startTransaction();
 
-                    if (paypalDetails) {
-                        paymentDetails.paypal = mapToPayPalDto(paypalDetails);
-                    }
-                } catch (err) {
-                    this.logger.error(`Error getting ${selectedPaymentMethod} payment details for ${userInfo.role} ${userInfo._id}`, err);
-                }
-                break;
-            }
-            default:
-                throw new BadRequestException("Unknown payment method");
-        }
+      await this.influencerRepo.updateOne(
+        { _id: influencer._id },
+        { $set: { [`${data.socialMedia}.${accountIndex}.isDeleted`]: true } },
+        { session },
+      );
 
-        return paymentDetails;
+      await session.commitTransaction();
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      await session.endSession();
     }
 
-    // updates uk bank transfer details
-    private async updateUkTransferDetails(data: UKBankTransferDto, userInfo: UserPayload): Promise<UKBankTransferDto> {
-        const updateData: Partial<{
-            beneficiary: string;
-            beneficiaryAddress: string;
-            sortCode: string;
-            accountNumber: string;
-        }> = {};
+    try {
+      const socialMediaAccountName = socialMediaAccounts[accountIndex].username;
 
-        if (data.beneficiary) updateData.beneficiary = data.beneficiary.trim();
-        if (data.beneficiaryAddress) updateData.beneficiaryAddress = data.beneficiaryAddress.trim();
-        if (data.sortCode) updateData.sortCode = data.sortCode.trim();
-        if (data.accountNumber) updateData.accountNumber = data.accountNumber.trim();
-
-        const updatedPaymentDetails = await this.ukTransferDetailsRepo.findOneAndUpdate(
-            {
-                userId: new ObjId(userInfo._id),
-                userRole: userInfo.role,
-            },
-            {$set: updateData},
-            {new: true, upsert: true}
-        );
-
-        if (!updatedPaymentDetails) {
-            throw new InternalServerErrorException("Something went wrong");
-        }
-
-        return mapToUkBankTransferDto(updatedPaymentDetails);
-    }
-
-    // updates international bank transfer details
-    private async updateInternationalTransferDetails(data: InternationalBankTransferDto, userInfo: UserPayload): Promise<InternationalBankTransferDto> {
-        const updateData: Partial<{
-            beneficiary: string;
-            beneficiaryAddress: string;
-            iban: string;
-            bankName: string;
-            bankCountry: string;
-            bankAccountCurrency: string;
-            swiftBicCode: string;
-        }> = {};
-
-        if (data.beneficiary) updateData.beneficiary = data.beneficiary.trim();
-        if (data.beneficiaryAddress) updateData.beneficiaryAddress = data.beneficiaryAddress.trim();
-        if (data.iban) updateData.iban = data.iban.trim();
-        if (data.bankName) updateData.bankName = data.bankName.trim();
-        if (data.bankCountry) updateData.bankCountry = data.bankCountry.trim();
-        if (data.bankAccountCurrency) updateData.bankAccountCurrency = data.bankAccountCurrency.trim();
-        if (data.swiftBicCode) updateData.swiftBicCode = data.swiftBicCode.trim();
-
-        const updatedPaymentDetails = await this.internationalTransferDetailsRepo.findOneAndUpdate(
-            {
-                userId: new ObjId(userInfo._id),
-                userRole: userInfo.role,
-            },
-            {$set: updateData},
-            {new: true, upsert: true}
-        );
-
-        if (!updatedPaymentDetails) {
-            throw new InternalServerErrorException("Something went wrong");
-        }
-
-        return mapToInternationalBankTransferDto(updatedPaymentDetails);
-    }
-
-    // updates paypal transfer details
-    private async updatePaypalDetails(data: PayPalDto, userInfo: UserPayload): Promise<PayPalDto> {
-        if (!data.paypalEmail) throw new BadRequestException('PayPal email required');
-
-        const updatedPaymentDetails = await this.paypalDetailsRepo.findOneAndUpdate(
-            {
-                userId: new ObjId(userInfo._id),
-                userRole: userInfo.role,
-            },
-            {$set: {paypalEmail: data.paypalEmail}},
-            {new: true, upsert: true}
-        );
-
-        if (!updatedPaymentDetails) {
-            throw new InternalServerErrorException("Something went wrong");
-        }
-
-        return mapToPayPalDto(updatedPaymentDetails);
-    }
-
-    // Updates user's password
-    async updateUserPassword(data: UpdateUserPasswordDto) {
-        const {currentPassword, newPassword, _id, role} = data;
-
-        if (!currentPassword || !newPassword || !_id) {
-            throw new BadRequestException("Not enough arguments");
-        }
-
-        if (!role) {
-            throw new UnauthorizedException("Not enough access");
-        }
-
-        if (role === Role.client) {
-            const client = await this.clientRepo.findOne({_id: new Types.ObjectId(_id)});
-
-            if (!client) {
-                throw new UnauthorizedException("Client not found");
-            }
-
-            if (bcrypt.compareSync(currentPassword, client.password)) {
-                await this.clientRepo.findOneAndUpdate(
-                    {_id: new Types.ObjectId(_id)},
-                    {
-                        password: bcrypt.hashSync(newPassword),
-                    },
-                );
-            } else {
-                throw new BadRequestException("Passwords don't match");
-            }
-        } else if (role === Role.influencer) {
-            const influencer = await this.influencerRepo.findOne({_id: new Types.ObjectId(_id)});
-
-            if (!influencer) {
-                throw new UnauthorizedException("Influencer not found");
-            }
-
-            if (bcrypt.compareSync(data.currentPassword, influencer.password)) {
-                await this.influencerRepo.findOneAndUpdate(
-                    {_id: new Types.ObjectId(_id)},
-                    {
-                        password: bcrypt.hashSync(newPassword),
-                    },
-                );
-            } else {
-                throw new BadRequestException("Passwords don't match");
-            }
-        } else {
-            throw new UnauthorizedException('Not enough access');
-        }
-    }
-
-    // Returns detailed social account
-    async getDetailedSocialAccount(data: GetSocialAccountDetailsParamsDto): Promise<SocialAccountDetails> {
-        const {influencerId, socialMedia, accountId} = data;
-
-        if (!influencerId || !socialMedia || !accountId) throw new BadRequestException("Not enough arguments");
-
-        const accountAggregation = await this.influencerRepo.aggregate([
-            {
-                $match: {
-                    _id: new Types.ObjectId(influencerId),
-                    isDeleted: {$ne: true},
-                }
-            },
-            {
-                $project: {
-                    accounts: `$${socialMedia}`
-                }
-            },
-            {
-                $unwind: '$accounts'
-            },
-            {
-                $match: {'accounts._id': new Types.ObjectId(accountId)}
-            },
-            {
-                $replaceRoot: {newRoot: '$accounts'}
-            }
-        ]);
-
-        if (!accountAggregation.length) {
-            throw new NotFoundException('Social account not found');
-        }
-
-        const account: SocialAccount = accountAggregation[0];
-
-        return mapToSocialAccountDetailsDto(account);
-    }
-
-    // Updates influencer's social account
-    async updateSocialAccount(data: UpdateSocialAccountDto): Promise<SocialAccountDetails> {
-        if (!data.influencerId) throw new BadRequestException("Not enough arguments");
-        return await this.updateSocialAccountService.execute(data) as SocialAccountDetails;
-    }
-
-    // Returns list of social accounts that were verified by admin and need agreement from influencer
-    async getAgreementAccountsList(influencerId: string, role?: Role): Promise<AgreementAccountsListDto> {
-        if (role && role !== Role.influencer) throw new ForbiddenException('Not enough access');
-
-        const influencer = await this.influencerRepo.findById(influencerId, {lean: true});
-
-        if (!influencer) throw new NotFoundException('Influencer not found');
-
-        const result: Partial<AgreementAccountsListDto> = {
-            agreementType: AgreementType.profileCreate
-        };
-
-        for (const key of Object.values(SocialMediaEnum) as SocialMediaEnum[]) {
-            const accounts = (influencer as any)[key] as SocialAccount[] | undefined;
-            if (!accounts?.length) continue;
-
-            if (result.agreementType === AgreementType.profileCreate) {
-                const hasAccepted = accounts?.some(acc => acc.verifiedStatus === AccountVerifiedStatus.accept && acc.labelStatus === SocialAccountLabelStatus.accept);
-
-                if (hasAccepted) {
-                    result.agreementType = AgreementType.accountAdd;
-                }
-            }
-
-            const filtered = accounts
-                .filter(
-                    (acc) => ![AccountVerifiedStatus.accept, AccountVerifiedStatus.decline, AccountVerifiedStatus.waitForAdmin].includes(acc.verifiedStatus),
-                )
-                .map((acc): AgreementAccountDto => ({
-                    accountId: acc._id.toString(),
-                    username: acc.username,
-                    price: acc.price,
-                    agreementStatus: acc.verifiedStatus
-                }));
-
-            if (filtered.length) {
-                (result as any)[key] = filtered;
-            }
-        }
-
-        return result as AgreementAccountsListDto;
-    }
-
-    // Returns one social account that was verified by admin and need agreement from influencer
-    async getAgreementAccount(
-        socialAccountId: string,
-        influencerId: string,
-        role?: Role,
-    ): Promise<AgreementAccountDto> {
-        if (role && role !== Role.influencer) throw new ForbiddenException('Not enough access');
-
-        const influencer = await this.influencerRepo.findById(influencerId, {lean: true});
-        if (!influencer) throw new NotFoundException('Influencer not found');
-
-        for (const key of Object.values(SocialMediaEnum)) {
-            const accounts = (influencer as any)[key] as SocialAccount[] | undefined;
-            if (!accounts?.length) continue;
-
-            const account = accounts.find(a => a._id?.toString() === socialAccountId);
-            if (account) {
-                return {
-                    accountId: socialAccountId,
-                    username: account.username,
-                    price: account.price,
-                    agreementStatus: account.verifiedStatus,
-                };
-            }
-        }
-
-        throw new NotFoundException('Social account not found');
-    }
-
-    // Updates influencer's agreement response to new social accounts
-    async updateSocialAccountsAgreement(data: UpdateAccountsAgreementDto): Promise<LoginResponseDto> {
-        const {influencerId, status, res, role} = data;
-
-        if (role && role !== Role.influencer) throw new ForbiddenException('Not enough access');
-
-        const isAccepted = status === 'accept';
-
-        const _id = new Types.ObjectId(influencerId);
-
-        const setObj: Record<string, any> = {};
-        for (const key of Object.values(SocialMediaEnum) as SocialMediaEnum[]) {
-            setObj[`${key}.$[acc].verifiedStatus`] = isAccepted ? AccountVerifiedStatus.accept : AccountVerifiedStatus.negotiation;
-
-            if (isAccepted) setObj[`${key}.$[acc].labelStatus`] = SocialAccountLabelStatus.accept;
-        }
-
-        const session = await this.influencerRepo.startSession();
-        session.startTransaction();
-
-        try {
-            await this.influencerRepo.updateOne(
-                {
-                    _id,
-                    verifiedStatus: {$in: [null, AccountVerifiedStatus.waitForUser, AccountVerifiedStatus.negotiation]},
-                },
-                {$set: {verifiedStatus: isAccepted ? AccountVerifiedStatus.accept : AccountVerifiedStatus.negotiation}},
-                {session},
-            );
-
-            const updateResult = await this.influencerRepo.updateOneWithArrayFilters(
-                {_id},
-                {$set: setObj},
-                {
-                    arrayFilters: [
-                        {'acc.verifiedStatus': {$in: [null, AccountVerifiedStatus.waitForUser, AccountVerifiedStatus.negotiation]}},
-                    ],
-                    session
-                },
-            );
-            if (!updateResult.matchedCount) throw new NotFoundException('Influencer not found');
-
-            await session.commitTransaction();
-        } catch (err) {
-            this.logger.error(`Error updating agreement status for influencer ${influencerId}`, err);
-            await session.abortTransaction();
-            throw new InternalServerErrorException('Something went wrong');
-        } finally {
-            await session.endSession();
-        }
-
-        if (isAccepted) {
-            const updatedInfluencer = await this.influencerRepo.findById(influencerId, {lean: true});
-            return this.authService.issueAuthTokens(updatedInfluencer, res);
-        }
-    }
-
-    // Updates influencer's agreement response to one account
-    async updateSocialAccountAgreement(data: UpdateAccountAgreementDto): Promise<void> {
-        const {socialAccountId, influencerId, status, role, messageToAdmin} = data;
-
-        if (role && role !== Role.influencer) {
-            throw new ForbiddenException('Not enough access');
-        }
-
-        const isAccepted = status === 'accept';
-        const _id = new Types.ObjectId(influencerId);
-        const accId = new Types.ObjectId(socialAccountId);
-
-        const socialKeys = Object.values(SocialMediaEnum) as SocialMediaEnum[];
-
-        const influencer = await this.influencerRepo.findOne(
-            {_id},
-            {
-                lean: true,
-                select: ['_id', ...socialKeys],
-            },
-        );
-
-        if (!influencer) throw new NotFoundException('Influencer not found');
-
-        let foundKey: SocialMediaEnum | null = null;
-        let foundIndex = -1;
-        let foundVerifiedStatus: AccountVerifiedStatus | null | undefined;
-
-        for (const key of socialKeys) {
-            const arr = (influencer as any)[key] as { _id: Types.ObjectId; verifiedStatus?: any }[] | undefined;
-            if (!arr?.length) continue;
-
-            const idx = arr.findIndex((a) => a?._id?.toString() === accId.toString());
-            if (idx !== -1) {
-                foundKey = key; // account social media
-                foundIndex = idx; // account index in social media account list array
-                foundVerifiedStatus = arr[idx]?.verifiedStatus; // account verified status
-                break;
-            }
-        }
-
-        if (!foundKey) throw new NotFoundException('Social account not found');
-
-        const allowed = [null, AccountVerifiedStatus.waitForUser, AccountVerifiedStatus.negotiation];
-        if (!allowed.includes(foundVerifiedStatus as any)) {
-            return;
-        }
-
-        const setObj: Record<string, any> = {
-            [`${foundKey}.${foundIndex}.verifiedStatus`]: isAccepted
-                ? AccountVerifiedStatus.accept
-                : AccountVerifiedStatus.negotiation,
-            [`${foundKey}.${foundIndex}.labelStatus`]: isAccepted
-                ? SocialAccountLabelStatus.accept
-                : SocialAccountLabelStatus.negotiation
-        };
-
-        if (!isAccepted) {
-            try {
-                await this.negotiationRepo.startNegotiation({
-                    userId: _id,
-                    accountId: accId,
-                    socialMedia: foundKey,
-                    offerPayload: {
-                        role: Role.influencer,
-                        offeredPrice: influencer[foundKey][foundIndex].initialPrice,
-                        currencyCode: influencer[foundKey][foundIndex].currency,
-                        email: "" // put template here
-                    }
-                })
-            } catch (err) {
-                this.logger.error(err);
-                throw new InternalServerErrorException(`Can't start negotiation about this account now. Try again later or contact us.`)
-            }
-        }
-
-        const res = await this.influencerRepo.updateOne(
-            {_id},
-            {$set: setObj},
-        );
-
-        if (!res.matchedCount) throw new NotFoundException('Influencer not found');
-    }
-
-    // Deletes influencer's social account
-    async deleteSocialAccount(data: DeleteSocialAccountDto) {
-        if (!data.influencerId) throw new BadRequestException('Not enough arguments');
-
-        const influencer = await this.influencerRepo.findOne({_id: new Types.ObjectId(data.influencerId)});
-        if (!influencer) throw new NotFoundException("Influencer not found");
-
-        const socialMediaAccounts = influencer[data.socialMedia];
-        if (!socialMediaAccounts || socialMediaAccounts.length === 0) throw new NotFoundException(`Influencer (${influencer.email}) - No social accounts found for type: ${data.socialMedia}`)
-
-        const accountIndex = socialMediaAccounts.findIndex(
-            (account) => account._id.toString() === data.accountId,
-        );
-
-        if (accountIndex === -1) throw new NotFoundException(`Social account not found`);
-        const session = await this.influencerRepo.startSession();
-
-        try {
-            session.startTransaction();
-
-            await this.influencerRepo.updateOne(
-                {_id: influencer._id},
-                {$set: {[`${data.socialMedia}.${accountIndex}.isDeleted`]: true}},
-                {session}
-            );
-
-            await session.commitTransaction();
-        } catch (err) {
-            await session.abortTransaction();
-            throw err;
-        } finally {
-            await session.endSession();
-        }
-
-        try {
-            const socialMediaAccountName = socialMediaAccounts[accountIndex].username;
-
-            const emailContent = `
+      const emailContent = `
         <p>Hi,</p>
         <p>The Influencer <strong>${influencer.firstName}</strong> deleted <strong>${data.socialMedia}</strong> account <strong>${socialMediaAccountName}</strong></p>
         <br>
         ${data.deleteReason ? `<p><strong>Reason:</strong> ${data.deleteReason}</p>` : ''}
     `;
 
+      // todo: delete account
+      // await sendMail(
+      //     process.env.EMAIL_USER,
+      //     'soundinfluencers',
+      //     emailContent,
+      //     'html',
+      // );
+    } catch (err) {
+      this.logger.warn(
+        `${data.socialMedia} ${socialMediaAccounts[accountIndex].username} deleted status updated but email failed`,
+        err,
+      );
+    }
+  }
 
-            // todo: delete account
-            // await sendMail(
-            //     process.env.EMAIL_USER,
-            //     'soundinfluencers',
-            //     emailContent,
-            //     'html',
-            // );
-        } catch (err) {
-            this.logger.warn(`${data.socialMedia} ${socialMediaAccounts[accountIndex].username} deleted status updated but email failed`, err);
+  // Creates new social accounts and return updated influencer
+  async addSocialAccount(data: AddSocialAccountDto): Promise<InfluencerAccountDetailsDto> {
+    return this.createSocialAccountService.execute(
+      data,
+      (influencer: Influencer): InfluencerAccountDetailsDto =>
+        mapInfluencerToAccountDetailsDto(influencer),
+    );
+  }
+
+  // Verifies new social accounts
+  async verifyNewSocialMediaAccounts(
+    influencerId: string,
+    accountIds: string[],
+    isVerified: boolean,
+    newPrice?: number,
+    newCurrency?: CurrencyCode,
+  ) {
+    if (!influencerId || !accountIds || accountIds.length === 0 || isVerified === undefined)
+      throw new BadRequestException('Not enough arguments');
+
+    const influencer = await this.influencerRepo.findById(influencerId);
+
+    if (!influencer) throw new NotFoundException('Influencer not found');
+
+    const socialNetworks = Object.values(SocialMediaEnum);
+
+    let updatedAccounts = [];
+
+    const session = await this.influencerRepo.startSession();
+    session.startTransaction();
+
+    try {
+      let exchangeRate = 1;
+
+      if (newPrice && newCurrency !== CurrencyCode.EUR) {
+        exchangeRate = await this.exchangeRateService.getRate(newCurrency, 'EUR');
+      }
+
+      for (const network of socialNetworks) {
+        const accounts = influencer[network] || [];
+
+        for (const account of accounts) {
+          if (accountIds.includes(account._id.toString())) {
+            const verified = newPrice
+              ? isVerified === true
+                ? AccountVerifiedStatus.accept
+                : AccountVerifiedStatus.accept // even if admin does not accept new price, we need to set status as accepted, so user can still use this account
+              : isVerified === true
+                ? AccountVerifiedStatus.waitForUser
+                : AccountVerifiedStatus.decline;
+
+            const labelStatus = newPrice
+              ? isVerified === true
+                ? SocialAccountLabelStatus.accept
+                : SocialAccountLabelStatus.accept // even if admin does not accept new price, we need to set status as accepted, so user can still use this account
+              : isVerified === true
+                ? SocialAccountLabelStatus.waitForUser
+                : SocialAccountLabelStatus.decline;
+
+            const accountPrice =
+              newPrice && isVerified === true ? Math.round(newPrice * exchangeRate) : account.price;
+
+            const accountPublicPrice =
+              newPrice && isVerified === true
+                ? Math.round(newPrice * exchangeRate * 2)
+                : account.publicPrice;
+
+            const initialPrice =
+              newPrice && isVerified === true ? newPrice : (account.initialPrice ?? account.price);
+            const currency = newPrice && isVerified === true ? newCurrency : account.currency;
+
+            account.price = accountPrice;
+            account.publicPrice = accountPublicPrice;
+            account.initialPrice = initialPrice;
+            account.currency = currency;
+            account.verifiedStatus = verified;
+            account.labelStatus = labelStatus;
+
+            updatedAccounts.push({
+              network,
+              account,
+            });
+          }
         }
+      }
+
+      await influencer.save({ session });
+      await session.commitTransaction();
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      await session.endSession();
     }
 
-    // Creates new social accounts and return updated influencer
-    async addSocialAccount(
-        data: AddSocialAccountDto,
-    ): Promise<InfluencerAccountDetailsDto> {
-        return this.createSocialAccountService.execute(
-            data,
-            (influencer: Influencer): InfluencerAccountDetailsDto => mapInfluencerToAccountDetailsDto(influencer),
+    try {
+      if (newPrice && isVerified === true) {
+        await this.emailService.send(
+          AdminToInfluencerEmails.priceChangeRequestApproved(influencer.email, {
+            firstName: influencer.firstName ?? influencer.email,
+          }),
         );
+      } else if (newPrice && isVerified === false) {
+        await this.emailService.send(
+          AdminToInfluencerEmails.priceChangeRequestDeclined(influencer.email, {
+            firstName: influencer.firstName ?? influencer.email,
+          }),
+        );
+      } else if (!newPrice && isVerified === true) {
+        await this.emailService.send(
+          AdminToInfluencerEmails.socialAccountApproved(influencer.email, {
+            firstName: influencer.firstName ?? influencer.email,
+          }),
+        );
+      } else if (!newPrice && isVerified === false) {
+        await this.emailService.send(
+          AdminToInfluencerEmails.socialAccountDeclined(influencer.email, {
+            firstName: influencer.firstName ?? influencer.email,
+          }),
+        );
+      }
+    } catch (err) {
+      this.logger.error(`Price for account ${accountIds[0]} was updated but email failed`, err);
+    }
+  }
+
+  // Moves social account obj to new owner obj
+  async moveSocialAccount(
+    data: MigrateAccountDto,
+    session: ClientSession,
+  ): Promise<SocialAccountMigrationContext> {
+    const { influencerId, socialAccountToMigrateId, socialMediaOfAccount } = data;
+
+    if (!influencerId || !socialAccountToMigrateId || !socialMediaOfAccount) {
+      throw new BadRequestException('Not enough arguments');
+    }
+
+    const socialAccountObjectId = new Types.ObjectId(socialAccountToMigrateId);
+
+    // Find target influencer
+    const targetInfluencer = await this.influencerRepo.findOne(
+      { _id: new Types.ObjectId(influencerId) },
+      { session },
+    );
+    if (!targetInfluencer) {
+      throw new NotFoundException(`Influencer with id ${influencerId} not found`);
+    }
+
+    // Find influencer with target social account
+    const sourceInfluencer: Influencer = await this.influencerRepo.findBySocialAccount(
+      socialMediaOfAccount,
+      socialAccountObjectId,
+    );
+    if (!sourceInfluencer) {
+      throw new NotFoundException('Social account not found');
+    }
+
+    if (sourceInfluencer._id.toString() === targetInfluencer._id.toString()) {
+      throw new BadRequestException('Cannot migrate social account to the same influencer');
+    }
+
+    // Get target social account
+    const socialAccount = sourceInfluencer[socialMediaOfAccount].find((acc) =>
+      acc._id.equals(socialAccountObjectId),
+    );
+    if (!socialAccount) {
+      throw new NotFoundException('Social account not found');
+    }
+
+    // Delete social account from old owner
+    await this.influencerRepo.pullSocialAccount(
+      sourceInfluencer._id,
+      socialMediaOfAccount,
+      socialAccountObjectId,
+      { session },
+    );
+
+    const alreadyExists = targetInfluencer[socialMediaOfAccount].some(
+      (acc) => acc._id === socialAccountObjectId,
+    );
+    if (alreadyExists) {
+      throw new ConflictException('Social account already exists on target influencer');
+    }
+
+    // Adding social account to new owner
+    await this.influencerRepo.pushSocialAccount(
+      targetInfluencer._id,
+      socialMediaOfAccount,
+      socialAccount,
+      { session },
+    );
+
+    return {
+      socialAccountId: socialAccountObjectId,
+      socialMedia: socialMediaOfAccount,
+      socialAccountUsername: socialAccount.username ?? (socialAccount as any).instagramUsername,
+      socialAccount: socialAccount,
+      sourceInfluencerId: sourceInfluencer._id,
+      targetInfluencerId: targetInfluencer._id,
+      targetInfluencerEmail: targetInfluencer.email,
+    };
+  }
+
+  // Returns filters for getting filtered social accounts (currently using at create campaign page)
+  async getFilterOptions(
+    filters: GetFilteredAccountsBodyDto = {} as GetFilteredAccountsBodyDto,
+  ): Promise<GetFilterOptionsDataDto> {
+    const CANONICAL_ALLOWED_GENRES = [
+      'Techno (Melodic, Minimal)',
+      'Techno (Hard, Peak)',
+      'House (Tech House)',
+      'House (Melodic, Afro)',
+      'EDM',
+      'D&B',
+      'Bass',
+      'Psy, Trance',
+      'Dubstep',
+      'Garage',
+      'Dance Pop',
+    ] as const;
+
+    const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+
+    const cap = (s: string) => {
+      if (!s) return s;
+      return s.charAt(0).toUpperCase() + s.slice(1);
     };
 
-    // Verifies new social accounts
-    async verifyNewSocialMediaAccounts(
-        influencerId: string,
-        accountIds: string[],
-        isVerified: boolean,
-        newPrice?: number,
-        newCurrency?: CurrencyCode
-    ) {
-        if (!influencerId || !accountIds || accountIds.length === 0 || isVerified === undefined) throw new BadRequestException("Not enough arguments");
+    const canonicalByKey = new Map<string, string>(
+      CANONICAL_ALLOWED_GENRES.map((v) => [norm(v), v]),
+    );
 
-        const influencer = await this.influencerRepo.findById(influencerId);
+    const allowedKeys = CANONICAL_ALLOWED_GENRES.map(norm);
 
-        if (!influencer) throw new NotFoundException("Influencer not found");
+    const socialFieldEntries = Object.values(SocialMediaEnum).map((f) => ({
+      k: f,
+      v: `$${f}`,
+    }));
 
-        const socialNetworks = Object.values(SocialMediaEnum);
+    const socialMediaMatchStage: PipelineStage.FacetPipelineStage[] = filters.socialMedias?.length
+      ? [{ $match: { 'allAccounts.socialMedia': { $in: filters.socialMedias } } }]
+      : [];
 
-        let updatedAccounts = [];
+    const pipeline: PipelineStage[] = [
+      this.buildAllAccountsProjectStage(socialFieldEntries),
 
-        const session = await this.influencerRepo.startSession();
-        session.startTransaction();
+      {
+        $unwind: '$allAccounts',
+      },
 
-        try {
-            let exchangeRate = 1;
+      this.buildBaseAcceptedAccountMatchStage(),
 
-            if (newPrice && newCurrency !== CurrencyCode.EUR) {
-                exchangeRate = await this.exchangeRateService.getRate(newCurrency, 'EUR');
-            }
+      ...this.buildAccountFilterMatchStages(filters),
 
-            for (const network of socialNetworks) {
-                const accounts = influencer[network] || [];
-
-                for (const account of accounts) {
-                    if (accountIds.includes(account._id.toString())) {
-                        const verified = newPrice
-                            ? isVerified === true
-                                ? AccountVerifiedStatus.accept
-                                : AccountVerifiedStatus.accept // even if admin does not accept new price, we need to set status as accepted, so user can still use this account
-                            : isVerified === true
-                                ? AccountVerifiedStatus.waitForUser
-                                : AccountVerifiedStatus.decline;
-
-                        const labelStatus = newPrice
-                            ? isVerified === true
-                                ? SocialAccountLabelStatus.accept
-                                : SocialAccountLabelStatus.accept // even if admin does not accept new price, we need to set status as accepted, so user can still use this account
-                            : isVerified === true
-                                ? SocialAccountLabelStatus.waitForUser
-                                : SocialAccountLabelStatus.decline;
-
-                        const accountPrice = newPrice && isVerified === true
-                            ? Math.round(newPrice * exchangeRate)
-                            : account.price;
-
-                        const accountPublicPrice = newPrice && isVerified === true
-                            ? Math.round(newPrice * exchangeRate * 2)
-                            : account.publicPrice;
-
-                        const initialPrice = newPrice && isVerified === true ? newPrice : account.initialPrice ?? account.price;
-                        const currency = newPrice && isVerified === true ? newCurrency : account.currency;
-
-                        account.price = accountPrice;
-                        account.publicPrice = accountPublicPrice;
-                        account.initialPrice = initialPrice;
-                        account.currency = currency;
-                        account.verifiedStatus = verified;
-                        account.labelStatus = labelStatus;
-
-                        updatedAccounts.push({
-                            network,
-                            account,
-                        });
-                    }
-                }
-            }
-
-            await influencer.save({session});
-            await session.commitTransaction();
-        } catch (err) {
-            await session.abortTransaction();
-            throw err;
-        } finally {
-            await session.endSession();
-        }
-
-        try {
-            if (newPrice && isVerified === true) {
-                await this.emailService.send(AdminToInfluencerEmails.priceChangeRequestApproved(
-                    influencer.email,
-                    {
-                        firstName: influencer.firstName ?? influencer.email,
-                    }
-                ));
-            } else if (newPrice && isVerified === false) {
-                await this.emailService.send(AdminToInfluencerEmails.priceChangeRequestDeclined(
-                    influencer.email,
-                    {
-                        firstName: influencer.firstName ?? influencer.email,
-                    }
-                ));
-            } else if (!newPrice && isVerified === true) {
-                await this.emailService.send(AdminToInfluencerEmails.socialAccountApproved(
-                    influencer.email,
-                    {
-                        firstName: influencer.firstName ?? influencer.email,
-                    }
-                ));
-            } else if (!newPrice && isVerified === false) {
-                await this.emailService.send(AdminToInfluencerEmails.socialAccountDeclined(
-                    influencer.email,
-                    {
-                        firstName: influencer.firstName ?? influencer.email,
-                    }
-                ));
-            }
-        } catch (err) {
-            this.logger.error(`Price for account ${accountIds[0]} was updated but email failed`, err);
-        }
-    }
-
-    // Moves social account obj to new owner obj
-    async moveSocialAccount(
-        data: MigrateAccountDto,
-        session: ClientSession,
-    ): Promise<SocialAccountMigrationContext> {
-        const {influencerId, socialAccountToMigrateId, socialMediaOfAccount} = data;
-
-        if (!influencerId || !socialAccountToMigrateId || !socialMediaOfAccount) {
-            throw new BadRequestException('Not enough arguments');
-        }
-
-        const socialAccountObjectId = new Types.ObjectId(socialAccountToMigrateId);
-
-        // Find target influencer
-        const targetInfluencer = await this.influencerRepo.findOne({_id: new Types.ObjectId(influencerId)}, {session});
-        if (!targetInfluencer) {
-            throw new NotFoundException(`Influencer with id ${influencerId} not found`);
-        }
-
-        // Find influencer with target social account
-        const sourceInfluencer: Influencer = await this.influencerRepo.findBySocialAccount(socialMediaOfAccount, socialAccountObjectId);
-        if (!sourceInfluencer) {
-            throw new NotFoundException('Social account not found');
-        }
-
-        if (sourceInfluencer._id.toString() === targetInfluencer._id.toString()) {
-            throw new BadRequestException('Cannot migrate social account to the same influencer');
-        }
-
-        // Get target social account
-        const socialAccount = sourceInfluencer[socialMediaOfAccount].find(acc =>
-            acc._id.equals(socialAccountObjectId),
-        );
-        if (!socialAccount) {
-            throw new NotFoundException('Social account not found');
-        }
-
-        // Delete social account from old owner
-        await this.influencerRepo.pullSocialAccount(
-            sourceInfluencer._id,
-            socialMediaOfAccount,
-            socialAccountObjectId,
-            {session},
-        );
-
-        const alreadyExists = targetInfluencer[socialMediaOfAccount].some(acc =>
-            acc._id === socialAccountObjectId,
-        );
-        if (alreadyExists) {
-            throw new ConflictException('Social account already exists on target influencer');
-        }
-
-        // Adding social account to new owner
-        await this.influencerRepo.pushSocialAccount(
-            targetInfluencer._id,
-            socialMediaOfAccount,
-            socialAccount,
-            {session},
-        );
-
-        return {
-            socialAccountId: socialAccountObjectId,
-            socialMedia: socialMediaOfAccount,
-            socialAccountUsername: socialAccount.username ?? (socialAccount as any).instagramUsername,
-            socialAccount: socialAccount,
-            sourceInfluencerId: sourceInfluencer._id,
-            targetInfluencerId: targetInfluencer._id,
-            targetInfluencerEmail: targetInfluencer.email
-        };
-    }
-
-// Returns filters for getting filtered social accounts (currently using at create campaign page)
-    async getFilterOptions(
-        filters: GetFilteredAccountsBodyDto = {} as GetFilteredAccountsBodyDto,
-    ): Promise<GetFilterOptionsDataDto> {
-        const CANONICAL_ALLOWED_GENRES = [
-            'Techno (Melodic, Minimal)',
-            'Techno (Hard, Peak)',
-            'House (Tech House)',
-            'House (Melodic, Afro)',
-            'EDM',
-            'D&B',
-            'Bass',
-            'Psy, Trance',
-            'Dubstep',
-            'Garage',
-            'Dance Pop',
-        ] as const;
-
-        const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
-
-        const cap = (s: string) => {
-            if (!s) return s;
-            return s.charAt(0).toUpperCase() + s.slice(1);
-        };
-
-        const canonicalByKey = new Map<string, string>(
-            CANONICAL_ALLOWED_GENRES.map(v => [norm(v), v]),
-        );
-
-        const allowedKeys = CANONICAL_ALLOWED_GENRES.map(norm);
-
-        /**
-         * ВАЖНО:
-         * Если selected socialMedias = ['tiktok'], то мы разворачиваем только tiktok.
-         * Поэтому остальные платформы в counts будут 0.
-         */
-        const socialFields = filters.socialMedias?.length
-            ? filters.socialMedias
-            : Object.values(SocialMediaEnum);
-
-        const socialFieldEntries = socialFields.map(f => ({
-            k: f,
-            v: `$${f}`,
-        }));
-
-        const pipeline: PipelineStage[] = [
-            this.buildAllAccountsProjectStage(socialFieldEntries),
-
+      {
+        $facet: {
+          platforms: [
             {
-                $unwind: '$allAccounts',
+              $group: {
+                _id: '$allAccounts.socialMedia',
+                count: { $sum: 1 },
+              },
             },
-
-            this.buildBaseAcceptedAccountMatchStage(),
-
-            ...this.buildAccountFilterMatchStages(filters),
-
             {
-                $facet: {
-                    platforms: [
-                        {
-                            $group: {
-                                _id: '$allAccounts.socialMedia',
-                                count: { $sum: 1 },
-                            },
-                        },
-                        {
-                            $project: {
-                                _id: 0,
-                                id: '$_id',
-                                count: 1,
-                            },
-                        },
-                        {
-                            $sort: {
-                                count: -1,
-                                id: 1,
-                            },
-                        },
-                    ],
-
-                    profileTypes: [
-                        {
-                            $match: {
-                                'allAccounts.profileCategory': {
-                                    $type: 'string',
-                                    $ne: '',
-                                },
-                            },
-                        },
-                        {
-                            $group: {
-                                _id: '$allAccounts.profileCategory',
-                                count: { $sum: 1 },
-                            },
-                        },
-                        {
-                            $project: {
-                                _id: 0,
-                                id: '$_id',
-                                count: 1,
-                            },
-                        },
-                        {
-                            $sort: {
-                                count: -1,
-                                id: 1,
-                            },
-                        },
-                    ],
-
-                    countries: [
-                        {
-                            $unwind: {
-                                path: '$allAccounts.countries',
-                                preserveNullAndEmptyArrays: false,
-                            },
-                        },
-                        {
-                            $match: {
-                                'allAccounts.countries.country': {
-                                    $type: 'string',
-                                    $ne: '',
-                                },
-                            },
-                        },
-                        {
-                            $group: {
-                                _id: '$allAccounts.countries.country',
-                                count: { $sum: 1 },
-                            },
-                        },
-                        {
-                            $project: {
-                                _id: 0,
-                                id: '$_id',
-                                count: 1,
-                            },
-                        },
-                        {
-                            $sort: {
-                                count: -1,
-                                id: 1,
-                            },
-                        },
-                    ],
-
-                    categories: [
-                        {
-                            $unwind: {
-                                path: '$allAccounts.categories',
-                                preserveNullAndEmptyArrays: false,
-                            },
-                        },
-                        {
-                            $project: {
-                                cat: {
-                                    $toLower: {
-                                        $trim: {
-                                            input: '$allAccounts.categories',
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            $match: {
-                                cat: {
-                                    $type: 'string',
-                                    $ne: '',
-                                },
-                            },
-                        },
-                        {
-                            $group: {
-                                _id: '$cat',
-                                count: { $sum: 1 },
-                            },
-                        },
-                        {
-                            $project: {
-                                _id: 0,
-                                id: '$_id',
-                                count: 1,
-                            },
-                        },
-                        {
-                            $sort: {
-                                count: -1,
-                                id: 1,
-                            },
-                        },
-                    ],
-
-                    creatorCategories: [
-                        {
-                            $unwind: {
-                                path: '$allAccounts.creatorCategories',
-                                preserveNullAndEmptyArrays: false,
-                            },
-                        },
-                        {
-                            $match: {
-                                'allAccounts.creatorCategories': {
-                                    $type: 'string',
-                                    $ne: '',
-                                },
-                            },
-                        },
-                        {
-                            $group: {
-                                _id: '$allAccounts.creatorCategories',
-                                count: { $sum: 1 },
-                            },
-                        },
-                        {
-                            $project: {
-                                _id: 0,
-                                id: '$_id',
-                                count: 1,
-                            },
-                        },
-                        {
-                            $sort: {
-                                count: -1,
-                                id: 1,
-                            },
-                        },
-                    ],
-
-                    genres: [
-                        {
-                            $unwind: {
-                                path: '$allAccounts.musicGenres',
-                                preserveNullAndEmptyArrays: false,
-                            },
-                        },
-                        {
-                            $project: {
-                                genre: '$allAccounts.musicGenres.genre',
-                                subGenres: {
-                                    $ifNull: ['$allAccounts.musicGenres.subGenres', []],
-                                },
-                            },
-                        },
-                        {
-                            $match: {
-                                genre: {
-                                    $type: 'string',
-                                    $ne: '',
-                                },
-                            },
-                        },
-                        {
-                            $project: {
-                                genreNorm: {
-                                    $toLower: {
-                                        $trim: {
-                                            input: '$genre',
-                                        },
-                                    },
-                                },
-                                subNorms: {
-                                    $map: {
-                                        input: '$subGenres',
-                                        as: 's',
-                                        in: {
-                                            $toLower: {
-                                                $trim: {
-                                                    input: '$$s',
-                                                },
-                                            },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            $project: {
-                                flat: {
-                                    $cond: [
-                                        {
-                                            $gt: [
-                                                {
-                                                    $size: '$subNorms',
-                                                },
-                                                0,
-                                            ],
-                                        },
-                                        {
-                                            $map: {
-                                                input: '$subNorms',
-                                                as: 'sub',
-                                                in: {
-                                                    $concat: [
-                                                        '$genreNorm',
-                                                        ' (',
-                                                        '$$sub',
-                                                        ')',
-                                                    ],
-                                                },
-                                            },
-                                        },
-                                        ['$genreNorm'],
-                                    ],
-                                },
-                            },
-                        },
-                        {
-                            $unwind: '$flat',
-                        },
-                        {
-                            $project: {
-                                flat: {
-                                    $toLower: {
-                                        $trim: {
-                                            input: '$flat',
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            $match: {
-                                flat: {
-                                    $in: allowedKeys,
-                                },
-                            },
-                        },
-                        {
-                            $group: {
-                                _id: '$flat',
-                                count: { $sum: 1 },
-                            },
-                        },
-                        {
-                            $project: {
-                                _id: 0,
-                                key: '$_id',
-                                count: 1,
-                            },
-                        },
-                        {
-                            $sort: {
-                                count: -1,
-                                key: 1,
-                            },
-                        },
-                    ],
-                },
-            },
-        ];
-
-        const [agg] = await this.influencerRepo.aggregate<{
-            platforms: { id: string; count: number }[];
-            profileTypes: { id: string; count: number }[];
-            countries: { id: string; count: number }[];
-            categories: { id: string; count: number }[];
-            creatorCategories: { id: string; count: number }[];
-            genres: { key: string; count: number }[];
-        }>(pipeline).exec();
-
-        const platformCountMap = new Map(
-            (agg?.platforms ?? []).map(x => [x.id, x.count]),
-        );
-
-        /**
-         * Чтобы выбранный TikTok не удалял Instagram/Facebook из UI,
-         * а показывал их с count: 0.
-         */
-        const platformsFilters = Object.values(SocialMediaEnum).map(platform => ({
-            id: platform,
-            group: 'socialMedia',
-            filterName: cap(platform),
-            count: platformCountMap.get(platform) ?? 0,
-        }));
-
-        const profileTypeFilters = Object.values(InfluencerProfileCategory).map(type => {
-            const found = (agg?.profileTypes ?? []).find(x => x.id === type);
-
-            return {
-                id: type,
-                group: 'profileType',
-                filterName: cap(type),
-                count: found?.count ?? 0,
-            };
-        });
-
-        const byGenre = new Map<string, { total: number; subs: Map<string, number> }>();
-
-        for (const row of agg?.genres ?? []) {
-            const canonical = canonicalByKey.get(row.key);
-
-            if (!canonical) continue;
-
-            const match = canonical.match(/^(.+?)\s*\((.+)\)$/);
-
-            if (match) {
-                const parent = match[1].trim();
-                const sub = match[2].trim();
-
-                if (!byGenre.has(parent)) {
-                    byGenre.set(parent, {
-                        total: 0,
-                        subs: new Map(),
-                    });
-                }
-
-                const item = byGenre.get(parent)!;
-
-                item.total += row.count;
-                item.subs.set(sub, (item.subs.get(sub) ?? 0) + row.count);
-            } else {
-                const parent = canonical.trim();
-
-                if (!byGenre.has(parent)) {
-                    byGenre.set(parent, {
-                        total: 0,
-                        subs: new Map(),
-                    });
-                }
-
-                byGenre.get(parent)!.total += row.count;
-            }
-        }
-
-        /**
-         * Собираем жанры строго по CANONICAL_ALLOWED_GENRES,
-         * чтобы даже при count = 0 они не исчезали с UI.
-         */
-        for (const canonical of CANONICAL_ALLOWED_GENRES) {
-            const match = canonical.match(/^(.+?)\s*\((.+)\)$/);
-
-            if (match) {
-                const parent = match[1].trim();
-                const sub = match[2].trim();
-
-                if (!byGenre.has(parent)) {
-                    byGenre.set(parent, {
-                        total: 0,
-                        subs: new Map(),
-                    });
-                }
-
-                const item = byGenre.get(parent)!;
-
-                if (!item.subs.has(sub)) {
-                    item.subs.set(sub, 0);
-                }
-            } else {
-                const parent = canonical.trim();
-
-                if (!byGenre.has(parent)) {
-                    byGenre.set(parent, {
-                        total: 0,
-                        subs: new Map(),
-                    });
-                }
-            }
-        }
-
-        const musicGenreFilters = Array.from(byGenre.entries())
-            .sort((a, b) => b[1].total - a[1].total || a[0].localeCompare(b[0]))
-            .map(([parent, data]) => {
-                const children = Array.from(data.subs.entries())
-                    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-                    .map(([sub, count]) => ({
-                        id: `(${sub})`,
-                        filterName: sub,
-                        count,
-                        group: 'genres',
-                    }));
-
-                return {
-                    id: parent,
-                    filterName: parent,
-                    count: data.total,
-                    group: 'genres',
-                    ...(children.length ? { children } : {}),
-                };
-            });
-
-        const platformsBlock = {
-            id: 'social-platforms-1',
-            title: 'Social Media Platforms',
-            filters: platformsFilters,
-        };
-
-        const profileTypeBlock = {
-            id: 'profile-type',
-            title: 'Profile Type',
-            filters: profileTypeFilters,
-        };
-
-        const musicGenreBlock = {
-            id: 'music-genre',
-            title: 'Music Genre',
-            AndOrFlag: [{ method: 'And' }, { method: 'Or' }],
-            filters: musicGenreFilters,
-        };
-
-        const musicCategoriesBlock = {
-            id: 'music-categories',
-            title: 'Music Categories',
-            filters: (agg?.creatorCategories ?? []).map(x => ({
-                id: x.id,
-                group: 'musicCategories',
-                filterName: x.id,
-                count: x.count,
-            })),
-        };
-
-        const countriesBlock = {
-            id: 'countries',
-            title: 'Countries of Following',
-            filters: (agg?.countries ?? []).map(c => ({
-                id: c.id,
-                group: 'countries',
-                filterName: c.id,
-                count: c.count,
-            })),
-        };
-
-        const additionalTopicsBlock = {
-            id: 'additional-topics',
-            title: 'Additional Topics',
-            filters: (agg?.categories ?? []).map(x => ({
-                id: x.id,
-                group: 'addTopics',
-                filterName: this.capitalize(x.id),
-                count: x.count,
-            })),
-        };
-
-        return {
-            filterArr: [
-                platformsBlock,
-                profileTypeBlock,
-                musicGenreBlock,
-                musicCategoriesBlock,
-                countriesBlock,
-                additionalTopicsBlock,
-            ],
-        };
-    }
-
-
-// Returns filtered social accounts (currently using at create campaign page)
-    async findAccountsByFilter(
-        filters: GetFilteredAccountsBodyDto & {
-            page?: number;
-            limit?: number;
-            sortBy?: string;
-        },
-    ): Promise<FoundAccountDto[]> {
-        const {
-            socialMedias,
-            page = 1,
-            limit = 20,
-            sortBy = 'bestMatch',
-            budgetCurrency = CurrencyCode.EUR,
-        } = filters;
-
-        const skip = (page - 1) * limit;
-
-        const socialFields = socialMedias?.length
-            ? socialMedias
-            : Object.values(SocialMediaEnum);
-
-        const socialFieldEntries = socialFields.map(f => ({
-            k: f,
-            v: `$${f}`,
-        }));
-
-        const exchangeRates: Record<CurrencyCode, number> =
-            await this.exchangeRateService.getAllRates();
-
-        const eurPriceExpr = {
-            $ifNull: ['$allAccounts.publicPrice', 0],
-        };
-
-        const pipeline: PipelineStage[] = [
-            this.buildAllAccountsProjectStage(socialFieldEntries),
-
-            {
-                $unwind: '$allAccounts',
-            },
-
-            this.buildBaseAcceptedAccountMatchStage(),
-
-            ...this.buildAccountFilterMatchStages(filters),
-        ];
-
-        if (sortBy === 'bestMatch') {
-            pipeline.push({
-                $addFields: {
-                    score: {
-                        $cond: [
-                            {
-                                $gt: ['$allAccounts.followers', 0],
-                            },
-                            {
-                                $divide: [
-                                    '$allAccounts.publicPrice',
-                                    '$allAccounts.followers',
-                                ],
-                            },
-                            Number.MAX_SAFE_INTEGER,
-                        ],
-                    },
-                },
-            });
-        }
-
-        pipeline.push({
-            $project: {
+              $project: {
                 _id: 0,
-                accountId: '$allAccounts._id',
-                influencerId: '$_id',
-                username: '$allAccounts.username',
-                logoUrl: '$allAccounts.logoUrl',
-                followers: '$allAccounts.followers',
-
-                prices: {
-                    EUR: eurPriceExpr,
-
-                    USD: {
-                        $round: [
-                            {
-                                $multiply: [
-                                    eurPriceExpr,
-                                    exchangeRates[CurrencyCode.USD] ?? 1.08,
-                                ],
-                            },
-                            0,
-                        ],
-                    },
-
-                    GBP: {
-                        $round: [
-                            {
-                                $multiply: [
-                                    eurPriceExpr,
-                                    exchangeRates[CurrencyCode.GBP] ?? 0.92,
-                                ],
-                            },
-                            0,
-                        ],
-                    },
-                },
-
-                socialMedia: '$allAccounts.socialMedia',
-
-                profileType: {
-                    $ifNull: [
-                        '$allAccounts.profileCategory',
-                        InfluencerProfileCategory.community,
-                    ],
-                },
-
-                countries: {
-                    $map: {
-                        input: {
-                            $ifNull: ['$allAccounts.countries', []],
-                        },
-                        as: 'c',
-                        in: {
-                            country: '$$c.country',
-                            percentage: {
-                                $ifNull: ['$$c.percentage', 0],
-                            },
-                        },
-                    },
-                },
-
-                musicGenres: {
-                    $reduce: {
-                        input: {
-                            $ifNull: ['$allAccounts.musicGenres', []],
-                        },
-                        initialValue: [],
-                        in: {
-                            $concatArrays: [
-                                '$$value',
-                                {
-                                    $cond: [
-                                        {
-                                            $gt: [
-                                                {
-                                                    $size: {
-                                                        $ifNull: ['$$this.subGenres', []],
-                                                    },
-                                                },
-                                                0,
-                                            ],
-                                        },
-                                        {
-                                            $map: {
-                                                input: '$$this.subGenres',
-                                                as: 'sg',
-                                                in: {
-                                                    $concat: [
-                                                        '$$this.genre',
-                                                        ' (',
-                                                        '$$sg',
-                                                        ')',
-                                                    ],
-                                                },
-                                            },
-                                        },
-                                        ['$$this.genre'],
-                                    ],
-                                },
-                            ],
-                        },
-                    },
-                },
-
-                creatorCategories: {
-                    $ifNull: ['$allAccounts.creatorCategories', []],
-                },
-
-                categories: {
-                    $ifNull: ['$allAccounts.categories', []],
-                },
-
-                averageViews: {
-                    $ifNull: ['$allAccounts.averageViews', 0],
-                },
-
-                engagementRate: {
-                    $ifNull: ['$allAccounts.engagementRate', 0],
-                },
+                id: '$_id',
+                count: 1,
+              },
             },
-        });
+            {
+              $sort: {
+                count: -1,
+                id: 1,
+              },
+            },
+          ],
 
-        const sortStage: Record<string, 1 | -1> = {};
+          profileTypes: [
+            ...socialMediaMatchStage,
+            {
+              $match: {
+                'allAccounts.profileCategory': {
+                  $type: 'string',
+                  $ne: '',
+                },
+              },
+            },
+            {
+              $group: {
+                _id: '$allAccounts.profileCategory',
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                id: '$_id',
+                count: 1,
+              },
+            },
+            {
+              $sort: {
+                count: -1,
+                id: 1,
+              },
+            },
+          ],
 
-        switch (sortBy) {
-            case 'bestMatch':
-                sortStage.score = 1;
-                break;
+          countries: [
+            ...socialMediaMatchStage,
+            {
+              $unwind: {
+                path: '$allAccounts.countries',
+                preserveNullAndEmptyArrays: false,
+              },
+            },
+            {
+              $match: {
+                'allAccounts.countries.country': {
+                  $type: 'string',
+                  $ne: '',
+                },
+              },
+            },
+            {
+              $group: {
+                _id: '$allAccounts.countries.country',
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                id: '$_id',
+                count: 1,
+              },
+            },
+            {
+              $sort: {
+                count: -1,
+                id: 1,
+              },
+            },
+          ],
 
-            case 'lowestPrice':
-                sortStage['prices.EUR'] = 1;
-                break;
+          categories: [
+            ...socialMediaMatchStage,
+            {
+              $unwind: {
+                path: '$allAccounts.categories',
+                preserveNullAndEmptyArrays: false,
+              },
+            },
+            {
+              $project: {
+                cat: {
+                  $toLower: {
+                    $trim: {
+                      input: '$allAccounts.categories',
+                    },
+                  },
+                },
+              },
+            },
+            {
+              $match: {
+                cat: {
+                  $type: 'string',
+                  $ne: '',
+                },
+              },
+            },
+            {
+              $group: {
+                _id: '$cat',
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                id: '$_id',
+                count: 1,
+              },
+            },
+            {
+              $sort: {
+                count: -1,
+                id: 1,
+              },
+            },
+          ],
 
-            case 'highestPrice':
-                sortStage['prices.EUR'] = -1;
-                break;
+          creatorCategories: [
+            ...socialMediaMatchStage,
+            {
+              $unwind: {
+                path: '$allAccounts.creatorCategories',
+                preserveNullAndEmptyArrays: false,
+              },
+            },
+            {
+              $match: {
+                'allAccounts.creatorCategories': {
+                  $type: 'string',
+                  $ne: '',
+                },
+              },
+            },
+            {
+              $group: {
+                _id: '$allAccounts.creatorCategories',
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                id: '$_id',
+                count: 1,
+              },
+            },
+            {
+              $sort: {
+                count: -1,
+                id: 1,
+              },
+            },
+          ],
 
-            case 'lowestFollowers':
-                sortStage.followers = 1;
-                break;
-
-            case 'highestFollowers':
-                sortStage.followers = -1;
-                break;
-
-            default:
-                sortStage.followers = -1;
-                break;
-        }
-
-        pipeline.push({
-            $sort: sortStage,
-        });
-
-        pipeline.push({
-            $facet: {
-                data: [
+          genres: [
+            ...socialMediaMatchStage,
+            {
+              $unwind: {
+                path: '$allAccounts.musicGenres',
+                preserveNullAndEmptyArrays: false,
+              },
+            },
+            {
+              $project: {
+                genre: '$allAccounts.musicGenres.genre',
+                subGenres: {
+                  $ifNull: ['$allAccounts.musicGenres.subGenres', []],
+                },
+              },
+            },
+            {
+              $match: {
+                genre: {
+                  $type: 'string',
+                  $ne: '',
+                },
+              },
+            },
+            {
+              $project: {
+                genreNorm: {
+                  $toLower: {
+                    $trim: {
+                      input: '$genre',
+                    },
+                  },
+                },
+                subNorms: {
+                  $map: {
+                    input: '$subGenres',
+                    as: 's',
+                    in: {
+                      $toLower: {
+                        $trim: {
+                          input: '$$s',
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            {
+              $project: {
+                flat: {
+                  $cond: [
                     {
-                        $skip: skip,
-                    },
-                    {
-                        $limit: limit,
-                    },
-                ],
-                total: [
-                    {
-                        $count: 'count',
-                    },
-                ],
-            },
-        });
-
-        const result = await this.influencerRepo.aggregate<{
-            data: FoundAccountDto[];
-            total: { count: number }[];
-        }>(pipeline).exec();
-
-        return result[0]?.data ?? [];
-    }
-
-
-    /**
-     * Общий stage для сборки всех social accounts в один массив allAccounts.
-     */
-    private buildAllAccountsProjectStage(
-        socialFieldEntries: { k: string; v: string }[],
-    ): PipelineStage.Project {
-        return {
-            $project: {
-                influencerId: '$_id',
-                allAccounts: {
-                    $reduce: {
-                        input: socialFieldEntries,
-                        initialValue: [],
-                        in: {
-                            $concatArrays: [
-                                '$$value',
-                                {
-                                    $map: {
-                                        input: {
-                                            $ifNull: ['$$this.v', []],
-                                        },
-                                        as: 'acc',
-                                        in: {
-                                            $mergeObjects: [
-                                                '$$acc',
-                                                {
-                                                    socialMedia: '$$this.k',
-                                                },
-                                            ],
-                                        },
-                                    },
-                                },
-                            ],
+                      $gt: [
+                        {
+                          $size: '$subNorms',
                         },
+                        0,
+                      ],
                     },
+                    {
+                      $map: {
+                        input: '$subNorms',
+                        as: 'sub',
+                        in: {
+                          $concat: ['$genreNorm', ' (', '$$sub', ')'],
+                        },
+                      },
+                    },
+                    ['$genreNorm'],
+                  ],
                 },
+              },
             },
-        };
-    }
-
-
-    /**
-     * Базовое условие: показываем только подтверждённые, не удалённые и не скрытые аккаунты.
-     */
-    private buildBaseAcceptedAccountMatchStage(): PipelineStage.Match {
-        return {
-            $match: {
-                'allAccounts.isDeleted': {
-                    $ne: true,
-                },
-                'allAccounts.isHidden': {
-                    $ne: true,
-                },
-                'allAccounts.verifiedStatus': AccountVerifiedStatus.accept,
+            {
+              $unwind: '$flat',
             },
-        };
-    }
-
-
-    /**
-     * Общая логика фильтров.
-     *
-     * Используется и в findAccountsByFilter(), и в getFilterOptions(),
-     * чтобы список аккаунтов и counts фильтров считались одинаково.
-     */
-    private buildAccountFilterMatchStages(
-        filters: GetFilteredAccountsBodyDto & {
-            budgetCurrency?: CurrencyCode;
+            {
+              $project: {
+                flat: {
+                  $toLower: {
+                    $trim: {
+                      input: '$flat',
+                    },
+                  },
+                },
+              },
+            },
+            {
+              $match: {
+                flat: {
+                  $in: allowedKeys,
+                },
+              },
+            },
+            {
+              $group: {
+                _id: '$flat',
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                key: '$_id',
+                count: 1,
+              },
+            },
+            {
+              $sort: {
+                count: -1,
+                key: 1,
+              },
+            },
+          ],
         },
-    ): PipelineStage[] {
-        const stages: PipelineStage[] = [];
+      },
+    ];
 
-        if (filters.profileTypes?.length) {
-            stages.push({
-                $match: {
-                    'allAccounts.profileCategory': {
-                        $in: filters.profileTypes,
-                    },
-                },
-            });
+    const [agg] = await this.influencerRepo
+      .aggregate<{
+        platforms: { id: string; count: number }[];
+        profileTypes: { id: string; count: number }[];
+        countries: { id: string; count: number }[];
+        categories: { id: string; count: number }[];
+        creatorCategories: { id: string; count: number }[];
+        genres: { key: string; count: number }[];
+      }>(pipeline)
+      .exec();
+
+    const platformCountMap = new Map((agg?.platforms ?? []).map((x) => [x.id, x.count]));
+
+    /**
+     * Чтобы выбранный TikTok не удалял Instagram/Facebook из UI,
+     * а показывал их с count: 0.
+     */
+    const platformsFilters = Object.values(SocialMediaEnum).map((platform) => ({
+      id: platform,
+      group: 'socialMedia',
+      filterName: cap(platform),
+      count: platformCountMap.get(platform) ?? 0,
+    }));
+
+    const profileTypeFilters = Object.values(InfluencerProfileCategory).map((type) => {
+      const found = (agg?.profileTypes ?? []).find((x) => x.id === type);
+
+      return {
+        id: type,
+        group: 'profileType',
+        filterName: cap(type),
+        count: found?.count ?? 0,
+      };
+    });
+
+    const byGenre = new Map<string, { total: number; subs: Map<string, number> }>();
+
+    for (const row of agg?.genres ?? []) {
+      const canonical = canonicalByKey.get(row.key);
+
+      if (!canonical) continue;
+
+      const match = canonical.match(/^(.+?)\s*\((.+)\)$/);
+
+      if (match) {
+        const parent = match[1].trim();
+        const sub = match[2].trim();
+
+        if (!byGenre.has(parent)) {
+          byGenre.set(parent, {
+            total: 0,
+            subs: new Map(),
+          });
         }
 
-        if (typeof filters.budget === 'number') {
-            stages.push({
-                $match: {
-                    'allAccounts.publicPrice': {
-                        $lte: filters.budget,
-                    },
-                },
-            });
+        const item = byGenre.get(parent)!;
+
+        item.total += row.count;
+        item.subs.set(sub, (item.subs.get(sub) ?? 0) + row.count);
+      } else {
+        const parent = canonical.trim();
+
+        if (!byGenre.has(parent)) {
+          byGenre.set(parent, {
+            total: 0,
+            subs: new Map(),
+          });
         }
 
-        if (filters.musicGenres?.length) {
-            const normalizedGenres: InfluencerMusicGenre[] =
-                normalizeStringToMusicGenres(filters.musicGenres);
-
-            const genreConditions = normalizedGenres.flatMap(g => {
-                const subGenres = g.subGenres?.length ? g.subGenres : [null];
-
-                return subGenres.map(sub => {
-                    if (sub) {
-                        return {
-                            'allAccounts.musicGenres': {
-                                $elemMatch: {
-                                    genre: g.genre,
-                                    subGenres: sub,
-                                },
-                            },
-                        };
-                    }
-
-                    return {
-                        'allAccounts.musicGenres': {
-                            $elemMatch: {
-                                genre: g.genre,
-                            },
-                        },
-                    };
-                });
-            });
-
-            if (genreConditions.length) {
-                stages.push({
-                    $match:
-                        filters.musicGenresFilterMethod === 'and'
-                            ? {
-                                $and: genreConditions,
-                            }
-                            : {
-                                $or: genreConditions,
-                            },
-                });
-            }
-        }
-
-        if (filters.countries?.length) {
-            stages.push({
-                $match: {
-                    'allAccounts.countries.country': {
-                        $in: filters.countries,
-                    },
-                },
-            });
-        }
-
-        if (filters.additionalTopics?.length) {
-            const normalizedAdditionalTopics = filters.additionalTopics.map(x =>
-                x.trim().toLowerCase(),
-            );
-
-            stages.push({
-                $match: {
-                    $expr: {
-                        $gt: [
-                            {
-                                $size: {
-                                    $setIntersection: [
-                                        {
-                                            $map: {
-                                                input: {
-                                                    $ifNull: ['$allAccounts.categories', []],
-                                                },
-                                                as: 'category',
-                                                in: {
-                                                    $toLower: {
-                                                        $trim: {
-                                                            input: '$$category',
-                                                        },
-                                                    },
-                                                },
-                                            },
-                                        },
-                                        normalizedAdditionalTopics,
-                                    ],
-                                },
-                            },
-                            0,
-                        ],
-                    },
-                },
-            });
-        }
-
-        if (filters.musicCategories?.length) {
-            stages.push({
-                $match: {
-                    'allAccounts.creatorCategories': {
-                        $in: filters.musicCategories,
-                    },
-                },
-            });
-        }
-
-        if (filters.entertainmentCategories?.length) {
-            stages.push({
-                $match: {
-                    'allAccounts.categories': {
-                        $in: filters.entertainmentCategories,
-                    },
-                },
-            });
-        }
-
-        return stages;
+        byGenre.get(parent)!.total += row.count;
+      }
     }
 
-    // Searching social accounts
-    async searchSocialAccounts(dto: SearchSocialAccountsDto): Promise<FoundAccountDto[]> {
-        const queryRaw = (dto.query ?? '').trim();
-        if (!queryRaw) throw new BadRequestException('query is required');
+    /**
+     * Собираем жанры строго по CANONICAL_ALLOWED_GENRES,
+     * чтобы даже при count = 0 они не исчезали с UI.
+     */
+    for (const canonical of CANONICAL_ALLOWED_GENRES) {
+      const match = canonical.match(/^(.+?)\s*\((.+)\)$/);
 
-        const socialMedias = dto.socialMedias ?? [];
-        if (!socialMedias.length) throw new BadRequestException('socialMedias is required');
+      if (match) {
+        const parent = match[1].trim();
+        const sub = match[2].trim();
 
-        const page = Math.max(1, Number(dto.page ?? 1));
-        const limit = Math.min(50, Math.max(1, Number(dto.limit ?? 20)));
-        const skip = (page - 1) * limit;
+        if (!byGenre.has(parent)) {
+          byGenre.set(parent, {
+            total: 0,
+            subs: new Map(),
+          });
+        }
 
-        const q = this.escapeRegex(queryRaw);
-        const usernameRegex = new RegExp(`^${q}`, 'i');
+        const item = byGenre.get(parent)!;
 
-        // Getting latest exchanging rates for available currencies
-        const exchangeRates: Record<CurrencyCode, number> = await this.exchangeRateService.getAllRates();
-        const eurPriceExpr = { $ifNull: ['$acc.publicPrice', 0] };
+        if (!item.subs.has(sub)) {
+          item.subs.set(sub, 0);
+        }
+      } else {
+        const parent = canonical.trim();
 
-        const concatParts = socialMedias.map((sm) => ({
-            $map: {
-                input: `$${sm}`,
-                as: 'a',
-                in: {
-                    $mergeObjects: ['$$a', {socialMedia: sm}],
-                },
-            },
-        }));
+        if (!byGenre.has(parent)) {
+          byGenre.set(parent, {
+            total: 0,
+            subs: new Map(),
+          });
+        }
+      }
+    }
 
-        const matchAcc = {
-            'acc.verifiedStatus': AccountVerifiedStatus.accept,
-            'acc.isHidden': {$ne: true},
-            'acc.isDeleted': {$ne: true},
+    const musicGenreFilters = Array.from(byGenre.entries())
+      .sort((a, b) => b[1].total - a[1].total || a[0].localeCompare(b[0]))
+      .map(([parent, data]) => {
+        const children = Array.from(data.subs.entries())
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+          .map(([sub, count]) => ({
+            id: `(${sub})`,
+            filterName: sub,
+            count,
+            group: 'genres',
+          }));
+
+        return {
+          id: parent,
+          filterName: parent,
+          count: data.total,
+          group: 'genres',
+          ...(children.length ? { children } : {}),
         };
+      });
 
-        const pipeline: any[] = [
-            {
-                $project: {
-                    influencerId: '$_id',
-                    accAll: {$concatArrays: concatParts},
-                },
-            },
-            {$unwind: '$accAll'},
-            {$set: {acc: '$accAll'}},
+    const platformsBlock = {
+      id: 'social-platforms-1',
+      title: 'Social Media Platforms',
+      filters: platformsFilters,
+    };
 
-            {$match: matchAcc},
+    const profileTypeBlock = {
+      id: 'profile-type',
+      title: 'Profile Type',
+      filters: profileTypeFilters,
+    };
 
-            {$match: {'acc.username': usernameRegex}},
+    const musicGenreBlock = {
+      id: 'music-genre',
+      title: 'Music Genre',
+      AndOrFlag: [{ method: 'And' }, { method: 'Or' }],
+      filters: musicGenreFilters,
+    };
 
-            {$skip: skip},
-            {$limit: limit},
+    const musicCategoriesBlock = {
+      id: 'music-categories',
+      title: 'Music Categories',
+      filters: (agg?.creatorCategories ?? []).map((x) => ({
+        id: x.id,
+        group: 'musicCategories',
+        filterName: x.id,
+        count: x.count,
+      })),
+    };
 
-            {
-                $project: {
-                    _id: 0,
-                    accountId: {$toString: '$acc._id'},
-                    influencerId: {$toString: '$influencerId'},
-                    username: '$acc.username',
-                    logoUrl: '$acc.logoUrl',
-                    followers: '$acc.followers',
-                    socialMedia: '$acc.socialMedia',
-                    countries: {$ifNull: ['$acc.countries', []]},
+    const countriesBlock = {
+      id: 'countries',
+      title: 'Countries of Following',
+      filters: (agg?.countries ?? []).map((c) => ({
+        id: c.id,
+        group: 'countries',
+        filterName: c.id,
+        count: c.count,
+      })),
+    };
 
-                    musicGenres: {
-                        $cond: [
-                            {$isArray: '$acc.musicGenres'},
-                            {$map: {input: '$acc.musicGenres', as: 'g', in: '$$g.genre'}},
-                            '$$REMOVE',
-                        ],
-                    },
-                    creatorCategories: {$ifNull: ['$acc.creatorCategories', '$$REMOVE']},
-                    categories: {$ifNull: ['$acc.categories', '$$REMOVE']},
+    const additionalTopicsBlock = {
+      id: 'additional-topics',
+      title: 'Additional Topics',
+      filters: (agg?.categories ?? []).map((x) => ({
+        id: x.id,
+        group: 'addTopics',
+        filterName: this.capitalize(x.id),
+        count: x.count,
+      })),
+    };
 
-                    prices: {
-                        EUR: eurPriceExpr,
+    return {
+      filterArr: [
+        platformsBlock,
+        profileTypeBlock,
+        musicGenreBlock,
+        musicCategoriesBlock,
+        countriesBlock,
+        additionalTopicsBlock,
+      ],
+    };
+  }
 
-                        USD: {
-                            $round: [
-                                {$multiply: [eurPriceExpr, exchangeRates[CurrencyCode.USD] ?? 1.08]},
-                                0
-                            ]
-                        },
+  // Returns filtered social accounts (currently using at create campaign page)
+  async findAccountsByFilter(
+    filters: GetFilteredAccountsBodyDto & {
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+    },
+  ): Promise<FoundAccountDto[]> {
+    const {
+      socialMedias,
+      page = 1,
+      limit = 20,
+      sortBy = 'bestMatch',
+      budgetCurrency = CurrencyCode.EUR,
+    } = filters;
 
-                        GBP: {
-                            $round: [
-                                {$multiply: [eurPriceExpr, exchangeRates[CurrencyCode.GBP] ?? 0.92]},
-                                0
-                            ]
-                        },
-                    },
+    const skip = (page - 1) * limit;
 
-                    averageViews: {$ifNull: ['$acc.averageViews', 0]},
-                    engagementRate: {$ifNull: ['$acc.engagementRate', 0]},
-                },
-            },
-        ];
+    const socialFields = socialMedias?.length ? socialMedias : Object.values(SocialMediaEnum);
 
-        return this.influencerRepo.aggregate<FoundAccountDto>(pipeline).allowDiskUse(true);
+    const socialFieldEntries = socialFields.map((f) => ({
+      k: f,
+      v: `$${f}`,
+    }));
+
+    const exchangeRates: Record<CurrencyCode, number> =
+      await this.exchangeRateService.getAllRates();
+
+    const eurPriceExpr = {
+      $ifNull: ['$allAccounts.publicPrice', 0],
+    };
+
+    const pipeline: PipelineStage[] = [
+      this.buildAllAccountsProjectStage(socialFieldEntries),
+
+      {
+        $unwind: '$allAccounts',
+      },
+
+      this.buildBaseAcceptedAccountMatchStage(),
+
+      ...this.buildAccountFilterMatchStages(filters),
+    ];
+
+    if (sortBy === 'bestMatch') {
+      pipeline.push({
+        $addFields: {
+          score: {
+            $cond: [
+              {
+                $gt: ['$allAccounts.followers', 0],
+              },
+              {
+                $divide: ['$allAccounts.publicPrice', '$allAccounts.followers'],
+              },
+              Number.MAX_SAFE_INTEGER,
+            ],
+          },
+        },
+      });
     }
+
+    pipeline.push({
+      $project: {
+        _id: 0,
+        accountId: '$allAccounts._id',
+        influencerId: '$_id',
+        username: '$allAccounts.username',
+        logoUrl: '$allAccounts.logoUrl',
+        followers: '$allAccounts.followers',
+
+        prices: {
+          EUR: eurPriceExpr,
+
+          USD: {
+            $round: [
+              {
+                $multiply: [eurPriceExpr, exchangeRates[CurrencyCode.USD] ?? 1.08],
+              },
+              0,
+            ],
+          },
+
+          GBP: {
+            $round: [
+              {
+                $multiply: [eurPriceExpr, exchangeRates[CurrencyCode.GBP] ?? 0.92],
+              },
+              0,
+            ],
+          },
+        },
+
+        socialMedia: '$allAccounts.socialMedia',
+
+        profileType: {
+          $ifNull: ['$allAccounts.profileCategory', InfluencerProfileCategory.community],
+        },
+
+        countries: {
+          $map: {
+            input: {
+              $ifNull: ['$allAccounts.countries', []],
+            },
+            as: 'c',
+            in: {
+              country: '$$c.country',
+              percentage: {
+                $ifNull: ['$$c.percentage', 0],
+              },
+            },
+          },
+        },
+
+        musicGenres: {
+          $reduce: {
+            input: {
+              $ifNull: ['$allAccounts.musicGenres', []],
+            },
+            initialValue: [],
+            in: {
+              $concatArrays: [
+                '$$value',
+                {
+                  $cond: [
+                    {
+                      $gt: [
+                        {
+                          $size: {
+                            $ifNull: ['$$this.subGenres', []],
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                    {
+                      $map: {
+                        input: '$$this.subGenres',
+                        as: 'sg',
+                        in: {
+                          $concat: ['$$this.genre', ' (', '$$sg', ')'],
+                        },
+                      },
+                    },
+                    ['$$this.genre'],
+                  ],
+                },
+              ],
+            },
+          },
+        },
+
+        creatorCategories: {
+          $ifNull: ['$allAccounts.creatorCategories', []],
+        },
+
+        categories: {
+          $ifNull: ['$allAccounts.categories', []],
+        },
+
+        averageViews: {
+          $ifNull: ['$allAccounts.averageViews', 0],
+        },
+
+        engagementRate: {
+          $ifNull: ['$allAccounts.engagementRate', 0],
+        },
+      },
+    });
+
+    const sortStage: Record<string, 1 | -1> = {};
+
+    switch (sortBy) {
+      case 'bestMatch':
+        sortStage.score = 1;
+        break;
+
+      case 'lowestPrice':
+        sortStage['prices.EUR'] = 1;
+        break;
+
+      case 'highestPrice':
+        sortStage['prices.EUR'] = -1;
+        break;
+
+      case 'lowestFollowers':
+        sortStage.followers = 1;
+        break;
+
+      case 'highestFollowers':
+        sortStage.followers = -1;
+        break;
+
+      default:
+        sortStage.followers = -1;
+        break;
+    }
+
+    pipeline.push({
+      $sort: sortStage,
+    });
+
+    pipeline.push({
+      $facet: {
+        data: [
+          {
+            $skip: skip,
+          },
+          {
+            $limit: limit,
+          },
+        ],
+        total: [
+          {
+            $count: 'count',
+          },
+        ],
+      },
+    });
+
+    const result = await this.influencerRepo
+      .aggregate<{
+        data: FoundAccountDto[];
+        total: { count: number }[];
+      }>(pipeline)
+      .exec();
+
+    return result[0]?.data ?? [];
+  }
+
+  /**
+   * Общий stage для сборки всех social accounts в один массив allAccounts.
+   */
+  private buildAllAccountsProjectStage(
+    socialFieldEntries: { k: string; v: string }[],
+  ): PipelineStage.Project {
+    return {
+      $project: {
+        influencerId: '$_id',
+        allAccounts: {
+          $reduce: {
+            input: socialFieldEntries,
+            initialValue: [],
+            in: {
+              $concatArrays: [
+                '$$value',
+                {
+                  $map: {
+                    input: {
+                      $ifNull: ['$$this.v', []],
+                    },
+                    as: 'acc',
+                    in: {
+                      $mergeObjects: [
+                        '$$acc',
+                        {
+                          socialMedia: '$$this.k',
+                        },
+                      ],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    };
+  }
+
+  /**
+   * Базовое условие: показываем только подтверждённые, не удалённые и не скрытые аккаунты.
+   */
+  private buildBaseAcceptedAccountMatchStage(): PipelineStage.Match {
+    return {
+      $match: {
+        'allAccounts.isDeleted': {
+          $ne: true,
+        },
+        'allAccounts.isHidden': {
+          $ne: true,
+        },
+        'allAccounts.verifiedStatus': AccountVerifiedStatus.accept,
+      },
+    };
+  }
+
+  /**
+   * Общая логика фильтров.
+   *
+   * Используется и в findAccountsByFilter(), и в getFilterOptions(),
+   * чтобы список аккаунтов и counts фильтров считались одинаково.
+   */
+  private buildAccountFilterMatchStages(
+    filters: GetFilteredAccountsBodyDto & {
+      budgetCurrency?: CurrencyCode;
+    },
+  ): PipelineStage[] {
+    const stages: PipelineStage[] = [];
+
+    if (filters.profileTypes?.length) {
+      stages.push({
+        $match: {
+          'allAccounts.profileCategory': {
+            $in: filters.profileTypes,
+          },
+        },
+      });
+    }
+
+    if (typeof filters.budget === 'number') {
+      stages.push({
+        $match: {
+          'allAccounts.publicPrice': {
+            $lte: filters.budget,
+          },
+        },
+      });
+    }
+
+    if (filters.musicGenres?.length) {
+      const normalizedGenres: InfluencerMusicGenre[] = normalizeStringToMusicGenres(
+        filters.musicGenres,
+      );
+
+      const genreConditions = normalizedGenres.flatMap((g) => {
+        const subGenres = g.subGenres?.length ? g.subGenres : [null];
+
+        return subGenres.map((sub) => {
+          if (sub) {
+            return {
+              'allAccounts.musicGenres': {
+                $elemMatch: {
+                  genre: g.genre,
+                  subGenres: sub,
+                },
+              },
+            };
+          }
+
+          return {
+            'allAccounts.musicGenres': {
+              $elemMatch: {
+                genre: g.genre,
+              },
+            },
+          };
+        });
+      });
+
+      if (genreConditions.length) {
+        stages.push({
+          $match:
+            filters.musicGenresFilterMethod === 'and'
+              ? {
+                  $and: genreConditions,
+                }
+              : {
+                  $or: genreConditions,
+                },
+        });
+      }
+    }
+
+    if (filters.countries?.length) {
+      stages.push({
+        $match: {
+          'allAccounts.countries.country': {
+            $in: filters.countries,
+          },
+        },
+      });
+    }
+
+    if (filters.additionalTopics?.length) {
+      const normalizedAdditionalTopics = filters.additionalTopics.map((x) =>
+        x.trim().toLowerCase(),
+      );
+
+      stages.push({
+        $match: {
+          $expr: {
+            $gt: [
+              {
+                $size: {
+                  $setIntersection: [
+                    {
+                      $map: {
+                        input: {
+                          $ifNull: ['$allAccounts.categories', []],
+                        },
+                        as: 'category',
+                        in: {
+                          $toLower: {
+                            $trim: {
+                              input: '$$category',
+                            },
+                          },
+                        },
+                      },
+                    },
+                    normalizedAdditionalTopics,
+                  ],
+                },
+              },
+              0,
+            ],
+          },
+        },
+      });
+    }
+
+    if (filters.musicCategories?.length) {
+      stages.push({
+        $match: {
+          'allAccounts.creatorCategories': {
+            $in: filters.musicCategories,
+          },
+        },
+      });
+    }
+
+    if (filters.entertainmentCategories?.length) {
+      stages.push({
+        $match: {
+          'allAccounts.categories': {
+            $in: filters.entertainmentCategories,
+          },
+        },
+      });
+    }
+
+    return stages;
+  }
+
+  // Searching social accounts
+  async searchSocialAccounts(dto: SearchSocialAccountsDto): Promise<FoundAccountDto[]> {
+    const queryRaw = (dto.query ?? '').trim();
+    if (!queryRaw) throw new BadRequestException('query is required');
+
+    const socialMedias = dto.socialMedias ?? [];
+    if (!socialMedias.length) throw new BadRequestException('socialMedias is required');
+
+    const page = Math.max(1, Number(dto.page ?? 1));
+    const limit = Math.min(50, Math.max(1, Number(dto.limit ?? 20)));
+    const skip = (page - 1) * limit;
+
+    const q = this.escapeRegex(queryRaw);
+    const usernameRegex = new RegExp(`^${q}`, 'i');
+
+    // Getting latest exchanging rates for available currencies
+    const exchangeRates: Record<CurrencyCode, number> =
+      await this.exchangeRateService.getAllRates();
+    const eurPriceExpr = { $ifNull: ['$acc.publicPrice', 0] };
+
+    const concatParts = socialMedias.map((sm) => ({
+      $map: {
+        input: `$${sm}`,
+        as: 'a',
+        in: {
+          $mergeObjects: ['$$a', { socialMedia: sm }],
+        },
+      },
+    }));
+
+    const matchAcc = {
+      'acc.verifiedStatus': AccountVerifiedStatus.accept,
+      'acc.isHidden': { $ne: true },
+      'acc.isDeleted': { $ne: true },
+    };
+
+    const pipeline: any[] = [
+      {
+        $project: {
+          influencerId: '$_id',
+          accAll: { $concatArrays: concatParts },
+        },
+      },
+      { $unwind: '$accAll' },
+      { $set: { acc: '$accAll' } },
+
+      { $match: matchAcc },
+
+      { $match: { 'acc.username': usernameRegex } },
+
+      { $skip: skip },
+      { $limit: limit },
+
+      {
+        $project: {
+          _id: 0,
+          accountId: { $toString: '$acc._id' },
+          influencerId: { $toString: '$influencerId' },
+          username: '$acc.username',
+          logoUrl: '$acc.logoUrl',
+          followers: '$acc.followers',
+          socialMedia: '$acc.socialMedia',
+          countries: { $ifNull: ['$acc.countries', []] },
+
+          musicGenres: {
+            $cond: [
+              { $isArray: '$acc.musicGenres' },
+              { $map: { input: '$acc.musicGenres', as: 'g', in: '$$g.genre' } },
+              '$$REMOVE',
+            ],
+          },
+          creatorCategories: { $ifNull: ['$acc.creatorCategories', '$$REMOVE'] },
+          categories: { $ifNull: ['$acc.categories', '$$REMOVE'] },
+
+          prices: {
+            EUR: eurPriceExpr,
+
+            USD: {
+              $round: [{ $multiply: [eurPriceExpr, exchangeRates[CurrencyCode.USD] ?? 1.08] }, 0],
+            },
+
+            GBP: {
+              $round: [{ $multiply: [eurPriceExpr, exchangeRates[CurrencyCode.GBP] ?? 0.92] }, 0],
+            },
+          },
+
+          averageViews: { $ifNull: ['$acc.averageViews', 0] },
+          engagementRate: { $ifNull: ['$acc.engagementRate', 0] },
+        },
+      },
+    ];
+
+    return this.influencerRepo.aggregate<FoundAccountDto>(pipeline).allowDiskUse(true);
+  }
 }
