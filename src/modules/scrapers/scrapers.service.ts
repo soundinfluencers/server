@@ -484,7 +484,7 @@ export class ScrapersService {
       {
         [socialMedia]: { $exists: true, $ne: [] },
       },
-      { lean: true },
+      { lean: true, limit: 20 },
     );
 
     if (!influencers || influencers.length === 0) {
@@ -509,11 +509,6 @@ export class ScrapersService {
           _idInfluencer: inf._id?.toString() ?? null,
         }));
     });
-
-    // TEST LIMIT: scrape only one specific account
-    const TEST_ACCOUNT_ID = '68a034a39636e568dfc72c18';
-    const filteredAccounts = accounts.filter((a) => (a as any)._id?.toString() === TEST_ACCOUNT_ID);
-    accounts.splice(0, accounts.length, ...filteredAccounts);
 
     // Settings for batches
     const BATCH_SIZE = 10;
