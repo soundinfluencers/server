@@ -484,7 +484,7 @@ export class ScrapersService {
       {
         [socialMedia]: { $exists: true, $ne: [] },
       },
-      { lean: true, limit: 20 },
+      { lean: true },
     );
 
     if (!influencers || influencers.length === 0) {
