@@ -188,6 +188,7 @@ export interface IPublicCampaignForTable {
     socialMedia: SocialMediaType | 'multipromo';
     creationDate: string;
     status: CampaignStatusEnum;
+    displayCurrency: CurrencyCode;
 
     // TODO: interface for campaign's added accounts
     addedAccounts: any[];
