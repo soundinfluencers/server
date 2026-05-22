@@ -39,10 +39,20 @@ import {
 
 const ADMIN_EMAIL = process.env.EMAIL_USER;
 
+const getAdminEmail = (): string => {
+    const email = process.env.EMAIL_USER;
+
+    if (!email) {
+        throw new Error("EMAIL_USER is not defined");
+    }
+
+    return email;
+};
+
 // Emails from to us about influencer side updates
 export const InfluencerToAdminEmails = {
     newInvoice: (data: BuildInvoiceEmailDto, pdf: Buffer): EmailMessage => ({
-        to: ADMIN_EMAIL,
+        to: getAdminEmail(),
         subject: `Invoice from ${data.influencerEmail}`,
         html: buildInfluencerInvoiceEmail(data),
         attachments: [
@@ -51,13 +61,13 @@ export const InfluencerToAdminEmails = {
     }),
 
     priceChangeRequest: (data: BuildChangePriceRequestTemplateDto): EmailMessage => ({
-        to: ADMIN_EMAIL,
+        to: getAdminEmail(),
         subject: 'Price change request',
         html: buildPriceChangeRequestTemplate(data),
     }),
 
     influencerSignup: (data: BuildInfluencerSignupRequestTemplateDto): EmailMessage => ({
-        to: ADMIN_EMAIL,
+        to: getAdminEmail(),
         subject: 'Verify new influencer',
         html: buildInfluencerSignupRequestTemplate(data),
     })
@@ -219,7 +229,7 @@ export const AdminToInfluencerEmails = {
 // Emails from to us about client side updates
 export const ClientToAdminEmails = {
     campaignCreated: (data: BuildClientCreatedCampaignTemplateDto): EmailMessage => ({
-        to: ADMIN_EMAIL,
+        to: getAdminEmail(),
         subject: 'Client created campaign',
         html: buildClientCreatedCampaignTemplate(data),
     }),
@@ -227,19 +237,19 @@ export const ClientToAdminEmails = {
     bespokeCampaignRequest: (
         data: CreateBespokeCampaignDto & { clientName?: string; clientEmail?: string }
     ): EmailMessage => ({
-        to: ADMIN_EMAIL,
+        to: getAdminEmail(),
         subject: 'Bespoke campaign request',
         html: buildNewBespokeCampaignRequestTemplate(data),
     }),
 
     campaignEditRequest: (data: BuildRequestEditTemplateDto): EmailMessage => ({
-        to: ADMIN_EMAIL,
+        to: getAdminEmail(),
         subject: 'Campaign edit request',
         html: buildRequestEditTemplate(data),
     }),
 
     clientSignup: (data: BuildAccountNegotiationTemplateDto): EmailMessage => ({
-        to: ADMIN_EMAIL,
+        to: getAdminEmail(),
         subject: 'Verify new client',
         html: buildClientSignupRequestTemplate(data),
     })

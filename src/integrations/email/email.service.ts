@@ -26,10 +26,12 @@ export class EmailService {
 
     private async safeSend(message: EmailMessage) {
         try {
-            const to =
+            const to = message.to;
                 this.config.get('NODE_ENV') === 'development'
                     ? this.config.get<string>('EMAIL_USER')
                     : message.to;
+
+            this.logger.log(`Mail ${message.subject} will be sent to ${to}`)
 
             return await this.transporter.sendMail({
                 from: `"SoundInfluencers" <${this.config.get<string>('EMAIL_USER')}>`,
