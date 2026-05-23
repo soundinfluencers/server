@@ -361,6 +361,21 @@ export class CampaignsService {
         session,
       );
 
+      // TODO: Session must contain this until we finish create campaign admin request
+      await this.emailService.send(
+          ClientToAdminEmails.campaignCreated({
+            campaignId: campaignId.toString(),
+            clientId: data.clientId,
+            campaignSocialMedia: data.socialMedia as SocialMediaEnum,
+            paymentType: createdCampaign.paymentType,
+            campaignName: createdCampaign.campaignName,
+            clientName: client.firstName ?? '',
+            clientEmail: client.email,
+            acceptLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=accept`,
+            declineLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=decline`,
+          }),
+      );
+
       await session.commitTransaction();
     } catch (err) {
       await session.abortTransaction();
@@ -369,23 +384,23 @@ export class CampaignsService {
       await session.endSession();
     }
 
-    try {
-      await this.emailService.send(
-        ClientToAdminEmails.campaignCreated({
-          campaignId: campaignId.toString(),
-          clientId: data.clientId,
-          campaignSocialMedia: data.socialMedia as SocialMediaEnum,
-          paymentType: createdCampaign.paymentType,
-          campaignName: createdCampaign.campaignName,
-          clientName: client.firstName ?? '',
-          clientEmail: client.email,
-          acceptLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=accept`,
-          declineLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=decline`,
-        }),
-      );
-    } catch (e) {
-      this.logger.warn(`Campaign ${campaignId} was created, but email to admin failed`);
-    }
+    // try {
+    //   await this.emailService.send(
+    //     ClientToAdminEmails.campaignCreated({
+    //       campaignId: campaignId.toString(),
+    //       clientId: data.clientId,
+    //       campaignSocialMedia: data.socialMedia as SocialMediaEnum,
+    //       paymentType: createdCampaign.paymentType,
+    //       campaignName: createdCampaign.campaignName,
+    //       clientName: client.firstName ?? '',
+    //       clientEmail: client.email,
+    //       acceptLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=accept`,
+    //       declineLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=decline`,
+    //     }),
+    //   );
+    // } catch (e) {
+    //   this.logger.warn(`Campaign ${campaignId} was created, but email to admin failed`);
+    // }
   }
 
   // Returns detailed draft
