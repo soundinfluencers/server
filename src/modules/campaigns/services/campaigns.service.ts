@@ -640,8 +640,7 @@ export class CampaignsService {
           this.campaignRepo.findOne({
             _id: new Types.ObjectId(campaignId),
             clientId: userId,
-            canEdit: true,
-            statusCampaign: CampaignStatusEnum.pending,
+            statusCampaign: { $in: [CampaignStatusEnum.pending, CampaignStatusEnum.distributing, CampaignStatusEnum.underReview] },
           }),
 
         buildCampaignAccountsBatch:
