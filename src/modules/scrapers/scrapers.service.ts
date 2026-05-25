@@ -484,8 +484,12 @@ export class ScrapersService {
       {
         [socialMedia]: { $exists: true, $ne: [] },
       },
-      { lean: true },
+      { lean: true, limit: 20, skip: 25 },
     );
+
+    influencers.map((influencer, i) => {
+      console.log(`Processing ${influencers[i]._id.toString()} ${influencer.firstName}`)
+    })
 
     if (!influencers || influencers.length === 0) {
       throw new NotFoundException(`Accounts from ${socialMedia} were not found`);
@@ -546,6 +550,9 @@ export class ScrapersService {
 
         for (const acc of batch) {
           const result = resultMap[acc._id.toString()];
+
+          console.log(`Scraping results: ${JSON.stringify(result)}`);
+
           if (!result?.success) failed.push(acc);
 
           // Local updating account

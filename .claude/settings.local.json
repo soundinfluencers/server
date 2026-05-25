@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc *)",
-      "Bash(del \"src\\\\integrations\\\\whatsapp\\\\whatsapp.controller.ts\")"
+      "Bash(del \"src\\\\integrations\\\\whatsapp\\\\whatsapp.controller.ts\")",
+      "Bash(npm install *)",
+      "Bash(node -e \"require\\('googleapis'\\); console.log\\('ok'\\)\")"
     ]
   }
 }
