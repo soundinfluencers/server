@@ -25,6 +25,16 @@ export class UpdateCampaignDto {
     @IsNotEmpty()
     campaignName?: string;
 
+    @ApiPropertyOptional({type: Boolean})
+    @IsOptional()
+    @IsBoolean()
+    isCpmAndResultHidden?: boolean;
+
+    @ApiPropertyOptional({type: Boolean})
+    @IsOptional()
+    @IsBoolean()
+    isPriceHidden?: boolean;
+
     @ApiPropertyOptional({type: () => [SelectInfluencerDto]})
     @IsOptional()
     @Type(() => SelectInfluencerDto)
@@ -106,16 +116,6 @@ export class AdminUpdateCampaignDto extends UpdateCampaignDto {
     @Type(() => Number)
     @IsNumber()
     campaignPrice?: number;
-
-    @ApiPropertyOptional({type: Boolean})
-    @IsOptional()
-    @IsBoolean()
-    isCpmAndResultHidden?: boolean;
-
-    @ApiPropertyOptional({type: Boolean})
-    @IsOptional()
-    @IsBoolean()
-    isPriceHidden?: boolean;
 
     @ApiPropertyOptional({type: String, enum: CurrencyCode})
     @IsOptional()

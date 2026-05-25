@@ -107,16 +107,19 @@ export class CampaignUpdateService {
     buildCampaignAccountsBatch: (addedAccountsData: SelectInfluencerDto[]) => Promise<TAccount[]>,
     session?: ClientSession,
   ): Promise<void> {
+    // Default fields - CLIENT & ADMIN can change
     if (data.campaignName && data.campaignName.trim() !== campaign.campaignName) {
       campaign.campaignName = data.campaignName.trim();
     }
+    if (data.isCpmAndResultHidden !== undefined) {
+      campaign.isCpmAndResultHidden = data.isCpmAndResultHidden;
+    }
+    if (data.isPriceHidden !== undefined) {
+      campaign.isPriceHidden = data.isPriceHidden;
+    }
+
+    // Admin fields
     if (data instanceof AdminUpdateCampaignDto) {
-      if (data.isCpmAndResultHidden !== undefined) {
-        campaign.isCpmAndResultHidden = data.isCpmAndResultHidden;
-      }
-      if (data.isPriceHidden !== undefined) {
-        campaign.isPriceHidden = data.isPriceHidden;
-      }
       if (data.displayCurrency !== undefined) {
         campaign.displayCurrency = data.displayCurrency;
       }
@@ -126,84 +129,84 @@ export class CampaignUpdateService {
       if (data.campaignPrice) {
         campaign.campaignPrice = data.campaignPrice;
       }
-    }
 
-    if (data.addedAccounts) {
-      const existingAccountsMap = new Map<string, TAccount>();
+      if (data.addedAccounts) {
+        const existingAccountsMap = new Map<string, TAccount>();
 
-      for (const acc of campaign.addedAccounts) {
-        existingAccountsMap.set(acc.accountId.toString(), acc);
-      }
+        for (const acc of campaign.addedAccounts) {
+          existingAccountsMap.set(acc.accountId.toString(), acc);
+        }
 
-      const updatedAccounts: TAccount[] = [];
-      const newAccountsDto: SelectInfluencerDto[] = [];
+        const updatedAccounts: TAccount[] = [];
+        const newAccountsDto: SelectInfluencerDto[] = [];
 
-      for (const accDto of data.addedAccounts) {
-        const existingAcc = existingAccountsMap.get(accDto.socialAccountId.toString());
+        for (const accDto of data.addedAccounts) {
+          const existingAcc = existingAccountsMap.get(accDto.socialAccountId.toString());
 
-        if (existingAcc) {
-          existingAcc.socialMedia = accDto.socialMedia;
-          existingAcc.username = accDto.username;
-          existingAcc.selectedContent.campaignContentItemId = new Types.ObjectId(
-            accDto.selectedCampaignContentItem.campaignContentItemId,
-          );
+          if (existingAcc) {
+            existingAcc.socialMedia = accDto.socialMedia;
+            existingAcc.username = accDto.username;
+            existingAcc.selectedContent.campaignContentItemId = new Types.ObjectId(
+                accDto.selectedCampaignContentItem.campaignContentItemId,
+            );
 
-          existingAcc.selectedContent.descriptionId = accDto.selectedCampaignContentItem
-            .descriptionId
-            ? new Types.ObjectId(accDto.selectedCampaignContentItem.descriptionId)
-            : undefined;
+            existingAcc.selectedContent.descriptionId = accDto.selectedCampaignContentItem
+                .descriptionId
+                ? new Types.ObjectId(accDto.selectedCampaignContentItem.descriptionId)
+                : undefined;
 
-          existingAcc.dateRequest = accDto.dateRequest ?? null;
+            existingAcc.dateRequest = accDto.dateRequest ?? null;
 
-          if (accDto instanceof AdminUpdatePromoDto) {
-            if (accDto.postLink) existingAcc.postLink = accDto.postLink;
-            if (accDto.screenshot) existingAcc.screenshot = accDto.screenshot;
-            if (accDto.impressions != null) existingAcc.impressions = accDto.impressions;
-            if (accDto.like != null) existingAcc.like = accDto.like;
-            if (accDto.comments != null) existingAcc.comments = accDto.comments;
-            if (accDto.shares != null) existingAcc.shares = accDto.shares;
-            if (accDto.saves != null) existingAcc.saves = accDto.saves;
-            if (accDto.rating != null) existingAcc.rating = accDto.rating;
+            if (accDto instanceof AdminUpdatePromoDto) {
+              if (accDto.postLink) existingAcc.postLink = accDto.postLink;
+              if (accDto.screenshot) existingAcc.screenshot = accDto.screenshot;
+              if (accDto.impressions != null) existingAcc.impressions = accDto.impressions;
+              if (accDto.like != null) existingAcc.like = accDto.like;
+              if (accDto.comments != null) existingAcc.comments = accDto.comments;
+              if (accDto.shares != null) existingAcc.shares = accDto.shares;
+              if (accDto.saves != null) existingAcc.saves = accDto.saves;
+              if (accDto.rating != null) existingAcc.rating = accDto.rating;
+            }
+
+            updatedAccounts.push(existingAcc);
+          } else {
+            newAccountsDto.push(accDto);
+          }
+        }
+
+        if (newAccountsDto.length > 0) {
+          const newAccounts = await buildCampaignAccountsBatch(newAccountsDto);
+
+          if (newAccounts.length === 0) {
+            this.logger.warn(`Can't proceed new accounts while updating campaign ${data.campaignId}`);
           }
 
-          updatedAccounts.push(existingAcc);
+          updatedAccounts.push(...newAccounts);
+        }
+
+        campaign.addedAccounts = updatedAccounts;
+
+        // If need to update campaign's socialMedia field
+        const uniqueSocialMedias: SocialMediaEnum[] = [
+          ...new Set(data.addedAccounts.map((acc) => acc.socialMedia)),
+        ];
+
+        if (uniqueSocialMedias.length > 1) {
+          campaign.socialMedia = 'multipromo';
         } else {
-          newAccountsDto.push(accDto);
+          campaign.socialMedia = uniqueSocialMedias[0] ?? campaign.socialMedia;
         }
       }
 
-      if (newAccountsDto.length > 0) {
-        const newAccounts = await buildCampaignAccountsBatch(newAccountsDto);
+      if (data.campaignContent) {
+        campaign.campaignContent = data.campaignContent.map(
+            (itemDto: CampaignContentItemDto): CampaignContentItem => mapContentItemDtoToModel(itemDto),
+        );
 
-        if (newAccounts.length === 0) {
-          this.logger.warn(`Can't proceed new accounts while updating campaign ${data.campaignId}`);
-        }
-
-        updatedAccounts.push(...newAccounts);
+        campaign.campaignContent = await this.mediaService.applyMediaCacheForCreate(
+            campaign.campaignContent,
+        );
       }
-
-      campaign.addedAccounts = updatedAccounts;
-
-      // If need to update campaign's socialMedia field
-      const uniqueSocialMedias: SocialMediaEnum[] = [
-        ...new Set(data.addedAccounts.map((acc) => acc.socialMedia)),
-      ];
-
-      if (uniqueSocialMedias.length > 1) {
-        campaign.socialMedia = 'multipromo';
-      } else {
-        campaign.socialMedia = uniqueSocialMedias[0] ?? campaign.socialMedia;
-      }
-    }
-
-    if (data.campaignContent) {
-      campaign.campaignContent = data.campaignContent.map(
-        (itemDto: CampaignContentItemDto): CampaignContentItem => mapContentItemDtoToModel(itemDto),
-      );
-
-      campaign.campaignContent = await this.mediaService.applyMediaCacheForCreate(
-        campaign.campaignContent,
-      );
     }
 
     await campaign.save(session ? { session } : undefined);
