@@ -70,12 +70,9 @@ import {OfferAccountLinkRepository} from "./repositories/offers/offer-account-li
 import {AuthSession, AuthSessionSchema} from "./schemas/auth/auth-session.schema";
 import {AuthSessionRepository} from "./repositories/auth/auth-session.repository";
 import {RequestForAdminType} from "../common/types/request-for-admin/request-for-admin.types";
-import {PriceUpdateAdminRequestSchema} from "./schemas/requests/price-update-admin-request.schema";
-import {NewInfluencerAdminRequestSchema} from "./schemas/requests/new-influencer-request.schema";
 import {NewClientAdminRequestSchema} from "./schemas/requests/new-client-request.schema";
 import {RequestForAdmin, RequestForAdminSchema} from "./schemas/requests/request-for-admin.schema";
 import {RequestForAdminRepository} from "./repositories/requests/request-for-admin.repository";
-import {CampaignAdminRequestSchema} from "./schemas/requests/campaign-request.schema";
 
 @Global()
 @Module({
@@ -120,18 +117,6 @@ import {CampaignAdminRequestSchema} from "./schemas/requests/campaign-request.sc
                         name: RequestForAdminType.NEW_CLIENT_REQUEST,
                         schema: NewClientAdminRequestSchema,
                     },
-                    {
-                        name: RequestForAdminType.NEW_INFLUENCER_REQUEST,
-                        schema: NewInfluencerAdminRequestSchema,
-                    },
-                    {
-                        name: RequestForAdminType.PRICE_UPDATE_REQUEST,
-                        schema: PriceUpdateAdminRequestSchema,
-                    },
-                    {
-                        name: RequestForAdminType.CAMPAIGN_REQUEST,
-                        schema: CampaignAdminRequestSchema,
-                    }
                 ],
             },
         ]),

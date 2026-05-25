@@ -4,7 +4,6 @@ import {
     AdminRequestResponseAction,
     IAdminRequest,
     RequestForAdminType,
-    RequestLifecycleState,
 } from "../../../../common/types/request-for-admin/request-for-admin.types";
 import {NewClientAdminRequestDocument} from "../../../../database/schemas/requests/new-client-request.schema";
 import {
@@ -14,9 +13,9 @@ import {
 } from "../../dto/requests/admin-requests.dto";
 import {SearchQueryDto} from "../../../../common/dto/requests/search-query.dto";
 import {PaginationQueryDto} from "../../../../common/dto/requests/pagination-query.dto";
-import {formatDate} from "../../../../common/utils/formatters";
 import {NEW_CLIENT_REQUEST_HANDLER, NewClientRequestHandler} from "./handlers/new-client-request.handler";
 import {GET_ADMIN_REQUEST_DETAILS_SERVICE, GetAdminRequestDetailsService} from "./get-admin-request-details.service";
+import {AdminRequestMapper} from "../../../../common/mappers/admin-request.mapper";
 
 // Interface for AdminRequestsService
 interface IAdminRequestsService {
@@ -49,14 +48,7 @@ export class AdminRequestsService implements IAdminRequestsService {
         const list = await this.requestRepository.getPaginatedList(query);
         return {
             ...list,
-            items: list.items.map((i: IAdminRequest): AdminRequestForListDto => ({
-                requestId: i._id.toString(),
-                requestType: i.type.toString(),
-                date: formatDate(i.createdAt),
-                firstName: i.userFirstName,
-                userType: i.userRole,
-                isRequestClosed: i.state === RequestLifecycleState.CLOSED
-            }))
+            items: list.items.map((i: IAdminRequest): AdminRequestForListDto => AdminRequestMapper.toDto(i))
         }
     }
 
@@ -67,14 +59,7 @@ export class AdminRequestsService implements IAdminRequestsService {
             ...list,
             page: 1,
             totalPages: 1,
-            items: list.items.map((i: IAdminRequest): AdminRequestForListDto => ({
-                requestId: i._id.toString(),
-                requestType: i.type.toString(),
-                date: formatDate(i.createdAt),
-                firstName: i.userFirstName,
-                userType: i.userRole,
-                isRequestClosed: i.state === RequestLifecycleState.CLOSED
-            }))
+            items: list.items.map((i: IAdminRequest): AdminRequestForListDto => AdminRequestMapper.toDto(i))
         }
     }
 

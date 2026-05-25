@@ -2,7 +2,7 @@ import {Prop, Schema, SchemaFactory} from '@nestjs/mongoose';
 import {HydratedDocument, Types} from 'mongoose';
 import {Client} from '../users/client.schema';
 import {
-    NewClientRequestStatus,
+    RequestSpecifiedStatus,
     RequestForAdminType,
     RequestLifecycleState,
 } from '../../../common/types/request-for-admin/request-for-admin.types';
@@ -17,11 +17,11 @@ export class NewClientAdminRequest {
     @Prop({
         required: true,
         type: String,
-        enum: Object.values(NewClientRequestStatus),
-        default: NewClientRequestStatus.WAITING_FOR_ADMIN,
+        enum: Object.values(RequestSpecifiedStatus),
+        default: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
         index: true,
     })
-    status: NewClientRequestStatus;
+    specifiedStatus: RequestSpecifiedStatus;
 
     @Prop({
         required: true,
@@ -36,7 +36,7 @@ export class NewClientAdminRequest {
         trim: true,
         maxlength: 1000,
         required: function (this: NewClientAdminRequest) {
-            return this.status === NewClientRequestStatus.REJECTED;
+            return this.specifiedStatus === RequestSpecifiedStatus.REJECTED;
         },
     })
     rejectionReason?: string;

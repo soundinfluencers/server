@@ -1,17 +1,18 @@
 import {Injectable} from "@nestjs/common";
 import {BaseRepository} from "../base.repository";
-import {RequestForAdmin} from "../../schemas/requests/request-for-admin.schema";
+import {RequestForAdmin, RequestForAdminDocument} from "../../schemas/requests/request-for-admin.schema";
 import {InjectModel} from "@nestjs/mongoose";
-import {Document, Model, PipelineStage, Types} from "mongoose";
+import {Document, FilterQuery, Model, PipelineStage, Types} from "mongoose";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
 import {
-    IAdminRequest, NewClientRequestDetails, NewClientRequestStatus,
+    IAdminRequest, NewClientRequestDetails, RequestSpecifiedStatus,
     RequestForAdminType,
     RequestLifecycleState
 } from "../../../common/types/request-for-admin/request-for-admin.types";
 import {NewClientAdminRequest, NewClientAdminRequestDocument} from "../../schemas/requests/new-client-request.schema";
 import {Role} from "../../../common/types/user.types";
+import {AdminRequestsQueryDto} from "../../../modules/admin/dto/requests/admin-requests.dto";
 
 // Interface for admin requests repository
 interface IRequestForAdminRepository {
@@ -75,12 +76,14 @@ export class RequestForAdminRepository extends BaseRepository<RequestForAdmin> i
             {
                 $project: {
                     _id: 1,
+                    group: 1,
                     type: 1,
-                    status: 1,
+                    lifecycleStatus: 1,
                     userFirstName: 1,
                     userRole: 1,
                     createdAt: 1,
                     state: 1,
+                    specifiedStatus: 1,
                 }
             }
         ];
@@ -105,13 +108,28 @@ export class RequestForAdminRepository extends BaseRepository<RequestForAdmin> i
     }
 
     // Get paginated list of admin requests
-    async getPaginatedList(query: PaginationQueryDto): Promise<{ items: IAdminRequest[]; total: number; page: number; limit: number; totalPages: number; }> {
+    async getPaginatedList(query: AdminRequestsQueryDto): Promise<{
+        items: IAdminRequest[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    }> {
         const page = query.page ?? 1;
         const limit = query.limit ?? 10;
         const skip = (page - 1) * limit;
 
+        const filter: FilterQuery<RequestForAdminDocument> = {};
+
+        if (query.group) {
+            filter.group = query.group;
+        }
+
         const [items, total] = await Promise.all([
             this.requestForAdmin.aggregate<IAdminRequest>([
+                {
+                    $match: filter,
+                },
                 {$sort: {createdAt: -1}},
                 {$skip: skip},
                 {$limit: limit},
@@ -119,16 +137,18 @@ export class RequestForAdminRepository extends BaseRepository<RequestForAdmin> i
                 {
                     $project: {
                         _id: 1,
+                        group: 1,
                         type: 1,
-                        status: 1,
+                        lifecycleStatus: 1,
                         userFirstName: 1,
                         userRole: 1,
                         createdAt: 1,
                         state: 1,
+                        specifiedStatus: 1,
                     }
                 }
             ]),
-            this.requestForAdmin.countDocuments()
+            this.requestForAdmin.countDocuments(filter)
         ])
 
         return {

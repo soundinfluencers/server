@@ -1,7 +1,7 @@
 import {BadRequestException, Injectable, Logger} from "@nestjs/common";
 import {RequestForAdminRepository} from "../../../../database/repositories/requests/request-for-admin.repository";
 import {
-    CreateNewClientRequestProps, NewClientRequestStatus,
+    CreateNewClientRequestProps, RequestSpecifiedStatus,
     RequestForAdminType, RequestLifecycleState
 } from "../../../../common/types/request-for-admin/request-for-admin.types";
 import {ClientSession} from "mongoose";
@@ -64,7 +64,7 @@ export class CreateAdminRequestService {
         await this.requestRepository.create({
             type: requestType,
             state: RequestLifecycleState.OPEN,
-            status: NewClientRequestStatus.WAITING_FOR_ADMIN,
+            status: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
             userFirstName: clientName,
             userRole: Role.client,
             clientId: new ObjId(clientId),

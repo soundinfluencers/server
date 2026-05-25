@@ -1,7 +1,7 @@
 import {BadRequestException, Injectable, Logger} from "@nestjs/common";
 import {RequestForAdminRepository} from "../../../../../database/repositories/requests/request-for-admin.repository";
 import {
-    AdminRequestResponseAction, NewClientRequestStatus,
+    AdminRequestResponseAction, RequestSpecifiedStatus,
     RequestForAdminType, RequestLifecycleState
 } from "../../../../../common/types/request-for-admin/request-for-admin.types";
 import {ClientRepository} from "../../../../../database/repositories/users/client.repository";
@@ -79,11 +79,11 @@ export class NewClientRequestHandler {
                     _id: new ObjId(requestId),
                     type: RequestForAdminType.NEW_CLIENT_REQUEST,
                     state: RequestLifecycleState.OPEN,
-                    status: NewClientRequestStatus.WAITING_FOR_ADMIN,
+                    status: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
                 },
                 {
                     $set: {
-                        status: NewClientRequestStatus.APPROVED,
+                        status: RequestSpecifiedStatus.APPROVED,
                         state: RequestLifecycleState.CLOSED,
                         reviewedAt: new Date(),
                     },
@@ -157,11 +157,11 @@ export class NewClientRequestHandler {
                     _id: new ObjId(requestId),
                     type: RequestForAdminType.NEW_CLIENT_REQUEST,
                     state: RequestLifecycleState.OPEN,
-                    status: NewClientRequestStatus.WAITING_FOR_ADMIN,
+                    status: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
                 },
                 {
                     $set: {
-                        status: NewClientRequestStatus.REJECTED,
+                        status: RequestSpecifiedStatus.REJECTED,
                         state: RequestLifecycleState.CLOSED,
                         reviewedAt: new Date(),
                     },

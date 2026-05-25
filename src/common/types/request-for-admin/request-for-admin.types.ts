@@ -13,31 +13,20 @@ export enum RequestForAdminType {
     PRICE_UPDATE_REQUEST = 'PRICE_UPDATE_REQUEST',
 }
 
+export enum RequestGroup {
+    CLIENT = 'CLIENT',
+    INFLUENCER = 'INFLUENCER',
+    CAMPAIGN = 'CAMPAIGN',
+    PRICING = 'PRICING',
+}
+
 export enum RequestLifecycleState {
     OPEN = 'OPEN',
     CLOSED = 'CLOSED',
     CANCELLED = 'CANCELLED',
 }
 
-export enum NewClientRequestStatus {
-    WAITING_FOR_ADMIN = 'WAITING_FOR_ADMIN',
-    APPROVED = 'APPROVED',
-    REJECTED = 'REJECTED',
-}
-
-export enum NewInfluencerRequestStatus {
-    WAITING_FOR_ADMIN = 'WAITING_FOR_ADMIN',
-    APPROVED = 'APPROVED',
-    REJECTED = 'REJECTED',
-}
-
-export enum PriceUpdateRequestStatus {
-    WAITING_FOR_ADMIN = 'WAITING_FOR_ADMIN',
-    APPROVED = 'APPROVED',
-    REJECTED = 'REJECTED',
-}
-
-export enum CampaignRequestStatus {
+export enum RequestSpecifiedStatus {
     WAITING_FOR_ADMIN = 'WAITING_FOR_ADMIN',
     APPROVED = 'APPROVED',
     REJECTED = 'REJECTED',
@@ -56,7 +45,7 @@ export type CreateNewClientRequestProps = {
 export type NewClientRequestDetails = {
     _id: ObjId;
     type: RequestForAdminType;
-    state: RequestLifecycleState;
+    lifecycleStatus: RequestLifecycleState;
     userFirstName: string;
     userRole: Role;
     reviewedAt?: Date;
@@ -64,7 +53,7 @@ export type NewClientRequestDetails = {
     createdAt: Date;
     updatedAt: Date;
 
-    status: NewClientRequestStatus;
+    specifiedStatus: RequestSpecifiedStatus;
     clientId: ObjId;
     rejectionReason?: string;
 
@@ -78,10 +67,11 @@ export type NewClientRequestDetails = {
 
 export interface IAdminRequest {
     _id: ObjId;
+    group: RequestGroup;
     type: RequestForAdminType;
     userFirstName: string;
     userRole: Role;
-    status: RequestLifecycleState;
     createdAt: Date;
-    state: RequestLifecycleState;
+    lifecycleStatus: RequestLifecycleState;
+    specifiedStatus: RequestSpecifiedStatus;
 }

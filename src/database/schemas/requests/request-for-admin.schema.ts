@@ -1,7 +1,7 @@
 import {Prop, Schema, SchemaFactory} from "@nestjs/mongoose";
 import {HydratedDocument, Types} from "mongoose";
 import {
-    RequestForAdminType,
+    RequestForAdminType, RequestGroup,
     RequestLifecycleState
 } from "../../../common/types/request-for-admin/request-for-admin.types";
 import {Role} from "../../../common/types/user.types";
@@ -21,6 +21,15 @@ export class RequestForAdmin {
     @Prop({
         required: true,
         type: String,
+        enum: Object.values(RequestGroup),
+        immutable: true,
+        index: true,
+    })
+    group: RequestGroup;
+
+    @Prop({
+        required: true,
+        type: String,
         enum: Object.values(RequestForAdminType),
         immutable: true,
         index: true,
@@ -34,7 +43,7 @@ export class RequestForAdmin {
         default: RequestLifecycleState.OPEN,
         index: true,
     })
-    state: RequestLifecycleState;
+    lifecycleStatus: RequestLifecycleState;
 
     @Prop({
         type: String,
@@ -69,4 +78,4 @@ export class RequestForAdmin {
 export const RequestForAdminSchema =
     SchemaFactory.createForClass(RequestForAdmin);
 
-RequestForAdminSchema.index({ type: 1, state: 1, createdAt: -1 });
+RequestForAdminSchema.index({ type: 1, group: 1, state: 1, createdAt: -1 });

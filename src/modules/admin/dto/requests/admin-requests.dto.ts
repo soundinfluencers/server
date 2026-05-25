@@ -1,27 +1,49 @@
-import {ApiProperty} from "@nestjs/swagger";
+import {ApiProperty, ApiPropertyOptional} from "@nestjs/swagger";
 import {Role} from "../../../../common/types/user.types";
 import {PaginatedListResponseDto} from "../../../../common/dto/responses/paginated-list-response.dto";
-import {AdminRequestResponseAction} from "../../../../common/types/request-for-admin/request-for-admin.types";
+import {
+    AdminRequestResponseAction, RequestSpecifiedStatus, RequestForAdminType,
+    RequestLifecycleState, RequestGroup
+} from "../../../../common/types/request-for-admin/request-for-admin.types";
+import {PaginationQueryDto} from "../../../../common/dto/requests/pagination-query.dto";
+import {IsEnum, IsOptional} from "class-validator";
+
+// DTO query for fetching paginated list of different requests
+export class AdminRequestsQueryDto extends PaginationQueryDto {
+    @ApiPropertyOptional({
+        enum: RequestGroup,
+        description: 'Request group',
+    })
+    @IsOptional()
+    @IsEnum(RequestGroup)
+    group?: RequestGroup;
+}
 
 // Admin request DTO for admin requests list
 export class AdminRequestForListDto {
-    @ApiProperty({type: String})
+    @ApiProperty({ type: String })
     requestId: string;
 
-    @ApiProperty({type: String})
-    requestType: string; // enum RequestForAdminType mapped to string
+    @ApiProperty({ type: String })
+    label: string;
 
-    @ApiProperty({type: String, example: '12.08.2026'})
+    @ApiProperty({ type: String })
+    submittedBy: string;
+
+    @ApiProperty({ type: String, example: '12.08.2026' })
     date: string;
 
-    @ApiProperty({type: String})
-    firstName: string;
+    @ApiProperty({ enum: RequestGroup })
+    group: RequestGroup;
 
-    @ApiProperty({type: String, enum: Role})
-    userType: Role;
+    @ApiProperty({ enum: RequestForAdminType })
+    type: RequestForAdminType;
 
-    @ApiProperty({type: Boolean})
-    isRequestClosed: boolean;
+    @ApiProperty({ enum: RequestLifecycleState })
+    lifecycleStatus: RequestLifecycleState;
+
+    @ApiProperty({ enum: RequestSpecifiedStatus })
+    specifiedStatus: RequestSpecifiedStatus;
 }
 
 // DTO for request list

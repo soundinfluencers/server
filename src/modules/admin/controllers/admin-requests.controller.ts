@@ -7,13 +7,17 @@ import {AdminRequestsService} from "../services/requests/admin-requests.service"
 import {ParseObjectIdPipe} from "../../../common/pipes/parse-oid.pipe";
 import {
     AdminRequestResponseAction,
-    RequestForAdminType
+    RequestForAdminType, RequestGroup
 } from "../../../common/types/request-for-admin/request-for-admin.types";
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
 import {OneOfQueryPipe} from "../../../common/pipes/one-of-query.pipe";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
-import {AdminRequestsListResponseDto, AdminRequestsSearchResponseDto} from "../dto/requests/admin-requests.dto";
+import {
+    AdminRequestsListResponseDto,
+    AdminRequestsQueryDto,
+    AdminRequestsSearchResponseDto
+} from "../dto/requests/admin-requests.dto";
 import {ApiResponseDtoOneOf} from "../../../common/decorators/api/response/api-response-one-of.decorator";
 
 @Auth()
@@ -44,6 +48,13 @@ export class AdminRequestsController {
         type: Number,
         description: 'Maximum number of items to return',
     })
+    @ApiQuery({
+        name: 'group',
+        required: false,
+        type: String,
+        enum: RequestGroup,
+        description: 'Request group (without proceeding this field, response will contain all of the types)',
+    })
     @Get()
     getRequests(
         @Query(
@@ -53,12 +64,12 @@ export class AdminRequestsController {
                     match: (value) => value?.search !== undefined,
                 },
                 {
-                    dto: PaginationQueryDto,
+                    dto: AdminRequestsQueryDto,
                     match: () => true,
                 }
             ]),
         )
-        query: SearchQueryDto | PaginationQueryDto,
+        query: SearchQueryDto | AdminRequestsQueryDto,
     ): Promise<AdminRequestsListResponseDto | AdminRequestsSearchResponseDto> {
         if ('search' in query && query.search?.trim()) {
             return this.adminService.searchRequests(query);
