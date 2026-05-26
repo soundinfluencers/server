@@ -7,6 +7,7 @@ import {
 } from '../../../../common/types/request-for-admin/request-for-admin.types';
 import { NewClientAdminRequestDocument } from '../../../../database/schemas/requests/new-client-request.schema';
 import { CampaignAdminRequestDocument } from '../../../../database/schemas/requests/campaign-request.schema';
+import { BespokeCampaignAdminRequestDocument } from '../../../../database/schemas/requests/bespoke-campaign-admin-request.schema';
 import {
   AdminRequestForListDto,
   AdminRequestsListResponseDto,
@@ -99,6 +100,16 @@ export class AdminRequestsService {
           requestId,
           response,
           campaignId: doc.campaignId.toString(),
+        });
+        break;
+      }
+
+      case RequestForAdminType.BESPOKE_CAMPAIGN_REQUEST: {
+        const doc = request as unknown as BespokeCampaignAdminRequestDocument;
+        await this.handlers.bespokeCampaign.exec({
+          requestId,
+          response,
+          bespokeCampaignRequestId: doc.bespokeCampaignRequestId.toString(),
         });
         break;
       }

@@ -698,23 +698,34 @@ export class CampaignsService {
     const session = await this.bespokeCampaignRepo.startSession();
     session.startTransaction();
 
+    let bespokeRequestId: ObjId | null = null;
+
     try {
-      await this.bespokeCampaignRepo.create(
+      const bespokeRequest = await this.bespokeCampaignRepo.create(
         {
           ...data.payload,
           category: data.category,
           userId: new ObjId(userInfo._id),
+          status: CampaignConfirmationEnum.wait,
         },
         { session },
       );
 
-      await this.emailService.send(
-        ClientToAdminEmails.bespokeCampaignRequest({
-          ...data,
-          clientName: creatorInfo.firstName,
-          clientEmail: creatorInfo.email,
-        }),
-      );
+      if (!bespokeRequest || !bespokeRequest._id) {
+        throw new Error("Bespoke campaign request was not created. There's no _id");
+      }
+
+      bespokeRequestId = bespokeRequest._id;
+
+      await this.createAdminRequestService.exec({
+        requestType: RequestForAdminType.BESPOKE_CAMPAIGN_REQUEST,
+        session,
+        payload: {
+          clientId: userInfo._id,
+          bespokeCampaignRequestId: bespokeRequest._id.toString(),
+          clientName: creatorInfo.firstName ?? '',
+        },
+      });
 
       await session.commitTransaction();
     } catch (error) {
@@ -723,6 +734,20 @@ export class CampaignsService {
       throw new InternalServerErrorException('Something went wrong');
     } finally {
       await session.endSession();
+    }
+
+    try {
+      await this.emailService.send(
+        ClientToAdminEmails.bespokeCampaignRequest({
+          ...data,
+          clientName: creatorInfo.firstName,
+          clientEmail: creatorInfo.email,
+        }),
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Bespoke campaign request with _id ${bespokeRequestId} was created successfully, but email failed`,
+      );
     }
   }
 

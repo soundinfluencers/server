@@ -7,7 +7,7 @@ import {
 } from "../../../../common/types/request-for-admin/request-for-admin.types";
 import {PaginationQueryDto} from "../../../../common/dto/requests/pagination-query.dto";
 import {IsEnum, IsOptional} from "class-validator";
-import {CampaignPaymentMethodEnum} from "../../../../common/types/client/campaign.types";
+import {BespokeRequestCategory, CampaignPaymentMethodEnum} from "../../../../common/types/client/campaign.types";
 import {SocialMediaEnum} from "../../../../common/types/social-media.types";
 
 // DTO query for fetching paginated list of different requests
@@ -74,8 +74,7 @@ export class AdminRequestsSearchResponseDto extends PaginatedListResponseDto<Adm
     items: AdminRequestForListDto[];
 }
 
-// DTO for new client request details
-export class NewClientRequestDetailsDto {
+class AdminRequestDetailsBase {
     @ApiProperty({type: String})
     requestId: string;
 
@@ -85,8 +84,8 @@ export class NewClientRequestDetailsDto {
     @ApiProperty({ enum: RequestForAdminType })
     type: RequestForAdminType;
 
-    @ApiProperty({type: String})
-    clientId: string;
+    @ApiProperty({ type: String, example: '12.08.2026' })
+    date: string;
 
     @ApiProperty({type: String})
     firstName: string;
@@ -96,6 +95,12 @@ export class NewClientRequestDetailsDto {
 
     @ApiProperty({type: String})
     email: string;
+}
+
+// DTO for new client request details
+export class NewClientRequestDetailsDto extends AdminRequestDetailsBase {
+    @ApiProperty({type: String})
+    clientId: string;
 
     @ApiProperty({type: String})
     phone: string;
@@ -132,30 +137,9 @@ class CampaignRequestContentItemDto {
 }
 
 // DTO for campaign request details
-export class CampaignRequestDetailsDto {
-    @ApiProperty({type: String})
-    requestId: string;
-
-    @ApiProperty({ enum: RequestGroup })
-    group: RequestGroup;
-
-    @ApiProperty({ enum: RequestForAdminType })
-    type: RequestForAdminType;
-
+export class CampaignRequestDetailsDto extends AdminRequestDetailsBase {
     @ApiProperty({type: String})
     clientId: string;
-
-    @ApiProperty({type: String})
-    firstName: string;
-
-    @ApiProperty({type: String})
-    lastName: string;
-
-    @ApiProperty({type: String})
-    email: string;
-
-    @ApiProperty({ type: String, example: '12.08.2026' })
-    date: string;
 
     @ApiProperty({type: String})
     campaignName: string;
@@ -167,3 +151,41 @@ export class CampaignRequestDetailsDto {
     items: CampaignRequestContentItemDto[];
 }
 
+// DTO for bespoke campaign request details
+export class BespokeCampaignRequestDetailsDto extends AdminRequestDetailsBase {
+    @ApiProperty({type: String})
+    clientId: string;
+
+    @ApiProperty({type: String})
+    phoneNumber: string;
+
+    @ApiProperty({type: String, enum: BespokeRequestCategory})
+    category: BespokeRequestCategory;
+
+    @ApiPropertyOptional({type: String})
+    campaignGoal?: string;
+
+    @ApiPropertyOptional({type: String})
+    contentLink?: string;
+
+    @ApiPropertyOptional({type: Number})
+    budget?: number;
+
+    @ApiPropertyOptional({type: String})
+    targetTerritories?: string;
+
+    @ApiPropertyOptional({type: String})
+    extraBriefs?: string;
+
+    @ApiPropertyOptional({type: String})
+    trackLink?: string;
+
+    @ApiPropertyOptional({type: String, example: '12.08.2026'})
+    releaseDate?: string;
+
+    @ApiPropertyOptional({type: String})
+    smartLink?: string;
+
+    @ApiPropertyOptional({type: String})
+    ticketLink?: string;
+}

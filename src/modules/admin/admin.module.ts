@@ -43,6 +43,10 @@ import {
   CampaignRequestHandler,
 } from './services/requests/handlers/campaign-request-handler.service';
 import {
+  BESPOKE_CAMPAIGN_REQUEST_HANDLER,
+  BespokeCampaignRequestHandler,
+} from './services/requests/handlers/bespoke-campaign-request-handler.service';
+import {
   ADMIN_REQUEST_HANDLERS,
   AdminRequestHandlers,
 } from './services/requests/handlers/admin-request-handlers.service';
@@ -68,6 +72,10 @@ import {
     {
       provide: CAMPAIGN_REQUEST_HANDLER,
       useClass: CampaignRequestHandler,
+    },
+    {
+      provide: BESPOKE_CAMPAIGN_REQUEST_HANDLER,
+      useClass: BespokeCampaignRequestHandler,
     },
     {
       provide: ADMIN_REQUEST_HANDLERS,

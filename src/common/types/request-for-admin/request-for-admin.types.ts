@@ -47,6 +47,42 @@ export type CreateCampaignRequestProps = {
   clientName: string;
 };
 
+export type CreateBespokeCampaignRequestProps = {
+  clientId: string;
+  bespokeCampaignRequestId: string;
+  clientName: string;
+};
+
+export type BespokeCampaignRequestDetails = {
+  _id: ObjId;
+  group: RequestGroup;
+  type: RequestForAdminType;
+  lifecycleStatus: RequestLifecycleState;
+  specifiedStatus: RequestSpecifiedStatus;
+  clientId: ObjId;
+  createdAt: Date;
+
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+
+  category: string;
+  campaignGoal?: string;
+  contentLink?: string;
+  budget?: number;
+  targetTerritories?: string;
+  extraBriefs?: string;
+
+  // music discriminator
+  trackLink?: string;
+  releaseDate?: Date;
+  smartLink?: string;
+
+  // event discriminator
+  ticketLink?: string;
+};
+
 export type NewClientRequestDetails = {
   _id: ObjId;
   group: RequestGroup;

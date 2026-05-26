@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { RequestForAdminRepository } from '../../../../database/repositories/requests/request-for-admin.repository';
 import {
+  BespokeCampaignRequestDetailsDto,
   CampaignRequestDetailsDto,
   NewClientRequestDetailsDto,
 } from '../../dto/requests/admin-requests.dto';
@@ -16,7 +17,9 @@ export class GetAdminRequestDetailsService {
   async exec(
     requestId: string,
     requestType: RequestForAdminType,
-  ): Promise<NewClientRequestDetailsDto | CampaignRequestDetailsDto | null> {
+  ): Promise<
+    NewClientRequestDetailsDto | CampaignRequestDetailsDto | BespokeCampaignRequestDetailsDto | null
+  > {
     switch (requestType) {
       case RequestForAdminType.NEW_CLIENT_REQUEST: {
         const details = await this.requestRepository.getNewClientRequestDetails(requestId);
@@ -25,6 +28,10 @@ export class GetAdminRequestDetailsService {
       case RequestForAdminType.CAMPAIGN_REQUEST: {
         const details = await this.requestRepository.getCampaignRequestDetails(requestId);
         return details ? AdminRequestMapper.toCampaignRequestDetailsDto(details) : null;
+      }
+      case RequestForAdminType.BESPOKE_CAMPAIGN_REQUEST: {
+        const details = await this.requestRepository.getBespokeCampaignRequestDetails(requestId);
+        return details ? AdminRequestMapper.toBespokeCampaignRequestDetailsDto(details) : null;
       }
       default:
         return null;

@@ -1,18 +1,22 @@
-import {Injectable} from '@nestjs/common';
-import {BaseRepository} from '../base.repository';
-import {RequestForAdmin, RequestForAdminDocument,} from '../../schemas/requests/request-for-admin.schema';
-import {InjectModel} from '@nestjs/mongoose';
-import {FilterQuery, Model, PipelineStage, Types} from 'mongoose';
-import {SearchQueryDto} from '../../../common/dto/requests/search-query.dto';
-import {PaginationQueryDto} from '../../../common/dto/requests/pagination-query.dto';
+import { Injectable } from '@nestjs/common';
+import { BaseRepository } from '../base.repository';
 import {
+  RequestForAdmin,
+  RequestForAdminDocument,
+} from '../../schemas/requests/request-for-admin.schema';
+import { InjectModel } from '@nestjs/mongoose';
+import { FilterQuery, Model, PipelineStage, Types } from 'mongoose';
+import { SearchQueryDto } from '../../../common/dto/requests/search-query.dto';
+import { PaginationQueryDto } from '../../../common/dto/requests/pagination-query.dto';
+import {
+  BespokeCampaignRequestDetails,
   CampaignRequestDetails,
   IAdminRequest,
   NewClientRequestDetails,
   RequestForAdminType,
   RequestLifecycleState,
 } from '../../../common/types/request-for-admin/request-for-admin.types';
-import {AdminRequestsQueryDto} from '../../../modules/admin/dto/requests/admin-requests.dto';
+import { AdminRequestsQueryDto } from '../../../modules/admin/dto/requests/admin-requests.dto';
 
 // Interface for admin requests repository
 interface IRequestForAdminRepository {
@@ -37,6 +41,11 @@ interface IRequestForAdminRepository {
 
   // Get details of CAMPAIGN_REQUEST request
   getCampaignRequestDetails(requestId: string): Promise<CampaignRequestDetails | null>;
+
+  // Get details of BESPOKE_CAMPAIGN_REQUEST request
+  getBespokeCampaignRequestDetails(
+    requestId: string,
+  ): Promise<BespokeCampaignRequestDetails | null>;
 }
 
 @Injectable()
@@ -361,6 +370,109 @@ export class RequestForAdminRepository
               },
             },
           },
+        },
+      },
+    ]);
+
+    return result ?? null;
+  }
+
+  // Get details of BESPOKE_CAMPAIGN_REQUEST request
+  async getBespokeCampaignRequestDetails(
+    requestId: string,
+  ): Promise<BespokeCampaignRequestDetails | null> {
+    if (!Types.ObjectId.isValid(requestId)) {
+      return null;
+    }
+
+    const [result] = await this.requestForAdmin.aggregate<BespokeCampaignRequestDetails>([
+      {
+        $match: {
+          _id: new Types.ObjectId(requestId),
+          type: RequestForAdminType.BESPOKE_CAMPAIGN_REQUEST,
+        },
+      },
+      {
+        $lookup: {
+          from: 'bespokecampaignrequests',
+          localField: 'bespokeCampaignRequestId',
+          foreignField: '_id',
+          as: 'bespokeRequest',
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                category: 1,
+                campaignGoal: 1,
+                contentLink: 1,
+                budget: 1,
+                targetTerritories: 1,
+                extraBriefs: 1,
+                trackLink: 1,
+                releaseDate: 1,
+                smartLink: 1,
+                ticketLink: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $unwind: {
+          path: '$bespokeRequest',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      {
+        $lookup: {
+          from: 'clients',
+          localField: 'clientId',
+          foreignField: '_id',
+          as: 'clientInfo',
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                firstName: 1,
+                lastName: 1,
+                email: 1,
+                phone: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $unwind: {
+          path: '$clientInfo',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          group: 1,
+          type: 1,
+          lifecycleStatus: 1,
+          specifiedStatus: 1,
+          clientId: 1,
+          createdAt: 1,
+
+          firstName: { $ifNull: ['$clientInfo.firstName', ''] },
+          lastName: { $ifNull: ['$clientInfo.lastName', ''] },
+          email: { $ifNull: ['$clientInfo.email', ''] },
+          phoneNumber: { $ifNull: ['$clientInfo.phone', ''] },
+
+          category: '$bespokeRequest.category',
+          campaignGoal: '$bespokeRequest.campaignGoal',
+          contentLink: '$bespokeRequest.contentLink',
+          budget: '$bespokeRequest.budget',
+          targetTerritories: '$bespokeRequest.targetTerritories',
+          extraBriefs: '$bespokeRequest.extraBriefs',
+          trackLink: '$bespokeRequest.trackLink',
+          releaseDate: '$bespokeRequest.releaseDate',
+          smartLink: '$bespokeRequest.smartLink',
+          ticketLink: '$bespokeRequest.ticketLink',
         },
       },
     ]);

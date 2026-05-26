@@ -1,5 +1,5 @@
 import {Prop, Schema, SchemaFactory} from '@nestjs/mongoose';
-import {BespokeRequestCategory} from '../../../common/types/client/campaign.types';
+import {BespokeRequestCategory, CampaignConfirmationEnum} from '../../../common/types/client/campaign.types';
 import {Types} from "mongoose";
 
 // ------------ SUB SCHEMES ------------
@@ -47,6 +47,9 @@ export class BespokeCampaignRequest {
 
     @Prop({type: String, enum: Object.values(BespokeRequestCategory), required: true})
     category: BespokeRequestCategory;
+
+    @Prop({type: String, required: true, enum: CampaignConfirmationEnum})
+    status: CampaignConfirmationEnum;
 
     // main fields for artist/music/event
     @Prop({

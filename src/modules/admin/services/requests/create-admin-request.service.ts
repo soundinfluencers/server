@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { RequestForAdminRepository } from '../../../../database/repositories/requests/request-for-admin.repository';
 import {
+  CreateBespokeCampaignRequestProps,
   CreateCampaignRequestProps,
   CreateNewClientRequestProps,
   RequestForAdminType,
@@ -24,6 +25,11 @@ type CreateAdminRequestProps =
       requestType: RequestForAdminType.CAMPAIGN_REQUEST;
       session?: ClientSession;
       payload: CreateCampaignRequestProps;
+    }
+  | {
+      requestType: RequestForAdminType.BESPOKE_CAMPAIGN_REQUEST;
+      session?: ClientSession;
+      payload: CreateBespokeCampaignRequestProps;
     };
 
 @Injectable()
@@ -47,6 +53,16 @@ export class CreateAdminRequestService {
           );
         }
         await this.createCampaignRequest(props.payload, props.session);
+        break;
+      }
+
+      case RequestForAdminType.BESPOKE_CAMPAIGN_REQUEST: {
+        if (!props.payload.clientId || !props.payload.bespokeCampaignRequestId) {
+          throw new BadRequestException(
+            `clientId and bespokeCampaignRequestId are required for ${props.requestType}`,
+          );
+        }
+        await this.createBespokeCampaignRequest(props.payload, props.session);
         break;
       }
 
@@ -88,6 +104,25 @@ export class CreateAdminRequestService {
         userRole: Role.client,
         clientId: new ObjId(props.clientId),
         campaignId: new ObjId(props.campaignId),
+      },
+      { session },
+    );
+  }
+
+  private async createBespokeCampaignRequest(
+    props: CreateBespokeCampaignRequestProps,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.requestRepository.create(
+      {
+        group: RequestGroup.CLIENT,
+        type: RequestForAdminType.BESPOKE_CAMPAIGN_REQUEST,
+        lifecycleStatus: RequestLifecycleState.OPEN,
+        specifiedStatus: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
+        userFirstName: props.clientName,
+        userRole: Role.client,
+        clientId: new ObjId(props.clientId),
+        bespokeCampaignRequestId: new ObjId(props.bespokeCampaignRequestId),
       },
       { session },
     );
