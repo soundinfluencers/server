@@ -7,7 +7,7 @@ import {AdminRequestsService} from "../services/requests/admin-requests.service"
 import {ParseObjectIdPipe} from "../../../common/pipes/parse-oid.pipe";
 import {
     AdminRequestResponseAction,
-    RequestForAdminType, RequestGroup
+    RequestForAdminType, RequestGroup, RequestLifecycleState
 } from "../../../common/types/request-for-admin/request-for-admin.types";
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
 import {OneOfQueryPipe} from "../../../common/pipes/one-of-query.pipe";
@@ -54,6 +54,13 @@ export class AdminRequestsController {
         type: String,
         enum: RequestGroup,
         description: 'Request group (without proceeding this field, response will contain all of the types)',
+    })
+    @ApiQuery({
+        name: 'state',
+        required: false,
+        type: String,
+        enum: RequestLifecycleState,
+        description: 'Request lifecycle state',
     })
     @Get()
     getRequests(

@@ -23,7 +23,6 @@ export enum RequestGroup {
 export enum RequestLifecycleState {
   OPEN = 'OPEN',
   CLOSED = 'CLOSED',
-  CANCELLED = 'CANCELLED',
 }
 
 export enum RequestSpecifiedStatus {

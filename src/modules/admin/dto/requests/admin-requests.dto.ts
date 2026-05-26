@@ -19,6 +19,14 @@ export class AdminRequestsQueryDto extends PaginationQueryDto {
     @IsOptional()
     @IsEnum(RequestGroup)
     group?: RequestGroup;
+
+    @ApiPropertyOptional({
+        enum: RequestLifecycleState,
+        description: 'Request lifecycle state',
+    })
+    @IsOptional()
+    @IsEnum(RequestLifecycleState)
+    state?: RequestLifecycleState;
 }
 
 // Admin request DTO for admin requests list
@@ -158,3 +166,4 @@ export class CampaignRequestDetailsDto {
     @ApiProperty({type: CampaignRequestContentItemDto, isArray: true})
     items: CampaignRequestContentItemDto[];
 }
+

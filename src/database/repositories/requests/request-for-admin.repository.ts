@@ -1,20 +1,18 @@
-import { Injectable } from '@nestjs/common';
-import { BaseRepository } from '../base.repository';
-import {
-  RequestForAdmin,
-  RequestForAdminDocument,
-} from '../../schemas/requests/request-for-admin.schema';
-import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, PipelineStage, Types } from 'mongoose';
-import { SearchQueryDto } from '../../../common/dto/requests/search-query.dto';
-import { PaginationQueryDto } from '../../../common/dto/requests/pagination-query.dto';
+import {Injectable} from '@nestjs/common';
+import {BaseRepository} from '../base.repository';
+import {RequestForAdmin, RequestForAdminDocument,} from '../../schemas/requests/request-for-admin.schema';
+import {InjectModel} from '@nestjs/mongoose';
+import {FilterQuery, Model, PipelineStage, Types} from 'mongoose';
+import {SearchQueryDto} from '../../../common/dto/requests/search-query.dto';
+import {PaginationQueryDto} from '../../../common/dto/requests/pagination-query.dto';
 import {
   CampaignRequestDetails,
   IAdminRequest,
   NewClientRequestDetails,
   RequestForAdminType,
+  RequestLifecycleState,
 } from '../../../common/types/request-for-admin/request-for-admin.types';
-import { AdminRequestsQueryDto } from '../../../modules/admin/dto/requests/admin-requests.dto';
+import {AdminRequestsQueryDto} from '../../../modules/admin/dto/requests/admin-requests.dto';
 
 // Interface for admin requests repository
 interface IRequestForAdminRepository {
@@ -126,6 +124,8 @@ export class RequestForAdminRepository
     const skip = (page - 1) * limit;
 
     const filter: FilterQuery<RequestForAdminDocument> = {};
+
+    filter.lifecycleStatus = query.state ?? RequestLifecycleState.OPEN;
 
     if (query.group) {
       filter.group = query.group;
