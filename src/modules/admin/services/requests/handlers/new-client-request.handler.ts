@@ -1,200 +1,107 @@
-import {BadRequestException, Injectable, Logger} from "@nestjs/common";
-import {RequestForAdminRepository} from "../../../../../database/repositories/requests/request-for-admin.repository";
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { RequestForAdminRepository } from '../../../../../database/repositories/requests/request-for-admin.repository';
 import {
-    AdminRequestResponseAction, RequestSpecifiedStatus,
-    RequestForAdminType, RequestLifecycleState
-} from "../../../../../common/types/request-for-admin/request-for-admin.types";
-import {ClientRepository} from "../../../../../database/repositories/users/client.repository";
-import {ObjId} from "../../../../../common/types/base.types";
-import {AccountVerifiedStatus} from "../../../../../common/types/user.types";
-
-type RespondNewClientRequestProps = {
-    requestId: string;
-    response: AdminRequestResponseAction;
-    clientId: string;
-}
+  AdminRequestResponseAction,
+  RequestForAdminType,
+  RequestLifecycleState,
+  RequestSpecifiedStatus,
+} from '../../../../../common/types/request-for-admin/request-for-admin.types';
+import { ClientRepository } from '../../../../../database/repositories/users/client.repository';
+import { ObjId } from '../../../../../common/types/base.types';
+import { AccountVerifiedStatus } from '../../../../../common/types/user.types';
 
 export const NEW_CLIENT_REQUEST_HANDLER = Symbol('NEW_CLIENT_REQUEST_HANDLER');
 
-// Service for handling new client request
+export type RespondNewClientRequestProps = {
+  requestId: string;
+  response: AdminRequestResponseAction;
+  clientId: string;
+};
+
 @Injectable()
 export class NewClientRequestHandler {
-    private readonly logger = new Logger(NewClientRequestHandler.name);
+  private readonly logger = new Logger(NewClientRequestHandler.name);
 
-    constructor(
-        private readonly requestRepository: RequestForAdminRepository,
-        private readonly clientRepository: ClientRepository,
-    ) {
+  constructor(
+    private readonly requestRepository: RequestForAdminRepository,
+    private readonly clientRepository: ClientRepository,
+  ) {}
+
+  async exec({ requestId, response, clientId }: RespondNewClientRequestProps): Promise<void> {
+    switch (response) {
+      case AdminRequestResponseAction.ACCEPT:
+        return this.handle(
+          requestId,
+          clientId,
+          AccountVerifiedStatus.accept,
+          RequestSpecifiedStatus.APPROVED,
+        );
+      case AdminRequestResponseAction.DECLINE:
+        return this.handle(
+          requestId,
+          clientId,
+          AccountVerifiedStatus.decline,
+          RequestSpecifiedStatus.REJECTED,
+        );
+      default:
+        throw new BadRequestException('Unsupported response action for this request type.');
     }
+  }
 
-    async exec(props: RespondNewClientRequestProps) {
-        const {requestId, response, clientId} = props;
+  private async handle(
+    requestId: string,
+    clientId: string,
+    verifiedStatus: AccountVerifiedStatus,
+    requestStatus: RequestSpecifiedStatus,
+  ): Promise<void> {
+    const session = await this.clientRepository.startSession();
+    session.startTransaction();
 
-        switch (response) {
-            case AdminRequestResponseAction.ACCEPT:
-                return this.acceptNewClientRequest(requestId, clientId);
+    try {
+      const clientUpdResult = await this.clientRepository.updateOne(
+        {
+          _id: new ObjId(clientId),
+          verifiedStatus: {
+            $in: [AccountVerifiedStatus.waitForUser, AccountVerifiedStatus.waitForAdmin],
+          },
+        },
+        { verifiedStatus },
+        { session },
+      );
 
-            case AdminRequestResponseAction.DECLINE:
-                return this.declineNewClientRequest(requestId, clientId);
+      if (clientUpdResult.matchedCount === 0) {
+        throw new Error('Client not found or already processed. Account may have been deleted.');
+      }
 
-            default:
-                throw new BadRequestException("Looks like this type of request doesn't support your response.");
-        }
+      const requestUpdResult = await this.requestRepository.updateOne(
+        {
+          _id: new ObjId(requestId),
+          type: RequestForAdminType.NEW_CLIENT_REQUEST,
+          lifecycleStatus: RequestLifecycleState.OPEN,
+          specifiedStatus: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
+        },
+        {
+          $set: {
+            specifiedStatus: requestStatus,
+            lifecycleStatus: RequestLifecycleState.CLOSED,
+            reviewedAt: new Date(),
+          },
+          $unset: { rejectionReason: '' },
+        },
+        { session },
+      );
+
+      if (requestUpdResult.matchedCount === 0) {
+        throw new Error('Request is already closed or has an invalid status.');
+      }
+
+      await session.commitTransaction();
+    } catch (err) {
+      this.logger.error(err);
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      await session.endSession();
     }
-
-    private async acceptNewClientRequest(
-        requestId: string,
-        clientId: string,
-    ): Promise<{success: boolean, action: AdminRequestResponseAction}> {
-        const session = await this.clientRepository.startSession();
-        session.startTransaction();
-
-        try {
-            const clientUpdResult = await this.clientRepository.updateOne(
-                {
-                    _id: new ObjId(clientId),
-                    verifiedStatus: {
-                        $in: [
-                            AccountVerifiedStatus.waitForUser,
-                            AccountVerifiedStatus.waitForAdmin,
-                        ],
-                    }
-                },
-                {
-                    verifiedStatus: AccountVerifiedStatus.accept
-                },
-                {
-                    session
-                }
-            );
-
-            if (clientUpdResult.matchedCount === 0) {
-                throw new Error(
-                    "Client cannot be accepted. Account may already be deleted.",
-                );
-            }
-
-            const requestUpdResult = await this.requestRepository.updateOne(
-                {
-                    _id: new ObjId(requestId),
-                    type: RequestForAdminType.NEW_CLIENT_REQUEST,
-                    state: RequestLifecycleState.OPEN,
-                    status: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
-                },
-                {
-                    $set: {
-                        status: RequestSpecifiedStatus.APPROVED,
-                        state: RequestLifecycleState.CLOSED,
-                        reviewedAt: new Date(),
-                    },
-                    $unset: {
-                        rejectionReason: "",
-                    },
-                },
-                {
-                    session
-                }
-            );
-
-            if (requestUpdResult.matchedCount === 0) {
-                throw new Error(
-                    "Request cannot be accepted. It may already be closed or has invalid status.",
-                );
-            }
-
-            await session.commitTransaction();
-        } catch (err) {
-            this.logger.error(err);
-            await session.abortTransaction();
-            return {
-                success: false,
-                action: AdminRequestResponseAction.ACCEPT,
-            };
-        } finally {
-            await session.endSession();
-        }
-
-        return {
-            success: true,
-            action: AdminRequestResponseAction.ACCEPT,
-        };
-    }
-
-    private async declineNewClientRequest(
-        requestId: string,
-        clientId: string,
-    ): Promise<{success: boolean, action: AdminRequestResponseAction}> {
-        const session = await this.clientRepository.startSession();
-        session.startTransaction();
-
-        try {
-            const clientUpdResult = await this.clientRepository.updateOne(
-                {
-                    _id: new ObjId(clientId),
-                    verifiedStatus: {
-                        $in: [
-                            AccountVerifiedStatus.waitForUser,
-                            AccountVerifiedStatus.waitForAdmin,
-                        ],
-                    }
-                },
-                {
-                    verifiedStatus: AccountVerifiedStatus.decline
-                },
-                {
-                    session
-                }
-            );
-
-            if (clientUpdResult.matchedCount === 0) {
-                throw new Error(
-                    "Client cannot be declined. Account may already be deleted.",
-                );
-            }
-
-            const requestUpdResult = await this.requestRepository.updateOne(
-                {
-                    _id: new ObjId(requestId),
-                    type: RequestForAdminType.NEW_CLIENT_REQUEST,
-                    state: RequestLifecycleState.OPEN,
-                    status: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
-                },
-                {
-                    $set: {
-                        status: RequestSpecifiedStatus.REJECTED,
-                        state: RequestLifecycleState.CLOSED,
-                        reviewedAt: new Date(),
-                    },
-                    $unset: {
-                        rejectionReason: "",
-                    },
-                },
-                {
-                    session
-                }
-            );
-
-            if (requestUpdResult.matchedCount === 0) {
-                throw new Error(
-                    "Request cannot be declined. It may already be closed or has invalid status.",
-                );
-            }
-
-            await session.commitTransaction();
-        } catch (err) {
-            this.logger.error(err);
-            await session.abortTransaction();
-            return {
-                success: false,
-                action: AdminRequestResponseAction.DECLINE,
-            };
-        } finally {
-            await session.endSession();
-        }
-
-        return {
-            success: true,
-            action: AdminRequestResponseAction.DECLINE,
-        };
-    }
+  }
 }

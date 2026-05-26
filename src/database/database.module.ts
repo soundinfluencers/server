@@ -73,6 +73,8 @@ import {RequestForAdminType} from "../common/types/request-for-admin/request-for
 import {NewClientAdminRequestSchema} from "./schemas/requests/new-client-request.schema";
 import {RequestForAdmin, RequestForAdminSchema} from "./schemas/requests/request-for-admin.schema";
 import {RequestForAdminRepository} from "./repositories/requests/request-for-admin.repository";
+import {CampaignAdminRequestSchema} from "./schemas/requests/campaign-request.schema";
+import {BespokeCampaignAdminRequestSchema} from "./schemas/requests/bespoke-campaign-admin-request.schema";
 
 @Global()
 @Module({
@@ -117,6 +119,14 @@ import {RequestForAdminRepository} from "./repositories/requests/request-for-adm
                         name: RequestForAdminType.NEW_CLIENT_REQUEST,
                         schema: NewClientAdminRequestSchema,
                     },
+                    {
+                        name: RequestForAdminType.CAMPAIGN_REQUEST,
+                        schema: CampaignAdminRequestSchema,
+                    },
+                    {
+                        name: RequestForAdminType.BESPOKE_CAMPAIGN_REQUEST,
+                        schema: BespokeCampaignAdminRequestSchema,
+                    }
                 ],
             },
         ]),

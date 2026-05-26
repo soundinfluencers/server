@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -69,6 +70,11 @@ import { CampaignDetailsService } from './campaign-details.service';
 import { CampaignAccountsBuilderService } from './campaign-accounts-builder.service';
 import { PaymentsHistoryService } from '../../payments-history/payments-history.service';
 import { CurrencyCode } from '../../../common/types/finance.types';
+import {
+  CREATE_ADMIN_REQUEST_SERVICE,
+  CreateAdminRequestService,
+} from '../../admin/services/requests/create-admin-request.service';
+import { RequestForAdminType } from '../../../common/types/request-for-admin/request-for-admin.types';
 
 @Injectable()
 export class CampaignsService {
@@ -90,6 +96,8 @@ export class CampaignsService {
     private readonly campaignUpdateService: CampaignUpdateService,
     private readonly campaignAccountsBuilderService: CampaignAccountsBuilderService,
     private readonly paymentsHistoryService: PaymentsHistoryService,
+    @Inject(CREATE_ADMIN_REQUEST_SERVICE)
+    private readonly createAdminRequestService: CreateAdminRequestService,
   ) {}
 
   // Returns campaigns list for client with diff statuses
@@ -361,20 +369,16 @@ export class CampaignsService {
         session,
       );
 
-      // TODO: Session must contain this until we finish create campaign admin request
-      await this.emailService.send(
-          ClientToAdminEmails.campaignCreated({
-            campaignId: campaignId.toString(),
-            clientId: data.clientId,
-            campaignSocialMedia: data.socialMedia as SocialMediaEnum,
-            paymentType: createdCampaign.paymentType,
-            campaignName: createdCampaign.campaignName,
-            clientName: client.firstName ?? '',
-            clientEmail: client.email,
-            acceptLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=accept`,
-            declineLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=decline`,
-          }),
-      );
+      // Create admin request for campaign review (same transaction)
+      await this.createAdminRequestService.exec({
+        requestType: RequestForAdminType.CAMPAIGN_REQUEST,
+        session,
+        payload: {
+          clientId: data.clientId,
+          campaignId: campaignId.toString(),
+          clientName: client.firstName ?? '',
+        },
+      });
 
       await session.commitTransaction();
     } catch (err) {
@@ -384,23 +388,25 @@ export class CampaignsService {
       await session.endSession();
     }
 
-    // try {
-    //   await this.emailService.send(
-    //     ClientToAdminEmails.campaignCreated({
-    //       campaignId: campaignId.toString(),
-    //       clientId: data.clientId,
-    //       campaignSocialMedia: data.socialMedia as SocialMediaEnum,
-    //       paymentType: createdCampaign.paymentType,
-    //       campaignName: createdCampaign.campaignName,
-    //       clientName: client.firstName ?? '',
-    //       clientEmail: client.email,
-    //       acceptLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=accept`,
-    //       declineLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=decline`,
-    //     }),
-    //   );
-    // } catch (e) {
-    //   this.logger.warn(`Campaign ${campaignId} was created, but email to admin failed`);
-    // }
+    try {
+      await this.emailService.send(
+        ClientToAdminEmails.campaignCreated({
+          campaignId: campaignId.toString(),
+          clientId: data.clientId,
+          campaignSocialMedia: data.socialMedia as SocialMediaEnum,
+          paymentType: createdCampaign.paymentType,
+          campaignName: createdCampaign.campaignName,
+          clientName: client.firstName ?? '',
+          clientEmail: client.email,
+          acceptLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=accept`,
+          declineLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignId.toString()}&status=decline`,
+        }),
+      );
+    } catch (e) {
+      this.logger.warn(
+        `Campaign ${campaignId} was created, but notification email to admin failed`,
+      );
+    }
   }
 
   // Returns detailed draft
@@ -640,7 +646,13 @@ export class CampaignsService {
           this.campaignRepo.findOne({
             _id: new Types.ObjectId(campaignId),
             clientId: userId,
-            statusCampaign: { $in: [CampaignStatusEnum.pending, CampaignStatusEnum.distributing, CampaignStatusEnum.underReview] },
+            statusCampaign: {
+              $in: [
+                CampaignStatusEnum.pending,
+                CampaignStatusEnum.distributing,
+                CampaignStatusEnum.underReview,
+              ],
+            },
           }),
 
         buildCampaignAccountsBatch:

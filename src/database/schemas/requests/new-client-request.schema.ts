@@ -48,13 +48,13 @@ export const NewClientAdminRequestSchema =
 NewClientAdminRequestSchema.index(
     {
         clientId: 1,
-        state: 1,
+        lifecycleStatus: 1,
     },
     {
         unique: true,
         partialFilterExpression: {
             type: RequestForAdminType.NEW_CLIENT_REQUEST,
-            state: RequestLifecycleState.OPEN,
+            lifecycleStatus: RequestLifecycleState.OPEN,
         },
     },
 );

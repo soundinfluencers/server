@@ -31,12 +31,21 @@ import { OffersModule } from '../offers/offers.module';
 import { AdminOffersService } from './services/admin-offers.service';
 import { AdminOffersController } from './controllers/admin-offers.controller';
 import { WhatsappModule } from '../../integrations/whatsapp/whatsapp.module';
+import { EmailModule } from '../../integrations/email/email.module';
 import { AdminRequestsService } from './services/requests/admin-requests.service';
 import { AdminRequestsController } from './controllers/admin-requests.controller';
 import {
   NEW_CLIENT_REQUEST_HANDLER,
   NewClientRequestHandler,
 } from './services/requests/handlers/new-client-request.handler';
+import {
+  CAMPAIGN_REQUEST_HANDLER,
+  CampaignRequestHandler,
+} from './services/requests/handlers/campaign-request-handler.service';
+import {
+  ADMIN_REQUEST_HANDLERS,
+  AdminRequestHandlers,
+} from './services/requests/handlers/admin-request-handlers.service';
 import {
   CREATE_ADMIN_REQUEST_SERVICE,
   CreateAdminRequestService,
@@ -47,20 +56,30 @@ import {
 } from './services/requests/get-admin-request-details.service';
 
 @Module({
+  imports: [EmailModule],
   controllers: [AdminRequestsController],
   providers: [
     AdminRequestsService,
+    InfluencerActionsHistoryService,
     {
       provide: NEW_CLIENT_REQUEST_HANDLER,
       useClass: NewClientRequestHandler,
     },
     {
-      provide: CREATE_ADMIN_REQUEST_SERVICE,
-      useClass: CreateAdminRequestService,
+      provide: CAMPAIGN_REQUEST_HANDLER,
+      useClass: CampaignRequestHandler,
+    },
+    {
+      provide: ADMIN_REQUEST_HANDLERS,
+      useClass: AdminRequestHandlers,
     },
     {
       provide: GET_ADMIN_REQUEST_DETAILS_SERVICE,
       useClass: GetAdminRequestDetailsService,
+    },
+    {
+      provide: CREATE_ADMIN_REQUEST_SERVICE,
+      useClass: CreateAdminRequestService,
     },
   ],
   exports: [CREATE_ADMIN_REQUEST_SERVICE],

@@ -1,73 +1,95 @@
-import {BadRequestException, Injectable, Logger} from "@nestjs/common";
-import {RequestForAdminRepository} from "../../../../database/repositories/requests/request-for-admin.repository";
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { RequestForAdminRepository } from '../../../../database/repositories/requests/request-for-admin.repository';
 import {
-    CreateNewClientRequestProps, RequestSpecifiedStatus,
-    RequestForAdminType, RequestLifecycleState
-} from "../../../../common/types/request-for-admin/request-for-admin.types";
-import {ClientSession} from "mongoose";
-import {ObjId} from "../../../../common/types/base.types";
-import {Role} from "../../../../common/types/user.types";
+  CreateCampaignRequestProps,
+  CreateNewClientRequestProps,
+  RequestForAdminType,
+  RequestGroup,
+  RequestLifecycleState,
+  RequestSpecifiedStatus,
+} from '../../../../common/types/request-for-admin/request-for-admin.types';
+import { ClientSession } from 'mongoose';
+import { ObjId } from '../../../../common/types/base.types';
+import { Role } from '../../../../common/types/user.types';
 
 export const CREATE_ADMIN_REQUEST_SERVICE = Symbol('CREATE_ADMIN_REQUEST_SERVICE');
 
-type CreateAdminRequestProps = {
-    requestType: RequestForAdminType;
-    session?: ClientSession;
-    payload?: CreateNewClientRequestProps;
-}
+type CreateAdminRequestProps =
+  | {
+      requestType: RequestForAdminType.NEW_CLIENT_REQUEST;
+      session?: ClientSession;
+      payload: CreateNewClientRequestProps;
+    }
+  | {
+      requestType: RequestForAdminType.CAMPAIGN_REQUEST;
+      session?: ClientSession;
+      payload: CreateCampaignRequestProps;
+    };
 
 @Injectable()
 export class CreateAdminRequestService {
-    private readonly logger = new Logger(CreateAdminRequestService.name);
+  constructor(private readonly requestRepository: RequestForAdminRepository) {}
 
-    constructor(
-        private readonly requestRepository: RequestForAdminRepository,
-    ) {
-    }
-
-    async exec(props: CreateAdminRequestProps): Promise<{ success: boolean }> {
-        const {requestType, session, payload} = props;
-
-        let success = false;
-
-        try {
-            switch (requestType) {
-                case RequestForAdminType.NEW_CLIENT_REQUEST: {
-                    if (!payload.clientId) {
-                        success = false;
-                        this.logger.error(`Failed to create ${requestType} request: clientId is required`);
-                    }
-                    await this.createClientRequest(requestType, payload, session);
-                    success = true;
-                    break;
-                }
-
-                default: {
-                    throw new BadRequestException(`Request type ${requestType} is not supported yet.`);
-                }
-            }
-        } catch (err) {
-            this.logger.error(`Failed to create ${requestType} request: ${err.message}`);
-            success = false;
+  async exec(props: CreateAdminRequestProps): Promise<void> {
+    switch (props.requestType) {
+      case RequestForAdminType.NEW_CLIENT_REQUEST: {
+        if (!props.payload.clientId) {
+          throw new BadRequestException(`clientId is required for ${props.requestType}`);
         }
+        await this.createClientRequest(props.payload, props.session);
+        break;
+      }
 
-        return {success};
+      case RequestForAdminType.CAMPAIGN_REQUEST: {
+        if (!props.payload.clientId || !props.payload.campaignId) {
+          throw new BadRequestException(
+            `clientId and campaignId are required for ${props.requestType}`,
+          );
+        }
+        await this.createCampaignRequest(props.payload, props.session);
+        break;
+      }
+
+      default: {
+        throw new BadRequestException(`Request type is not supported.`);
+      }
     }
+  }
 
-    private async createClientRequest(
-        requestType: RequestForAdminType,
-        props: CreateNewClientRequestProps,
-        session?: ClientSession,
-    ): Promise<void> {
-        const {clientId, clientName} = props;
+  private async createClientRequest(
+    props: CreateNewClientRequestProps,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.requestRepository.create(
+      {
+        group: RequestGroup.CLIENT,
+        type: RequestForAdminType.NEW_CLIENT_REQUEST,
+        lifecycleStatus: RequestLifecycleState.OPEN,
+        specifiedStatus: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
+        userFirstName: props.clientName,
+        userRole: Role.client,
+        clientId: new ObjId(props.clientId),
+      },
+      { session },
+    );
+  }
 
-        await this.requestRepository.create({
-            type: requestType,
-            state: RequestLifecycleState.OPEN,
-            status: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
-            userFirstName: clientName,
-            userRole: Role.client,
-            clientId: new ObjId(clientId),
-        }, {session});
-    }
+  private async createCampaignRequest(
+    props: CreateCampaignRequestProps,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.requestRepository.create(
+      {
+        group: RequestGroup.CAMPAIGN,
+        type: RequestForAdminType.CAMPAIGN_REQUEST,
+        lifecycleStatus: RequestLifecycleState.OPEN,
+        specifiedStatus: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
+        userFirstName: props.clientName,
+        userRole: Role.client,
+        clientId: new ObjId(props.clientId),
+        campaignId: new ObjId(props.campaignId),
+      },
+      { session },
+    );
+  }
 }

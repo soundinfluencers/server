@@ -7,6 +7,8 @@ import {
 } from "../../../../common/types/request-for-admin/request-for-admin.types";
 import {PaginationQueryDto} from "../../../../common/dto/requests/pagination-query.dto";
 import {IsEnum, IsOptional} from "class-validator";
+import {CampaignPaymentMethodEnum} from "../../../../common/types/client/campaign.types";
+import {SocialMediaEnum} from "../../../../common/types/social-media.types";
 
 // DTO query for fetching paginated list of different requests
 export class AdminRequestsQueryDto extends PaginationQueryDto {
@@ -69,6 +71,12 @@ export class NewClientRequestDetailsDto {
     @ApiProperty({type: String})
     requestId: string;
 
+    @ApiProperty({ enum: RequestGroup })
+    group: RequestGroup;
+
+    @ApiProperty({ enum: RequestForAdminType })
+    type: RequestForAdminType;
+
     @ApiProperty({type: String})
     clientId: string;
 
@@ -92,7 +100,61 @@ export class NewClientRequestDetailsDto {
 
     @ApiProperty({type: String})
     referralCode: string;
+}
+
+// campaign content item for campaign request details
+class CampaignRequestContentItemDto {
+    @ApiProperty({type: String, enum: SocialMediaEnum})
+    socialMedia: SocialMediaEnum;
+
+    @ApiProperty({type: String})
+    mainLink: string;
 
     @ApiProperty({type: String, isArray: true})
-    availableActions: AdminRequestResponseAction[];
+    descriptions: string[];
+
+    @ApiProperty({type: String, isArray: true})
+    accounts: string[]; // connected accounts' usernames
+
+    @ApiProperty({type: String})
+    additionalBrief?: string;
+
+    @ApiProperty({type: String})
+    dateRequest?: string;
+}
+
+// DTO for campaign request details
+export class CampaignRequestDetailsDto {
+    @ApiProperty({type: String})
+    requestId: string;
+
+    @ApiProperty({ enum: RequestGroup })
+    group: RequestGroup;
+
+    @ApiProperty({ enum: RequestForAdminType })
+    type: RequestForAdminType;
+
+    @ApiProperty({type: String})
+    clientId: string;
+
+    @ApiProperty({type: String})
+    firstName: string;
+
+    @ApiProperty({type: String})
+    lastName: string;
+
+    @ApiProperty({type: String})
+    email: string;
+
+    @ApiProperty({ type: String, example: '12.08.2026' })
+    date: string;
+
+    @ApiProperty({type: String})
+    campaignName: string;
+
+    @ApiProperty({type: String, enum: CampaignPaymentMethodEnum})
+    paymentMethod: CampaignPaymentMethodEnum;
+
+    @ApiProperty({type: CampaignRequestContentItemDto, isArray: true})
+    items: CampaignRequestContentItemDto[];
 }
