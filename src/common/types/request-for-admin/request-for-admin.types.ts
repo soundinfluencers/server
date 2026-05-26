@@ -33,8 +33,8 @@ export enum RequestSpecifiedStatus {
 }
 
 export enum AdminRequestResponseAction {
-  ACCEPT = 'accept',
-  DECLINE = 'decline',
+  APPROVE = 'APPROVE',
+  REJECT = 'REJECT',
 }
 
 export type CreateNewClientRequestProps = {

@@ -29,14 +29,14 @@ export class NewClientRequestHandler {
 
   async exec({ requestId, response, clientId }: RespondNewClientRequestProps): Promise<void> {
     switch (response) {
-      case AdminRequestResponseAction.ACCEPT:
+      case AdminRequestResponseAction.APPROVE:
         return this.handle(
           requestId,
           clientId,
           AccountVerifiedStatus.accept,
           RequestSpecifiedStatus.APPROVED,
         );
-      case AdminRequestResponseAction.DECLINE:
+      case AdminRequestResponseAction.REJECT:
         return this.handle(
           requestId,
           clientId,

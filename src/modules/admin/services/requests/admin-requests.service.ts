@@ -25,8 +25,8 @@ import {
 import { AdminRequestMapper } from '../../../../common/mappers/admin-request.mapper';
 
 const SUPPORTED_RESPONSE_ACTIONS = new Set<AdminRequestResponseAction>([
-  AdminRequestResponseAction.ACCEPT,
-  AdminRequestResponseAction.DECLINE,
+  AdminRequestResponseAction.APPROVE,
+  AdminRequestResponseAction.REJECT,
 ]);
 
 @Injectable()

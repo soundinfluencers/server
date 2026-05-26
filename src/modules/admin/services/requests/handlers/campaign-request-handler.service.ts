@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ClientSession } from 'mongoose';
 import { RequestForAdminRepository } from '../../../../../database/repositories/requests/request-for-admin.repository';
 import { ClientRepository } from '../../../../../database/repositories/users/client.repository';
 import { CampaignRepository } from '../../../../../database/repositories/campaigns/campaign.repository';
@@ -46,9 +47,9 @@ export class CampaignRequestHandler {
 
   async exec({ requestId, response, campaignId }: RespondCampaignRequestProps): Promise<void> {
     switch (response) {
-      case AdminRequestResponseAction.ACCEPT:
+      case AdminRequestResponseAction.APPROVE:
         return this.accept(requestId, campaignId);
-      case AdminRequestResponseAction.DECLINE:
+      case AdminRequestResponseAction.REJECT:
         return this.decline(requestId, campaignId);
       default:
         throw new BadRequestException('Unsupported response action for this request type.');
@@ -71,22 +72,31 @@ export class CampaignRequestHandler {
     const influencerIds = campaign.addedAccounts.map((acc) => acc.influencerId);
     const influencers = await this.influencerRepository.findMany({ _id: { $in: influencerIds } });
 
-    for (const influencer of influencers) {
-      await Promise.all(
-        Object.values(SocialMediaEnum).map(async (socialMedia) => {
+    const influencerEmailPayloads: Array<{
+      firstName: string;
+      email: string;
+      accountsAndDetails: AccountObjectForCreateNewPromoRequestMessage[];
+    }> = [];
+
+    const session = await this.campaignRepository.startSession();
+    session.startTransaction();
+
+    try {
+      for (const influencer of influencers) {
+        for (const socialMedia of Object.values(SocialMediaEnum)) {
           const accounts: any[] = influencer[socialMedia] ?? [];
 
-          await Promise.all(
-            accounts.map(async (account) => {
-              const isInCampaign = campaign.addedAccounts.some(
-                (acc) =>
-                  (acc.username === account.username ||
-                    (acc as any).instagramUsername === account.username) &&
-                  acc.socialMedia === socialMedia,
-              );
-              if (!isInCampaign) return;
+          for (const account of accounts) {
+            const isInCampaign = campaign.addedAccounts.some(
+              (acc) =>
+                (acc.username === account.username ||
+                  (acc as any).instagramUsername === account.username) &&
+                acc.socialMedia === socialMedia,
+            );
+            if (!isInCampaign) continue;
 
-              await this.influencerActionsHistoryService.upsertInfluencerCampaignActionsHistory({
+            await this.influencerActionsHistoryService.upsertInfluencerCampaignActionsHistory(
+              {
                 influencerId: influencer._id.toString(),
                 campaignId,
                 campaignName: campaign.campaignName,
@@ -98,64 +108,74 @@ export class CampaignRequestHandler {
                   rewardForInfluencer: account.price,
                   socialMedia,
                 },
-              });
-            }),
-          );
-        }),
-      );
+              },
+              session,
+            );
+          }
+        }
 
-      const influencerAccounts = campaign.addedAccounts.filter(
-        (acc) => acc.influencerId.toString() === influencer._id.toString(),
-      );
+        const influencerAccounts = campaign.addedAccounts.filter(
+          (acc) => acc.influencerId.toString() === influencer._id.toString(),
+        );
 
-      const accountDetails: AccountObjectForCreateNewPromoRequestMessage[] = influencerAccounts.map(
-        (acc) => {
-          const content = campaign.campaignContent.find(
-            (c) => c._id.toString() === acc.selectedContent?.campaignContentItemId?.toString(),
-          );
-          return {
-            pageName: acc.username,
-            reward: `${acc.price}€`,
-            socialMedia: acc.socialMedia,
-            mainLink: content?.mainLink ?? '',
-            description:
-              content?.descriptions?.find(
-                (d) => d._id.toString() === acc.selectedContent?.descriptionId?.toString(),
-              )?.description ?? '',
-            taggedUser: content?.taggedUser,
-            taggedLink: content?.taggedLink,
-            additionalBrief: content?.additionalBrief,
-          };
-        },
-      );
+        const accountDetails: AccountObjectForCreateNewPromoRequestMessage[] =
+          influencerAccounts.map((acc) => {
+            const content = campaign.campaignContent.find(
+              (c) => c._id.toString() === acc.selectedContent?.campaignContentItemId?.toString(),
+            );
+            return {
+              pageName: acc.username,
+              reward: `${acc.price}€`,
+              socialMedia: acc.socialMedia,
+              mainLink: content?.mainLink ?? '',
+              description:
+                content?.descriptions?.find(
+                  (d) => d._id.toString() === acc.selectedContent?.descriptionId?.toString(),
+                )?.description ?? '',
+              taggedUser: content?.taggedUser,
+              taggedLink: content?.taggedLink,
+              additionalBrief: content?.additionalBrief,
+            };
+          });
 
-      if (accountDetails.length === 0) continue;
-
-      try {
-        await this.emailService.send(
-          AdminToInfluencerEmails.newPromoRequest({
+        if (accountDetails.length > 0) {
+          influencerEmailPayloads.push({
             firstName: influencer.firstName,
             email: influencer.email,
             accountsAndDetails: accountDetails,
-          }),
-        );
+          });
+        }
+      }
+
+      await this.campaignRepository.updateOne(
+        { _id: new ObjId(campaignId) },
+        {
+          verifyCampaign: CampaignConfirmationEnum.accept,
+          statusCampaign: CampaignStatusEnum.pending,
+        },
+        { session },
+      );
+
+      await this.closeRequest(requestId, RequestSpecifiedStatus.APPROVED, session);
+
+      await session.commitTransaction();
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      await session.endSession();
+    }
+
+    for (const payload of influencerEmailPayloads) {
+      try {
+        await this.emailService.send(AdminToInfluencerEmails.newPromoRequest(payload));
       } catch (err) {
         this.logger.warn(
-          `New promo email failed for influencer ${influencer._id} on campaign ${campaignId}`,
+          `New promo email failed for influencer ${payload.email} on campaign ${campaignId}`,
           err,
         );
       }
     }
-
-    await this.campaignRepository.updateOne(
-      { _id: new ObjId(campaignId) },
-      {
-        verifyCampaign: CampaignConfirmationEnum.accept,
-        statusCampaign: CampaignStatusEnum.pending,
-      },
-    );
-
-    await this.closeRequest(requestId, RequestSpecifiedStatus.APPROVED);
 
     try {
       await this.emailService.send(
@@ -177,15 +197,28 @@ export class CampaignRequestHandler {
     });
     if (!client) throw new NotFoundException('Client not found');
 
-    await this.campaignRepository.updateOne(
-      { _id: new ObjId(campaignId) },
-      {
-        verifyCampaign: CampaignConfirmationEnum.decline,
-        statusCampaign: CampaignStatusEnum.declined,
-      },
-    );
+    const session = await this.campaignRepository.startSession();
+    session.startTransaction();
 
-    await this.closeRequest(requestId, RequestSpecifiedStatus.REJECTED);
+    try {
+      await this.campaignRepository.updateOne(
+        { _id: new ObjId(campaignId) },
+        {
+          verifyCampaign: CampaignConfirmationEnum.decline,
+          statusCampaign: CampaignStatusEnum.declined,
+        },
+        { session },
+      );
+
+      await this.closeRequest(requestId, RequestSpecifiedStatus.REJECTED, session);
+
+      await session.commitTransaction();
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      await session.endSession();
+    }
 
     try {
       await this.emailService.send(
@@ -198,7 +231,11 @@ export class CampaignRequestHandler {
     }
   }
 
-  private async closeRequest(requestId: string, status: RequestSpecifiedStatus): Promise<void> {
+  private async closeRequest(
+    requestId: string,
+    status: RequestSpecifiedStatus,
+    session: ClientSession,
+  ): Promise<void> {
     await this.requestRepository.updateOne(
       {
         _id: new ObjId(requestId),
@@ -212,6 +249,7 @@ export class CampaignRequestHandler {
           reviewedAt: new Date(),
         },
       },
+      { session },
     );
   }
 }
