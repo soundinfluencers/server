@@ -9,6 +9,7 @@ import {PaginationQueryDto} from "../../../../common/dto/requests/pagination-que
 import {IsEnum, IsOptional} from "class-validator";
 import {BespokeRequestCategory, CampaignPaymentMethodEnum} from "../../../../common/types/client/campaign.types";
 import {SocialMediaEnum} from "../../../../common/types/social-media.types";
+import {ExtendedSocialAccountDetailsDto} from "../../../profile/dto/influencer/get-profile.dto";
 
 // DTO query for fetching paginated list of different requests
 export class AdminRequestsQueryDto extends PaginationQueryDto {
@@ -188,4 +189,16 @@ export class BespokeCampaignRequestDetailsDto extends AdminRequestDetailsBase {
 
     @ApiPropertyOptional({type: String})
     ticketLink?: string;
+}
+
+// DTO for new influencer request details
+export class NewInfluencerRequestDetailsDto extends AdminRequestDetailsBase {
+    @ApiProperty({type: String})
+    influencerId: string;
+
+    @ApiProperty({type: String})
+    phoneNumber: string;
+
+    @ApiProperty({type: ExtendedSocialAccountDetailsDto, isArray: true})
+    accounts: ExtendedSocialAccountDetailsDto[]
 }

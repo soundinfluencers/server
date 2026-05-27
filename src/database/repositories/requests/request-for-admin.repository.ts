@@ -13,6 +13,7 @@ import {
   CampaignRequestDetails,
   IAdminRequest,
   NewClientRequestDetails,
+  NewInfluencerRequestDetails,
   RequestForAdminType,
   RequestLifecycleState,
 } from '../../../common/types/request-for-admin/request-for-admin.types';
@@ -46,6 +47,9 @@ interface IRequestForAdminRepository {
   getBespokeCampaignRequestDetails(
     requestId: string,
   ): Promise<BespokeCampaignRequestDetails | null>;
+
+  // Get details of NEW_INFLUENCER_REQUEST request
+  getNewInfluencerRequestDetails(requestId: string): Promise<NewInfluencerRequestDetails | null>;
 }
 
 @Injectable()
@@ -204,7 +208,7 @@ export class RequestForAdminRepository
                 company: 1,
                 companyType: 1,
                 referalCode: 1,
-                instagramUsername: 1
+                instagramUsername: 1,
               },
             },
           ],
@@ -476,6 +480,112 @@ export class RequestForAdminRepository
           releaseDate: '$bespokeRequest.releaseDate',
           smartLink: '$bespokeRequest.smartLink',
           ticketLink: '$bespokeRequest.ticketLink',
+        },
+      },
+    ]);
+
+    return result ?? null;
+  }
+
+  // Get details of NEW_INFLUENCER_REQUEST request
+  async getNewInfluencerRequestDetails(
+    requestId: string,
+  ): Promise<NewInfluencerRequestDetails | null> {
+    if (!Types.ObjectId.isValid(requestId)) {
+      return null;
+    }
+
+    const socialMediaFields = [
+      'instagram',
+      'tiktok',
+      'spotify',
+      'soundcloud',
+      'facebook',
+      'youtube',
+      'press',
+    ];
+
+    const accountMap = (field: string) => ({
+      $map: {
+        input: { $ifNull: [`$influencer.${field}`, []] },
+        as: 'acc',
+        in: {
+          accountId: '$$acc._id',
+          username: '$$acc.username',
+          profileLink: '$$acc.profileLink',
+          followers: '$$acc.followers',
+          logoUrl: '$$acc.logoUrl',
+          profileCategory: '$$acc.profileCategory',
+          price: '$$acc.price',
+          initialPrice: '$$acc.initialPrice',
+          currency: '$$acc.currency',
+          musicGenres: { $ifNull: ['$$acc.musicGenres', []] },
+          creatorCategories: { $ifNull: ['$$acc.creatorCategories', []] },
+          countries: { $ifNull: ['$$acc.countries', []] },
+          categories: { $ifNull: ['$$acc.categories', []] },
+          engagementRate: { $ifNull: ['$$acc.engagementRate', null] },
+          averageViews: { $ifNull: ['$$acc.averageViews', null] },
+        },
+      },
+    });
+
+    const [result] = await this.requestForAdmin.aggregate<NewInfluencerRequestDetails>([
+      {
+        $match: {
+          _id: new Types.ObjectId(requestId),
+          type: RequestForAdminType.NEW_INFLUENCER_REQUEST,
+        },
+      },
+      {
+        $lookup: {
+          from: 'influencers',
+          localField: 'influencerId',
+          foreignField: '_id',
+          as: 'influencer',
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                firstName: 1,
+                lastName: 1,
+                email: 1,
+                phone: 1,
+                instagram: 1,
+                tiktok: 1,
+                spotify: 1,
+                soundcloud: 1,
+                facebook: 1,
+                youtube: 1,
+                press: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $unwind: {
+          path: '$influencer',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          group: 1,
+          type: 1,
+          lifecycleStatus: 1,
+          specifiedStatus: 1,
+          influencerId: 1,
+          createdAt: 1,
+
+          firstName: { $ifNull: ['$influencer.firstName', ''] },
+          lastName: { $ifNull: ['$influencer.lastName', ''] },
+          email: { $ifNull: ['$influencer.email', ''] },
+          phone: { $ifNull: ['$influencer.phone', ''] },
+
+          accounts: {
+            $concatArrays: socialMediaFields.map((f) => accountMap(f)),
+          },
         },
       },
     ]);

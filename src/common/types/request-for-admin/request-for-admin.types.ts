@@ -53,6 +53,46 @@ export type CreateBespokeCampaignRequestProps = {
   clientName: string;
 };
 
+export type CreateNewInfluencerRequestProps = {
+  influencerId: string;
+  influencerName: string;
+};
+
+export type NewInfluencerSocialAccountRaw = {
+  accountId: ObjId;
+  username: string;
+  profileLink: string;
+  followers: number;
+  logoUrl: string;
+  profileCategory: string;
+  price: number;
+  initialPrice: number;
+  currency: string;
+  musicGenres: any[];
+  creatorCategories: string[];
+  countries: any[];
+  categories: string[];
+  engagementRate: number | null;
+  averageViews: number | null;
+};
+
+export type NewInfluencerRequestDetails = {
+  _id: ObjId;
+  group: RequestGroup;
+  type: RequestForAdminType;
+  lifecycleStatus: RequestLifecycleState;
+  specifiedStatus: RequestSpecifiedStatus;
+  influencerId: ObjId;
+  createdAt: Date;
+
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+
+  accounts: NewInfluencerSocialAccountRaw[];
+};
+
 export type BespokeCampaignRequestDetails = {
   _id: ObjId;
   group: RequestGroup;

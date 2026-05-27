@@ -101,9 +101,10 @@ export class CreateInfluencerDto {
     @IsString()
     firstName: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
-    lastName: string;
+    lastName?: string;
 
     @ApiProperty()
     @IsString()

@@ -3,6 +3,7 @@ import {
   CampaignRequestDetails,
   IAdminRequest,
   NewClientRequestDetails,
+  NewInfluencerRequestDetails,
   RequestForAdminType,
 } from '../types/request-for-admin/request-for-admin.types';
 import {
@@ -10,6 +11,7 @@ import {
   BespokeCampaignRequestDetailsDto,
   CampaignRequestDetailsDto,
   NewClientRequestDetailsDto,
+  NewInfluencerRequestDetailsDto,
 } from '../../modules/admin/dto/requests/admin-requests.dto';
 import { formatDate } from '../utils/formatters';
 
@@ -22,6 +24,8 @@ export class AdminRequestMapper {
         return 'Campaign Request';
       case RequestForAdminType.BESPOKE_CAMPAIGN_REQUEST:
         return 'Bespoke Campaign Request';
+      case RequestForAdminType.NEW_INFLUENCER_REQUEST:
+        return 'Influencer Registration Request';
       default:
         return 'Unknown Request';
     }
@@ -98,6 +102,39 @@ export class AdminRequestMapper {
       releaseDate: details.releaseDate,
       smartLink: details.smartLink,
       ticketLink: details.ticketLink,
+    };
+  }
+
+  static toNewInfluencerRequestDetailsDto(
+    details: NewInfluencerRequestDetails,
+  ): NewInfluencerRequestDetailsDto {
+    return {
+      requestId: details._id.toString(),
+      group: details.group,
+      type: details.type,
+      date: formatDate(details.createdAt),
+      influencerId: details.influencerId.toString(),
+      firstName: details.firstName,
+      lastName: details.lastName,
+      email: details.email,
+      phoneNumber: details.phone,
+      accounts: details.accounts.map((acc) => ({
+        accountId: acc.accountId.toString(),
+        username: acc.username,
+        profileLink: acc.profileLink,
+        followers: acc.followers,
+        logoUrl: acc.logoUrl,
+        profileCategory: acc.profileCategory as any,
+        price: acc.price,
+        initialPrice: acc.initialPrice,
+        currency: acc.currency as any,
+        musicGenres: acc.musicGenres ?? [],
+        creatorCategories: acc.creatorCategories ?? [],
+        countries: acc.countries ?? [],
+        categories: acc.categories ?? [],
+        engagementRate: acc.engagementRate,
+        averageViews: acc.averageViews,
+      })),
     };
   }
 }

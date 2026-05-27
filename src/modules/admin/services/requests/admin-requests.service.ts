@@ -8,6 +8,7 @@ import {
 import { NewClientAdminRequestDocument } from '../../../../database/schemas/requests/new-client-request.schema';
 import { CampaignAdminRequestDocument } from '../../../../database/schemas/requests/campaign-request.schema';
 import { BespokeCampaignAdminRequestDocument } from '../../../../database/schemas/requests/bespoke-campaign-admin-request.schema';
+import { NewInfluencerAdminRequestDocument } from '../../../../database/schemas/requests/new-influencer-request.schema';
 import {
   AdminRequestForListDto,
   AdminRequestsListResponseDto,
@@ -110,6 +111,16 @@ export class AdminRequestsService {
           requestId,
           response,
           bespokeCampaignRequestId: doc.bespokeCampaignRequestId.toString(),
+        });
+        break;
+      }
+
+      case RequestForAdminType.NEW_INFLUENCER_REQUEST: {
+        const doc = request as unknown as NewInfluencerAdminRequestDocument;
+        await this.handlers.newInfluencer.exec({
+          requestId,
+          response,
+          influencerId: doc.influencerId.toString(),
         });
         break;
       }

@@ -192,6 +192,11 @@ export class SocialAccountDetailsDto implements SocialAccountDetails {
     averageViews: number;
 }
 
+export class ExtendedSocialAccountDetailsDto extends SocialAccountDetailsDto {
+    @ApiProperty({example: 60})
+    price: number;
+}
+
 // dto for returning found social accounts
 export class FoundAccountDto {
     @ApiProperty({example: '66a747a89c6e78a6cfb83g5'})

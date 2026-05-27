@@ -4,6 +4,7 @@ import {
   BespokeCampaignRequestDetailsDto,
   CampaignRequestDetailsDto,
   NewClientRequestDetailsDto,
+  NewInfluencerRequestDetailsDto,
 } from '../../dto/requests/admin-requests.dto';
 import { RequestForAdminType } from '../../../../common/types/request-for-admin/request-for-admin.types';
 import { AdminRequestMapper } from '../../../../common/mappers/admin-request.mapper';
@@ -18,7 +19,11 @@ export class GetAdminRequestDetailsService {
     requestId: string,
     requestType: RequestForAdminType,
   ): Promise<
-    NewClientRequestDetailsDto | CampaignRequestDetailsDto | BespokeCampaignRequestDetailsDto | null
+    | NewClientRequestDetailsDto
+    | CampaignRequestDetailsDto
+    | BespokeCampaignRequestDetailsDto
+    | NewInfluencerRequestDetailsDto
+    | null
   > {
     switch (requestType) {
       case RequestForAdminType.NEW_CLIENT_REQUEST: {
@@ -32,6 +37,10 @@ export class GetAdminRequestDetailsService {
       case RequestForAdminType.BESPOKE_CAMPAIGN_REQUEST: {
         const details = await this.requestRepository.getBespokeCampaignRequestDetails(requestId);
         return details ? AdminRequestMapper.toBespokeCampaignRequestDetailsDto(details) : null;
+      }
+      case RequestForAdminType.NEW_INFLUENCER_REQUEST: {
+        const details = await this.requestRepository.getNewInfluencerRequestDetails(requestId);
+        return details ? AdminRequestMapper.toNewInfluencerRequestDetailsDto(details) : null;
       }
       default:
         return null;

@@ -1,8 +1,11 @@
-import { ApiProperty } from '@nestjs/swagger';
+import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
 
 export class CreateClientDto {
   @ApiProperty({ required: true })
   firstName: string;
+
+  @ApiPropertyOptional({ required: false })
+  lastName?: string;
 
   @ApiProperty({ required: true })
   company: string;

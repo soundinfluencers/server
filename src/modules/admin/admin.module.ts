@@ -41,11 +41,15 @@ import {
 import {
   CAMPAIGN_REQUEST_HANDLER,
   CampaignRequestHandler,
-} from './services/requests/handlers/campaign-request-handler.service';
+} from './services/requests/handlers/campaign-request.handler';
 import {
   BESPOKE_CAMPAIGN_REQUEST_HANDLER,
   BespokeCampaignRequestHandler,
-} from './services/requests/handlers/bespoke-campaign-request-handler.service';
+} from './services/requests/handlers/bespoke-campaign-request.handler';
+import {
+  NEW_INFLUENCER_REQUEST_HANDLER,
+  NewInfluencerRequestHandler,
+} from './services/requests/handlers/new-influencer-request.handler';
 import {
   ADMIN_REQUEST_HANDLERS,
   AdminRequestHandlers,
@@ -76,6 +80,10 @@ import {
     {
       provide: BESPOKE_CAMPAIGN_REQUEST_HANDLER,
       useClass: BespokeCampaignRequestHandler,
+    },
+    {
+      provide: NEW_INFLUENCER_REQUEST_HANDLER,
+      useClass: NewInfluencerRequestHandler,
     },
     {
       provide: ADMIN_REQUEST_HANDLERS,

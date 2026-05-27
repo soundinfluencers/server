@@ -399,6 +399,15 @@ export class AuthService {
         { session },
       );
 
+      await this.createAdminRequestService.exec({
+        requestType: RequestForAdminType.NEW_INFLUENCER_REQUEST,
+        session,
+        payload: {
+          influencerId: userId.toString(),
+          influencerName: data.firstName,
+        },
+      });
+
       await session.commitTransaction();
     } catch (err) {
       await session.abortTransaction();

@@ -4,6 +4,7 @@ import {
   CreateBespokeCampaignRequestProps,
   CreateCampaignRequestProps,
   CreateNewClientRequestProps,
+  CreateNewInfluencerRequestProps,
   RequestForAdminType,
   RequestGroup,
   RequestLifecycleState,
@@ -30,6 +31,11 @@ type CreateAdminRequestProps =
       requestType: RequestForAdminType.BESPOKE_CAMPAIGN_REQUEST;
       session?: ClientSession;
       payload: CreateBespokeCampaignRequestProps;
+    }
+  | {
+      requestType: RequestForAdminType.NEW_INFLUENCER_REQUEST;
+      session?: ClientSession;
+      payload: CreateNewInfluencerRequestProps;
     };
 
 @Injectable()
@@ -63,6 +69,14 @@ export class CreateAdminRequestService {
           );
         }
         await this.createBespokeCampaignRequest(props.payload, props.session);
+        break;
+      }
+
+      case RequestForAdminType.NEW_INFLUENCER_REQUEST: {
+        if (!props.payload.influencerId) {
+          throw new BadRequestException(`influencerId is required for ${props.requestType}`);
+        }
+        await this.createInfluencerRequest(props.payload, props.session);
         break;
       }
 
@@ -123,6 +137,24 @@ export class CreateAdminRequestService {
         userRole: Role.client,
         clientId: new ObjId(props.clientId),
         bespokeCampaignRequestId: new ObjId(props.bespokeCampaignRequestId),
+      },
+      { session },
+    );
+  }
+
+  private async createInfluencerRequest(
+    props: CreateNewInfluencerRequestProps,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.requestRepository.create(
+      {
+        group: RequestGroup.INFLUENCER,
+        type: RequestForAdminType.NEW_INFLUENCER_REQUEST,
+        lifecycleStatus: RequestLifecycleState.OPEN,
+        specifiedStatus: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
+        userFirstName: props.influencerName,
+        userRole: Role.influencer,
+        influencerId: new ObjId(props.influencerId),
       },
       { session },
     );
