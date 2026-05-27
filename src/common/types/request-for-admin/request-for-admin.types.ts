@@ -76,7 +76,7 @@ export type BespokeCampaignRequestDetails = {
 
   // music discriminator
   trackLink?: string;
-  releaseDate?: Date;
+  releaseDate?: string;
   smartLink?: string;
 
   // event discriminator

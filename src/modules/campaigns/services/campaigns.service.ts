@@ -700,6 +700,8 @@ export class CampaignsService {
 
     let bespokeRequestId: ObjId | null = null;
 
+    console.log(data.payload, 'PAYLOAD');
+
     try {
       const bespokeRequest = await this.bespokeCampaignRepo.create(
         {

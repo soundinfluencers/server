@@ -204,6 +204,7 @@ export class RequestForAdminRepository
                 company: 1,
                 companyType: 1,
                 referalCode: 1,
+                instagramUsername: 1
               },
             },
           ],
@@ -247,9 +248,11 @@ export class RequestForAdminRepository
           companyType: {
             $ifNull: ['$clientInfo.companyType', ''],
           },
-
           referralCode: {
             $ifNull: ['$clientInfo.referalCode', ''],
+          },
+          instagramUsername: {
+            $ifNull: ['$clientInfo.instagramUsername', ''],
           },
         },
       },

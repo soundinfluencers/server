@@ -95,7 +95,7 @@ export class AdminRequestMapper {
       targetTerritories: details.targetTerritories,
       extraBriefs: details.extraBriefs,
       trackLink: details.trackLink,
-      releaseDate: details.releaseDate ? formatDate(details.releaseDate) : undefined,
+      releaseDate: details.releaseDate,
       smartLink: details.smartLink,
       ticketLink: details.ticketLink,
     };
