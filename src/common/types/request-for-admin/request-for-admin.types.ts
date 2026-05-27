@@ -93,6 +93,38 @@ export type NewInfluencerRequestDetails = {
   accounts: NewInfluencerSocialAccountRaw[];
 };
 
+export type CreatePriceUpdateRequestProps = {
+  influencerId: string;
+  influencerName: string;
+  socialAccountId: string;
+  socialMedia: string;
+  newPrice: number;
+  currency: string;
+};
+
+export type PriceUpdateRequestDetails = {
+  _id: ObjId;
+  group: RequestGroup;
+  type: RequestForAdminType;
+  lifecycleStatus: RequestLifecycleState;
+  specifiedStatus: RequestSpecifiedStatus;
+  influencerId: ObjId;
+  socialAccountId: ObjId;
+  socialMedia: string;
+  newPrice: number;
+  currency: string;
+  createdAt: Date;
+
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+
+  username: string;
+  currentPrice: number;
+  currentCurrency: string;
+};
+
 export type BespokeCampaignRequestDetails = {
   _id: ObjId;
   group: RequestGroup;

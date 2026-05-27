@@ -100,6 +100,7 @@ import { RequestForAdminRepository } from './repositories/requests/request-for-a
 import { CampaignAdminRequestSchema } from './schemas/requests/campaign-request.schema';
 import { BespokeCampaignAdminRequestSchema } from './schemas/requests/bespoke-campaign-admin-request.schema';
 import { NewInfluencerAdminRequestSchema } from './schemas/requests/new-influencer-request.schema';
+import { PriceUpdateAdminRequestSchema } from './schemas/requests/price-update-admin-request.schema';
 
 @Global()
 @Module({
@@ -158,6 +159,10 @@ import { NewInfluencerAdminRequestSchema } from './schemas/requests/new-influenc
           {
             name: RequestForAdminType.NEW_INFLUENCER_REQUEST,
             schema: NewInfluencerAdminRequestSchema,
+          },
+          {
+            name: RequestForAdminType.PRICE_UPDATE_REQUEST,
+            schema: PriceUpdateAdminRequestSchema,
           },
         ],
       },

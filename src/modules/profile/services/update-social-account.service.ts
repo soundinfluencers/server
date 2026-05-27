@@ -1,42 +1,49 @@
 import {
     BadRequestException,
     ForbiddenException,
+    Inject,
     Injectable,
     InternalServerErrorException,
     Logger,
     NotFoundException,
-} from "@nestjs/common";
-import {isMongoId} from "class-validator";
+} from '@nestjs/common';
+import {isMongoId} from 'class-validator';
 
-import {InfluencerRepository} from "../../../database/repositories/users/influencer.repository";
-import {ObjId} from "../../../common/types/base.types";
-import {Influencer, SocialAccount} from "../../../database/schemas/users/influencer.schema";
-import {SocialMediaEnum} from "../../../common/types/social-media.types";
-import {UpdateSocialAccountDto} from "../dto/influencer/update-influencer.dto";
-import {AdminUpdateSocialAccountDto} from "../../admin/dto/influencers/admin-update-influencer.dto";
-import {SocialAccountDetails, SocialAccountLabelStatus} from "../../../common/types/influencer/influencer.types";
-import {EmailService} from "../../../integrations/email/email.service";
+import {InfluencerRepository} from '../../../database/repositories/users/influencer.repository';
+import {ObjId} from '../../../common/types/base.types';
+import {Influencer, SocialAccount} from '../../../database/schemas/users/influencer.schema';
+import {SocialMediaEnum} from '../../../common/types/social-media.types';
+import {UpdateSocialAccountDto} from '../dto/influencer/update-influencer.dto';
+import {AdminUpdateSocialAccountDto} from '../../admin/dto/influencers/admin-update-influencer.dto';
+import {
+    SocialAccountDetails,
+    SocialAccountLabelStatus,
+} from '../../../common/types/influencer/influencer.types';
 import {
     mapToAdminSocialAccountForListDto,
-    mapToSocialAccountDetailsDto
-} from "../../../common/mappers/influencer.mapper";
-import {AccountVerifiedStatus} from "../../../common/types/user.types";
-import {areCountriesValid} from "../../../common/utils/countries.util";
-import {CurrencyCode, getAvailableCurrenciesLabel} from "../../../common/types/finance.types";
+    mapToSocialAccountDetailsDto,
+} from '../../../common/mappers/influencer.mapper';
+import {AccountVerifiedStatus} from '../../../common/types/user.types';
+import {areCountriesValid} from '../../../common/utils/countries.util';
+import {CurrencyCode, getAvailableCurrenciesLabel} from '../../../common/types/finance.types';
+import {normalizeDtoToMusicGenres} from '../../../common/utils/genres';
+import {SocialAccountDetailsDto} from '../dto/influencer/get-profile.dto';
+import {AdminSocialAccountForListDto} from '../../admin/dto/influencers/admin-influencers.dto';
+import {
+    CREATE_ADMIN_REQUEST_SERVICE,
+    CreateAdminRequestService,
+} from '../../admin/services/requests/create-admin-request.service';
+import {RequestForAdminType} from '../../../common/types/request-for-admin/request-for-admin.types';
+import {EmailService} from "../../../integrations/email/email.service";
 import {InfluencerToAdminEmails} from "../../../integrations/email/email.templates";
-import {normalizeDtoToMusicGenres} from "../../../common/utils/genres";
-import {SocialAccountDetailsDto} from "../dto/influencer/get-profile.dto";
-import {AdminSocialAccountForListDto} from "../../admin/dto/influencers/admin-influencers.dto";
 
-type UpdateSocialAccountInput =
-    | UpdateSocialAccountDto
-    | AdminUpdateSocialAccountDto;
+type UpdateSocialAccountInput = UpdateSocialAccountDto | AdminUpdateSocialAccountDto;
 
 interface IUpdateSocialAccountService {
     // Executes service
     execute(
         data: UpdateSocialAccountInput,
-        isForAdmin?: boolean
+        isForAdmin?: boolean,
     ): Promise<SocialAccountDetails | AdminSocialAccountForListDto>;
 
     // Finds influencer by id
@@ -52,17 +59,19 @@ interface IUpdateSocialAccountService {
 
 @Injectable()
 export class UpdateSocialAccountService implements IUpdateSocialAccountService {
-    private readonly logger = new Logger("UpdateSocialAccountService");
+    private readonly logger = new Logger('UpdateSocialAccountService');
 
     constructor(
         private readonly influencerRepository: InfluencerRepository,
+        @Inject(CREATE_ADMIN_REQUEST_SERVICE)
+        private readonly createAdminRequestService: CreateAdminRequestService,
         private readonly emailService: EmailService,
     ) {
     }
 
     async execute(
         data: UpdateSocialAccountInput,
-        isForAdmin: boolean = false
+        isForAdmin: boolean = false,
     ): Promise<SocialAccountDetails | AdminSocialAccountForListDto> {
         const {influencerId, socialAccountId, socialMedia} = this.validateInput(data);
 
@@ -70,11 +79,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
         const influencer = await this.findInfluencerById(influencerId);
 
         // Find social account
-        const socialAccount = this.findSocialAccount(
-            influencer,
-            socialMedia,
-            socialAccountId,
-        );
+        const socialAccount = this.findSocialAccount(influencer, socialMedia, socialAccountId);
 
         if (isForAdmin === false) {
             this.validateSocialAccountBeforeUpdate(socialAccount);
@@ -108,7 +113,8 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
                     accountId: socialAccount._id,
                     balance: influencer.balance,
                     socialMedia: socialMedia,
-                    costPerFollower: Number((socialAccount?.price / socialAccount?.followers)?.toFixed(6)) ?? 0
+                    costPerFollower:
+                        Number((socialAccount?.price / socialAccount?.followers)?.toFixed(6)) ?? 0,
                 })
                 : mapToSocialAccountDetailsDto(socialAccount);
         }
@@ -146,9 +152,10 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
                 price: updatedAccount.price,
                 initialPrice: updatedAccount.initialPrice,
                 currency: updatedAccount.currency,
-                costPerFollower: Number((updatedAccount?.price / updatedAccount?.followers)?.toFixed(6)) ?? 0,
+                costPerFollower:
+                    Number((updatedAccount?.price / updatedAccount?.followers)?.toFixed(6)) ?? 0,
                 isHidden: updatedAccount.isHidden,
-                internalNote: influencer.internalNote
+                internalNote: influencer.internalNote,
             })
             : mapToSocialAccountDetailsDto(updatedAccount);
     }
@@ -159,7 +166,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
             _id: influencerId,
         });
 
-        if (!influencer) throw new NotFoundException("Influencer not found.");
+        if (!influencer) throw new NotFoundException('Influencer not found.');
 
         return influencer;
     }
@@ -180,11 +187,11 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
             (account) => account._id.toString() === socialAccountId.toString(),
         );
 
-        if (accountIndex === -1) throw new NotFoundException("Social account not found");
+        if (accountIndex === -1) throw new NotFoundException('Social account not found');
 
         const socialAccount = influencer[socialMedia][accountIndex];
 
-        if (!socialAccount) throw new NotFoundException("Social account not found");
+        if (!socialAccount) throw new NotFoundException('Social account not found');
 
         return socialAccount;
     }
@@ -195,15 +202,15 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
         socialMedia: SocialMediaEnum;
     } {
         if (!data.influencerId) {
-            throw new BadRequestException("Not enough arguments");
+            throw new BadRequestException('Not enough arguments');
         }
 
         if (!isMongoId(data.influencerId)) {
-            throw new BadRequestException("Invalid influencer id.");
+            throw new BadRequestException('Invalid influencer id.');
         }
 
         if (!data.accountId || !isMongoId(data.accountId)) {
-            throw new BadRequestException("Invalid social account id.");
+            throw new BadRequestException('Invalid social account id.');
         }
 
         return {
@@ -216,30 +223,36 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
     private validateSocialAccountBeforeUpdate(socialAccount: SocialAccount): void {
         if (socialAccount.verifiedStatus !== AccountVerifiedStatus.accept) {
             throw new ForbiddenException(
-                "Wait for admin approval before updating an account with a requested price change",
+                'Wait for admin approval before updating an account with a requested price change',
             );
         }
     }
 
     private validateCountries(data: UpdateSocialAccountInput): void {
         if (data.countries !== undefined && !areCountriesValid(data.countries)) {
-            throw new BadRequestException("Countries not valid");
+            throw new BadRequestException('Countries not valid');
         }
     }
 
-    private buildUpdateFields(data: UpdateSocialAccountInput, isForAdmin: boolean = false): Partial<SocialAccount> {
+    private buildUpdateFields(
+        data: UpdateSocialAccountInput,
+        isForAdmin: boolean = false,
+    ): Partial<SocialAccount> {
         const updateFields: Partial<SocialAccount> = {};
 
         for (const [key, value] of Object.entries(data)) {
             if (
                 value !== undefined &&
-                key !== "influencerId" &&
-                key !== "accountId" &&
-                key !== "socialMedia"
+                key !== 'influencerId' &&
+                key !== 'accountId' &&
+                key !== 'socialMedia'
                 // key !== "price" &&
                 // key !== "currency"
             ) {
-                if ((key === "price" || key === "currency" || key === "publicPrice") && isForAdmin === false) {
+                if (
+                    (key === 'price' || key === 'currency' || key === 'publicPrice') &&
+                    isForAdmin === false
+                ) {
                     continue;
                 }
 
@@ -270,9 +283,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
         } = params;
 
         const isPriceChanged =
-            data.price !== undefined &&
-            data.price !== null &&
-            data.price !== socialAccount.price;
+            data.price !== undefined && data.price !== null && data.price !== socialAccount.price;
 
         // for creating change price request
         if (!isPriceChanged) return;
@@ -280,48 +291,54 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
         if (!data.currency || !Object.values(CurrencyCode).includes(data.currency)) {
             throw new BadRequestException(
                 `Currency for ${socialMedia} account ${socialAccount.username} is not valid. ` +
-                `Try to use one of these: ${getAvailableCurrenciesLabel()}`
+                `Try to use one of these: ${getAvailableCurrenciesLabel()}`,
             );
         }
 
         try {
-            await this.emailService.send(
-                InfluencerToAdminEmails.priceChangeRequest({
-                    influencerName: influencer.firstName,
-                    influencerEmail: influencer.email,
-                    accountUsername: socialAccount.username,
-                    accountSocialMedia: socialMedia,
-                    oldPrice: socialAccount.price,
+            await this.createAdminRequestService.exec({
+                requestType: RequestForAdminType.PRICE_UPDATE_REQUEST,
+                payload: {
+                    influencerId: String(influencerId),
+                    influencerName: influencer.firstName ?? influencer.email,
+                    socialAccountId: String(socialAccountId),
+                    socialMedia: socialMedia,
                     newPrice: data.price,
                     currency: data.currency,
-                    acceptLink:
-                        `${process.env.SERVER}/profile/influencer/verify-new-accounts` +
-                        `?influencerId=${String(influencerId)}` +
-                        `&accounts=${encodeURIComponent(JSON.stringify([String(socialAccountId)]))}` +
-                        `&isVerified=true` +
-                        `&newPrice=${data.price}` +
-                        `&currency=${data.currency}`,
-                    declineLink:
-                        `${process.env.SERVER}/profile/influencer/verify-new-accounts` +
-                        `?influencerId=${String(influencerId)}` +
-                        `&accounts=${encodeURIComponent(JSON.stringify([String(socialAccountId)]))}` +
-                        `&isVerified=false` +
-                        `&newPrice=${data.price}` +
-                        `&currency=${data.currency}`,
-                }),
-            );
+                },
+            });
 
             updateFields.verifiedStatus = AccountVerifiedStatus.waitForAdmin as never;
             updateFields.labelStatus = SocialAccountLabelStatus.priceChanged as never;
         } catch (e) {
             this.logger.error(
-                `Error sending mail about price change for ${socialMedia} account ${String(socialAccountId)}`,
+                `Error creating price change request for ${socialMedia} account ${String(socialAccountId)}`,
                 e instanceof Error ? e.stack : String(e),
             );
 
             throw new InternalServerErrorException(
-                "Creating price change request failed. Try again later",
+                'Creating price change request failed. Try again later',
             );
+        }
+
+        try {
+            const link = `https://admin.soundinfluencers.com/dashboard/requests`;
+            await this.emailService.send(InfluencerToAdminEmails.priceChangeRequest({
+                influencerName: influencer.firstName,
+                influencerEmail: influencer.email,
+                accountUsername: socialAccount.username,
+                accountSocialMedia: socialMedia,
+                oldPrice: socialAccount.price,
+                newPrice: data.price,
+                currency: data.currency,
+                acceptLink: link,
+                declineLink: link,
+            }))
+        } catch (err) {
+            this.logger.warn(
+                `Price change request for influencer ${influencerId} and ${socialMedia} social account ${socialAccountId} was created, but email failed`,
+                err
+            )
         }
     }
 
@@ -348,16 +365,13 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
             },
             {
                 $set: Object.fromEntries(
-                    Object.entries(updateFields).map(([key, value]) => [
-                        `${socialMedia}.$.${key}`,
-                        value,
-                    ]),
+                    Object.entries(updateFields).map(([key, value]) => [`${socialMedia}.$.${key}`, value]),
                 ),
             },
         );
 
         if (updateResult.modifiedCount === 0) {
-            throw new InternalServerErrorException("Failed to update social account");
+            throw new InternalServerErrorException('Failed to update social account');
         }
     }
 
@@ -373,7 +387,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
         });
 
         if (!updatedInfluencer) {
-            throw new NotFoundException("Updated influencer not found");
+            throw new NotFoundException('Updated influencer not found');
         }
 
         const updatedAccount = updatedInfluencer[socialMedia]?.find(
@@ -381,7 +395,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
         );
 
         if (!updatedAccount) {
-            throw new NotFoundException("Updated social account not found");
+            throw new NotFoundException('Updated social account not found');
         }
 
         return updatedAccount;

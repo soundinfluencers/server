@@ -51,6 +51,10 @@ import {
   NewInfluencerRequestHandler,
 } from './services/requests/handlers/new-influencer-request.handler';
 import {
+  PRICE_UPDATE_REQUEST_HANDLER,
+  PriceUpdateRequestHandler,
+} from './services/requests/handlers/price-update-request-handler.service';
+import {
   ADMIN_REQUEST_HANDLERS,
   AdminRequestHandlers,
 } from './services/requests/handlers/admin-request-handlers.service';
@@ -84,6 +88,10 @@ import {
     {
       provide: NEW_INFLUENCER_REQUEST_HANDLER,
       useClass: NewInfluencerRequestHandler,
+    },
+    {
+      provide: PRICE_UPDATE_REQUEST_HANDLER,
+      useClass: PriceUpdateRequestHandler,
     },
     {
       provide: ADMIN_REQUEST_HANDLERS,

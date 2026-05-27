@@ -14,6 +14,7 @@ import {
   IAdminRequest,
   NewClientRequestDetails,
   NewInfluencerRequestDetails,
+  PriceUpdateRequestDetails,
   RequestForAdminType,
   RequestLifecycleState,
 } from '../../../common/types/request-for-admin/request-for-admin.types';
@@ -50,6 +51,9 @@ interface IRequestForAdminRepository {
 
   // Get details of NEW_INFLUENCER_REQUEST request
   getNewInfluencerRequestDetails(requestId: string): Promise<NewInfluencerRequestDetails | null>;
+
+  // Get details of PRICE_UPDATE_REQUEST request
+  getPriceUpdateRequestDetails(requestId: string): Promise<PriceUpdateRequestDetails | null>;
 }
 
 @Injectable()
@@ -586,6 +590,105 @@ export class RequestForAdminRepository
           accounts: {
             $concatArrays: socialMediaFields.map((f) => accountMap(f)),
           },
+        },
+      },
+    ]);
+
+    return result ?? null;
+  }
+
+  // Get details of PRICE_UPDATE_REQUEST request
+  async getPriceUpdateRequestDetails(requestId: string): Promise<PriceUpdateRequestDetails | null> {
+    if (!Types.ObjectId.isValid(requestId)) {
+      return null;
+    }
+
+    const socialMediaFields = [
+      'instagram',
+      'tiktok',
+      'spotify',
+      'soundcloud',
+      'facebook',
+      'youtube',
+      'press',
+    ];
+
+    const [result] = await this.requestForAdmin.aggregate<PriceUpdateRequestDetails>([
+      {
+        $match: {
+          _id: new Types.ObjectId(requestId),
+          type: RequestForAdminType.PRICE_UPDATE_REQUEST,
+        },
+      },
+      {
+        $lookup: {
+          from: 'influencers',
+          localField: 'influencerId',
+          foreignField: '_id',
+          as: 'influencer',
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                firstName: 1,
+                lastName: 1,
+                email: 1,
+                phone: 1,
+                ...Object.fromEntries(socialMediaFields.map((f) => [f, 1])),
+              },
+            },
+          ],
+        },
+      },
+      {
+        $unwind: { path: '$influencer', preserveNullAndEmptyArrays: false },
+      },
+      {
+        $addFields: {
+          accountInfo: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: {
+                    $switch: {
+                      branches: socialMediaFields.map((f) => ({
+                        case: { $eq: ['$socialMedia', f] },
+                        then: { $ifNull: [`$influencer.${f}`, []] },
+                      })),
+                      default: [],
+                    },
+                  },
+                  as: 'acc',
+                  cond: { $eq: ['$$acc._id', '$socialAccountId'] },
+                },
+              },
+              0,
+            ],
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          group: 1,
+          type: 1,
+          lifecycleStatus: 1,
+          specifiedStatus: 1,
+          influencerId: 1,
+          socialAccountId: 1,
+          socialMedia: 1,
+          newPrice: 1,
+          currency: 1,
+          createdAt: 1,
+
+          firstName: { $ifNull: ['$influencer.firstName', ''] },
+          lastName: { $ifNull: ['$influencer.lastName', ''] },
+          email: { $ifNull: ['$influencer.email', ''] },
+          phone: { $ifNull: ['$influencer.phone', ''] },
+
+          username: { $ifNull: ['$accountInfo.username', ''] },
+          currentPrice: { $ifNull: ['$accountInfo.price', 0] },
+          currentCurrency: { $ifNull: ['$accountInfo.currency', ''] },
         },
       },
     ]);

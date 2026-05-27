@@ -4,6 +4,7 @@ import {
   IAdminRequest,
   NewClientRequestDetails,
   NewInfluencerRequestDetails,
+  PriceUpdateRequestDetails,
   RequestForAdminType,
 } from '../types/request-for-admin/request-for-admin.types';
 import {
@@ -12,6 +13,7 @@ import {
   CampaignRequestDetailsDto,
   NewClientRequestDetailsDto,
   NewInfluencerRequestDetailsDto,
+  PriceUpdateRequestDetailsDto,
 } from '../../modules/admin/dto/requests/admin-requests.dto';
 import { formatDate } from '../utils/formatters';
 
@@ -26,6 +28,8 @@ export class AdminRequestMapper {
         return 'Bespoke Campaign Request';
       case RequestForAdminType.NEW_INFLUENCER_REQUEST:
         return 'Influencer Registration Request';
+      case RequestForAdminType.PRICE_UPDATE_REQUEST:
+        return 'Price Update Request';
       default:
         return 'Unknown Request';
     }
@@ -102,6 +106,29 @@ export class AdminRequestMapper {
       releaseDate: details.releaseDate,
       smartLink: details.smartLink,
       ticketLink: details.ticketLink,
+    };
+  }
+
+  static toPriceUpdateRequestDetailsDto(
+    details: PriceUpdateRequestDetails,
+  ): PriceUpdateRequestDetailsDto {
+    return {
+      requestId: details._id.toString(),
+      group: details.group,
+      type: details.type,
+      date: formatDate(details.createdAt),
+      influencerId: details.influencerId.toString(),
+      firstName: details.firstName,
+      lastName: details.lastName,
+      email: details.email,
+      phoneNumber: details.phone,
+      accountId: details.socialAccountId.toString(),
+      username: details.username,
+      socialMedia: details.socialMedia as any,
+      currentPrice: details.currentPrice,
+      currentCurrency: details.currentCurrency,
+      newPrice: details.newPrice,
+      newCurrency: details.currency,
     };
   }
 

@@ -9,6 +9,7 @@ import { NewClientAdminRequestDocument } from '../../../../database/schemas/requ
 import { CampaignAdminRequestDocument } from '../../../../database/schemas/requests/campaign-request.schema';
 import { BespokeCampaignAdminRequestDocument } from '../../../../database/schemas/requests/bespoke-campaign-admin-request.schema';
 import { NewInfluencerAdminRequestDocument } from '../../../../database/schemas/requests/new-influencer-request.schema';
+import { PriceUpdateAdminRequestDocument } from '../../../../database/schemas/requests/price-update-admin-request.schema';
 import {
   AdminRequestForListDto,
   AdminRequestsListResponseDto,
@@ -122,6 +123,12 @@ export class AdminRequestsService {
           response,
           influencerId: doc.influencerId.toString(),
         });
+        break;
+      }
+
+      case RequestForAdminType.PRICE_UPDATE_REQUEST: {
+        const doc = request as unknown as PriceUpdateAdminRequestDocument;
+        await this.handlers.priceUpdate.exec({ requestId, response, doc });
         break;
       }
 

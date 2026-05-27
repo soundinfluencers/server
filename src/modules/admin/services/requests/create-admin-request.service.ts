@@ -5,6 +5,7 @@ import {
   CreateCampaignRequestProps,
   CreateNewClientRequestProps,
   CreateNewInfluencerRequestProps,
+  CreatePriceUpdateRequestProps,
   RequestForAdminType,
   RequestGroup,
   RequestLifecycleState,
@@ -36,6 +37,11 @@ type CreateAdminRequestProps =
       requestType: RequestForAdminType.NEW_INFLUENCER_REQUEST;
       session?: ClientSession;
       payload: CreateNewInfluencerRequestProps;
+    }
+  | {
+      requestType: RequestForAdminType.PRICE_UPDATE_REQUEST;
+      session?: ClientSession;
+      payload: CreatePriceUpdateRequestProps;
     };
 
 @Injectable()
@@ -77,6 +83,16 @@ export class CreateAdminRequestService {
           throw new BadRequestException(`influencerId is required for ${props.requestType}`);
         }
         await this.createInfluencerRequest(props.payload, props.session);
+        break;
+      }
+
+      case RequestForAdminType.PRICE_UPDATE_REQUEST: {
+        if (!props.payload.influencerId || !props.payload.socialAccountId) {
+          throw new BadRequestException(
+            `influencerId and socialAccountId are required for ${props.requestType}`,
+          );
+        }
+        await this.createPriceUpdateRequest(props.payload, props.session);
         break;
       }
 
@@ -155,6 +171,28 @@ export class CreateAdminRequestService {
         userFirstName: props.influencerName,
         userRole: Role.influencer,
         influencerId: new ObjId(props.influencerId),
+      },
+      { session },
+    );
+  }
+
+  private async createPriceUpdateRequest(
+    props: CreatePriceUpdateRequestProps,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.requestRepository.create(
+      {
+        group: RequestGroup.PRICING,
+        type: RequestForAdminType.PRICE_UPDATE_REQUEST,
+        lifecycleStatus: RequestLifecycleState.OPEN,
+        specifiedStatus: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
+        userFirstName: props.influencerName,
+        userRole: Role.influencer,
+        influencerId: new ObjId(props.influencerId),
+        socialAccountId: new ObjId(props.socialAccountId),
+        socialMedia: props.socialMedia,
+        newPrice: props.newPrice,
+        currency: props.currency,
       },
       { session },
     );
