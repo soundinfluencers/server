@@ -24,6 +24,17 @@ async function bootstrap() {
     const allowedOrigins = parseOrigins(process.env.CORS_ORIGINS);
     const reflector = app.get(Reflector);
 
+    // TEMP
+    app.use((req, res, next) => {
+        if (req.path.includes('/create/influencer')) {
+            console.log('RAW BODY:', req.body);
+            console.log('lastName:', req.body?.lastName);
+            console.log('typeof lastName:', typeof req.body?.lastName);
+        }
+
+        next();
+    });
+
     app.useGlobalGuards(
         new JwtGuard(reflector),
         new RolesGuard(reflector),
