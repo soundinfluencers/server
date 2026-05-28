@@ -93,12 +93,12 @@ export const HistoryCampaignActionStatusLabel: Record<
     HistoryCampaignActionStatus,
     string
 > = {
-    [HistoryCampaignActionStatus.pending]: 'Pending',
-    [HistoryCampaignActionStatus.inDistribution]: 'In Distribution',
+    [HistoryCampaignActionStatus.pending]: 'Campaign Pending Approval',
+    [HistoryCampaignActionStatus.inDistribution]: 'Campaign Accepted',
     [HistoryCampaignActionStatus.insightsSubmitted]: 'Insights Submitted',
     [HistoryCampaignActionStatus.invoiceSubmitted]: 'Invoice Submitted',
     [HistoryCampaignActionStatus.paid]: 'Paid',
-    [HistoryCampaignActionStatus.denied]: 'Denied',
+    [HistoryCampaignActionStatus.denied]: 'Campaign Declined',
     [HistoryCampaignActionStatus.addedByAdmin]: "Added By Admin",
 };
 
