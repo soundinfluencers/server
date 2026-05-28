@@ -2,6 +2,7 @@ import { ObjId } from '../base.types';
 import { Role } from '../user.types';
 import { Injectable, Logger } from '@nestjs/common';
 import { RequestForAdminRepository } from '../../../database/repositories/requests/request-for-admin.repository';
+import {SocialMediaEnum} from "../social-media.types";
 
 export enum RequestForAdminType {
   NEW_CLIENT_REQUEST = 'NEW_CLIENT_REQUEST',
@@ -65,6 +66,7 @@ export type NewInfluencerSocialAccountRaw = {
   followers: number;
   logoUrl: string;
   profileCategory: string;
+  socialMedia: SocialMediaEnum;
   price: number;
   initialPrice: number;
   currency: string;

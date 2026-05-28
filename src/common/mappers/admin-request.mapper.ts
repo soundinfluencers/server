@@ -19,6 +19,7 @@ import {
 } from '../../modules/admin/dto/requests/admin-requests.dto';
 import { formatDate } from '../utils/formatters';
 import { SocialMediaEnum } from '../types/social-media.types';
+import {CurrencyCode} from "../types/finance.types";
 
 export class AdminRequestMapper {
   static toLabel(type: RequestForAdminType): string {
@@ -154,6 +155,7 @@ export class AdminRequestMapper {
       accountDetails: {
         accountId: details.accountId.toString(),
         username: details.username,
+        socialMedia: details.socialMedia as SocialMediaEnum,
         profileLink: details.profileLink,
         followers: details.followers,
         logoUrl: details.logoUrl,
@@ -187,13 +189,14 @@ export class AdminRequestMapper {
       accounts: details.accounts.map((acc) => ({
         accountId: acc.accountId.toString(),
         username: acc.username,
+        socialMedia: acc.socialMedia as SocialMediaEnum,
         profileLink: acc.profileLink,
         followers: acc.followers,
         logoUrl: acc.logoUrl,
         profileCategory: acc.profileCategory as any,
         price: acc.price,
         initialPrice: acc.initialPrice,
-        currency: acc.currency as any,
+        currency: acc.currency as CurrencyCode,
         musicGenres: acc.musicGenres ?? [],
         creatorCategories: acc.creatorCategories ?? [],
         countries: acc.countries ?? [],

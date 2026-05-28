@@ -195,6 +195,9 @@ export class SocialAccountDetailsDto implements SocialAccountDetails {
 export class ExtendedSocialAccountDetailsDto extends SocialAccountDetailsDto {
     @ApiProperty({example: 60})
     price: number;
+
+    @ApiProperty({type: String, enum: SocialMediaEnum})
+    socialMedia: SocialMediaEnum;
 }
 
 // dto for returning found social accounts

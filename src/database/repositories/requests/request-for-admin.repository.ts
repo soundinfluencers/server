@@ -521,6 +521,7 @@ export class RequestForAdminRepository
         as: 'acc',
         in: {
           accountId: '$$acc._id',
+          socialMedia: field,
           username: '$$acc.username',
           profileLink: '$$acc.profileLink',
           followers: '$$acc.followers',
