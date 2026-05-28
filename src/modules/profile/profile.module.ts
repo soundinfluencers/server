@@ -28,6 +28,7 @@ export class ProfileModule {}
 
 @Global()
 @Module({
+  imports: [AdminRequestsModule],
   providers: [CreateSocialAccountService],
   exports: [CreateSocialAccountService],
 })

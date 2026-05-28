@@ -93,6 +93,45 @@ export type NewInfluencerRequestDetails = {
   accounts: NewInfluencerSocialAccountRaw[];
 };
 
+export type CreateNewSocialAccountRequestProps = {
+  influencerId: string;
+  influencerName: string;
+  socialAccountId: string;
+  socialMedia: string;
+};
+
+export type NewSocialAccountRequestDetails = {
+  _id: ObjId;
+  group: RequestGroup;
+  type: RequestForAdminType;
+  lifecycleStatus: RequestLifecycleState;
+  specifiedStatus: RequestSpecifiedStatus;
+  influencerId: ObjId;
+  accountId: ObjId;
+  socialMedia: string;
+  createdAt: Date;
+
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+
+  username: string;
+  profileLink: string;
+  followers: number;
+  logoUrl: string;
+  profileCategory: string;
+  price: number;
+  initialPrice: number;
+  currency: string;
+  musicGenres: any[];
+  creatorCategories: string[];
+  countries: any[];
+  categories: string[];
+  engagementRate: number | null;
+  averageViews: number | null;
+};
+
 export type CreatePriceUpdateRequestProps = {
   influencerId: string;
   influencerName: string;

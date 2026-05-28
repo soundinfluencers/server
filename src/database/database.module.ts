@@ -101,6 +101,7 @@ import { CampaignAdminRequestSchema } from './schemas/requests/campaign-request.
 import { BespokeCampaignAdminRequestSchema } from './schemas/requests/bespoke-campaign-admin-request.schema';
 import { NewInfluencerAdminRequestSchema } from './schemas/requests/new-influencer-request.schema';
 import { PriceUpdateAdminRequestSchema } from './schemas/requests/price-update-admin-request.schema';
+import { NewSocialAccountAdminRequestSchema } from './schemas/requests/new-social-account-request.schema';
 
 @Global()
 @Module({
@@ -163,6 +164,10 @@ import { PriceUpdateAdminRequestSchema } from './schemas/requests/price-update-a
           {
             name: RequestForAdminType.PRICE_UPDATE_REQUEST,
             schema: PriceUpdateAdminRequestSchema,
+          },
+          {
+            name: RequestForAdminType.NEW_SOCIAL_ACCOUNT_REQUEST,
+            schema: NewSocialAccountAdminRequestSchema,
           },
         ],
       },

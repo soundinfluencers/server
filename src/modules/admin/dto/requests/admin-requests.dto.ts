@@ -241,3 +241,15 @@ export class PriceUpdateRequestDetailsDto extends AdminRequestDetailsBase {
   @ApiProperty({ type: String })
   newCurrency: string;
 }
+
+// DTO for new social account request details
+export class NewSocialAccountRequestDetailsDto extends AdminRequestDetailsBase {
+  @ApiProperty({ type: String })
+  influencerId: string;
+
+  @ApiProperty({ type: String })
+  phoneNumber: string;
+
+  @ApiProperty({type: ExtendedSocialAccountDetailsDto})
+  accountDetails: ExtendedSocialAccountDetailsDto;
+}

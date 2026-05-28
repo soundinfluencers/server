@@ -13,6 +13,10 @@ import {
   PRICE_UPDATE_REQUEST_HANDLER,
   PriceUpdateRequestHandler,
 } from './price-update-request-handler.service';
+import {
+  NEW_SOCIAL_ACCOUNT_REQUEST_HANDLER,
+  NewSocialAccountRequestHandler,
+} from './new-social-account-request-handler.service';
 
 export const ADMIN_REQUEST_HANDLERS = Symbol('ADMIN_REQUEST_HANDLERS');
 
@@ -29,5 +33,7 @@ export class AdminRequestHandlers {
     readonly newInfluencer: NewInfluencerRequestHandler,
     @Inject(PRICE_UPDATE_REQUEST_HANDLER)
     readonly priceUpdate: PriceUpdateRequestHandler,
+    @Inject(NEW_SOCIAL_ACCOUNT_REQUEST_HANDLER)
+    readonly newSocialAccount: NewSocialAccountRequestHandler,
   ) {}
 }

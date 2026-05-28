@@ -5,6 +5,7 @@ import {
   CampaignRequestDetailsDto,
   NewClientRequestDetailsDto,
   NewInfluencerRequestDetailsDto,
+  NewSocialAccountRequestDetailsDto,
   PriceUpdateRequestDetailsDto,
 } from '../../dto/requests/admin-requests.dto';
 import { RequestForAdminType } from '../../../../common/types/request-for-admin/request-for-admin.types';
@@ -25,6 +26,7 @@ export class GetAdminRequestDetailsService {
     | BespokeCampaignRequestDetailsDto
     | NewInfluencerRequestDetailsDto
     | PriceUpdateRequestDetailsDto
+    | NewSocialAccountRequestDetailsDto
     | null
   > {
     switch (requestType) {
@@ -47,6 +49,10 @@ export class GetAdminRequestDetailsService {
       case RequestForAdminType.PRICE_UPDATE_REQUEST: {
         const details = await this.requestRepository.getPriceUpdateRequestDetails(requestId);
         return details ? AdminRequestMapper.toPriceUpdateRequestDetailsDto(details) : null;
+      }
+      case RequestForAdminType.NEW_SOCIAL_ACCOUNT_REQUEST: {
+        const details = await this.requestRepository.getNewSocialAccountRequestDetails(requestId);
+        return details ? AdminRequestMapper.toNewSocialAccountRequestDetailsDto(details) : null;
       }
       default:
         return null;

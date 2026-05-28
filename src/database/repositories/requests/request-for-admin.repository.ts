@@ -14,6 +14,7 @@ import {
   IAdminRequest,
   NewClientRequestDetails,
   NewInfluencerRequestDetails,
+  NewSocialAccountRequestDetails,
   PriceUpdateRequestDetails,
   RequestForAdminType,
   RequestLifecycleState,
@@ -54,6 +55,11 @@ interface IRequestForAdminRepository {
 
   // Get details of PRICE_UPDATE_REQUEST request
   getPriceUpdateRequestDetails(requestId: string): Promise<PriceUpdateRequestDetails | null>;
+
+  // Get details of NEW_SOCIAL_ACCOUNT_REQUEST request
+  getNewSocialAccountRequestDetails(
+    requestId: string,
+  ): Promise<NewSocialAccountRequestDetails | null>;
 }
 
 @Injectable()
@@ -590,6 +596,116 @@ export class RequestForAdminRepository
           accounts: {
             $concatArrays: socialMediaFields.map((f) => accountMap(f)),
           },
+        },
+      },
+    ]);
+
+    return result ?? null;
+  }
+
+  // Get details of NEW_SOCIAL_ACCOUNT_REQUEST request
+  async getNewSocialAccountRequestDetails(
+    requestId: string,
+  ): Promise<NewSocialAccountRequestDetails | null> {
+    if (!Types.ObjectId.isValid(requestId)) {
+      return null;
+    }
+
+    const socialMediaFields = [
+      'instagram',
+      'tiktok',
+      'spotify',
+      'soundcloud',
+      'facebook',
+      'youtube',
+      'press',
+    ];
+
+    const [result] = await this.requestForAdmin.aggregate<NewSocialAccountRequestDetails>([
+      {
+        $match: {
+          _id: new Types.ObjectId(requestId),
+          type: RequestForAdminType.NEW_SOCIAL_ACCOUNT_REQUEST,
+        },
+      },
+      {
+        $lookup: {
+          from: 'influencers',
+          localField: 'influencerId',
+          foreignField: '_id',
+          as: 'influencer',
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                firstName: 1,
+                lastName: 1,
+                email: 1,
+                phone: 1,
+                ...Object.fromEntries(socialMediaFields.map((f) => [f, 1])),
+              },
+            },
+          ],
+        },
+      },
+      {
+        $unwind: { path: '$influencer', preserveNullAndEmptyArrays: false },
+      },
+      {
+        $addFields: {
+          accountInfo: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: {
+                    $switch: {
+                      branches: socialMediaFields.map((f) => ({
+                        case: { $eq: ['$socialMedia', f] },
+                        then: { $ifNull: [`$influencer.${f}`, []] },
+                      })),
+                      default: [],
+                    },
+                  },
+                  as: 'acc',
+                  cond: { $eq: ['$$acc._id', '$accountId'] },
+                },
+              },
+              0,
+            ],
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          group: 1,
+          type: 1,
+          lifecycleStatus: 1,
+          specifiedStatus: 1,
+          influencerId: 1,
+          accountId: 1,
+          socialMedia: 1,
+          createdAt: 1,
+
+          firstName: { $ifNull: ['$influencer.firstName', ''] },
+          lastName: { $ifNull: ['$influencer.lastName', ''] },
+          email: { $ifNull: ['$influencer.email', ''] },
+          phone: { $ifNull: ['$influencer.phone', ''] },
+
+          username: { $ifNull: ['$accountInfo.username', ''] },
+          profileLink: { $ifNull: ['$accountInfo.profileLink', ''] },
+          followers: { $ifNull: ['$accountInfo.followers', 0] },
+          logoUrl: { $ifNull: ['$accountInfo.logoUrl', ''] },
+          profileCategory: { $ifNull: ['$accountInfo.profileCategory', ''] },
+          price: { $ifNull: ['$accountInfo.price', 0] },
+          initialPrice: { $ifNull: ['$accountInfo.initialPrice', 0] },
+          currency: { $ifNull: ['$accountInfo.currency', ''] },
+          musicGenres: { $ifNull: ['$accountInfo.musicGenres', []] },
+          creatorCategories: { $ifNull: ['$accountInfo.creatorCategories', []] },
+          countries: { $ifNull: ['$accountInfo.countries', []] },
+          categories: { $ifNull: ['$accountInfo.categories', []] },
+          engagementRate: { $ifNull: ['$accountInfo.engagementRate', null] },
+          averageViews: { $ifNull: ['$accountInfo.averageViews', null] },
         },
       },
     ]);

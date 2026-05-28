@@ -5,6 +5,7 @@ import {
   CreateCampaignRequestProps,
   CreateNewClientRequestProps,
   CreateNewInfluencerRequestProps,
+  CreateNewSocialAccountRequestProps,
   CreatePriceUpdateRequestProps,
   RequestForAdminType,
   RequestGroup,
@@ -42,6 +43,11 @@ type CreateAdminRequestProps =
       requestType: RequestForAdminType.PRICE_UPDATE_REQUEST;
       session?: ClientSession;
       payload: CreatePriceUpdateRequestProps;
+    }
+  | {
+      requestType: RequestForAdminType.NEW_SOCIAL_ACCOUNT_REQUEST;
+      session?: ClientSession;
+      payload: CreateNewSocialAccountRequestProps;
     };
 
 @Injectable()
@@ -93,6 +99,16 @@ export class CreateAdminRequestService {
           );
         }
         await this.createPriceUpdateRequest(props.payload, props.session);
+        break;
+      }
+
+      case RequestForAdminType.NEW_SOCIAL_ACCOUNT_REQUEST: {
+        if (!props.payload.influencerId || !props.payload.socialAccountId) {
+          throw new BadRequestException(
+            `influencerId and socialAccountId are required for ${props.requestType}`,
+          );
+        }
+        await this.createNewSocialAccountRequest(props.payload, props.session);
         break;
       }
 
@@ -171,6 +187,26 @@ export class CreateAdminRequestService {
         userFirstName: props.influencerName,
         userRole: Role.influencer,
         influencerId: new ObjId(props.influencerId),
+      },
+      { session },
+    );
+  }
+
+  private async createNewSocialAccountRequest(
+    props: CreateNewSocialAccountRequestProps,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.requestRepository.create(
+      {
+        group: RequestGroup.INFLUENCER,
+        type: RequestForAdminType.NEW_SOCIAL_ACCOUNT_REQUEST,
+        lifecycleStatus: RequestLifecycleState.OPEN,
+        specifiedStatus: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
+        userFirstName: props.influencerName,
+        userRole: Role.influencer,
+        influencerId: new ObjId(props.influencerId),
+        accountId: new ObjId(props.socialAccountId),
+        socialMedia: props.socialMedia,
       },
       { session },
     );

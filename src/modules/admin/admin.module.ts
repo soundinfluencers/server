@@ -55,6 +55,10 @@ import {
   PriceUpdateRequestHandler,
 } from './services/requests/handlers/price-update-request-handler.service';
 import {
+  NEW_SOCIAL_ACCOUNT_REQUEST_HANDLER,
+  NewSocialAccountRequestHandler,
+} from './services/requests/handlers/new-social-account-request-handler.service';
+import {
   ADMIN_REQUEST_HANDLERS,
   AdminRequestHandlers,
 } from './services/requests/handlers/admin-request-handlers.service';
@@ -92,6 +96,10 @@ import {
     {
       provide: PRICE_UPDATE_REQUEST_HANDLER,
       useClass: PriceUpdateRequestHandler,
+    },
+    {
+      provide: NEW_SOCIAL_ACCOUNT_REQUEST_HANDLER,
+      useClass: NewSocialAccountRequestHandler,
     },
     {
       provide: ADMIN_REQUEST_HANDLERS,
