@@ -83,40 +83,41 @@ export class InvoiceService {
             }
 
             // Searching promos that were closed and waiting for payment
-            const promosWaitForPayment = await this.campaignRepo.findAllWaitingForPayment(data.userId, InvoiceStatusEnum.wait, session)
 
-            if (!promosWaitForPayment || promosWaitForPayment.length === 0) {
-                throw new NotFoundException(`Can't find any promo that is waiting for payment`);
-            }
+            // TEMP REMOVING
+
+            // const promosWaitForPayment = await this.campaignRepo.findAllWaitingForPayment(data.userId, InvoiceStatusEnum.wait, session)
+            //
+            // if (!promosWaitForPayment || promosWaitForPayment.length === 0) {
+            //     throw new NotFoundException(`Can't find any promo that is waiting for payment`);
+            // }
 
             // Updating invoice status in these promos
-            await this.campaignRepo.updateManyInvoiceStatusesByStatus(data.userId, InvoiceStatusEnum.wait, InvoiceStatusEnum.submitted, session);
-
-            // throw new Error('expected error');
+            // await this.campaignRepo.updateManyInvoiceStatusesByStatus(data.userId, InvoiceStatusEnum.wait, InvoiceStatusEnum.submitted, session);
 
             // Creating invoice
             const invoice: InfluencerInvoiceDocument = await this.userInvoiceRepository.createInfluencerInvoice({
                 ...data,
-                linkedPromos: mapPromosToInvoiceLinkedPromos(promosWaitForPayment),
+                // linkedPromos: mapPromosToInvoiceLinkedPromos(promosWaitForPayment),
                 amount: oldBalance
             }, session);
 
             // Updating influencer's actions history - ADDING CAMPAIGN ACTIONS
-            await this.influencerHistoryService.upsertInfluencerCampaignActionsHistoryMany({
-                    influencerId: data.userId,
-                    updatedCampaignActions: promosWaitForPayment.map(p => ({
-                        campaignId: p.campaignId.toString(),
-                        campaignName: p.campaignName,
-                        addedAccountsId: p._id,
-                        socialAccountId: p.accountId,
-                        actionNumber: 3,
-                        networkUsername: p.username,
-                        rewardForInfluencer: p.price,
-                        socialMedia: p.socialMedia
-                    }))
-                },
-                session
-            );
+            // await this.influencerHistoryService.upsertInfluencerCampaignActionsHistoryMany({
+            //         influencerId: data.userId,
+            //         updatedCampaignActions: promosWaitForPayment.map(p => ({
+            //             campaignId: p.campaignId.toString(),
+            //             campaignName: p.campaignName,
+            //             addedAccountsId: p._id,
+            //             socialAccountId: p.accountId,
+            //             actionNumber: 3,
+            //             networkUsername: p.username,
+            //             rewardForInfluencer: p.price,
+            //             socialMedia: p.socialMedia
+            //         }))
+            //     },
+            //     session
+            // );
 
             // Updating influencer's balance
             const updatedInfluencer = await this.influencerRepo.findOneAndUpdate(
@@ -149,22 +150,22 @@ export class InvoiceService {
             );
 
             // Building cells info for updating in payment history cell collection
-            const cellsInfo: {
-                campaignId: string;
-                accountId: string;
-                newAdminOverrideStatus?: PaymentHistoryAdminOverrideStatusEnum;
-                newSystemStatus?: PaymentHistorySystemStatusEnum;
-            }[] = promosWaitForPayment.map(i => ({
-                campaignId: i.campaignId.toString(),
-                accountId: i.accountId.toString(),
-                newSystemStatus: PaymentHistorySystemStatusEnum.done
-            }));
+            // const cellsInfo: {
+            //     campaignId: string;
+            //     accountId: string;
+            //     newAdminOverrideStatus?: PaymentHistoryAdminOverrideStatusEnum;
+            //     newSystemStatus?: PaymentHistorySystemStatusEnum;
+            // }[] = promosWaitForPayment.map(i => ({
+            //     campaignId: i.campaignId.toString(),
+            //     accountId: i.accountId.toString(),
+            //     newSystemStatus: PaymentHistorySystemStatusEnum.done
+            // }));
 
             // Update each payment history cell for each linked promo
-            await this.paymentsHistoryService.rebuildSpecifiedCells({
-                session: session,
-                cellsInfo: cellsInfo
-            })
+            // await this.paymentsHistoryService.rebuildSpecifiedCells({
+            //     session: session,
+            //     cellsInfo: cellsInfo
+            // })
 
             // Mapping accounts name for email
             const instagramAccounts = updatedInfluencer.instagram

@@ -95,7 +95,8 @@ export const mapDtoToInfluencerInvoice = (data: CreateInvoiceDto): CreateInfluen
         address: data.address,
         country: data.country,
         amount: data.amount,
-        linkedPromos: data.linkedPromos,
+        // linkedPromos: data.linkedPromos,
+        linkedPromos: [],
         selectedPaymentMethod: data.selectedPaymentMethod,
         ...(data as CreateInvoiceDto).ukBankTransfer ? {
             ukBankTransfer: {
