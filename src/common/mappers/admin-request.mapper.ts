@@ -16,6 +16,7 @@ import {
   PriceUpdateRequestDetailsDto,
 } from '../../modules/admin/dto/requests/admin-requests.dto';
 import { formatDate } from '../utils/formatters';
+import {SocialMediaEnum} from "../types/social-media.types";
 
 export class AdminRequestMapper {
   static toLabel(type: RequestForAdminType): string {
@@ -124,7 +125,8 @@ export class AdminRequestMapper {
       phoneNumber: details.phone,
       accountId: details.socialAccountId.toString(),
       username: details.username,
-      socialMedia: details.socialMedia as any,
+      profileLink: details.profileLink,
+      socialMedia: details.socialMedia as SocialMediaEnum,
       currentPrice: details.currentPrice,
       currentCurrency: details.currentCurrency,
       newPrice: details.newPrice,

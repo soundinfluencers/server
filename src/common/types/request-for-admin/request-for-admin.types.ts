@@ -121,6 +121,7 @@ export type PriceUpdateRequestDetails = {
   phone: string;
 
   username: string;
+  profileLink: string;
   currentPrice: number;
   currentCurrency: string;
 };

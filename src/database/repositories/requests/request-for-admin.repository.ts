@@ -687,6 +687,7 @@ export class RequestForAdminRepository
           phone: { $ifNull: ['$influencer.phone', ''] },
 
           username: { $ifNull: ['$accountInfo.username', ''] },
+          profileLink: { $ifNull: ['$accountInfo.profileLink', ''] },
           currentPrice: { $ifNull: ['$accountInfo.price', 0] },
           currentCurrency: { $ifNull: ['$accountInfo.currency', ''] },
         },

@@ -223,6 +223,9 @@ export class PriceUpdateRequestDetailsDto extends AdminRequestDetailsBase {
   @ApiProperty({ type: String })
   username: string;
 
+  @ApiProperty({ type: String })
+  profileLink: string;
+
   @ApiProperty({ type: String, enum: SocialMediaEnum })
   socialMedia: SocialMediaEnum;
 
