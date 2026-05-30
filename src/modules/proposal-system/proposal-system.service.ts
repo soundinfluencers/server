@@ -597,23 +597,23 @@ export class ProposalSystemService {
                 // campaignContent: proposalCampaignOption.campaignContent,
                 addedAccounts: proposalCampaignOption.addedAccounts.map((i: ProposalCampaignAccount): CampaignAccountDto => ({
                     ...i,
-                    addedAccountsId: i._id.toString(),
-                    socialAccountId: i.accountId.toString(),
-                    influencerId: i.influencerId.toString(),
+                    addedAccountsId: i._id?.toString(),
+                    socialAccountId: i.accountId?.toString(),
+                    influencerId: i.influencerId?.toString(),
                     selectedContent: {
-                        campaignContentItemId: i.selectedContent.campaignContentItemId.toString(),
-                        descriptionId: i.selectedContent.descriptionId.toString()
+                        campaignContentItemId: i.selectedContent.campaignContentItemId?.toString(),
+                        descriptionId: i.selectedContent.descriptionId?.toString()
                     },
                     genres: "genres" in i ? i.genres : undefined,
                     countries: "countries" in i ? i.countries : undefined,
                 })),
                 campaignContent: proposalCampaignOption.campaignContent.map((i: ICampaignContent): DetailedCampaignContentItemDto => ({
-                    _id: i._id.toString(),
+                    _id: i._id?.toString(),
                     socialMedia: i.socialMedia,
                     socialMediaGroup: i.socialMediaGroup,
                     mainLink: i.mainLink,
                     descriptions: i.descriptions.map((d) => ({
-                        _id: d._id.toString(),
+                        _id: d._id?.toString(),
                         description: d.description,
                     })),
                     taggedUser: i.taggedUser,

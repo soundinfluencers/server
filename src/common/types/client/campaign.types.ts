@@ -151,6 +151,7 @@ export interface ICampaignAccount {
 // Read model for campaign added account (ADMIN)
 export interface IAdminCampaignAccount extends ICampaignAccount {
     firstName?: string;
+    price: number;
     cpm: number;
 }
 

@@ -526,7 +526,7 @@ export const mapToAdminCampaignDetailsDto = (campaign: IAdminCampaignDetails): A
             ...i.firstName ? {firstName: i.firstName} : {},
             ...campaign.status as any !== 'proposal' ? {statusLabel: getAdminPromoStatusLabel(i)} : {},
             ...(i.cpm !== undefined ? {cpm: i.cpm} : {})
-        })),
+        } satisfies AdminCampaignAccountDto)),
         campaignContent: campaign.campaignContent ?? (campaign as any).videos ?? [],
         shareLink: campaign.shareLink,
         totalFollowers: campaign.totalFollowers,

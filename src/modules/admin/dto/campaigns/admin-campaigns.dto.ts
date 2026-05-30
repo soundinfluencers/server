@@ -104,6 +104,9 @@ export class AdminCampaignSearchResponseDto extends SearchListResponseDto<AdminC
 
 // DTO with detailed campaign's addedAccounts item for admin
 export class AdminCampaignAccountDto extends CampaignAccountDto {
+    @ApiProperty({ type: Number })
+    price: number;
+
     @ApiPropertyOptional({type: String})
     firstName?: string;
 
