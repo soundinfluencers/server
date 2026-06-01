@@ -3,6 +3,7 @@ import {SocialMediaEnum} from "./social-media.types";
 import {PaymentHistoryCampaignSource} from "../../database/schemas/histories/payment-history-cell.schema";
 import {CampaignStatusEnum} from "./client/campaign.types";
 import {InvoiceStatusEnum} from "./invoice.types";
+import {AdminCampaignsListStatusEnum} from "../../modules/admin/dto/campaigns/admin-campaigns.dto";
 
 // Enum of available history actions types
 export enum InfluencerHistoryActionType {
@@ -26,6 +27,7 @@ export interface ICampaignAction {
     type: InfluencerHistoryActionType.campaign;
     _id: ObjId; // CampaignAction _id
     campaignId: ObjId;
+    campaignStatus: AdminCampaignsListStatusEnum; // for campaign management page redirect
     addedAccountsId: ObjId; // campaign.addedAccounts _id
     socialAccountId: ObjId; // _id of social account
     socialMedia: SocialMediaEnum; // account's socialMedia

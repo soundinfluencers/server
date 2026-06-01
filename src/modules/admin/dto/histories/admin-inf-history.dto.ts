@@ -6,6 +6,7 @@ import {
 import {ApiProperty, ApiPropertyOptional, getSchemaPath} from "@nestjs/swagger";
 import {InfluencerHistoryActionType} from "../../../../common/types/history.types";
 import {Type} from "class-transformer";
+import {AdminCampaignsListStatusEnum} from "../campaigns/admin-campaigns.dto";
 
 // DTO with influencer's history action (CAMPAIGN) for admin panel
 export class AdminInfCampaignActionDto {
@@ -26,6 +27,9 @@ export class AdminInfCampaignActionDto {
 
     @ApiProperty({ type: String })
     campaignId: string;
+
+    @ApiProperty({ type: String, enum: AdminCampaignsListStatusEnum})
+    campaignStatus: AdminCampaignsListStatusEnum;
 
     @ApiProperty({ type: String })
     campaignName: string;

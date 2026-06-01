@@ -7,11 +7,15 @@ import {mapInfHistoryToAdminHistoryDto, mapToActionsHistoryLatestDto} from "../.
 import {ShortSocialAccountInfo} from "../../../common/types/influencer/influencer.types";
 import {SocialMediaEnum} from "../../../common/types/social-media.types";
 import {CampaignRepository} from "../../../database/repositories/campaigns/campaign.repository";
-import {ILatestCampaignAction} from "../../../common/types/history.types";
+import {ILatestCampaignAction, InfluencerHistoryActionType} from "../../../common/types/history.types";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
 import {AdminSocialAccountSearchResponseDto, SearchedSocialAccountDto} from "../dto/influencers/admin-influencers.dto";
 import {ProfileService} from "../../profile/services/profile.service";
 import {FoundAccountDto} from "../../profile/dto/influencer/get-profile.dto";
+import {ObjId} from "../../../common/types/base.types";
+import {CampaignStatusEnum} from "../../../common/types/client/campaign.types";
+import {AdminCampaignsListStatusEnum} from "../dto/campaigns/admin-campaigns.dto";
+import {CompletedCampaignRepository} from "../../../database/repositories/campaigns/completed-campaign.repository";
 
 // Interface for AdminActionsHistoryService
 export interface IAdminActionsHistory {
@@ -44,6 +48,7 @@ export class AdminActionsHistoryService implements IAdminActionsHistory {
         private readonly influencerRepo: InfluencerRepository,
         private readonly historyRepo: InfluencerHistoryRepository,
         private readonly campaignRepo: CampaignRepository,
+        private readonly completedCampaignRepo: CompletedCampaignRepository,
         private readonly profileService: ProfileService,
     ) {
     }
@@ -116,6 +121,43 @@ export class AdminActionsHistoryService implements IAdminActionsHistory {
                 page: 0,
                 limit: 0,
                 totalPages: 0
+            }
+        }
+
+        const campaignIdSet = new Set<string>();
+
+        influencerActionsHistory.history.actions.forEach((item) => {
+            if (item.type === InfluencerHistoryActionType.campaign && item.campaignId) {
+                campaignIdSet.add(item.campaignId.toString());
+            }
+        });
+
+        const campaignIds = Array.from(campaignIdSet).map((id) => new ObjId(id));
+
+        const ongoingCampaigns = await this.campaignRepo.findMany({
+            _id: {$in: campaignIds},
+        }, {select: ['_id', 'campaignName', 'statusCampaign']});
+        const completedCampaigns = await this.completedCampaignRepo.findMany({
+            _id: {$in: campaignIds},
+        }, {select: ['_id', 'campaignName', 'statusCampaign']});
+
+        const campaigns = [...ongoingCampaigns, ...completedCampaigns];
+
+        for (let i = 0; i <= influencerActionsHistory.history.actions.length - 1; i++) {
+            const action = influencerActionsHistory.history.actions[i];
+
+            if (action.type === InfluencerHistoryActionType.campaign) {
+                const campaign = campaigns.find(c => c._id.toString() === action.campaignId.toString());
+
+                if (!campaign) {
+                    action.isStillInCampaign = false;
+                } else {
+                    // @ts-ignore
+                    action.campaignStatus = campaign.statusCampaign === CampaignStatusEnum.underReview
+                        ? AdminCampaignsListStatusEnum.pending
+                        : campaign.statusCampaign;
+                    action.campaignName = campaign.campaignName;
+                }
             }
         }
 
