@@ -25,6 +25,9 @@ export class AdminInfCampaignActionDto {
     username: string;
 
     @ApiProperty({ type: String })
+    campaignId: string;
+
+    @ApiProperty({ type: String })
     campaignName: string;
 
     @ApiProperty({ type: Number })

@@ -36,6 +36,7 @@ function mapCampaignActionToDto(
     return {
         actionType: action.type,
         actionId: action._id.toString(),
+        campaignId: action.campaignId.toString(),
         dateAndTime: formatDateTime(action.date),
         socialMedia: action.socialMedia,
         username: action.username,
