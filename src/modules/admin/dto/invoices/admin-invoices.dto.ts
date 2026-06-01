@@ -3,11 +3,19 @@ import {InvoicePaymentMethodEnum, InvoiceStatusEnum} from "../../../../common/ty
 import {PaginatedListResponseDto} from "../../../../common/dto/responses/paginated-list-response.dto";
 import {SearchListResponseDto} from "../../../../common/dto/responses/search-response.dto";
 import {SocialMediaEnum} from "../../../../common/types/social-media.types";
+import {IsString} from "class-validator";
 
 // DTO with client invoice fields for admin table
 export class AdminClientInvoiceRow {
     @ApiProperty({type: String})
     invoiceId: string;
+
+    @ApiProperty({ type: String })
+    shortInvoiceId: string;
+
+    @ApiProperty({type: String})
+    @IsString()
+    referenceNumber: string;
 
     @ApiProperty({type: String})
     company: string;
@@ -47,6 +55,9 @@ export class AdminClientInvoicesSearchResponseDto extends SearchListResponseDto<
 export class AdminInfluencerInvoiceRow {
     @ApiProperty({type: String})
     invoiceId: string;
+
+    @ApiProperty({ type: String })
+    shortInvoiceId: string;
 
     @ApiProperty({type: String})
     firstName: string;

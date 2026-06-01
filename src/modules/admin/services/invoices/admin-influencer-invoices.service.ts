@@ -44,6 +44,7 @@ export class AdminInfluencerInvoicesService implements IAdminInfluencerInvoicesS
             ...list,
             items: list.items.map((i: IAdminInfluencerInvoice): AdminInfluencerInvoiceRow => ({
                 invoiceId: i._id.toString(),
+                shortInvoiceId: i.shortInvoiceId,
                 firstName: i.firstName,
                 lastName: i.lastName !== "" ? i.lastName : null,
                 socialMedia: i.socialMedia,
@@ -65,6 +66,7 @@ export class AdminInfluencerInvoicesService implements IAdminInfluencerInvoicesS
             ...searchResult,
             items: searchResult.items.map((i: IAdminInfluencerInvoice): AdminInfluencerInvoiceRow => ({
                 invoiceId: i._id.toString(),
+                shortInvoiceId: i.shortInvoiceId,
                 firstName: i.firstName,
                 lastName: i.lastName !== "" ? i.lastName : null,
                 socialMedia: i.socialMedia,

@@ -171,6 +171,8 @@ export class UserInvoiceRepository extends BaseRepository<UserInvoiceDocument> i
                 {
                     $project: {
                         _id: 1,
+                        shortInvoiceId: {$substr: [{$toString: '$_id'}, 0, 8]},
+                        referenceNumber: 1,
                         company: 1,
                         campaignName: 1,
                         createdAt: 1,
@@ -230,6 +232,8 @@ export class UserInvoiceRepository extends BaseRepository<UserInvoiceDocument> i
             {
                 $project: {
                     _id: 1,
+                    shortInvoiceId: {$substr: [{$toString: '$_id'}, 0, 8]},
+                    referenceNumber: 1,
                     company: 1,
                     campaignName: 1,
                     createdAt: 1,
@@ -380,6 +384,7 @@ export class UserInvoiceRepository extends BaseRepository<UserInvoiceDocument> i
                 {
                     $project: {
                         _id: 1,
+                        shortInvoiceId: {$substr: [{$toString: '$_id'}, 0, 8]},
                         firstName: { $ifNull: ['$userInfo.firstName', null] },
                         lastName: { $ifNull: ['$userInfo.lastName', null] },
                         socialMedia: 1,
@@ -546,6 +551,7 @@ export class UserInvoiceRepository extends BaseRepository<UserInvoiceDocument> i
             {
                 $project: {
                     _id: 1,
+                    shortInvoiceId: {$substr: [{$toString: '$_id'}, 0, 8]},
                     firstName: { $ifNull: ['$userInfo.firstName', null] },
                     lastName: { $ifNull: ['$userInfo.lastName', null] },
                     socialMedia: 1,

@@ -79,10 +79,6 @@ export class AdminActionsHistoryService implements IAdminActionsHistory {
             query
         );
 
-        if (!influencerActionsHistory.history) {
-            throw new NotFoundException(`History for influencer ${influencerId} was not found`);
-        }
-
         // Checking if there's firstName in influencer object
         const processedName = influencer.firstName.trim()
             ? influencer.firstName.trim()
@@ -106,6 +102,21 @@ export class AdminActionsHistoryService implements IAdminActionsHistory {
 
         if (accounts.length === 0) {
             throw new NotFoundException(`Didn't find any account for ${influencer.email}`);
+        }
+
+        if (!influencerActionsHistory || !influencerActionsHistory?.history) {
+            return {
+                history: {
+                    influencerName: influencer.firstName,
+                    actions: [],
+                    accounts: accounts,
+                    currencyNote: influencer.currencyNote,
+                },
+                total: 0,
+                page: 0,
+                limit: 0,
+                totalPages: 0
+            }
         }
 
         return {
@@ -138,7 +149,7 @@ export class AdminActionsHistoryService implements IAdminActionsHistory {
         }
 
         if (!campaignAction.addedAccountsId) {
-            throw new InternalServerErrorException("This action isn't supportable in new website version")
+            throw new InternalServerErrorException("Not enough info in database");
         }
 
         // Find out is social account still in campaign

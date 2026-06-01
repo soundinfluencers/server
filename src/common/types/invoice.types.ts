@@ -50,6 +50,8 @@ export interface ClientDetailedInvoice extends BaseDetailedInvoice {
 
 export interface IAdminClientInvoice {
     _id: Types.ObjectId;
+    shortInvoiceId: string;
+    referenceNumber: string;
     company: string;
     campaignName: string;
     createdAt: Date;
@@ -59,6 +61,7 @@ export interface IAdminClientInvoice {
 
 export interface IAdminInfluencerInvoice {
     _id: Types.ObjectId;
+    shortInvoiceId: string;
     firstName: string;
     lastName: string;
     socialMedia: SocialMediaEnum; // influencer first social account social media

@@ -29,6 +29,8 @@ export class AdminClientInvoicesService implements IAdminClientInvoicesService {
             ...list,
             items: list.items.map((i: IAdminClientInvoice): AdminClientInvoiceRow => ({
                 invoiceId: i._id.toString(),
+                shortInvoiceId: i.shortInvoiceId,
+                referenceNumber: i.referenceNumber,
                 company: i.company,
                 campaignName: i.campaignName,
                 date: formatDate(i.createdAt),
@@ -44,6 +46,8 @@ export class AdminClientInvoicesService implements IAdminClientInvoicesService {
             ...searchResult,
             items: searchResult.items.map((i: IAdminClientInvoice): AdminClientInvoiceRow => ({
                 invoiceId: i._id.toString(),
+                shortInvoiceId: i.shortInvoiceId,
+                referenceNumber: i.referenceNumber,
                 company: i.company,
                 campaignName: i.campaignName,
                 date: formatDate(i.createdAt),
