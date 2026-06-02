@@ -5,15 +5,16 @@ import {Auth} from "../../common/decorators/auth.decorator";
 import {Roles} from "../../common/decorators/roles.decorator";
 import {AuthenticatedRequest, Role} from "../../common/types/user.types";
 import {
-    CreatedProposalCampaignIdDto, GetProposalCampaignDto,
-    GetProposalCampaignsQueryDto,
-    ProposalCampaignsListDto, ProposalCampaignWithOptionDto,
+    CreatedProposalCampaignIdDto,
+    ProposalCampaignWithOptionDto,
 } from "./dto/proposal-campaigns.dto";
 import {CreateCampaignDto} from "../campaigns/dto/create-campaign.dto";
 import {ApiResponseDto} from "../../common/decorators/api/response/api-response.decorator";
 import {UpdateCampaignDto} from "../campaigns/dto/update-campaign.dto";
 import {ProposalAccess} from "../../common/decorators/proposal-access.decorator";
 import {Public} from "../../common/decorators/public.decorator";
+import {ParseObjectIdPipe} from "../../common/pipes/parse-oid.pipe";
+import {CreateCampaignInvoiceDto} from "../invoice/dto/create-invoice.dto";
 
 @ApiTags('proposal-system')
 @Controller('proposal-system')
@@ -66,14 +67,6 @@ export class ProposalSystemController {
         );
     }
 
-
-    // @Auth()
-    // @Roles(Role.client, Role.admin)
-    // @Patch()
-    // updateProposalCampaign(@Body() data: UpdateProposalCampaignDto) {
-    //     return this.proposalSystemService.updateProposalCampaign(data);
-    // }
-
     @Public()
     @ApiOperation({summary: 'Returns proposal campaign with one selected option'})
     @ApiResponseDto(ProposalCampaignWithOptionDto)
@@ -95,6 +88,30 @@ export class ProposalSystemController {
             },
             request.user
         );
+    }
+
+    @Auth()
+    @Roles(Role.client, Role.admin)
+    @ApiOperation({summary: "Approves proposal campaign"})
+    @ApiResponseDto()
+    @ApiParam({
+        name: 'campaignId',
+        type: 'string',
+        required: true
+    })
+    @ApiQuery({
+        name: 'optionIndex',
+        type: 'number',
+        required: false,
+    })
+    @Post('approve/:campaignId')
+    async approveProposalCampaign(
+        @Req() request: AuthenticatedRequest,
+        @Param('campaignId', new ParseObjectIdPipe()) campaignId: string,
+        @Query('optionIndex') optionIndex: number,
+        @Body() paymentDetails: CreateCampaignInvoiceDto
+    ): Promise<void> {
+        return this.proposalSystemService.approveProposalCampaign(request.user._id, campaignId, paymentDetails, optionIndex);
     }
 
     @Auth()

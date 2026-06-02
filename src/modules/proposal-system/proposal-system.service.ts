@@ -2,6 +2,7 @@ import {
     BadRequestException,
     ConflictException,
     ForbiddenException,
+    Inject,
     Injectable,
     InternalServerErrorException,
     Logger,
@@ -43,12 +44,24 @@ import {ObjId, toObjIdSafe} from "../../common/types/base.types";
 import {UpdateCampaignDto} from "../campaigns/dto/update-campaign.dto";
 import {MediaService} from "../media/media.service";
 import {
+    CampaignPaymentMethodEnum,
     ICampaignAccount,
     ICampaignContent,
     IProposalCampaign,
     IProposalOption
 } from "../../common/types/client/campaign.types";
 import {CampaignAccountDto, DetailedCampaignContentItemDto} from "../campaigns/dto/get-campaigns.dto";
+import {ClientRepository} from "../../database/repositories/users/client.repository";
+import {CAMPAIGN_CREATE_SERVICE, CampaignCreateService} from "../campaigns/services/campaign-create.service";
+import {CreateCampaignInvoiceDto} from "../invoice/dto/create-invoice.dto";
+import {RequestForAdminType} from "../../common/types/request-for-admin/request-for-admin.types";
+import {InvoiceService} from "../invoice/invoice.service";
+import {
+    CREATE_ADMIN_REQUEST_SERVICE,
+    CreateAdminRequestService
+} from "../admin/services/requests/create-admin-request.service";
+import {ClientToAdminEmails} from "../../integrations/email/email.templates";
+import {EmailService} from "../../integrations/email/email.service";
 
 // -------------- PRIVATE TYPES -----------------
 
@@ -71,10 +84,17 @@ export class ProposalSystemService {
     private readonly logger = new Logger();
 
     constructor(
+        private readonly clientRepo: ClientRepository,
         private readonly influencerRepo: InfluencerRepository,
         private readonly proposalCampaignRepo: ProposalCampaignRepository,
         private readonly proposalCampaignOptionRepo: ProposalCampaignOptionRepository,
         private readonly mediaService: MediaService,
+        private readonly invoiceService: InvoiceService,
+        private readonly emailService: EmailService,
+        @Inject(CAMPAIGN_CREATE_SERVICE)
+        private readonly campaignCreateService: CampaignCreateService,
+        @Inject(CREATE_ADMIN_REQUEST_SERVICE)
+        private readonly createAdminRequestService: CreateAdminRequestService,
     ) {
     }
 
@@ -646,9 +666,199 @@ export class ProposalSystemService {
             campaignId: campaignId,
             campaignName: proposalCampaign.campaignName,
             socialMedia: proposalCampaign.socialMedia as SocialMediaEnum,
-            existingOptions: proposalCampaign.optionsIds.map((option: Types.ObjectId, index: number) => index),
+            existingOptions: proposalCampaign.optionsIds.map((option: ObjId, index: number) => index),
             selectedOption: proposalCampaignOption,
         };
+    }
+
+    // Approves proposal campaign with selected option
+    async approveProposalCampaign(
+        clientId: string,
+        proposalCampaignId: string,
+        paymentDetails: CreateCampaignInvoiceDto,
+        optionIndex: number = 0
+    ): Promise<void> {
+        const session = await this.proposalCampaignRepo.startSession();
+        session.startTransaction();
+
+        let campaignInfo: {
+            id: ObjId | null,
+            idStr: string | null,
+            campaignName: string | null,
+            totalFollowers: number | null,
+            socialMedia: SocialMediaEnum | null,
+            paymentType: CampaignPaymentMethodEnum | null
+        } = {
+            id: null,
+            idStr: null,
+            campaignName: null,
+            totalFollowers: null,
+            socialMedia: null,
+            paymentType: null
+        };
+
+        let clientInfo: {
+            id: ObjId | null,
+            email: string | null,
+            name: string | null
+        } = {
+            id: null,
+            email: null,
+            name: null
+        }
+
+        try {
+            const client = await this.clientRepo.findById(clientId, {session, select: ['_id', 'email', 'firstName']});
+            if (!client) {
+                throw new NotFoundException("Client not found");
+            }
+
+            clientInfo.id = client._id;
+            clientInfo.email = client.email;
+            clientInfo.name = client.firstName;
+
+            const proposalCampaign = await this.proposalCampaignRepo.findOneAndDelete({
+                _id: new ObjId(proposalCampaignId),
+            }, {session});
+            if (!proposalCampaign) {
+                throw new NotFoundException("Proposal campaign not found");
+            }
+
+            const optionId = proposalCampaign.optionsIds[optionIndex];
+            if (!optionId) {
+                throw new NotFoundException("This option not found");
+            }
+
+            const proposalCampaignOption = await this.proposalCampaignOptionRepo.findOneAndDelete({
+                _id: optionId,
+                proposalCampaignId: new ObjId(proposalCampaignId)
+            }, {session});
+            if (!proposalCampaignOption) {
+                throw new NotFoundException("This option not found");
+            }
+
+            const createCampaignPayload: CreateCampaignDto = {
+                clientId: clientId,
+                campaignName: proposalCampaign.campaignName.trim(),
+                socialMedia: proposalCampaign.socialMedia as any,
+                campaignPrice: proposalCampaignOption.publicCampaignPrice,
+                addedAccounts: proposalCampaignOption.addedAccounts.map((account: ProposalCampaignAccount): SelectInfluencerDto => ({
+                    socialAccountId: account.accountId.toString(),
+                    influencerId: account.influencerId.toString(),
+                    socialMedia: account.socialMedia,
+                    username: account.username,
+                    selectedCampaignContentItem: {
+                        campaignContentItemId: account.selectedContent.campaignContentItemId.toString(),
+                        descriptionId: account.selectedContent.descriptionId.toString()
+                    },
+                    dateRequest: account.dateRequest
+                })),
+                campaignContent: proposalCampaignOption.campaignContent.map((campaignContentItem: CampaignContentItem): CampaignContentItemDto => ({
+                    _id: campaignContentItem._id.toString(),
+                    socialMedia: campaignContentItem.socialMedia,
+                    socialMediaGroup: campaignContentItem.socialMediaGroup,
+                    mainLink: campaignContentItem.mainLink,
+                    ...campaignContentItem.profileType ? {profileType: campaignContentItem.profileType} : {},
+                    ...campaignContentItem.descriptions && campaignContentItem.descriptions.length > 0
+                        ? {
+                            descriptions: campaignContentItem.descriptions.map(i => ({
+                                _id: i._id.toString(),
+                                description: i.description
+                            }))
+                        }
+                        : {},
+                    ...campaignContentItem.taggedUser ? {taggedUser: campaignContentItem.taggedUser} : {},
+                    ...campaignContentItem.taggedLink ? {taggedLink: campaignContentItem.taggedLink} : {},
+                    ...campaignContentItem.additionalBrief ? {additionalBrief: campaignContentItem.additionalBrief} : {},
+                })),
+                paymentDetails: paymentDetails,
+            } satisfies CreateCampaignDto;
+
+            const createdCampaign = await this.campaignCreateService.exec(createCampaignPayload, session);
+
+            if (!createdCampaign
+                || !createdCampaign._id
+                || !createdCampaign.addedAccounts
+                || !createdCampaign.campaignContent
+                || !createdCampaign.addedAccounts.length
+                || !createdCampaign.campaignContent.length
+            ) {
+                throw new Error('CAMPAIGN_CREATE_SERVICE returned null or invalid campaign');
+            }
+
+            campaignInfo.id = createdCampaign._id;
+            campaignInfo.idStr = createdCampaign._id.toString();
+            campaignInfo.socialMedia = createdCampaign.socialMedia === 'multipromo' ? SocialMediaEnum.instagram : createdCampaign.socialMedia;
+            campaignInfo.paymentType = createdCampaign.paymentType;
+            campaignInfo.totalFollowers = createdCampaign.addedAccounts.reduce((sum, account) => {
+                const followers =
+                    typeof account.followers === 'number' && Number.isFinite(account.followers)
+                        ? account.followers
+                        : 0;
+
+                return sum + followers;
+            }, 0);
+
+            if (typeof campaignInfo.totalFollowers !== 'number' || campaignInfo.totalFollowers === 0) {
+                throw new Error(`Campaign followers can't be a number or is 0.\n Proposal campaign id - ${proposalCampaignId}\nProposal option id - ${optionId}`);
+            }
+
+            paymentDetails.userId = clientId;
+            paymentDetails.userRole = Role.client;
+            paymentDetails.campaignId = campaignInfo.idStr;
+            paymentDetails.campaignName = campaignInfo.campaignName;
+            paymentDetails.campaignFollowers = campaignInfo.totalFollowers;
+            paymentDetails.company = client.company;
+            paymentDetails.amount = createdCampaign.campaignPrice;
+
+            // Create and send invoice to client
+            await this.invoiceService.createClientCampaignInvoice(
+                paymentDetails,
+                clientInfo.email,
+                session,
+            );
+
+            // Create admin request for campaign review (same transaction)
+            await this.createAdminRequestService.exec({
+                requestType: RequestForAdminType.CAMPAIGN_REQUEST,
+                session,
+                payload: {
+                    clientId: clientId,
+                    campaignId: campaignInfo.idStr,
+                    clientName: clientInfo.name ?? clientInfo.email ?? '',
+                },
+            });
+
+            await session.commitTransaction();
+        } catch (err) {
+            this.logger.error(`Error while approving proposal campaign`, err);
+            await session.abortTransaction();
+            throw new InternalServerErrorException('Something went wrong with saving your campaign. Try again later or connect support.');
+        } finally {
+            await session.endSession();
+        }
+
+        try {
+            const campaignIdStr = campaignInfo.id.toString();
+
+            await this.emailService.send(
+                ClientToAdminEmails.campaignCreated({
+                    campaignId: campaignIdStr,
+                    clientId: clientId,
+                    campaignSocialMedia: campaignInfo.socialMedia,
+                    paymentType: campaignInfo.paymentType,
+                    campaignName: campaignInfo.campaignName,
+                    clientName: clientInfo.name ?? '',
+                    clientEmail: clientInfo.email,
+                    acceptLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignIdStr}&status=accept`,
+                    declineLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignIdStr}&status=decline`,
+                }),
+            );
+        } catch (e) {
+            this.logger.warn(
+                `Campaign ${campaignInfo.idStr} was created, but notification email to admin failed`,
+            );
+        }
     }
 
     // Deletes proposal campaign option

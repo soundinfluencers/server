@@ -45,7 +45,7 @@ import {CampaignUpdateService} from '../../campaigns/services/campaign-update.se
 import {ProposalCampaignDetailsService} from '../../proposal-system/services/proposal-campaign-details.service';
 import {ProposalCampaignUpdateService} from '../../proposal-system/services/proposal-campaign-update.service';
 import {ProposalAccountsBuilderService} from '../../proposal-system/services/proposal-accounts-builder.service';
-import {ClientSession, HydratedDocument, Types} from 'mongoose';
+import {ClientSession, HydratedDocument, PipelineStage, Types} from 'mongoose';
 import {CampaignAccountsBuilderService} from '../../campaigns/services/campaign-accounts-builder.service';
 import {ObjId} from '../../../common/types/base.types';
 import {XlsxImporter} from '../../../common/utils/import/xlsx/xlsx-import';
@@ -665,61 +665,118 @@ export class AdminCampaignsService implements IAdminCampaignsService {
                 if (isMultiPromo) {
                     const normalizedUsername = page.username.trim();
 
-                    const aggregationPipeline = [
+                    const aggregationPipeline: PipelineStage[] = [
                         {
-                            $facet: socialMediaPlatforms.reduce((acc, platform) => {
+                            $facet: socialMediaPlatforms.reduce<Record<string, any[]>>((acc, platform) => {
                                 acc[platform] = [
-                                    {$unwind: {path: `$${platform}`, preserveNullAndEmptyArrays: true}},
                                     {
-                                        $match: {
-                                            $expr: {
-                                                $let: {
-                                                    vars: {
-                                                        cleanFollowers: {
-                                                            $replaceAll: {
-                                                                input: {
-                                                                    $replaceAll: {
-                                                                        input: `$${platform}.followers`,
-                                                                        find: '.',
-                                                                        replacement: '',
-                                                                    },
-                                                                },
-                                                                find: ',',
-                                                                replacement: '',
+                                        $unwind: {
+                                            path: `$${platform}`,
+                                            preserveNullAndEmptyArrays: false,
+                                        },
+                                    },
+                                    {
+                                        $addFields: {
+                                            __cleanUsername: {
+                                                $toLower: {
+                                                    $trim: {
+                                                        input: {
+                                                            $toString: {
+                                                                $ifNull: [`$${platform}.username`, ''],
                                                             },
                                                         },
                                                     },
-                                                    in: {
-                                                        $and: [
-                                                            {
-                                                                $eq: [
-                                                                    {$trim: {input: `$${platform}.username`}},
-                                                                    normalizedUsername,
-                                                                ],
+                                                },
+                                            },
+                                            __cleanFollowers: {
+                                                $replaceAll: {
+                                                    input: {
+                                                        $replaceAll: {
+                                                            input: {
+                                                                $toString: {
+                                                                    $ifNull: [`$${platform}.followers`, ''],
+                                                                },
                                                             },
-                                                            {
-                                                                $eq: [{$toInt: '$$cleanFollowers'}, page.followers],
-                                                            },
-                                                        ],
+                                                            find: '.',
+                                                            replacement: '',
+                                                        },
                                                     },
+                                                    find: ',',
+                                                    replacement: '',
                                                 },
                                             },
                                         },
                                     },
                                     {
+                                        $addFields: {
+                                            __followersNumber: {
+                                                $convert: {
+                                                    input: '$__cleanFollowers',
+                                                    to: 'int',
+                                                    onError: null,
+                                                    onNull: null,
+                                                },
+                                            },
+                                        },
+                                    },
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $eq: [
+                                                    '$__cleanUsername',
+                                                    normalizedUsername.toLowerCase(),
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    {
+                                        $addFields: {
+                                            __followersDiff: {
+                                                $cond: [
+                                                    {
+                                                        $and: [
+                                                            { $ne: ['$__followersNumber', null] },
+                                                            { $ne: [page.followers, null] },
+                                                        ],
+                                                    },
+                                                    {
+                                                        $abs: {
+                                                            $subtract: ['$__followersNumber', page.followers],
+                                                        },
+                                                    },
+                                                    null,
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    {
+                                        $sort: {
+                                            __followersDiff: 1,
+                                        },
+                                    },
+                                    {
+                                        $limit: 1,
+                                    },
+                                    {
                                         $project: {
                                             influencerId: '$_id',
                                             accountId: `$${platform}._id`,
-                                            socialMedia: platform,
+                                            socialMedia: {
+                                                $literal: platform,
+                                            },
                                             price: `$${platform}.price`,
                                             publicPrice: `$${platform}.publicPrice`,
-                                            dateRequest: data.timeline,
+                                            dateRequest: {
+                                                $literal: data.timeline,
+                                            },
                                             followers: `$${platform}.followers`,
                                             countries: `$${platform}.countries`,
                                             musicGenres: `$${platform}.musicGenres`,
+                                            followersDiff: '$__followersDiff',
                                         },
                                     },
                                 ];
+
                                 return acc;
                             }, {}),
                         },
@@ -730,18 +787,33 @@ export class AdminCampaignsService implements IAdminCampaignsService {
                                 },
                             },
                         },
-                        {$unwind: '$combined'},
+                        {
+                            $unwind: '$combined',
+                        },
+                        {
+                            $replaceRoot: {
+                                newRoot: '$combined',
+                            },
+                        },
+                        {
+                            $sort: {
+                                followersDiff: 1,
+                            },
+                        },
+                        {
+                            $limit: 1,
+                        },
                         {
                             $project: {
-                                influencerId: '$combined.influencerId',
-                                accountId: `$combined.accountId`,
-                                socialMedia: '$combined.socialMedia',
-                                price: '$combined.price',
-                                publicPrice: '$combined.publicPrice',
-                                dateRequest: '$combined.dateRequest',
-                                followers: '$combined.followers',
-                                countries: '$combined.countries',
-                                musicGenres: '$combined.musicGenres',
+                                influencerId: 1,
+                                accountId: 1,
+                                socialMedia: 1,
+                                price: 1,
+                                publicPrice: 1,
+                                dateRequest: 1,
+                                followers: 1,
+                                countries: 1,
+                                musicGenres: 1,
                             },
                         },
                     ];

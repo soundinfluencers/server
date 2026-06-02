@@ -8,6 +8,7 @@ import { CampaignDetailsService } from './services/campaign-details.service';
 import { CampaignUpdateService } from './services/campaign-update.service';
 import { CampaignAccountsBuilderService } from './services/campaign-accounts-builder.service';
 import { AdminRequestsModule } from '../admin/admin.module';
+import {CAMPAIGN_CREATE_SERVICE, CampaignCreateService} from "./services/campaign-create.service";
 
 @Module({
   imports: [MediaModule, InvoiceModule, AdminRequestsModule],
@@ -18,12 +19,20 @@ import { AdminRequestsModule } from '../admin/admin.module';
     CampaignDetailsService,
     CampaignUpdateService,
     CampaignAccountsBuilderService,
+    {
+      provide: CAMPAIGN_CREATE_SERVICE,
+      useClass: CampaignCreateService,
+    },
   ],
   exports: [
     CampaignsService,
     CampaignDetailsService,
     CampaignUpdateService,
     CampaignAccountsBuilderService,
+    {
+      provide: CAMPAIGN_CREATE_SERVICE,
+      useClass: CampaignCreateService,
+    },
   ],
 })
 export class CampaignsModule {}

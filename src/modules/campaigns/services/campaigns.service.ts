@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -8,10 +7,9 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { HydratedDocument, Types } from 'mongoose';
+import {ClientSession, HydratedDocument, Types} from 'mongoose';
 import {
   CampaignConfirmationEnum,
-  CampaignPaymentStatusEnum,
   CampaignStatusEnum,
   CampaignTypeEnumForDevelopment,
   ICampaignDetails,
@@ -36,7 +34,6 @@ import { InfluencerRepository } from '../../../database/repositories/users/influ
 import {
   Campaign,
   CampaignAccount,
-  CampaignContentItem,
 } from '../../../database/schemas/campaign/campaign.schema';
 import { Client } from '../../../database/schemas/users/client.schema';
 import { InfluencerActionsHistoryService } from '../../influencer-actions-history/influencer-actions-history.service';
@@ -45,7 +42,6 @@ import { EmailService } from '../../../integrations/email/email.service';
 import { Role, UserPayload } from '../../../common/types/user.types';
 import { UpdateCampaignDto } from '../dto/update-campaign.dto';
 import {
-  mapContentItemDtoToModel,
   mapSchemaToICampaignDetails,
   mapToCampaignDetailsDto,
 } from '../../../common/mappers/campaign.mapper';
@@ -58,7 +54,6 @@ import {
 import { BespokeCampaignRepository } from '../../../database/repositories/campaigns/bespoke-campaign.repository';
 import { CampaignCsvExporter } from '../../../common/utils/export/csv/campaign-csv.exporter';
 import { CampaignPdfExporter } from '../../../common/utils/export/pdf/campaign-pdf.exporter';
-import { MediaService } from '../../media/media.service';
 import { InvoiceService } from '../../invoice/invoice.service';
 import {
   AdminToClientEmails,
@@ -75,6 +70,7 @@ import {
   CreateAdminRequestService,
 } from '../../admin/services/requests/create-admin-request.service';
 import { RequestForAdminType } from '../../../common/types/request-for-admin/request-for-admin.types';
+import {CAMPAIGN_CREATE_SERVICE, CampaignCreateService} from "./campaign-create.service";
 
 @Injectable()
 export class CampaignsService {
@@ -88,7 +84,6 @@ export class CampaignsService {
     private readonly completedCampaignRepo: CompletedCampaignRepository,
     private readonly proposalCampaignRepo: ProposalCampaignRepository,
     private readonly bespokeCampaignRepo: BespokeCampaignRepository,
-    private readonly mediaService: MediaService,
     private readonly invoiceService: InvoiceService,
     private readonly influencerActionsHistoryService: InfluencerActionsHistoryService,
     private readonly emailService: EmailService,
@@ -98,6 +93,8 @@ export class CampaignsService {
     private readonly paymentsHistoryService: PaymentsHistoryService,
     @Inject(CREATE_ADMIN_REQUEST_SERVICE)
     private readonly createAdminRequestService: CreateAdminRequestService,
+    @Inject(CAMPAIGN_CREATE_SERVICE)
+    private readonly campaignCreateService: CampaignCreateService,
   ) {}
 
   // Returns campaigns list for client with diff statuses
@@ -277,66 +274,40 @@ export class CampaignsService {
   }
 
   // Creates new campaign (NOT DRAFT)
-  async createCampaign(data: CreateCampaignDto): Promise<void> {
-    if (!data || !data.paymentDetails || data?.addedAccounts?.length <= 0)
-      throw new BadRequestException('Not enough arguments');
-
-    const createdAt = new Date();
-
-    const processedAccounts: CampaignAccount[] =
-      await this.campaignAccountsBuilderService.buildCampaignAccountsBatch(data.addedAccounts);
-
-    if (processedAccounts.length === 0) {
-      throw new BadRequestException('No valid influencers provided');
-    }
-
-    const processedCampaignContent: CampaignContentItem[] = data.campaignContent.map(
-      (campaignContentItem) => mapContentItemDtoToModel(campaignContentItem),
-    );
-
-    if (processedCampaignContent.length === 0)
-      throw new BadRequestException('No valid campaign content provided');
-
-    const campaignContentWithCache =
-      await this.mediaService.applyMediaCacheForCreate(processedCampaignContent);
-
-    const session = await this.campaignRepo.startSession();
+  async createCampaign(data: CreateCampaignDto, providedSession?: ClientSession): Promise<void> {
+    let session = providedSession ?? await this.campaignRepo.startSession();
     session.startTransaction();
 
     let createdCampaign: Campaign;
     let client: Client;
 
     // for invoice
-    const campaignTotalFollowers = processedAccounts.reduce((sum, account) => {
-      const followers =
-        typeof account.followers === 'number' && Number.isFinite(account.followers)
-          ? account.followers
-          : 0;
+    let campaignId: ObjId | null = null;
+    let campaignTotalFollowers: number | null = null;
 
-      return sum + followers;
-    }, 0);
-
-    const campaignId: ObjId = new ObjId();
     try {
-      // Saving new campaign
-      createdCampaign = await this.campaignRepo.create(
-        {
-          ...data,
-          _id: campaignId,
-          clientId: new ObjId(data.clientId),
-          campaignName: data.campaignName.trim(),
-          addedAccounts: processedAccounts,
-          paymentType: data.paymentDetails.selectedPaymentMethod,
-          paymentStatus: CampaignPaymentStatusEnum.confirmed,
-          statusCampaign: CampaignStatusEnum.underReview,
-          verifyCampaign: CampaignConfirmationEnum.wait,
-          shareLink: `${process.env.SERVER_CLIENT}/promo-share/${campaignId}/${data.socialMedia}`,
-          campaignContent: campaignContentWithCache,
-          createdAt,
-          schemaVersion: 2,
-        } as Campaign,
-        { session },
-      );
+      // Creating campaign
+      createdCampaign = await this.campaignCreateService.exec(data, session);
+
+      if (!createdCampaign
+          || !createdCampaign.addedAccounts
+          || !createdCampaign.campaignContent
+          || !createdCampaign.addedAccounts.length
+          || !createdCampaign.campaignContent.length
+      ) {
+        this.logger.error(`CAMPAIGN_CREATE_SERVICE returned null or invalid campaign`);
+        throw new InternalServerErrorException(`Something went wrong with saving your campaign. Try again later or connect support.`)
+      }
+
+      campaignId = createdCampaign._id;
+      campaignTotalFollowers = createdCampaign.addedAccounts.reduce((sum, account) => {
+        const followers =
+            typeof account.followers === 'number' && Number.isFinite(account.followers)
+                ? account.followers
+                : 0;
+
+        return sum + followers;
+      }, 0);
 
       // Saving payment history projections for all of campaign's accounts
       await this.paymentsHistoryService.rebuildForCampaign(

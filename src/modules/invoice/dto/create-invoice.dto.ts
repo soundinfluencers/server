@@ -126,7 +126,8 @@ export class CreateCampaignInvoiceDto {
     @IsNotEmpty()
     referenceNumber: string;
 
-    @ApiProperty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsNumber()
     amount: number;
 

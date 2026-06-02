@@ -5,9 +5,12 @@ import {MediaModule} from "../media/media.module";
 import {ProposalCampaignDetailsService} from "./services/proposal-campaign-details.service";
 import {ProposalCampaignUpdateService} from "./services/proposal-campaign-update.service";
 import {ProposalAccountsBuilderService} from "./services/proposal-accounts-builder.service";
+import {CampaignsModule} from "../campaigns/campaigns.module";
+import {InvoiceModule} from "../invoice/invoice.module";
+import {AdminRequestsModule} from "../admin/admin.module";
 
 @Module({
-    imports: [MediaModule],
+    imports: [MediaModule, CampaignsModule, InvoiceModule, AdminRequestsModule],
     controllers: [ProposalSystemController],
     providers: [
         ProposalSystemService,
