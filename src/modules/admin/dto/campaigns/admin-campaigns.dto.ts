@@ -110,6 +110,9 @@ export class AdminCampaignAccountDto extends CampaignAccountDto {
     @ApiPropertyOptional({type: String})
     firstName?: string;
 
+    @ApiPropertyOptional({type: String})
+    phoneNumber?: string;
+
     @ApiProperty({type: String, enum: AdminPromoStatusLabelEnum})
     statusLabel?: AdminPromoStatusLabelEnum;
 
