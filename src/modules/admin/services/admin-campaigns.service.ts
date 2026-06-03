@@ -826,7 +826,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
                             : null;
                         let selectedCampaignContentItem: {
                             campaignContentItemId: ObjId;
-                            postDescriptionId: ObjId;
+                            descriptionId: ObjId;
                         } | null = null;
 
                         const existingContentIndex: number = proposalOption.campaignContent.findIndex(
@@ -838,11 +838,11 @@ export class AdminCampaignsService implements IAdminCampaignsService {
 
                         if (page.mainLink && existingContentIndex === -1) {
                             const campaignContentItemId = new ObjId();
-                            const postDescriptionId = new ObjId();
+                            const descriptionId = new ObjId();
 
                             selectedCampaignContentItem = {
                                 campaignContentItemId,
-                                postDescriptionId,
+                                descriptionId,
                             };
 
                             proposalOption.campaignContent.push({
@@ -852,7 +852,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
                                 mainLink: page.mainLink,
                                 descriptions: [
                                     {
-                                        _id: postDescriptionId,
+                                        _id: descriptionId,
                                         description: page.description || '',
                                     },
                                 ],
@@ -872,21 +872,21 @@ export class AdminCampaignsService implements IAdminCampaignsService {
                                 ].descriptions.findIndex((pd) => pd.description === page.description);
 
                             if (existingDescriptionIndex === -1) {
-                                const postDescriptionId = new ObjId();
+                                const descriptionId = new ObjId();
 
                                 selectedCampaignContentItem = {
                                     campaignContentItemId: proposalOption.campaignContent[existingContentIndex]._id,
-                                    postDescriptionId: postDescriptionId,
+                                    descriptionId: descriptionId,
                                 };
 
                                 proposalOption.campaignContent[existingContentIndex].descriptions.push({
-                                    _id: postDescriptionId,
+                                    _id: descriptionId,
                                     description: page.description || '',
                                 });
                             } else {
                                 selectedCampaignContentItem = {
                                     campaignContentItemId: proposalOption.campaignContent[existingContentIndex]._id,
-                                    postDescriptionId:
+                                    descriptionId:
                                     proposalOption.campaignContent[existingContentIndex].descriptions[
                                         existingDescriptionIndex
                                         ]._id,
@@ -942,7 +942,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
                             : null;
                         let selectedCampaignContentItem: {
                             campaignContentItemId: ObjId;
-                            postDescriptionId: ObjId;
+                            descriptionId: ObjId;
                         } | null = null;
 
                         const existingContentIndex: number = proposalOption.campaignContent.findIndex(
@@ -954,11 +954,11 @@ export class AdminCampaignsService implements IAdminCampaignsService {
 
                         if (page.mainLink && existingContentIndex === -1) {
                             const campaignContentItemId = new ObjId();
-                            const postDescriptionId = new ObjId();
+                            const descriptionId = new ObjId();
 
                             selectedCampaignContentItem = {
                                 campaignContentItemId,
-                                postDescriptionId,
+                                descriptionId,
                             };
 
                             proposalOption.campaignContent.push({
@@ -968,7 +968,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
                                 mainLink: page.mainLink,
                                 descriptions: [
                                     {
-                                        _id: postDescriptionId,
+                                        _id: descriptionId,
                                         description: page.description || '',
                                     },
                                 ],
@@ -988,21 +988,21 @@ export class AdminCampaignsService implements IAdminCampaignsService {
                                 ].descriptions.findIndex((pd) => pd.description === page.description);
 
                             if (existingDescriptionIndex === -1) {
-                                const postDescriptionId = new ObjId();
+                                const descriptionId = new ObjId();
 
                                 selectedCampaignContentItem = {
                                     campaignContentItemId: proposalOption.campaignContent[existingContentIndex]._id,
-                                    postDescriptionId: postDescriptionId,
+                                    descriptionId: descriptionId,
                                 };
 
                                 proposalOption.campaignContent[existingContentIndex].descriptions.push({
-                                    _id: postDescriptionId,
+                                    _id: descriptionId,
                                     description: page.description || '',
                                 });
                             } else {
                                 selectedCampaignContentItem = {
                                     campaignContentItemId: proposalOption.campaignContent[existingContentIndex]._id,
-                                    postDescriptionId:
+                                    descriptionId:
                                     proposalOption.campaignContent[existingContentIndex].descriptions[
                                         existingDescriptionIndex
                                         ]._id,
@@ -1044,11 +1044,22 @@ export class AdminCampaignsService implements IAdminCampaignsService {
 
             await session.commitTransaction();
         } catch (e) {
-            this.logger.error(`Error importing ${proposalCampaign.campaignName} as proposal:`, e);
+            if (e instanceof Error) {
+                this.logger.error(
+                    `Error while importing ${proposalCampaign.campaignName} as proposal:`,
+                    e.stack,
+                    AdminCampaignsService.name
+                );
+            } else {
+                this.logger.error(
+                    `Unknown error while importing ${proposalCampaign.campaignName} as proposal:`,
+                    JSON.stringify(e),
+                    AdminCampaignsService.name
+                )
+            }
+
             await session.abortTransaction();
-            throw new InternalServerErrorException(
-                `Campaign was built, but something went wrong on the database side.`,
-            );
+            throw new InternalServerErrorException("Something went wrong");
         } finally {
             await session.endSession();
         }

@@ -831,9 +831,25 @@ export class ProposalSystemService {
 
             await session.commitTransaction();
         } catch (err) {
-            this.logger.error(`Error while approving proposal campaign`, err);
+            if (err instanceof Error) {
+                this.logger.error(
+                    'Error while approving proposal campaign',
+                    err.stack,
+                    ProposalSystemService.name,
+                );
+            } else {
+                this.logger.error(
+                    'Unknown error while approving proposal campaign',
+                    JSON.stringify(err),
+                    ProposalSystemService.name,
+                );
+            }
+
             await session.abortTransaction();
-            throw new InternalServerErrorException('Something went wrong with saving your campaign. Try again later or connect support.');
+
+            throw new InternalServerErrorException(
+                'Something went wrong with saving your campaign. Try again later or connect support.',
+            );
         } finally {
             await session.endSession();
         }
