@@ -12,7 +12,6 @@ import {
 import {ApiResponseDto} from "../../../common/decorators/api/response/api-response.decorator";
 import {OneOfQueryPipe} from "../../../common/pipes/one-of-query.pipe";
 import {SearchQueryDto} from "../../../common/dto/requests/search-query.dto";
-import {PaginationQueryDto} from "../../../common/dto/requests/pagination-query.dto";
 import {
     AdminRequestsListResponseDto,
     AdminRequestsQueryDto,

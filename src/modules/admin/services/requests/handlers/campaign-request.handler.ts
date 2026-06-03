@@ -151,7 +151,7 @@ export class CampaignRequestHandler {
         { _id: new ObjId(campaignId) },
         {
           verifyCampaign: CampaignConfirmationEnum.accept,
-          statusCampaign: CampaignStatusEnum.pending,
+          statusCampaign: CampaignStatusEnum.distributing,
         },
         { session },
       );
