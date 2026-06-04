@@ -1,4 +1,4 @@
-import {Module} from '@nestjs/common';
+import {Logger, Module} from '@nestjs/common';
 import {join} from 'path';
 import {AppController} from './app.controller';
 import {AppService} from './app.service';
@@ -30,15 +30,48 @@ import {MediaModule} from "../media/media.module";
 import {ExchangeRateModule} from "../../integrations/exchange-rate/exchange-rate.module";
 import {ScheduleModule} from "@nestjs/schedule";
 import {JobsModule} from "../../jobs/jobs.module";
-import {ConfigModule} from "@nestjs/config";
+import {ConfigModule, ConfigService} from "@nestjs/config";
 import {AdminModule} from "../admin/admin.module";
 import {PaymentsHistoryModule} from "../payments-history/payments-history.module";
 import {WhatsappModule} from "../../integrations/whatsapp/whatsapp.module";
+import {CacheModule} from "@nestjs/cache-manager";
+import {createKeyv} from "@keyv/redis";
+
+const cacheLogger = new Logger('CacheModule');
 
 @Module({
     imports: [
         ConfigModule.forRoot({
             isGlobal: true,
+        }),
+        CacheModule.registerAsync({
+            isGlobal: true,
+            imports: [ConfigModule],
+            inject: [ConfigService],
+            useFactory: async (configService: ConfigService) => {
+                const redisUrl = configService.getOrThrow<string>('REDIS_URL');
+
+                cacheLogger.log(`[REDIS_URL]: ${redisUrl}`);
+
+                const redisStore = createKeyv(redisUrl);
+
+                await redisStore.set('direct:keyv:test', { ok: true }, 60_000);
+
+                const directValue = await redisStore.get('direct:keyv:test');
+
+                cacheLogger.log(
+                    `[DIRECT KEYV TEST]: ${JSON.stringify(directValue)}`,
+                );
+
+                return {
+                    stores: [
+                        redisStore,
+                    ],
+                    ttl: Number(
+                        configService.get<string>('OFFERS_CACHE_TTL_MS') ?? 300000,
+                    ),
+                };
+            },
         }),
         MongooseModule.forRoot(
             process.env.DATABASE_ROOT
