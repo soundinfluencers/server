@@ -207,6 +207,8 @@ export class OffersService {
                             `${account.influencerId.toString()}:${account.accountId.toString()}`,
                         );
 
+                        console.log(`OFFER ${offer._id}: account ${accountData.username} ${accountData.followers}`)
+
                         if (!accountData) return null;
 
                         return {
