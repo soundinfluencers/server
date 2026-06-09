@@ -13,6 +13,7 @@ import { SocialMediaEnum } from '../../../common/types/social-media.types';
 import { CurrencyCode } from '../../../common/types/finance.types';
 
 export type CampaignAccountLike = {
+  _id?: Types.ObjectId;
   accountId: Types.ObjectId;
   socialMedia: SocialMediaEnum;
   username: string;
@@ -131,29 +132,79 @@ export class CampaignUpdateService {
       }
 
       if (data.addedAccounts) {
-        const existingAccountsMap = new Map<string, TAccount>();
+        // Index existing accounts two ways:
+        //  - by their unique subdocument _id (exposed to the frontend as
+        //    `addedAccountsId`). This is the only reliable way to target one
+        //    specific row when several accounts share the same accountId.
+        //  - by accountId, as a FIFO queue, used as a fallback for payloads that
+        //    don't echo `addedAccountsId` (e.g. brand-new entries or old clients).
+        const existingById = new Map<string, TAccount>();
+        const existingByAccountId = new Map<string, TAccount[]>();
 
         for (const acc of campaign.addedAccounts) {
-          existingAccountsMap.set(acc.accountId.toString(), acc);
+          const rowId = acc._id?.toString();
+          if (rowId) {
+            existingById.set(rowId, acc);
+          }
+
+          const accKey = acc.accountId.toString();
+          const bucket = existingByAccountId.get(accKey);
+
+          if (bucket) {
+            bucket.push(acc);
+          } else {
+            existingByAccountId.set(accKey, [acc]);
+          }
         }
 
         const updatedAccounts: TAccount[] = [];
         const newAccountsDto: SelectInfluencerDto[] = [];
+        // Guards against matching the same existing account twice (e.g. one DTO
+        // matches by _id while another would otherwise grab it from the queue).
+        const consumed = new Set<TAccount>();
 
         for (const accDto of data.addedAccounts) {
-          const existingAcc = existingAccountsMap.get(accDto.socialAccountId.toString());
+          let matchedAcc: TAccount | undefined;
 
-          if (existingAcc) {
+          // 1) Exact row match by the unique subdocument _id, if the client sent it.
+          const rowId = accDto.addedAccountsId?.toString();
+          if (rowId) {
+            const byId = existingById.get(rowId);
+            if (byId && !consumed.has(byId)) {
+              matchedAcc = byId;
+            }
+          }
+
+          // 2) Fallback: take the next not-yet-consumed account sharing this accountId.
+          if (!matchedAcc) {
+            const bucket = existingByAccountId.get(accDto.socialAccountId.toString());
+
+            while (bucket && bucket.length > 0) {
+              const candidate = bucket.shift();
+              if (candidate && !consumed.has(candidate)) {
+                matchedAcc = candidate;
+                break;
+              }
+            }
+          }
+
+          if (matchedAcc) {
+            consumed.add(matchedAcc);
+
+            // Deep copy before mutating so two updated entries never end up sharing
+            // a single object reference.
+            const existingAcc = this.cloneAccount(matchedAcc);
+
             existingAcc.socialMedia = accDto.socialMedia;
             existingAcc.username = accDto.username;
             existingAcc.selectedContent.campaignContentItemId = new Types.ObjectId(
-                accDto.selectedCampaignContentItem.campaignContentItemId,
+              accDto.selectedCampaignContentItem.campaignContentItemId,
             );
 
             existingAcc.selectedContent.descriptionId = accDto.selectedCampaignContentItem
-                .descriptionId
-                ? new Types.ObjectId(accDto.selectedCampaignContentItem.descriptionId)
-                : undefined;
+              .descriptionId
+              ? new Types.ObjectId(accDto.selectedCampaignContentItem.descriptionId)
+              : undefined;
 
             existingAcc.dateRequest = accDto.dateRequest ?? null;
 
@@ -178,7 +229,9 @@ export class CampaignUpdateService {
           const newAccounts = await buildCampaignAccountsBatch(newAccountsDto);
 
           if (newAccounts.length === 0) {
-            this.logger.warn(`Can't proceed new accounts while updating campaign ${data.campaignId}`);
+            this.logger.warn(
+              `Can't proceed new accounts while updating campaign ${data.campaignId}`,
+            );
           }
 
           updatedAccounts.push(...newAccounts);
@@ -200,15 +253,36 @@ export class CampaignUpdateService {
 
       if (data.campaignContent) {
         campaign.campaignContent = data.campaignContent.map(
-            (itemDto: CampaignContentItemDto): CampaignContentItem => mapContentItemDtoToModel(itemDto),
+          (itemDto: CampaignContentItemDto): CampaignContentItem =>
+            mapContentItemDtoToModel(itemDto),
         );
 
         campaign.campaignContent = await this.mediaService.applyMediaCacheForCreate(
-            campaign.campaignContent,
+          campaign.campaignContent,
         );
       }
     }
 
     await campaign.save(session ? { session } : undefined);
+  }
+
+  /**
+   * Returns a deep copy of an existing campaign account so that mutating the
+   * result never affects the original document or any other entry that shares
+   * the same accountId. For Mongoose subdocuments `toObject()` already produces
+   * a deep plain copy with ObjectId instances preserved; the fallback covers
+   * plain objects (e.g. in tests) and still clones the nested `selectedContent`.
+   */
+  private cloneAccount<TAccount extends CampaignAccountLike>(account: TAccount): TAccount {
+    const maybeDoc = account as unknown as { toObject?: () => unknown };
+
+    if (typeof maybeDoc.toObject === 'function') {
+      return maybeDoc.toObject() as TAccount;
+    }
+
+    return {
+      ...account,
+      selectedContent: { ...account.selectedContent },
+    };
   }
 }

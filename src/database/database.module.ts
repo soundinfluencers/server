@@ -102,6 +102,16 @@ import { BespokeCampaignAdminRequestSchema } from './schemas/requests/bespoke-ca
 import { NewInfluencerAdminRequestSchema } from './schemas/requests/new-influencer-request.schema';
 import { PriceUpdateAdminRequestSchema } from './schemas/requests/price-update-admin-request.schema';
 import { NewSocialAccountAdminRequestSchema } from './schemas/requests/new-social-account-request.schema';
+import {
+  RequestNegotiationThread,
+  RequestNegotiationThreadSchema,
+} from './schemas/negotiation/request-negotiation-thread.schema';
+import {
+  RequestNegotiationMessage,
+  RequestNegotiationMessageSchema,
+} from './schemas/negotiation/request-negotiation-message.schema';
+import { RequestNegotiationThreadRepository } from './repositories/negotiation/request-negotiation-thread.repository';
+import { RequestNegotiationMessageRepository } from './repositories/negotiation/request-negotiation-message.repository';
 
 @Global()
 @Module({
@@ -133,6 +143,8 @@ import { NewSocialAccountAdminRequestSchema } from './schemas/requests/new-socia
       { name: Offer.name, schema: OfferSchema },
       { name: OfferAccountLink.name, schema: OfferAccountLinkSchema },
       { name: AuthSession.name, schema: AuthSessionSchema },
+      { name: RequestNegotiationThread.name, schema: RequestNegotiationThreadSchema },
+      { name: RequestNegotiationMessage.name, schema: RequestNegotiationMessageSchema },
       {
         name: UserInvoice.name,
         schema: UserInvoiceSchema,
@@ -216,6 +228,8 @@ import { NewSocialAccountAdminRequestSchema } from './schemas/requests/new-socia
     OfferAccountLinkRepository,
     AuthSessionRepository,
     RequestForAdminRepository,
+    RequestNegotiationThreadRepository,
+    RequestNegotiationMessageRepository,
   ],
   exports: [
     ClientRepository,
@@ -242,6 +256,8 @@ import { NewSocialAccountAdminRequestSchema } from './schemas/requests/new-socia
     OfferAccountLinkRepository,
     AuthSessionRepository,
     RequestForAdminRepository,
+    RequestNegotiationThreadRepository,
+    RequestNegotiationMessageRepository,
   ],
 })
 export class DatabaseModule {}

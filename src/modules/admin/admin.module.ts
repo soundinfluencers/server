@@ -70,9 +70,11 @@ import {
   GET_ADMIN_REQUEST_DETAILS_SERVICE,
   GetAdminRequestDetailsService,
 } from './services/requests/get-admin-request-details.service';
+import { RequestNegotiationModule } from '../request-negotiation/request-negotiation.module';
+import { WebsocketModule } from '../websocket/websocket.module';
 
 @Module({
-  imports: [EmailModule],
+  imports: [EmailModule, WebsocketModule],
   controllers: [AdminRequestsController],
   providers: [
     AdminRequestsService,
@@ -119,7 +121,7 @@ import {
 export class AdminRequestsModule {}
 
 @Module({
-  imports: [OffersModule, WhatsappModule, AdminRequestsModule],
+  imports: [OffersModule, WhatsappModule, AdminRequestsModule, RequestNegotiationModule],
   controllers: [
     AdminClientsController,
     AdminCampaignsController,

@@ -78,7 +78,9 @@ export class NewClientRequestHandler {
           _id: new ObjId(requestId),
           type: RequestForAdminType.NEW_CLIENT_REQUEST,
           lifecycleStatus: RequestLifecycleState.OPEN,
-          specifiedStatus: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
+          specifiedStatus: {
+            $in: [RequestSpecifiedStatus.WAITING_FOR_ADMIN, RequestSpecifiedStatus.NEGOTIATION],
+          },
         },
         {
           $set: {

@@ -27,6 +27,8 @@ import {
   GetAdminRequestDetailsService,
 } from './get-admin-request-details.service';
 import { AdminRequestMapper } from '../../../../common/mappers/admin-request.mapper';
+import { RequestNegotiationThreadRepository } from '../../../../database/repositories/negotiation/request-negotiation-thread.repository';
+import { RealtimeNotificationService } from '../../../websocket/realtime-notification.service';
 
 const SUPPORTED_RESPONSE_ACTIONS = new Set<AdminRequestResponseAction>([
   AdminRequestResponseAction.APPROVE,
@@ -41,6 +43,8 @@ export class AdminRequestsService {
     private readonly handlers: AdminRequestHandlers,
     @Inject(GET_ADMIN_REQUEST_DETAILS_SERVICE)
     private readonly getAdminRequestDetailsService: GetAdminRequestDetailsService,
+    private readonly negotiationThreadRepository: RequestNegotiationThreadRepository,
+    private readonly realtime: RealtimeNotificationService,
   ) {}
 
   async getRequestsList(query: PaginationQueryDto): Promise<AdminRequestsListResponseDto> {
@@ -141,6 +145,15 @@ export class AdminRequestsService {
 
       default:
         throw new BadRequestException(`Request type "${request.type}" is not supported.`);
+    }
+
+    // A final decision ends any ongoing negotiation conversation.
+    const closedThread = await this.negotiationThreadRepository.closeActiveByRequestId(requestId);
+    if (closedThread) {
+      this.realtime.emitToUser(closedThread.createdBy.toString(), 'negotiation:threadClosed', {
+        threadId: closedThread._id.toString(),
+        requestId,
+      });
     }
   }
 }

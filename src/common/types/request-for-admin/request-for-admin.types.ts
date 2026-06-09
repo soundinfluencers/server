@@ -30,6 +30,7 @@ export enum RequestSpecifiedStatus {
   WAITING_FOR_ADMIN = 'WAITING_FOR_ADMIN',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  NEGOTIATION = 'NEGOTIATION',
 }
 
 export enum AdminRequestResponseAction {

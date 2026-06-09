@@ -83,7 +83,9 @@ export class NewInfluencerRequestHandler {
           _id: new ObjId(requestId),
           type: RequestForAdminType.NEW_INFLUENCER_REQUEST,
           lifecycleStatus: RequestLifecycleState.OPEN,
-          specifiedStatus: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
+          specifiedStatus: {
+            $in: [RequestSpecifiedStatus.WAITING_FOR_ADMIN, RequestSpecifiedStatus.NEGOTIATION],
+          },
         },
         {
           $set: {
@@ -151,7 +153,9 @@ export class NewInfluencerRequestHandler {
           _id: new ObjId(requestId),
           type: RequestForAdminType.NEW_INFLUENCER_REQUEST,
           lifecycleStatus: RequestLifecycleState.OPEN,
-          specifiedStatus: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
+          specifiedStatus: {
+            $in: [RequestSpecifiedStatus.WAITING_FOR_ADMIN, RequestSpecifiedStatus.NEGOTIATION],
+          },
         },
         {
           $set: {

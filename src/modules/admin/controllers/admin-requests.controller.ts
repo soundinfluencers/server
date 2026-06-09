@@ -102,7 +102,6 @@ export class AdminRequestsController {
         return this.adminService.getRequestDetails(requestId, requestType);
     }
 
-
     @ApiOperation({summary: "Responds to request. Finds request by id, defines types and updates it"})
     @ApiResponseDto()
     @ApiParam({
