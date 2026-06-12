@@ -613,8 +613,6 @@ export class ProposalSystemService {
             return {
                 optionIndex: optionIndex,
                 price: proposalCampaignOption.publicCampaignPrice,
-                // addedAccounts: proposalCampaignOption.addedAccounts.map((account) => mapToICampaignAccount(account)),
-                // campaignContent: proposalCampaignOption.campaignContent,
                 addedAccounts: proposalCampaignOption.addedAccounts.map((i: ProposalCampaignAccount): CampaignAccountDto => ({
                     ...i,
                     addedAccountsId: i._id?.toString(),

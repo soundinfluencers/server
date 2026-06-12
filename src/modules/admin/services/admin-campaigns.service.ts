@@ -31,10 +31,7 @@ import {
     IAdminCampaignForList,
 } from '../../../common/types/client/campaign.types';
 import {ProposalCampaignRepository} from '../../../database/repositories/campaigns/proposal-campaign.repository';
-import {
-    UpdateAdminMetaCampaignDto,
-    UpdatedAdminMetaCampaignDto,
-} from '../dto/campaigns/admin-update-campaign.dto';
+import {UpdateAdminMetaCampaignDto, UpdatedAdminMetaCampaignDto,} from '../dto/campaigns/admin-update-campaign.dto';
 import {CompletedCampaignRepository} from '../../../database/repositories/campaigns/completed-campaign.repository';
 import {Campaign, CampaignAccount} from '../../../database/schemas/campaign/campaign.schema';
 import {CompletedCampaign} from '../../../database/schemas/campaign/completed-campaign.schema';
@@ -571,6 +568,49 @@ export class AdminCampaignsService implements IAdminCampaignsService {
         }
     }
 
+    // Checks if user closed promo before (by checking if all of insights filled)
+    private checkInsights(promo: CampaignAccount): boolean {
+        const has = (field: keyof CampaignAccount): boolean => {
+            const value = promo[field];
+
+            return value !== null && value !== undefined && value !== '' && value !== 0;
+        };
+
+        if (
+            [
+                SocialMediaEnum.instagram,
+                SocialMediaEnum.tiktok,
+                SocialMediaEnum.facebook,
+                SocialMediaEnum.youtube,
+            ].includes(promo.socialMedia)
+        ) {
+            return [
+                'postLink',
+                'screenshot',
+                'impressions',
+                'like',
+            ].every((field) => has(field as keyof CampaignAccount));
+        }
+
+        if (promo.socialMedia === SocialMediaEnum.spotify) {
+            return ['screenshot', 'rating'].every((field) =>
+                has(field as keyof CampaignAccount),
+            );
+        }
+
+        if (promo.socialMedia === SocialMediaEnum.soundcloud) {
+            return has('screenshot');
+        }
+
+        if (promo.socialMedia === SocialMediaEnum.press) {
+            return has('postLink');
+        }
+
+        throw new InternalServerErrorException(
+            `${promo.username} has unsupported social media: ${promo.socialMedia}`,
+        );
+    }
+
     // Reopens campaign
     // Returns from completed collection to ongoing collection
     async reopenCampaign(campaignId: string): Promise<void> {
@@ -599,7 +639,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
                     addedAccounts: campaign.addedAccounts.map(
                         (acc: CampaignAccount): CampaignAccount => ({
                             ...acc,
-                            closePromo: InfluencerPromoClosedStatusEnum.wait,
+                            closePromo: this.checkInsights(acc) ? InfluencerPromoClosedStatusEnum.close : InfluencerPromoClosedStatusEnum.wait,
                         }),
                     ),
                     verifyCampaign: CampaignConfirmationEnum.accept,

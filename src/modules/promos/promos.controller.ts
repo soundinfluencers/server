@@ -93,35 +93,6 @@ export class PromosController {
         return ({promos});
     }
 
-    @ApiExcludeEndpoint()
-    @Auth()
-    @Roles(Role.influencer)
-    @ApiOperation({summary: `Returns influencer's detailed promo of one type`})
-    @ApiResponseDtoOneOf([InfluencerNewPromoRequestDto, InfluencerOngoingPromoDto, InfluencerCompletedPromoDto])
-    @ApiParam({
-        name: 'status',
-        type: 'string',
-        enum: InfluencerDetailedPromoStatusRequest,
-        required: true,
-    })
-    @ApiParam({
-        name: 'campaignId',
-        type: 'string',
-        required: true,
-    })
-    @ApiParam({
-        name: 'addedAccountsId',
-        type: 'string',
-        required: true,
-    })
-    @Get('/detailed/:status/:campaignId/:addedAccountsId')
-    async getDetailedPromo(@Req() request: AuthenticatedRequest, @Param() params: InfluencerGetDetailedPromoParamsDto): Promise<InfluencerDetailedPromo> {
-        throw new ForbiddenException("Outdated resource");
-        // if (!request.user._id) throw new UnauthorizedException('Unauthorized');
-        //
-        // return await this.promosService.getDetailedPromoByType({...params, influencerId: request.user._id});
-    }
-
     @Auth()
     @Roles(Role.influencer)
     @ApiOperation({summary: `Update influencer's response to promo request`})
