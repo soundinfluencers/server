@@ -1,9 +1,7 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, {Types} from 'mongoose';
+import {Types} from 'mongoose';
 import {
-    CampaignAccount, CampaignAdminMeta, CampaignAdminMetaSchema,
-    CampaignContentItem,
-    CampaignContentItemSchema,
+    CampaignAdminMeta, CampaignAdminMetaSchema,
 } from "./campaign.schema";
 import {Role} from "../../../common/types/user.types";
 import {SocialMediaEnum, SocialMediaType} from "../../../common/types/social-media.types";

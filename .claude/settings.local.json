@@ -15,7 +15,8 @@
       "Bash(timeout 60 node dist/src/main)",
       "Bash(timeout 90 npx nest start)",
       "Bash(npx jest *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "PowerShell(Get-NetTCPConnection *)"
     ]
   }
 }

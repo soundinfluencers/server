@@ -9,6 +9,7 @@ import {ValidationPipe} from "@nestjs/common";
 import {RolesGuard} from "./common/guards/roles.guard";
 import {JwtGuard} from "./common/guards/jwt.guard";
 import * as dotenv from 'dotenv';
+import {FilteredNestLogger} from "./common/logger/filtered-nest-logger";
 
 function parseOrigins(env?: string): string[] {
     return (env ?? '')
@@ -19,7 +20,9 @@ function parseOrigins(env?: string): string[] {
 
 async function bootstrap() {
     dotenv.config();
-    const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create(AppModule, {
+        logger: new FilteredNestLogger(),
+    });
 
     const allowedOrigins = parseOrigins(process.env.CORS_ORIGINS);
     const reflector = app.get(Reflector);
@@ -252,4 +255,4 @@ async function bootstrap() {
     await app.listen(3001);
 }
 
-bootstrap();
+void bootstrap();
