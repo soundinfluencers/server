@@ -112,6 +112,7 @@ export const mapToIAdminCampaignAccount = (
         logoUrl: (account as any)?.logoUrl ?? null,
         profileType: (account as any)?.profileType ?? (account as any)?.profileCategory ?? null,
         price: account.price,
+        currency: (account as any)?.currency,
         publicPrice: account.publicPrice,
         followers: safeParseToNumber(account.followers),
         selectedContent: account.selectedContent,

@@ -56,12 +56,6 @@ const cacheLogger = new Logger('CacheModule');
 
         const redisStore = createKeyv(redisUrl);
 
-        await redisStore.set('direct:keyv:test', { ok: true }, 60_000);
-
-        const directValue = await redisStore.get('direct:keyv:test');
-
-        cacheLogger.log(`[DIRECT KEYV TEST]: ${JSON.stringify(directValue)}`);
-
         return {
           stores: [redisStore],
           ttl: Number(configService.get<string>('OFFERS_CACHE_TTL_MS') ?? 300000),

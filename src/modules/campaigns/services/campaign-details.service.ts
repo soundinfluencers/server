@@ -1,6 +1,7 @@
 import {Injectable, NotFoundException} from '@nestjs/common';
 import {InfluencerRepository} from '../../../database/repositories/users/influencer.repository';
 import {ICampaignDetails} from '../../../common/types/client/campaign.types';
+import {CurrencyCode} from "../../../common/types/finance.types";
 
 export type CampaignDetailsContext<TCampaign, TResult> = {
     findCampaign: (campaignId: string) => Promise<TCampaign | null>;
@@ -65,6 +66,13 @@ export class CampaignDetailsService {
                     'soundcloud.profileCategory',
                     'press._id',
                     'press.profileCategory',
+                    'instagram.currency',
+                    'tiktok.currency',
+                    'youtube.currency',
+                    'facebook.currency',
+                    'spotify.currency',
+                    'soundcloud.currency',
+                    'press.currency',
                 ],
             },
         );
@@ -84,6 +92,7 @@ export class CampaignDetailsService {
                 ...acc,
                 logoUrl: matchedAccount?.logoUrl ?? null,
                 profileType: matchedAccount?.profileCategory ?? null,
+                currency: matchedAccount?.currency ?? CurrencyCode.EUR,
                 phoneNumber: influencer.phone
             };
         });

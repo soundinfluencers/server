@@ -86,6 +86,7 @@ export enum HistoryCampaignActionStatus {
     paid = 4, // influencer got payment
     denied = 5, // influencer denied this promo request
     addedByAdmin = 6, // Admin added social account to campaign
+    insightsSubmittedByAdmin = 7, // Admin submitted insights and sent money for this promo
 }
 
 // record for influencer's history campaign action status
@@ -100,6 +101,7 @@ export const HistoryCampaignActionStatusLabel: Record<
     [HistoryCampaignActionStatus.paid]: 'Paid',
     [HistoryCampaignActionStatus.denied]: 'Campaign Declined',
     [HistoryCampaignActionStatus.addedByAdmin]: "Added By Admin",
+    [HistoryCampaignActionStatus.insightsSubmittedByAdmin]: "Insights Submitted By Admin",
 };
 
 export interface ShortSocialAccountInfo {

@@ -11,6 +11,7 @@ import {PaginationQueryDto} from "../../../../common/dto/requests/pagination-que
 import {IsEnum, IsOptional} from "class-validator";
 import {CampaignAccountDto, CampaignDetailsDto} from "../../../campaigns/dto/get-campaigns.dto";
 import {AdminPromoStatusLabelEnum} from "../../../../common/types/influencer/promo.types";
+import {CurrencyCode} from "../../../../common/types/finance.types";
 
 export enum AdminCampaignsListStatusEnum {
     proposal = 'proposal',
@@ -109,6 +110,9 @@ export class AdminCampaignSearchResponseDto extends SearchListResponseDto<AdminC
 export class AdminCampaignAccountDto extends CampaignAccountDto {
     @ApiProperty({ type: Number })
     price: number;
+
+    @ApiProperty({ type: String, enum: CurrencyCode })
+    currency: CurrencyCode;
 
     @ApiPropertyOptional({type: String})
     firstName?: string;

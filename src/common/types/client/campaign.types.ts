@@ -153,6 +153,7 @@ export interface IAdminCampaignAccount extends ICampaignAccount {
     firstName?: string;
     phoneNumber?: string;
     price: number;
+    currency: CurrencyCode;
     cpm: number;
 }
 

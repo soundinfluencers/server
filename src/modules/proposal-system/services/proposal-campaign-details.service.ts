@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { InfluencerRepository } from '../../../database/repositories/users/influencer.repository';
+import {CurrencyCode} from "../../../common/types/finance.types";
 
 // ─── structural constraints (mirrors CampaignDetailsService pattern) ───────
 
@@ -87,6 +88,13 @@ export class ProposalCampaignDetailsService {
                     'spotify._id', 'spotify.profileCategory',
                     'soundcloud._id', 'soundcloud.profileCategory',
                     'press._id', 'press.profileCategory',
+                    'instagram._id', 'instagram.currency',
+                    'tiktok._id', 'tiktok.currency',
+                    'youtube._id', 'youtube.currency',
+                    'facebook._id', 'facebook.currency',
+                    'spotify._id', 'spotify.currency',
+                    'soundcloud._id', 'soundcloud.currency',
+                    'press._id', 'press.currency',
                 ],
             },
         );
@@ -108,6 +116,7 @@ export class ProposalCampaignDetailsService {
                 ...acc,
                 logoUrl: matchedAccount?.logoUrl ?? null,
                 profileType: matchedAccount?.profileCategory ?? null,
+                currency: matchedAccount?.currency ?? CurrencyCode.EUR,
             };
         });
     }

@@ -1225,7 +1225,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
                     updatedCampaignAction: {
                         addedAccountsId: promo._id,
                         socialAccountId: promo.accountId,
-                        actionNumber: 2,
+                        actionNumber: 7,
                         networkUsername: promo.username,
                         rewardForInfluencer: promo.price,
                         socialMedia: promo.socialMedia,
