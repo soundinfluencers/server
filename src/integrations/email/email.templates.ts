@@ -3,7 +3,6 @@ import {EmailMessage} from "./types/email.types";
 import {
     buildClientCampaignInvoiceTemplate,
     buildInfluencerInvoiceEmail,
-    buildInfluencerInvoiceResponseEmail
 } from "./builders/invoice-email.template";
 import {
     BuildAccountNegotiationTemplateDto,
@@ -13,7 +12,6 @@ import {
 import {
     buildClientApprovedEmailTemplate, buildClientDeclinedEmailTemplate, buildClientSignupRequestTemplate,
     buildInfluencerApprovedEmailTemplate, buildInfluencerDeclinedEmailTemplate,
-    buildInfluencerSignupAutoReplyTemplate,
     buildInfluencerSignupRequestTemplate, buildPriceChangeApprovedEmailTemplate, buildPriceChangeDeclinedEmailTemplate,
     buildPriceChangeRequestTemplate, buildSocialAccountApprovedEmailTemplate, buildSocialAccountDeclinedEmailTemplate
 } from "./builders/profile-email.template";
@@ -36,8 +34,6 @@ import {
     buildNewEmailConfirmedTemplate,
     buildResetPasswordEmailTemplate
 } from "./builders/system-email.template";
-
-const ADMIN_EMAIL = process.env.EMAIL_USER;
 
 const getAdminEmail = (): string => {
     const email = process.env.EMAIL_USER;

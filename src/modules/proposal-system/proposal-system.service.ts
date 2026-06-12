@@ -866,8 +866,8 @@ export class ProposalSystemService {
                     campaignName: campaignInfo.campaignName,
                     clientName: clientInfo.name ?? '',
                     clientEmail: clientInfo.email,
-                    acceptLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignIdStr}&status=accept`,
-                    declineLink: `${process.env.SERVER}/campaigns/verify?campaignId=${campaignIdStr}&status=decline`,
+                    acceptLink: `${process.env.SERVER_CLIENT}/dashboard/requests`,
+                    declineLink: `${process.env.SERVER_CLIENT}/dashboard/requests`,
                 }),
             );
         } catch (e) {

@@ -40,8 +40,11 @@ export class AdminCampaignForListDto {
     @ApiProperty({type: String, enum: Role})
     creatorRole: Role;
 
-    @ApiProperty({type: String})
-    creatorName: string;
+    @ApiPropertyOptional({type: String})
+    creatorName?: string;
+
+    @ApiPropertyOptional({type: String})
+    creatorCompanyName?: string;
 
     @ApiPropertyOptional({type: Number})
     followers?: number;

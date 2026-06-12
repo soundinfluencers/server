@@ -104,6 +104,7 @@ export class CampaignCreateService {
     ): Promise<Campaign> {
         try {
             const campaignId = new ObjId();
+
             const campaign = await this.campaignRepository.create(
                 {
                     ...data,
@@ -121,6 +122,7 @@ export class CampaignCreateService {
                 } as Campaign,
                 {session},
             );
+
             return campaign;
         } catch (err) {
             this.logger.error(`Error while creating campaign. Error was occurred in saving campaign block: ${err.message}`)

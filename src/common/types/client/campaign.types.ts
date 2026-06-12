@@ -256,6 +256,7 @@ export interface IAdminCampaignForList {
     campaignName: string;
     creatorRole: Role;
     creatorName: string;
+    creatorCompanyName: string;
     totalFollowers: number;
     price: number;
     publicPrice: number;

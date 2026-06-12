@@ -673,6 +673,7 @@ export const mapToAdminCampaignForListDto = (
         campaignName: campaign.campaignName,
         creatorRole: campaign.creatorRole,
         creatorName: campaign.creatorName,
+        creatorCompanyName: campaign.creatorCompanyName,
         ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? {followers: campaign.totalFollowers} : null,
         ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? {cost: campaign.price} : null,
         ...campaign.status !== AdminCampaignsListStatusEnum.proposal ? {salePrice: campaign.publicPrice} : null,

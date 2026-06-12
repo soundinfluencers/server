@@ -322,7 +322,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
         }
 
         try {
-            const link = `https://admin.soundinfluencers.com/dashboard/requests`;
+            const link = `${process.env.SERVER_CLIENT}/dashboard/requests`;
             await this.emailService.send(InfluencerToAdminEmails.priceChangeRequest({
                 influencerName: influencer.firstName,
                 influencerEmail: influencer.email,
