@@ -95,6 +95,7 @@ export interface ICampaignContent {
     _id: Types.ObjectId;
     socialMedia: SocialMediaEnum;
     socialMediaGroup: string;
+    profileType?: InfluencerProfileCategory;
     mainLink: string;
     mediaCache?: CampaignContentMediaCache;
     descriptions?: {

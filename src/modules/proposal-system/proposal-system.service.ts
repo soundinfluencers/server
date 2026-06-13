@@ -629,6 +629,7 @@ export class ProposalSystemService {
                     _id: i._id?.toString(),
                     socialMedia: i.socialMedia,
                     socialMediaGroup: i.socialMediaGroup,
+                    profileType: i.profileType,
                     mainLink: i.mainLink,
                     descriptions: i.descriptions.map((d) => ({
                         _id: d._id?.toString(),

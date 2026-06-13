@@ -84,22 +84,6 @@ export class GetProposalCampaignDto {
 }
 
 
-// TODO: add class validator
-// dto for requesting list of proposal campaigns
-export class GetProposalCampaignsQueryDto {
-    @ApiPropertyOptional({
-        default: 12,
-    })
-    limit: number;
-
-    @ApiPropertyOptional({
-        default: 1,
-        description: 'Page number (starts from 1)',
-    })
-    page: number;
-}
-
-
 // ------------ RESPONSES --------------
 
 
