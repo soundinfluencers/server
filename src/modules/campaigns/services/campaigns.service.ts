@@ -369,8 +369,8 @@ export class CampaignsService {
           campaignName: createdCampaign.campaignName,
           clientName: client.firstName ?? '',
           clientEmail: client.email,
-          acceptLink: `${process.env.SERVER_CLIENT}/dashboard/requests`,
-          declineLink: `${process.env.SERVER_CLIENT}/dashboard/requests`,
+          acceptLink: `${process.env.ADMIN_CLIENT}/dashboard/requests`,
+          declineLink: `${process.env.ADMIN_CLIENT}/dashboard/requests`,
         }),
       );
     } catch (e) {
@@ -933,8 +933,8 @@ export class CampaignsService {
       clientEmail: client.email,
       clientName: client.firstName,
       message: message,
-      acceptLink: `${process.env.SERVER_CLIENT}/dashboard/requests`,
-      declineLink: `${process.env.SERVER_CLIENT}/dashboard/requests`,
+      acceptLink: `${process.env.ADMIN_CLIENT}/dashboard/requests`,
+      declineLink: `${process.env.ADMIN_CLIENT}/dashboard/requests`,
     };
 
     await this.emailService.send(ClientToAdminEmails.campaignEditRequest(dataForEmail));

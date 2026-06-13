@@ -1,288 +1,396 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ClientSession, Types } from 'mongoose';
+import {ConflictException, Injectable, Logger, NotFoundException} from '@nestjs/common';
+import {ClientSession, Types} from 'mongoose';
 import {
-  AdminUpdateCampaignDto,
-  AdminUpdatePromoDto,
-  UpdateCampaignDto,
+    AdminUpdateCampaignDto,
+    AdminUpdatePromoDto,
+    UpdateCampaignDto,
 } from '../dto/update-campaign.dto';
-import { MediaService } from '../../media/media.service';
-import { CampaignContentItem } from '../../../database/schemas/campaign/campaign.schema';
-import { CampaignContentItemDto, SelectInfluencerDto } from '../dto/create-campaign.dto';
-import { mapContentItemDtoToModel } from '../../../common/mappers/campaign.mapper';
-import { SocialMediaEnum } from '../../../common/types/social-media.types';
-import { CurrencyCode } from '../../../common/types/finance.types';
+import {MediaService} from '../../media/media.service';
+import {CampaignContentItem} from '../../../database/schemas/campaign/campaign.schema';
+import {CampaignContentItemDto, SelectInfluencerDto} from '../dto/create-campaign.dto';
+import {mapContentItemDtoToModel} from '../../../common/mappers/campaign.mapper';
+import {SocialMediaEnum} from '../../../common/types/social-media.types';
+import {CurrencyCode} from '../../../common/types/finance.types';
+import {InfluencerActionsHistoryService} from "../../influencer-actions-history/influencer-actions-history.service";
+import {ObjId} from "../../../common/types/base.types";
 
 export type CampaignAccountLike = {
-  _id?: Types.ObjectId;
-  accountId: Types.ObjectId;
-  socialMedia: SocialMediaEnum;
-  username: string;
-  selectedContent: {
-    campaignContentItemId: Types.ObjectId;
-    descriptionId?: Types.ObjectId;
-  };
-  dateRequest?: string | null;
-  postLink?: string | null;
-  screenshot?: string | null;
-  impressions?: number | null;
-  like?: number | null;
-  comments?: number | null;
-  shares?: number | null;
-  saves?: number | null;
-  rating?: number | null;
+    _id?: Types.ObjectId;
+    influencerId: Types.ObjectId;
+    accountId: Types.ObjectId;
+    socialMedia: SocialMediaEnum;
+    username: string;
+
+    price: number;
+    publicPrice: number;
+    followers: number;
+
+    selectedContent: {
+        campaignContentItemId: Types.ObjectId;
+        descriptionId?: Types.ObjectId;
+    };
+
+    dateRequest?: string | null;
+    postLink?: string | null;
+    screenshot?: string | null;
+    impressions?: number | null;
+    like?: number | null;
+    comments?: number | null;
+    shares?: number | null;
+    saves?: number | null;
+    rating?: number | null;
 };
 
 export type CampaignDocumentLike<TAccount extends CampaignAccountLike> = {
-  campaignName: string;
-  addedAccounts: TAccount[];
-  campaignContent: CampaignContentItem[];
-  campaignPrice: number;
-  displayCurrency: CurrencyCode;
-  socialMedia: SocialMediaEnum | 'multipromo';
-  isCpmAndResultHidden?: boolean;
-  isPriceHidden?: boolean;
-  save: (options?: { session?: ClientSession }) => Promise<unknown>;
-  toObject: () => unknown;
+    _id: Types.ObjectId;
+    campaignName: string;
+    addedAccounts: TAccount[];
+    campaignContent: CampaignContentItem[];
+    campaignPrice: number;
+    displayCurrency: CurrencyCode;
+    socialMedia: SocialMediaEnum | 'multipromo';
+    isCpmAndResultHidden?: boolean;
+    isPriceHidden?: boolean;
+    save: (options?: { session?: ClientSession }) => Promise<unknown>;
+    toObject: () => unknown;
 };
 
 export type CampaignUpdateContext<
-  TCampaignDoc extends CampaignDocumentLike<TAccount>,
-  TAccount extends CampaignAccountLike,
-  TReadModel,
-  TResult,
-> = {
-  findCampaign: (campaignId: string) => Promise<TCampaignDoc | null>;
-  buildCampaignAccountsBatch: (addedAccountsData: SelectInfluencerDto[]) => Promise<TAccount[]>;
-  toReadModel: (campaign: TCampaignDoc) => TReadModel;
-  mapResult: (campaign: TReadModel) => TResult;
-  session?: ClientSession;
-  afterSave?: (campaign: TCampaignDoc, session?: ClientSession) => Promise<void>;
-};
-
-@Injectable()
-export class CampaignUpdateService {
-  constructor(private readonly mediaService: MediaService) {}
-
-  private readonly logger = new Logger();
-
-  async execute<
     TCampaignDoc extends CampaignDocumentLike<TAccount>,
     TAccount extends CampaignAccountLike,
     TReadModel,
     TResult,
-  >(
-    campaignId: string,
-    data: UpdateCampaignDto | AdminUpdateCampaignDto,
-    context: CampaignUpdateContext<TCampaignDoc, TAccount, TReadModel, TResult>,
-  ): Promise<TResult> {
-    const campaign = await context.findCampaign(campaignId);
+> = {
+    findCampaign: (campaignId: string) => Promise<TCampaignDoc | null>;
+    buildCampaignAccountsBatch: (addedAccountsData: SelectInfluencerDto[]) => Promise<TAccount[]>;
+    toReadModel: (campaign: TCampaignDoc) => TReadModel;
+    mapResult: (campaign: TReadModel) => TResult;
+    session?: ClientSession;
+    afterSave?: (campaign: TCampaignDoc, session?: ClientSession) => Promise<void>;
+};
 
-    if (!campaign) {
-      throw new NotFoundException('Campaign not found');
+@Injectable()
+export class CampaignUpdateService {
+    constructor(
+        private readonly mediaService: MediaService,
+        private readonly actionsHistoryService: InfluencerActionsHistoryService,
+    ) {
     }
 
-    await this.applyUpdate(campaign, data, context.buildCampaignAccountsBatch, context.session);
+    private readonly logger = new Logger();
 
-    if (context.afterSave) {
-      await context.afterSave(campaign, context.session);
-    }
+    async execute<
+        TCampaignDoc extends CampaignDocumentLike<TAccount>,
+        TAccount extends CampaignAccountLike,
+        TReadModel,
+        TResult,
+    >(
+        campaignId: string,
+        data: UpdateCampaignDto | AdminUpdateCampaignDto,
+        context: CampaignUpdateContext<TCampaignDoc, TAccount, TReadModel, TResult>,
+    ): Promise<TResult> {
+        const campaign = await context.findCampaign(campaignId);
 
-    try {
-      const readModel = context.toReadModel(campaign);
-      return context.mapResult(readModel);
-    } catch (err) {
-      this.logger.warn(`Error mapping campaign ${campaignId} after update: ${err}`);
-
-      throw new ConflictException(
-        'Campaign updated, but response serialization failed. Please refresh.',
-      );
-    }
-  }
-
-  private async applyUpdate<
-    TCampaignDoc extends CampaignDocumentLike<TAccount>,
-    TAccount extends CampaignAccountLike,
-  >(
-    campaign: TCampaignDoc,
-    data: UpdateCampaignDto | AdminUpdateCampaignDto,
-    buildCampaignAccountsBatch: (addedAccountsData: SelectInfluencerDto[]) => Promise<TAccount[]>,
-    session?: ClientSession,
-  ): Promise<void> {
-    // Default fields - CLIENT & ADMIN can change
-    if (data.campaignName && data.campaignName.trim() !== campaign.campaignName) {
-      campaign.campaignName = data.campaignName.trim();
-    }
-    if (data.isCpmAndResultHidden !== undefined) {
-      campaign.isCpmAndResultHidden = data.isCpmAndResultHidden;
-    }
-    if (data.isPriceHidden !== undefined) {
-      campaign.isPriceHidden = data.isPriceHidden;
-    }
-
-    // Admin fields
-    if (data instanceof AdminUpdateCampaignDto) {
-      if (data.displayCurrency !== undefined) {
-        campaign.displayCurrency = data.displayCurrency;
-      }
-      if (!campaign.displayCurrency) {
-        campaign.displayCurrency = CurrencyCode.EUR;
-      }
-      if (data.campaignPrice) {
-        campaign.campaignPrice = data.campaignPrice;
-      }
-
-      if (data.addedAccounts) {
-        // Index existing accounts two ways:
-        //  - by their unique subdocument _id (exposed to the frontend as
-        //    `addedAccountsId`). This is the only reliable way to target one
-        //    specific row when several accounts share the same accountId.
-        //  - by accountId, as a FIFO queue, used as a fallback for payloads that
-        //    don't echo `addedAccountsId` (e.g. brand-new entries or old clients).
-        const existingById = new Map<string, TAccount>();
-        const existingByAccountId = new Map<string, TAccount[]>();
-
-        for (const acc of campaign.addedAccounts) {
-          const rowId = acc._id?.toString();
-          if (rowId) {
-            existingById.set(rowId, acc);
-          }
-
-          const accKey = acc.accountId.toString();
-          const bucket = existingByAccountId.get(accKey);
-
-          if (bucket) {
-            bucket.push(acc);
-          } else {
-            existingByAccountId.set(accKey, [acc]);
-          }
+        if (!campaign) {
+            throw new NotFoundException('Campaign not found');
         }
 
-        const updatedAccounts: TAccount[] = [];
-        const newAccountsDto: SelectInfluencerDto[] = [];
-        // Guards against matching the same existing account twice (e.g. one DTO
-        // matches by _id while another would otherwise grab it from the queue).
-        const consumed = new Set<TAccount>();
+        await this.applyUpdate(campaign, data, context.buildCampaignAccountsBatch, context.session);
 
-        for (const accDto of data.addedAccounts) {
-          let matchedAcc: TAccount | undefined;
+        if (context.afterSave) {
+            await context.afterSave(campaign, context.session);
+        }
 
-          // 1) Exact row match by the unique subdocument _id, if the client sent it.
-          const rowId = accDto.addedAccountsId?.toString();
-          if (rowId) {
-            const byId = existingById.get(rowId);
-            if (byId && !consumed.has(byId)) {
-              matchedAcc = byId;
+        try {
+            const readModel = context.toReadModel(campaign);
+            return context.mapResult(readModel);
+        } catch (err) {
+            this.logger.warn(`Error mapping campaign ${campaignId} after update: ${err}`);
+
+            throw new ConflictException(
+                'Campaign updated, but response serialization failed. Please refresh.',
+            );
+        }
+    }
+
+    private async applyUpdate<
+        TCampaignDoc extends CampaignDocumentLike<TAccount>,
+        TAccount extends CampaignAccountLike,
+    >(
+        campaign: TCampaignDoc,
+        data: UpdateCampaignDto | AdminUpdateCampaignDto,
+        buildCampaignAccountsBatch: (addedAccountsData: SelectInfluencerDto[]) => Promise<TAccount[]>,
+        session?: ClientSession,
+    ): Promise<void> {
+        // Default fields - CLIENT & ADMIN can change
+        if (data.campaignName && data.campaignName.trim() !== campaign.campaignName) {
+            campaign.campaignName = data.campaignName.trim();
+        }
+        if (data.isCpmAndResultHidden !== undefined) {
+            campaign.isCpmAndResultHidden = data.isCpmAndResultHidden;
+        }
+        if (data.isPriceHidden !== undefined) {
+            campaign.isPriceHidden = data.isPriceHidden;
+        }
+
+        // Admin fields
+        if (data instanceof AdminUpdateCampaignDto) {
+            if (data.displayCurrency !== undefined) {
+                campaign.displayCurrency = data.displayCurrency;
             }
-          }
-
-          // 2) Fallback: take the next not-yet-consumed account sharing this accountId.
-          if (!matchedAcc) {
-            const bucket = existingByAccountId.get(accDto.socialAccountId.toString());
-
-            while (bucket && bucket.length > 0) {
-              const candidate = bucket.shift();
-              if (candidate && !consumed.has(candidate)) {
-                matchedAcc = candidate;
-                break;
-              }
+            if (!campaign.displayCurrency) {
+                campaign.displayCurrency = CurrencyCode.EUR;
             }
-          }
+            if (data.campaignPrice) {
+                campaign.campaignPrice = data.campaignPrice;
+            }
 
-          if (matchedAcc) {
-            consumed.add(matchedAcc);
+            if (data.addedAccounts) {
+                // Index existing accounts two ways:
+                //  - by their unique subdocument _id (exposed to the frontend as
+                //    `addedAccountsId`). This is the only reliable way to target one
+                //    specific row when several accounts share the same accountId.
+                //  - by accountId, as a FIFO queue, used as a fallback for payloads that
+                //    don't echo `addedAccountsId` (e.g. brand-new entries or old clients).
+                const existingById = new Map<string, TAccount>();
+                const existingByAccountId = new Map<string, TAccount[]>();
 
-            // Deep copy before mutating so two updated entries never end up sharing
-            // a single object reference.
-            const existingAcc = this.cloneAccount(matchedAcc);
+                for (const acc of campaign.addedAccounts) {
+                    const rowId = acc._id?.toString();
+                    if (rowId) {
+                        existingById.set(rowId, acc);
+                    }
 
-            existingAcc.socialMedia = accDto.socialMedia;
-            existingAcc.username = accDto.username;
-            existingAcc.selectedContent.campaignContentItemId = new Types.ObjectId(
-              accDto.selectedCampaignContentItem.campaignContentItemId,
+                    const accKey = acc.accountId.toString();
+                    const bucket = existingByAccountId.get(accKey);
+
+                    if (bucket) {
+                        bucket.push(acc);
+                    } else {
+                        existingByAccountId.set(accKey, [acc]);
+                    }
+                }
+
+                const updatedAccounts: TAccount[] = [];
+                const newAccountsDto: SelectInfluencerDto[] = [];
+                const newAdminPromoDtos: AdminUpdatePromoDto[] = [];
+                // Guards against matching the same existing account twice (e.g. one DTO
+                // matches by _id while another would otherwise grab it from the queue).
+                const consumed = new Set<TAccount>();
+
+                for (const accDto of data.addedAccounts) {
+                    let matchedAcc: TAccount | undefined;
+
+                    // 1) Exact row match by the unique subdocument _id, if the client sent it.
+                    const rowId = accDto.addedAccountsId?.toString();
+                    if (rowId) {
+                        const byId = existingById.get(rowId);
+                        if (byId && !consumed.has(byId)) {
+                            matchedAcc = byId;
+                        }
+                    }
+
+                    // 2) Fallback: take the next not-yet-consumed account sharing this accountId.
+                    if (!matchedAcc) {
+                        const bucket = existingByAccountId.get(accDto.socialAccountId.toString());
+
+                        while (bucket && bucket.length > 0) {
+                            const candidate = bucket.shift();
+                            if (candidate && !consumed.has(candidate)) {
+                                matchedAcc = candidate;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (matchedAcc) {
+                        consumed.add(matchedAcc);
+
+                        // Deep copy before mutating so two updated entries never end up sharing
+                        // a single object reference.
+                        const existingAcc = this.cloneAccount(matchedAcc);
+
+                        existingAcc.socialMedia = accDto.socialMedia;
+                        existingAcc.username = accDto.username;
+                        existingAcc.selectedContent.campaignContentItemId = new Types.ObjectId(
+                            accDto.selectedCampaignContentItem.campaignContentItemId,
+                        );
+
+                        existingAcc.selectedContent.descriptionId = accDto.selectedCampaignContentItem
+                            .descriptionId
+                            ? new Types.ObjectId(accDto.selectedCampaignContentItem.descriptionId)
+                            : undefined;
+
+                        existingAcc.dateRequest = accDto.dateRequest ?? null;
+
+                        if (accDto instanceof AdminUpdatePromoDto) {
+                            if (accDto.postLink) existingAcc.postLink = accDto.postLink;
+                            if (accDto.screenshot) existingAcc.screenshot = accDto.screenshot;
+                            if (accDto.impressions != null) existingAcc.impressions = accDto.impressions;
+                            if (accDto.like != null) existingAcc.like = accDto.like;
+                            if (accDto.comments != null) existingAcc.comments = accDto.comments;
+                            if (accDto.shares != null) existingAcc.shares = accDto.shares;
+                            if (accDto.saves != null) existingAcc.saves = accDto.saves;
+                            if (accDto.rating != null) existingAcc.rating = accDto.rating;
+                        }
+
+                        updatedAccounts.push(existingAcc);
+                    } else {
+                        if (accDto instanceof AdminUpdatePromoDto) {
+                            newAdminPromoDtos.push(accDto);
+                        }
+                        newAccountsDto.push(accDto);
+                    }
+                }
+
+                if (newAccountsDto.length > 0) {
+                    const newAccounts = await buildCampaignAccountsBatch(newAccountsDto);
+
+                    if (newAccounts.length === 0) {
+                        this.logger.warn(
+                            `Can't proceed new accounts while updating campaign ${data.campaignId}`,
+                        );
+                    }
+
+                    updatedAccounts.push(...newAccounts);
+
+                    await this.createActionsHistoryForNewAdminPromoAccounts(
+                        campaign._id.toString(),
+                        newAdminPromoDtos,
+                        newAccounts,
+                        data,
+                        session,
+                    );
+                }
+
+                campaign.addedAccounts = updatedAccounts;
+
+                // If need to update campaign's socialMedia field
+                const uniqueSocialMedias: SocialMediaEnum[] = [
+                    ...new Set(data.addedAccounts.map((acc) => acc.socialMedia)),
+                ];
+
+                if (uniqueSocialMedias.length > 1) {
+                    campaign.socialMedia = 'multipromo';
+                } else {
+                    campaign.socialMedia = uniqueSocialMedias[0] ?? campaign.socialMedia;
+                }
+            }
+
+            if (data.campaignContent) {
+                campaign.campaignContent = data.campaignContent.map(
+                    (itemDto: CampaignContentItemDto): CampaignContentItem =>
+                        mapContentItemDtoToModel(itemDto),
+                );
+
+                campaign.campaignContent = await this.mediaService.applyMediaCacheForCreate(
+                    campaign.campaignContent,
+                );
+            }
+        }
+
+        await campaign.save(session ? {session} : undefined);
+    }
+
+    /**
+     * Returns a deep copy of an existing campaign account so that mutating the
+     * result never affects the original document or any other entry that shares
+     * the same accountId. For Mongoose subdocuments `toObject()` already produces
+     * a deep plain copy with ObjectId instances preserved; the fallback covers
+     * plain objects (e.g. in tests) and still clones the nested `selectedContent`.
+     */
+    private cloneAccount<TAccount extends CampaignAccountLike>(account: TAccount): TAccount {
+        const maybeDoc = account as unknown as { toObject?: () => unknown };
+
+        if (typeof maybeDoc.toObject === 'function') {
+            return maybeDoc.toObject() as TAccount;
+        }
+
+        return {
+            ...account,
+            selectedContent: {...account.selectedContent},
+        };
+    }
+
+    private async createActionsHistoryForNewAdminPromoAccounts<
+        TAccount extends CampaignAccountLike,
+    >(
+        campaignId: string,
+        adminPromoDtos: AdminUpdatePromoDto[],
+        newAccounts: TAccount[],
+        data: AdminUpdateCampaignDto,
+        session?: ClientSession,
+    ): Promise<void> {
+        if (adminPromoDtos.length === 0 || newAccounts.length === 0) {
+            return;
+        }
+
+        const newAccountsByKey = new Map<string, TAccount[]>();
+
+        for (const account of newAccounts) {
+            const key = this.getCampaignAccountKey(
+                account.influencerId,
+                account.socialMedia,
+                account.accountId,
             );
 
-            existingAcc.selectedContent.descriptionId = accDto.selectedCampaignContentItem
-              .descriptionId
-              ? new Types.ObjectId(accDto.selectedCampaignContentItem.descriptionId)
-              : undefined;
+            const bucket = newAccountsByKey.get(key);
 
-            existingAcc.dateRequest = accDto.dateRequest ?? null;
+            if (bucket) {
+                bucket.push(account);
+            } else {
+                newAccountsByKey.set(key, [account]);
+            }
+        }
 
-            if (accDto instanceof AdminUpdatePromoDto) {
-              if (accDto.postLink) existingAcc.postLink = accDto.postLink;
-              if (accDto.screenshot) existingAcc.screenshot = accDto.screenshot;
-              if (accDto.impressions != null) existingAcc.impressions = accDto.impressions;
-              if (accDto.like != null) existingAcc.like = accDto.like;
-              if (accDto.comments != null) existingAcc.comments = accDto.comments;
-              if (accDto.shares != null) existingAcc.shares = accDto.shares;
-              if (accDto.saves != null) existingAcc.saves = accDto.saves;
-              if (accDto.rating != null) existingAcc.rating = accDto.rating;
+        for (const accDto of adminPromoDtos) {
+            const key = this.getCampaignAccountKey(
+                accDto.influencerId,
+                accDto.socialMedia,
+                accDto.socialAccountId,
+            );
+
+            const bucket = newAccountsByKey.get(key);
+            const newAccount = bucket?.shift();
+
+            if (!newAccount) {
+                this.logger.warn(
+                    `Can't create action history for new account ${accDto.socialAccountId} in campaign ${data.campaignId}: built account not found`,
+                );
+                continue;
             }
 
-            updatedAccounts.push(existingAcc);
-          } else {
-            newAccountsDto.push(accDto);
-          }
-        }
+            if (!newAccount._id) {
+                this.logger.warn(
+                    `Can't create action history for new account ${accDto.socialAccountId} in campaign ${data.campaignId}: new account has no _id`,
+                );
+                continue;
+            }
 
-        if (newAccountsDto.length > 0) {
-          const newAccounts = await buildCampaignAccountsBatch(newAccountsDto);
-
-          if (newAccounts.length === 0) {
-            this.logger.warn(
-              `Can't proceed new accounts while updating campaign ${data.campaignId}`,
+            await this.actionsHistoryService.upsertInfluencerCampaignActionsHistory(
+                {
+                    influencerId: accDto.influencerId,
+                    campaignId: campaignId,
+                    campaignName: data.campaignName,
+                    updatedCampaignAction: {
+                        addedAccountsId: new ObjId(newAccount._id),
+                        socialAccountId: new ObjId(accDto.socialAccountId),
+                        actionNumber: 6,
+                        networkUsername: accDto.username,
+                        rewardForInfluencer: newAccount.price,
+                        socialMedia: accDto.socialMedia,
+                    },
+                },
+                session,
             );
-          }
-
-          updatedAccounts.push(...newAccounts);
         }
-
-        campaign.addedAccounts = updatedAccounts;
-
-        // If need to update campaign's socialMedia field
-        const uniqueSocialMedias: SocialMediaEnum[] = [
-          ...new Set(data.addedAccounts.map((acc) => acc.socialMedia)),
-        ];
-
-        if (uniqueSocialMedias.length > 1) {
-          campaign.socialMedia = 'multipromo';
-        } else {
-          campaign.socialMedia = uniqueSocialMedias[0] ?? campaign.socialMedia;
-        }
-      }
-
-      if (data.campaignContent) {
-        campaign.campaignContent = data.campaignContent.map(
-          (itemDto: CampaignContentItemDto): CampaignContentItem =>
-            mapContentItemDtoToModel(itemDto),
-        );
-
-        campaign.campaignContent = await this.mediaService.applyMediaCacheForCreate(
-          campaign.campaignContent,
-        );
-      }
     }
 
-    await campaign.save(session ? { session } : undefined);
-  }
-
-  /**
-   * Returns a deep copy of an existing campaign account so that mutating the
-   * result never affects the original document or any other entry that shares
-   * the same accountId. For Mongoose subdocuments `toObject()` already produces
-   * a deep plain copy with ObjectId instances preserved; the fallback covers
-   * plain objects (e.g. in tests) and still clones the nested `selectedContent`.
-   */
-  private cloneAccount<TAccount extends CampaignAccountLike>(account: TAccount): TAccount {
-    const maybeDoc = account as unknown as { toObject?: () => unknown };
-
-    if (typeof maybeDoc.toObject === 'function') {
-      return maybeDoc.toObject() as TAccount;
+    private getCampaignAccountKey(
+        influencerId: string | Types.ObjectId,
+        socialMedia: SocialMediaEnum,
+        accountId: string | Types.ObjectId,
+    ): string {
+        return `${influencerId.toString()}:${socialMedia}:${accountId.toString()}`;
     }
-
-    return {
-      ...account,
-      selectedContent: { ...account.selectedContent },
-    };
-  }
 }

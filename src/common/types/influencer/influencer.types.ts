@@ -100,7 +100,7 @@ export const HistoryCampaignActionStatusLabel: Record<
     [HistoryCampaignActionStatus.invoiceSubmitted]: 'Invoice Submitted',
     [HistoryCampaignActionStatus.paid]: 'Paid',
     [HistoryCampaignActionStatus.denied]: 'Campaign Declined',
-    [HistoryCampaignActionStatus.addedByAdmin]: "Added By Admin",
+    [HistoryCampaignActionStatus.addedByAdmin]: "Added In Campaign By Admin",
     [HistoryCampaignActionStatus.insightsSubmittedByAdmin]: "Insights Submitted By Admin",
 };
 

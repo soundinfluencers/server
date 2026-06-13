@@ -278,8 +278,8 @@ export class AuthService {
       await this.emailService.send(
         ClientToAdminEmails.clientSignup({
           email: data.email.trim(),
-          acceptLink: `${process.env.SERVER_CLIENT}/dashboard/requests`,
-          declineLink: `${process.env.SERVER_CLIENT}/dashboard/requests`,
+          acceptLink: `${process.env.ADMIN_CLIENT}/dashboard/requests`,
+          declineLink: `${process.env.ADMIN_CLIENT}/dashboard/requests`,
         }),
       );
     } catch (err) {
@@ -421,8 +421,8 @@ export class AuthService {
       await this.emailService.send(
         InfluencerToAdminEmails.influencerSignup(
           mapCreateInfluencerToSignupEmailDto(data, {
-            acceptLink: `${process.env.SERVER_CLIENT}/dashboard/requests`,
-            declineLink: `${process.env.SERVER_CLIENT}/dashboard/requests`,
+            acceptLink: `${process.env.ADMIN_CLIENT}/dashboard/requests`,
+            declineLink: `${process.env.ADMIN_CLIENT}/dashboard/requests`,
             negotiateLink: ``,
           }),
         ),

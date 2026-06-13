@@ -1216,7 +1216,7 @@ export class AdminCampaignsService implements IAdminCampaignsService {
                 {session},
             );
 
-            // Saving new campaign action (2 - insights submitted) to influencer's history
+            // Saving new campaign action (7 - insights submitted by admin) to influencer's history
             await this.actionsHistoryService.upsertInfluencerCampaignActionsHistory(
                 {
                     influencerId: promo.influencerId.toString(),
@@ -1237,6 +1237,17 @@ export class AdminCampaignsService implements IAdminCampaignsService {
             await session.commitTransaction();
         } catch (err) {
             await session.abortTransaction();
+
+            const error = err instanceof Error ? err : new Error(String(err));
+
+            this.logger.error(
+                `Error while closing promo ${promoId} in campaign ${campaignId} from admin side`,
+                error.stack
+            );
+
+            if (err instanceof HttpException) {
+                throw err;
+            }
             throw new InternalServerErrorException('Something went wrong while closing promo');
         } finally {
             await session.endSession();

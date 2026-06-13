@@ -16,7 +16,15 @@
       "Bash(timeout 90 npx nest start)",
       "Bash(npx jest *)",
       "Bash(git stash *)",
-      "PowerShell(Get-NetTCPConnection *)"
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(claude --version)",
+      "Bash(npx --version)",
+      "Bash(claude mcp *)",
+      "Bash(echo \"=== exit: $? ===\")",
+      "Bash(npm run *)",
+      "Bash(git *)",
+      "Bash(rm -f TESTING_ROADMAP.md .env.test test/jest-integration.json test/helpers/auth.helper.ts test/helpers/test-app.ts test/fixtures/users.fixture.ts test/fixtures/campaigns.fixture.ts)",
+      "Bash(rmdir test/helpers test/fixtures)"
     ]
   }
 }
