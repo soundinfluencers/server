@@ -10,6 +10,7 @@ import {RolesGuard} from "./common/guards/roles.guard";
 import {JwtGuard} from "./common/guards/jwt.guard";
 import * as dotenv from 'dotenv';
 import {FilteredNestLogger} from "./common/logger/filtered-nest-logger";
+import { HttpRequestLoggerInterceptor } from './common/interceptors/http-request-logger.interceptor';
 
 function parseOrigins(env?: string): string[] {
     return (env ?? '')
@@ -35,7 +36,7 @@ async function bootstrap() {
     app.use(bodyParser.json({limit: '50mb'}));
     app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 
-    app.useGlobalInterceptors(new ResponseTransformInterceptor()); // interceptor for transforming responses to client side
+    app.useGlobalInterceptors(new HttpRequestLoggerInterceptor(),new ResponseTransformInterceptor()); // interceptor for transforming responses to client side
     app.useGlobalFilters(new AllExceptionsFilter()); // global exception filter
     app.useGlobalPipes(
         new ValidationPipe({
