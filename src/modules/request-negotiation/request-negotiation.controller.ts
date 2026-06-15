@@ -1,5 +1,5 @@
 import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Req } from '@nestjs/common';
-import {ApiExcludeController, ApiOperation, ApiParam, ApiTags} from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { Auth } from '../../common/decorators/auth.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role, AuthenticatedRequest } from '../../common/types/user.types';
@@ -10,10 +10,9 @@ import { RequestNegotiationThreadRepository } from '../../database/repositories/
 import { RequestNegotiationMessageRepository } from '../../database/repositories/negotiation/request-negotiation-message.repository';
 import { SendNegotiationMessageDto } from './dto/request-negotiation.dto';
 
-@ApiExcludeController()
 @Auth()
 @Roles(Role.admin)
-@ApiTags('admin/requests/negotiation')
+@ApiTags('admin/requests')
 @Controller('admin/requests')
 export class RequestNegotiationController {
   constructor(

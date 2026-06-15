@@ -3,10 +3,14 @@ import {
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
 } from '@nestjs/websockets';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { createClient } from 'redis';
 import { AuthSessionRepository } from '../../database/repositories/auth/auth-session.repository';
 import { Role } from '../../common/types/user.types';
 
@@ -25,6 +29,11 @@ type SocketJwtPayload = {
   role?: Role;
 };
 
+type RedisConnection = {
+  isOpen: boolean;
+  quit(): Promise<unknown>;
+};
+
 @Injectable()
 @WebSocketGateway({
   cors: {
@@ -33,8 +42,12 @@ type SocketJwtPayload = {
   },
   path: '/socket.io',
 })
-export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class AppGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy
+{
   private readonly logger = new Logger(AppGateway.name);
+  private pubClient?: RedisConnection;
+  private subClient?: RedisConnection;
 
   @WebSocketServer()
   server: Server;
@@ -42,7 +55,17 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
       private readonly jwtService: JwtService,
       private readonly authSessionRepo: AuthSessionRepository,
+      private readonly config: ConfigService,
   ) {}
+
+  afterInit(server: Server): void {
+    void this.setupRedisAdapter(server);
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.disconnectRedisClient(this.subClient);
+    await this.disconnectRedisClient(this.pubClient);
+  }
 
   async handleConnection(client: AuthenticatedSocket) {
     try {
@@ -110,6 +133,47 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   sendWhatsappMessageStatusUpdate(sessionId: string, status: unknown): void {
     this.emitToSession(sessionId, 'whatsappMessageStatusUpdate', status);
+  }
+
+  private async setupRedisAdapter(server: Server): Promise<void> {
+    const redisUrl = this.config.get<string>('REDIS_URL');
+    if (!redisUrl) {
+      this.logger.warn('Socket.IO Redis adapter disabled: REDIS_URL is missing');
+      return;
+    }
+
+    const pubClient = createClient({ url: redisUrl });
+    const subClient = pubClient.duplicate();
+
+    pubClient.on('error', (err) =>
+      this.logger.warn(`Socket.IO Redis pub client error: ${err?.message ?? err}`),
+    );
+    subClient.on('error', (err) =>
+      this.logger.warn(`Socket.IO Redis sub client error: ${err?.message ?? err}`),
+    );
+
+    try {
+      await Promise.all([pubClient.connect(), subClient.connect()]);
+      server.adapter(createAdapter(pubClient, subClient));
+      this.pubClient = pubClient;
+      this.subClient = subClient;
+      this.logger.log('Socket.IO Redis adapter connected');
+    } catch (err: any) {
+      this.logger.error(`Socket.IO Redis adapter setup failed: ${err?.message ?? err}`);
+      await this.disconnectRedisClient(subClient);
+      await this.disconnectRedisClient(pubClient);
+    }
+  }
+
+  private async disconnectRedisClient(client?: RedisConnection): Promise<void> {
+    if (!client?.isOpen) {
+      return;
+    }
+    try {
+      await client.quit();
+    } catch (err: any) {
+      this.logger.warn(`Socket.IO Redis client quit failed: ${err?.message ?? err}`);
+    }
   }
 
   private normalizeBearerToken(rawToken: unknown): string | null {

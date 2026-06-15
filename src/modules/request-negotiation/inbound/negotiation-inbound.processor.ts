@@ -3,12 +3,18 @@ import { AddressObject, ParsedMail } from 'mailparser';
 import sanitizeHtml = require('sanitize-html');
 import { RequestNegotiationThreadRepository } from '../../../database/repositories/negotiation/request-negotiation-thread.repository';
 import { RequestNegotiationMessageRepository } from '../../../database/repositories/negotiation/request-negotiation-message.repository';
+import { RequestNegotiationUnmatchedEmailRepository } from '../../../database/repositories/negotiation/request-negotiation-unmatched-email.repository';
 import { RealtimeNotificationService } from '../../websocket/realtime-notification.service';
 import { ObjId } from '../../../common/types/base.types';
 import { NegotiationMessageDirection } from '../../../common/types/negotiation/request-negotiation.types';
 import { RequestNegotiationThreadDocument } from '../../../database/schemas/negotiation/request-negotiation-thread.schema';
 
 const THREAD_ID_RE = /\+([a-f0-9]{24})@/i;
+
+type InboundMessageContext = {
+  mailbox: string;
+  uid: number;
+};
 
 @Injectable()
 export class NegotiationInboundProcessor {
@@ -17,20 +23,21 @@ export class NegotiationInboundProcessor {
   constructor(
     private readonly threadRepository: RequestNegotiationThreadRepository,
     private readonly messageRepository: RequestNegotiationMessageRepository,
+    private readonly unmatchedEmailRepository: RequestNegotiationUnmatchedEmailRepository,
     private readonly realtime: RealtimeNotificationService,
   ) {}
 
   // Correlates a parsed inbound email to a thread, persists it idempotently and
   // notifies the admin in real time. Safe to call more than once per email.
-  async process(parsed: ParsedMail): Promise<void> {
+  async process(parsed: ParsedMail, context?: InboundMessageContext): Promise<void> {
     const thread = await this.resolveThread(parsed);
 
     if (!thread) {
-      this.logger.warn(`Unmatched inbound email (messageId=${parsed.messageId ?? 'n/a'})`);
+      await this.persistUnmatched(parsed, context);
       return;
     }
 
-    const messageId = parsed.messageId ?? `<${new ObjId().toString()}@inbound.local>`;
+    const messageId = parsed.messageId ?? this.fallbackMessageId('inbound', context);
     const fromEmail = this.firstAddress(parsed.from) ?? '';
     const toEmail = this.firstAddress(parsed.to) ?? thread.participantEmail;
     const references = this.normalizeReferences(parsed.references);
@@ -66,6 +73,37 @@ export class NegotiationInboundProcessor {
       preview: (parsed.text ?? '').slice(0, 200),
       receivedAt: receivedAt.toISOString(),
     });
+  }
+
+  private async persistUnmatched(
+    parsed: ParsedMail,
+    context?: InboundMessageContext,
+  ): Promise<void> {
+    const messageId = parsed.messageId ?? this.fallbackMessageId('unmatched', context);
+    const saved = await this.unmatchedEmailRepository.insertIfNew({
+      messageId,
+      reason: 'No active negotiation thread matched by plus-address or message headers',
+      fromEmail: this.firstAddress(parsed.from),
+      toEmails: this.allAddresses(parsed.to),
+      ccEmails: this.allAddresses(parsed.cc),
+      subject: parsed.subject,
+      bodyText: parsed.text,
+      bodyHtml: parsed.html ? this.sanitize(parsed.html) : undefined,
+      inReplyTo: parsed.inReplyTo,
+      references: this.normalizeReferences(parsed.references),
+      headers: this.headersToRecord(parsed),
+      attachments: (parsed.attachments ?? []).map((attachment) => ({
+        filename: attachment.filename ?? 'attachment',
+        mimeType: attachment.contentType ?? 'application/octet-stream',
+        size: attachment.size ?? attachment.content?.length ?? 0,
+      })),
+    });
+
+    if (saved) {
+      this.logger.warn(`Unmatched inbound email saved (messageId=${messageId})`);
+    } else {
+      this.logger.debug(`Duplicate unmatched inbound email ignored (messageId=${messageId})`);
+    }
   }
 
   private async resolveThread(
@@ -140,9 +178,54 @@ export class NegotiationInboundProcessor {
     return obj?.value?.[0]?.address?.toLowerCase();
   }
 
+  private allAddresses(field?: AddressObject | AddressObject[]): string[] {
+    if (!field) return [];
+    const objects = Array.isArray(field) ? field : [field];
+    return objects.flatMap((obj) =>
+      (obj.value ?? [])
+        .map((entry) => entry.address?.toLowerCase())
+        .filter((address): address is string => Boolean(address)),
+    );
+  }
+
   private normalizeReferences(references?: string | string[]): string[] {
     if (!references) return [];
     return Array.isArray(references) ? references : [references];
+  }
+
+  private fallbackMessageId(kind: 'inbound' | 'unmatched', context?: InboundMessageContext): string {
+    if (context) {
+      return `<${context.mailbox.toLowerCase()}.${context.uid}@${kind}.local>`;
+    }
+    return `<${new ObjId().toString()}@${kind}.local>`;
+  }
+
+  private headersToRecord(parsed: ParsedMail): Record<string, string | string[]> {
+    const headers: Record<string, string | string[]> = {};
+    for (const [key, value] of parsed.headers ?? []) {
+      headers[key] = this.normalizeHeaderValue(value);
+    }
+    return headers;
+  }
+
+  private normalizeHeaderValue(value: unknown): string | string[] {
+    if (Array.isArray(value)) {
+      return value.map((entry) => this.normalizeHeaderValue(entry) as string);
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (value && typeof value === 'object') {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+    return String(value ?? '');
   }
 
   private sanitize(html: string): string {

@@ -2,7 +2,8 @@ import {Prop, Schema, SchemaFactory} from "@nestjs/mongoose";
 import {HydratedDocument, Types} from "mongoose";
 import {
     RequestForAdminType, RequestGroup,
-    RequestLifecycleState
+    RequestLifecycleState,
+    RequestSpecifiedStatus
 } from "../../../common/types/request-for-admin/request-for-admin.types";
 import {Role} from "../../../common/types/user.types";
 
@@ -44,6 +45,15 @@ export class RequestForAdmin {
         index: true,
     })
     lifecycleStatus: RequestLifecycleState;
+
+    @Prop({
+        required: true,
+        type: String,
+        enum: Object.values(RequestSpecifiedStatus),
+        default: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
+        index: true,
+    })
+    specifiedStatus: RequestSpecifiedStatus;
 
     @Prop({
         type: String,

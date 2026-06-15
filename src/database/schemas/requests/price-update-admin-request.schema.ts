@@ -3,7 +3,6 @@ import { HydratedDocument, Types } from 'mongoose';
 import {
   RequestForAdminType,
   RequestLifecycleState,
-  RequestSpecifiedStatus,
 } from '../../../common/types/request-for-admin/request-for-admin.types';
 import { Influencer } from '../users/influencer.schema';
 import { RequestForAdmin } from './request-for-admin.schema';
@@ -16,15 +15,6 @@ export type PriceUpdateAdminRequestDocument = HydratedDocument<
 
 @Schema()
 export class PriceUpdateAdminRequest {
-  @Prop({
-    required: true,
-    type: String,
-    enum: Object.values(RequestSpecifiedStatus),
-    default: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
-    index: true,
-  })
-  specifiedStatus: RequestSpecifiedStatus;
-
   @Prop({
     required: true,
     type: Types.ObjectId,

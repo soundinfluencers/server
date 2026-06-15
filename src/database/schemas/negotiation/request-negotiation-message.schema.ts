@@ -33,7 +33,7 @@ export const NegotiationMessageAttachmentSchema = SchemaFactory.createForClass(
   strict: 'throw',
 })
 export class RequestNegotiationMessage {
-  @Prop({ type: Types.ObjectId, auto: true })
+  @Prop({ type: Types.ObjectId, default: () => new Types.ObjectId() })
   _id: Types.ObjectId;
 
   @Prop({

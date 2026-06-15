@@ -13,7 +13,7 @@ export type RequestNegotiationThreadDocument = HydratedDocument<RequestNegotiati
   strict: 'throw',
 })
 export class RequestNegotiationThread {
-  @Prop({ type: Types.ObjectId, auto: true })
+  @Prop({ type: Types.ObjectId, default: () => new Types.ObjectId() })
   _id: Types.ObjectId;
 
   // Admin request this conversation belongs to. One ACTIVE thread per request.

@@ -5,12 +5,14 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { NegotiationInboundProcessor } from './negotiation-inbound.processor';
 import { RedisLeaderLock } from './redis-leader-lock';
+import { ImapSyncStateRepository } from '../../../database/repositories/negotiation/imap-sync-state.repository';
 
 const RECONNECT_DELAY_MS = 15_000;
 const LEADER_KEY = 'negotiation:imap:leader';
 const LEADER_TTL_MS = 30_000;
 const RENEW_INTERVAL_MS = 10_000;
 const ELECTION_RETRY_MS = 15_000;
+const MAILBOX = 'INBOX';
 
 // Background consumer that watches the Zoho mailbox over IMAP IDLE and feeds
 // new replies into the negotiation processor.
@@ -38,6 +40,7 @@ export class ZohoInboundService implements OnModuleInit, OnModuleDestroy {
     private readonly config: ConfigService,
     private readonly processor: NegotiationInboundProcessor,
     private readonly lock: RedisLeaderLock,
+    private readonly syncStateRepository: ImapSyncStateRepository,
   ) {}
 
   onModuleInit(): void {
@@ -160,7 +163,7 @@ export class ZohoInboundService implements OnModuleInit, OnModuleDestroy {
 
     try {
       await client.connect();
-      await client.mailboxOpen('INBOX');
+      await client.mailboxOpen(MAILBOX);
       this.logger.log('IMAP connected — watching INBOX for negotiation replies');
       await this.drain(); // catch up on anything that arrived while we were down
     } catch (err: any) {
@@ -191,8 +194,8 @@ export class ZohoInboundService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // Process every currently-unseen message, marking each \Seen on success.
-  // Failed messages are left unseen and retried on the next sweep.
+  // Process every new UID after the persisted cursor. Failed messages are left
+  // behind the cursor and retried on the next sweep.
   private async drain(): Promise<void> {
     const client = this.client;
     if (!client) {
@@ -209,7 +212,7 @@ export class ZohoInboundService implements OnModuleInit, OnModuleDestroy {
     try {
       do {
         this.pendingDrain = false;
-        await this.sweepUnseen(client);
+        await this.sweepNewMessages(client);
       } while (this.pendingDrain);
     } finally {
       this.draining = false;
@@ -226,29 +229,53 @@ export class ZohoInboundService implements OnModuleInit, OnModuleDestroy {
     return `${local}+`;
   }
 
-  private async sweepUnseen(client: ImapFlow): Promise<void> {
+  private async sweepNewMessages(client: ImapFlow): Promise<void> {
     try {
-      // Only plus-addressed (negotiation) replies — never personal mail.
-      const uids = await client.search({ seen: false, to: this.recipientPrefix() }, { uid: true });
+      const lastSeenUid = await this.syncStateRepository.getLastSeenUid(MAILBOX);
+      const uidRange = `${lastSeenUid + 1}:*`;
+
+      this.logger.log(`[IMAP] sweep start, lastSeenUid=${lastSeenUid}, uidRange=${uidRange}`);
+
+      // Only plus-addressed (negotiation) replies - never personal mail.
+      const uids = await client.search(
+          { uid: uidRange },
+          { uid: true },
+      );
+
+      this.logger.log(`[IMAP] found uids=${JSON.stringify(uids)}`);
+
       if (!uids || uids.length === 0) {
         return;
       }
 
-      for (const uid of uids) {
-        try {
-          const message = await client.fetchOne(String(uid), { source: true }, { uid: true });
-          if (!message || !message.source) {
-            continue;
-          }
-          const parsed = await simpleParser(message.source);
-          await this.processor.process(parsed);
-          await client.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true });
-        } catch (err: any) {
-          this.logger.error(`Failed to process inbound uid=${uid}: ${err?.message ?? err}`);
+      for (const uid of uids.sort((a, b) => a - b)) {
+        const processed = await this.processUid(client, uid);
+        if (!processed) {
+          return;
         }
       }
     } catch (err: any) {
       this.logger.error(`IMAP drain failed: ${err?.message ?? err}`);
+    }
+  }
+
+  private async processUid(client: ImapFlow, uid: number): Promise<boolean> {
+    try {
+      const message = await client.fetchOne(String(uid), { source: true }, { uid: true });
+      if (!message || !message.source) {
+        this.logger.warn(`Inbound uid=${uid} has no source; advancing IMAP cursor`);
+        await this.syncStateRepository.markUidProcessed(MAILBOX, uid);
+        return true;
+      }
+
+      const parsed = await simpleParser(message.source);
+      await this.processor.process(parsed, { mailbox: MAILBOX, uid });
+      await client.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true });
+      await this.syncStateRepository.markUidProcessed(MAILBOX, uid);
+      return true;
+    } catch (err: any) {
+      this.logger.error(`Failed to process inbound uid=${uid}: ${err?.message ?? err}`);
+      return false;
     }
   }
 

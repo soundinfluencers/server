@@ -17,15 +17,6 @@ export type NewSocialAccountAdminRequestDocument = HydratedDocument<
 export class NewSocialAccountAdminRequest {
   @Prop({
     required: true,
-    type: String,
-    enum: Object.values(RequestSpecifiedStatus),
-    default: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
-    index: true,
-  })
-  specifiedStatus: RequestSpecifiedStatus;
-
-  @Prop({
-    required: true,
     type: Types.ObjectId,
     ref: Influencer.name,
     index: true,
@@ -50,7 +41,7 @@ export class NewSocialAccountAdminRequest {
     type: String,
     trim: true,
     maxlength: 1000,
-    required: function (this: NewSocialAccountAdminRequest) {
+    required: function (this: RequestForAdmin & NewSocialAccountAdminRequest) {
       return this.specifiedStatus === RequestSpecifiedStatus.REJECTED;
     },
   })

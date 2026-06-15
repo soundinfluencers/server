@@ -110,8 +110,18 @@ import {
   RequestNegotiationMessage,
   RequestNegotiationMessageSchema,
 } from './schemas/negotiation/request-negotiation-message.schema';
+import {
+  ImapSyncState,
+  ImapSyncStateSchema,
+} from './schemas/negotiation/imap-sync-state.schema';
+import {
+  RequestNegotiationUnmatchedEmail,
+  RequestNegotiationUnmatchedEmailSchema,
+} from './schemas/negotiation/request-negotiation-unmatched-email.schema';
 import { RequestNegotiationThreadRepository } from './repositories/negotiation/request-negotiation-thread.repository';
 import { RequestNegotiationMessageRepository } from './repositories/negotiation/request-negotiation-message.repository';
+import { ImapSyncStateRepository } from './repositories/negotiation/imap-sync-state.repository';
+import { RequestNegotiationUnmatchedEmailRepository } from './repositories/negotiation/request-negotiation-unmatched-email.repository';
 
 @Global()
 @Module({
@@ -145,6 +155,11 @@ import { RequestNegotiationMessageRepository } from './repositories/negotiation/
       { name: AuthSession.name, schema: AuthSessionSchema },
       { name: RequestNegotiationThread.name, schema: RequestNegotiationThreadSchema },
       { name: RequestNegotiationMessage.name, schema: RequestNegotiationMessageSchema },
+      { name: ImapSyncState.name, schema: ImapSyncStateSchema },
+      {
+        name: RequestNegotiationUnmatchedEmail.name,
+        schema: RequestNegotiationUnmatchedEmailSchema,
+      },
       {
         name: UserInvoice.name,
         schema: UserInvoiceSchema,
@@ -230,6 +245,8 @@ import { RequestNegotiationMessageRepository } from './repositories/negotiation/
     RequestForAdminRepository,
     RequestNegotiationThreadRepository,
     RequestNegotiationMessageRepository,
+    ImapSyncStateRepository,
+    RequestNegotiationUnmatchedEmailRepository,
   ],
   exports: [
     ClientRepository,
@@ -258,6 +275,8 @@ import { RequestNegotiationMessageRepository } from './repositories/negotiation/
     RequestForAdminRepository,
     RequestNegotiationThreadRepository,
     RequestNegotiationMessageRepository,
+    ImapSyncStateRepository,
+    RequestNegotiationUnmatchedEmailRepository,
   ],
 })
 export class DatabaseModule {}

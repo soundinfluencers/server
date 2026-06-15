@@ -16,15 +16,6 @@ export type NewClientAdminRequestDocument = HydratedDocument<
 export class NewClientAdminRequest {
     @Prop({
         required: true,
-        type: String,
-        enum: Object.values(RequestSpecifiedStatus),
-        default: RequestSpecifiedStatus.WAITING_FOR_ADMIN,
-        index: true,
-    })
-    specifiedStatus: RequestSpecifiedStatus;
-
-    @Prop({
-        required: true,
         type: Types.ObjectId,
         ref: Client.name,
         index: true,
@@ -35,7 +26,7 @@ export class NewClientAdminRequest {
         type: String,
         trim: true,
         maxlength: 1000,
-        required: function (this: NewClientAdminRequest) {
+        required: function (this: RequestForAdmin & NewClientAdminRequest) {
             return this.specifiedStatus === RequestSpecifiedStatus.REJECTED;
         },
     })
