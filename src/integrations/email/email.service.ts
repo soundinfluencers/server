@@ -1,11 +1,12 @@
-import { Injectable, InternalServerErrorException, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { EmailMessage } from './types/email.types';
+import { FilteredNestLogger } from '../../common/logger/filtered-nest-logger';
 
 @Injectable()
 export class EmailService {
-    private readonly logger = new Logger('EmailService');
+    private readonly logger = new FilteredNestLogger('EmailService');
     private transporter: nodemailer.Transporter;
 
     constructor(private readonly config: ConfigService) {

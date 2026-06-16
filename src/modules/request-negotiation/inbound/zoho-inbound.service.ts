@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { ImapFlow } from 'imapflow';
@@ -6,12 +6,14 @@ import { simpleParser } from 'mailparser';
 import { NegotiationInboundProcessor } from './negotiation-inbound.processor';
 import { RedisLeaderLock } from './redis-leader-lock';
 import { ImapSyncStateRepository } from '../../../database/repositories/negotiation/imap-sync-state.repository';
+import { FilteredNestLogger } from '../../../common/logger/filtered-nest-logger';
 
 const RECONNECT_DELAY_MS = 15_000;
 const LEADER_KEY = 'negotiation:imap:leader';
 const LEADER_TTL_MS = 30_000;
 const RENEW_INTERVAL_MS = 10_000;
 const ELECTION_RETRY_MS = 15_000;
+const DEFAULT_POLL_INTERVAL_MS = 60_000;
 const MAILBOX = 'INBOX';
 
 // Background consumer that watches the Zoho mailbox over IMAP IDLE and feeds
@@ -23,7 +25,7 @@ const MAILBOX = 'INBOX';
 // the final guard against double processing.
 @Injectable()
 export class ZohoInboundService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(ZohoInboundService.name);
+  private readonly logger = new FilteredNestLogger(ZohoInboundService.name);
   private readonly ownerId = randomUUID();
 
   private client?: ImapFlow;
@@ -35,6 +37,7 @@ export class ZohoInboundService implements OnModuleInit, OnModuleDestroy {
   private reconnectTimer?: ReturnType<typeof setTimeout>;
   private electionTimer?: ReturnType<typeof setTimeout>;
   private renewTimer?: ReturnType<typeof setTimeout>;
+  private pollTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
     private readonly config: ConfigService,
@@ -58,6 +61,7 @@ export class ZohoInboundService implements OnModuleInit, OnModuleDestroy {
     this.clearTimer('reconnectTimer');
     this.clearTimer('electionTimer');
     this.clearTimer('renewTimer');
+    this.clearTimer('pollTimer');
     await this.disconnectClient();
     await this.lock.release(LEADER_KEY, this.ownerId);
   }
@@ -123,6 +127,7 @@ export class ZohoInboundService implements OnModuleInit, OnModuleDestroy {
     this.isLeader = false;
     this.clearTimer('renewTimer');
     this.clearTimer('reconnectTimer');
+    this.clearTimer('pollTimer');
     await this.disconnectClient();
     this.scheduleElection();
   }
@@ -153,6 +158,8 @@ export class ZohoInboundService implements OnModuleInit, OnModuleDestroy {
     client.on('error', (err) => this.logger.warn(`IMAP error: ${err?.message ?? err}`));
     client.on('close', () => {
       if (this.running && this.isLeader) {
+        this.client = undefined;
+        this.clearTimer('pollTimer');
         this.scheduleReconnect();
       }
     });
@@ -166,6 +173,7 @@ export class ZohoInboundService implements OnModuleInit, OnModuleDestroy {
       await client.mailboxOpen(MAILBOX);
       this.logger.log('IMAP connected — watching INBOX for negotiation replies');
       await this.drain(); // catch up on anything that arrived while we were down
+      this.schedulePoll();
     } catch (err: any) {
       this.logger.error(`IMAP connect failed: ${err?.message ?? err}`);
       this.scheduleReconnect();
@@ -180,6 +188,30 @@ export class ZohoInboundService implements OnModuleInit, OnModuleDestroy {
       this.reconnectTimer = undefined;
       void this.connect();
     }, RECONNECT_DELAY_MS);
+  }
+
+  private schedulePoll(): void {
+    const intervalMs = this.pollIntervalMs();
+    if (!this.running || !this.isLeader || this.pollTimer || intervalMs <= 0) {
+      return;
+    }
+
+    this.pollTimer = setTimeout(async () => {
+      this.pollTimer = undefined;
+      if (!this.running || !this.isLeader) {
+        return;
+      }
+
+      this.logger.debug('[IMAP] polling sweep');
+      await this.drain();
+      this.schedulePoll();
+    }, intervalMs);
+  }
+
+  private pollIntervalMs(): number {
+    const raw = this.config.get<string>('NEGOTIATION_IMAP_POLL_INTERVAL_MS');
+    const parsed = Number(raw ?? DEFAULT_POLL_INTERVAL_MS);
+    return Number.isFinite(parsed) ? parsed : DEFAULT_POLL_INTERVAL_MS;
   }
 
   private async disconnectClient(): Promise<void> {
@@ -238,11 +270,19 @@ export class ZohoInboundService implements OnModuleInit, OnModuleDestroy {
 
       // Only plus-addressed (negotiation) replies - never personal mail.
       const uids = await client.search(
-          { uid: uidRange },
-          { uid: true },
+        {
+          uid: uidRange,
+          or: [
+            { to: this.recipientPrefix() },
+            { cc: this.recipientPrefix() },
+            { header: { 'delivered-to': this.recipientPrefix() } },
+            { header: { 'x-original-to': this.recipientPrefix() } },
+          ],
+        },
+        { uid: true },
       );
 
-      this.logger.log(`[IMAP] found uids=${JSON.stringify(uids)}`);
+      this.logger.log(`[IMAP] found ${uids ? uids.length : 0} candidate uid(s)`);
 
       if (!uids || uids.length === 0) {
         return;
@@ -279,7 +319,9 @@ export class ZohoInboundService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private clearTimer(name: 'reconnectTimer' | 'electionTimer' | 'renewTimer'): void {
+  private clearTimer(
+    name: 'reconnectTimer' | 'electionTimer' | 'renewTimer' | 'pollTimer',
+  ): void {
     const timer = this[name];
     if (timer) {
       clearTimeout(timer);

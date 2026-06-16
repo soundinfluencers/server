@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable } from '@nestjs/common';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../../../integrations/email/email.service';
@@ -12,10 +12,11 @@ import {
 import { RequestNegotiationMessageDocument } from '../../../database/schemas/negotiation/request-negotiation-message.schema';
 import { SendNegotiationMessageDto } from '../dto/request-negotiation.dto';
 import { RealtimeNotificationService } from '../../websocket/realtime-notification.service';
+import { FilteredNestLogger } from '../../../common/logger/filtered-nest-logger';
 
 @Injectable()
 export class SendNegotiationMessageService {
-  private readonly logger = new Logger(SendNegotiationMessageService.name);
+  private readonly logger = new FilteredNestLogger(SendNegotiationMessageService.name);
 
   constructor(
     private readonly threadRepository: RequestNegotiationThreadRepository,

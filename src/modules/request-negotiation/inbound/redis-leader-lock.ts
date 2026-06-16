@@ -1,6 +1,7 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient } from 'redis';
+import { FilteredNestLogger } from '../../../common/logger/filtered-nest-logger';
 
 // Minimal Redis-backed leader lease. A single key holds the current owner; the
 // owner renews it before the TTL expires, and only the owner can renew/release
@@ -8,7 +9,7 @@ import { createClient } from 'redis';
 // instance can take over.
 @Injectable()
 export class RedisLeaderLock implements OnModuleDestroy {
-  private readonly logger = new Logger(RedisLeaderLock.name);
+  private readonly logger = new FilteredNestLogger(RedisLeaderLock.name);
   private readonly client: ReturnType<typeof createClient>;
   private connecting?: Promise<void>;
   private connected = false;

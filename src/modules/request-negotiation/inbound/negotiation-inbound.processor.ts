@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { AddressObject, ParsedMail } from 'mailparser';
 import sanitizeHtml = require('sanitize-html');
 import { RequestNegotiationThreadRepository } from '../../../database/repositories/negotiation/request-negotiation-thread.repository';
@@ -8,6 +8,7 @@ import { RealtimeNotificationService } from '../../websocket/realtime-notificati
 import { ObjId } from '../../../common/types/base.types';
 import { NegotiationMessageDirection } from '../../../common/types/negotiation/request-negotiation.types';
 import { RequestNegotiationThreadDocument } from '../../../database/schemas/negotiation/request-negotiation-thread.schema';
+import { FilteredNestLogger } from 'src/common/logger/filtered-nest-logger';
 
 const THREAD_ID_RE = /\+([a-f0-9]{24})@/i;
 
@@ -18,7 +19,7 @@ type InboundMessageContext = {
 
 @Injectable()
 export class NegotiationInboundProcessor {
-  private readonly logger = new Logger(NegotiationInboundProcessor.name);
+  private readonly logger = new FilteredNestLogger(NegotiationInboundProcessor.name);
 
   constructor(
     private readonly threadRepository: RequestNegotiationThreadRepository,
@@ -33,6 +34,12 @@ export class NegotiationInboundProcessor {
     const thread = await this.resolveThread(parsed);
 
     if (!thread) {
+      if (!this.extractThreadId(parsed)) {
+        this.logger.debug(
+          `Skipping non-negotiation inbound email (messageId=${parsed.messageId ?? 'n/a'})`,
+        );
+        return;
+      }
       await this.persistUnmatched(parsed, context);
       return;
     }
@@ -42,6 +49,10 @@ export class NegotiationInboundProcessor {
     const toEmail = this.firstAddress(parsed.to) ?? thread.participantEmail;
     const references = this.normalizeReferences(parsed.references);
     const bodyHtml = parsed.html ? this.sanitize(parsed.html) : undefined;
+
+    this.logger.log(
+      `[IMAP] Proccessing negotiation reply from ${fromEmail} on subject: ${parsed?.subject}`,
+    );
 
     const saved = await this.messageRepository.insertIfNew({
       threadId: thread._id,
@@ -193,7 +204,10 @@ export class NegotiationInboundProcessor {
     return Array.isArray(references) ? references : [references];
   }
 
-  private fallbackMessageId(kind: 'inbound' | 'unmatched', context?: InboundMessageContext): string {
+  private fallbackMessageId(
+    kind: 'inbound' | 'unmatched',
+    context?: InboundMessageContext,
+  ): string {
     if (context) {
       return `<${context.mailbox.toLowerCase()}.${context.uid}@${kind}.local>`;
     }

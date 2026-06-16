@@ -5,7 +5,7 @@ import {
   OnGatewayDisconnect,
   OnGatewayInit,
 } from '@nestjs/websockets';
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -13,6 +13,7 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import { AuthSessionRepository } from '../../database/repositories/auth/auth-session.repository';
 import { Role } from '../../common/types/user.types';
+import { FilteredNestLogger } from '../../common/logger/filtered-nest-logger';
 
 type AuthenticatedSocket = Socket & {
   data: {
@@ -45,7 +46,7 @@ type RedisConnection = {
 export class AppGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy
 {
-  private readonly logger = new Logger(AppGateway.name);
+  private readonly logger = new FilteredNestLogger(AppGateway.name);
   private pubClient?: RedisConnection;
   private subClient?: RedisConnection;
 
