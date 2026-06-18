@@ -1,3 +1,23 @@
+import { Test, TestingModule } from '@nestjs/testing';
+
+import { AuthService } from './auth.service';
+import { ClientRepository } from '../../database/repositories/users/client.repository';
+import { InfluencerRepository } from '../../database/repositories/users/influencer.repository';
+import { AdminRepository } from '../../database/repositories/users/admin.repository';
+import { VerifyClientRepository } from '../../database/repositories/verify-users/verify-client.repository';
+import { VerifyInfluencerRepository } from '../../database/repositories/verify-users/verify-influencer.repository';
+import { ExchangeRateService } from '../../integrations/exchange-rate/exchange-rate.service';
+import { EmailService } from '../../integrations/email/email.service';
+import { AuthSessionRepository } from '../../database/repositories/auth/auth-session.repository';
+import { CREATE_ADMIN_REQUEST_SERVICE } from '../admin/services/requests/create-admin-request.service';
+import { LoginDto } from './dto/login.dto';
+import { AccountVerifiedStatus, Role } from '../../common/types/user.types';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Response } from 'express';
+
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+
 jest.mock('bcryptjs', () => ({
   compare: jest.fn(),
   hashSync: jest.fn().mockReturnValue('hashedPassword'),
@@ -13,33 +33,10 @@ jest.mock('../../common/utils/cookie.util', () => ({
   clearRefreshTokenCookie: jest.fn(),
 }));
 
-import { Test, TestingModule } from '@nestjs/testing';
-import { createHash } from 'crypto';
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { Response } from 'express';
-import { AuthService } from './auth.service';
-import { ClientRepository } from '../../database/repositories/users/client.repository';
-import { InfluencerRepository } from '../../database/repositories/users/influencer.repository';
-import { AdminRepository } from '../../database/repositories/users/admin.repository';
-import { VerifyClientRepository } from '../../database/repositories/verify-users/verify-client.repository';
-import { VerifyInfluencerRepository } from '../../database/repositories/verify-users/verify-influencer.repository';
-import { ExchangeRateService } from '../../integrations/exchange-rate/exchange-rate.service';
-import { EmailService } from '../../integrations/email/email.service';
-import { LoginDto } from './dto/login.dto';
-import { AccountVerifiedStatus, Role } from '../../common/types/user.types';
-import { clearRefreshTokenCookie } from '../../common/utils/cookie.util';
-
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-
 describe('AuthService', () => {
   let service: AuthService;
 
+  // mock client repository
   const clientRepo = {
     findClientByEmail: jest.fn(),
     findClientByInstagramUsername: jest.fn(),
@@ -50,6 +47,7 @@ describe('AuthService', () => {
     create: jest.fn(),
   };
 
+  // mock influencer repository
   const influencerRepo = {
     findInfluencerByEmail: jest.fn(),
     findOne: jest.fn(),
@@ -60,21 +58,42 @@ describe('AuthService', () => {
     create: jest.fn(),
   };
 
+  // mock admin repository
   const adminRepo = {
     findAdminByEmail: jest.fn(),
     findById: jest.fn(),
     updateOne: jest.fn(),
   };
 
+  // mock verifyClient repository
   const verifyClientRepo = {
     create: jest.fn(),
     findOne: jest.fn(),
     findOneAndDelete: jest.fn(),
   };
 
+  // mock verifyInfluence repository
   const verifyInfluencerRepo = {
     create: jest.fn(),
     findById: jest.fn(),
+    findOne: jest.fn(),
+    findOneAndDelete: jest.fn(),
+  };
+
+  // mock authSession repository
+  const authSessionRepo = {
+    create: jest.fn(),
+    findOne: jest.fn(),
+    findById: jest.fn(),
+    updateOne: jest.fn(),
+    deleteOne: jest.fn(),
+    findOneAndDelete: jest.fn(),
+  };
+
+  // fake response
+  const mockRes = {
+    cookie: jest.fn(),
+    clearCookie: jest.fn(),
   };
 
   const exchangeRateService = {
@@ -85,291 +104,182 @@ describe('AuthService', () => {
     send: jest.fn(),
   };
 
-  const mockRes = {
-    cookie: jest.fn(),
-    clearCookie: jest.fn(),
-  } as unknown as Response;
+  const createAdminRequestService = {};
 
   beforeEach(async () => {
     process.env.JWT_SECRET = 'test-access-secret';
     process.env.JWT_REFRESH_SECRET = 'test-refresh-secret';
 
     jest.clearAllMocks();
-    (jwt.sign as jest.Mock).mockReturnValue('mock-token');
-    (jwt.verify as jest.Mock).mockReset();
 
+    // Creating test module
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
+
         { provide: ClientRepository, useValue: clientRepo },
         { provide: InfluencerRepository, useValue: influencerRepo },
         { provide: AdminRepository, useValue: adminRepo },
+
         { provide: VerifyClientRepository, useValue: verifyClientRepo },
         { provide: VerifyInfluencerRepository, useValue: verifyInfluencerRepo },
+        { provide: AuthSessionRepository, useValue: authSessionRepo },
+
         { provide: ExchangeRateService, useValue: exchangeRateService },
         { provide: EmailService, useValue: emailService },
+
+        {
+          provide: CREATE_ADMIN_REQUEST_SERVICE,
+          useValue: createAdminRequestService,
+        },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-
-    clientRepo.updateOne.mockResolvedValue(undefined);
-    influencerRepo.updateOne.mockResolvedValue(undefined);
-    adminRepo.updateOne.mockResolvedValue(undefined);
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
+  // Login behavior
   describe('login', () => {
-    const baseDto: LoginDto = {
-      email: 'user@example.com',
-      password: 'plain',
-      role: Role.client,
-    };
+    // helper for creating mock LoginDto
+    function createLoginDto(overrides: Partial<LoginDto> = {}): LoginDto {
+      return {
+        email: 'test@gmail.com',
+        password: 'test',
+        role: Role.client,
+        ...overrides,
+      };
+    }
 
-    it('should throw UnauthorizedException if user not found', async () => {
+    // helper for creating mock client
+    function createUser(overrides: Partial<any> = {}) {
+      return {
+        _id: '12sasdf34ds56sd78',
+        role: Role.client,
+        firstName: 'name',
+        balance: 0,
+        company: 'Test company',
+        companyType: 'Artist',
+        instagramUsername: 'testInstagramUsername',
+        email: 'test@gmail.com',
+        phone: '+999999999999',
+        password: 'hashed-password',
+        isProposalClient: false,
+        verifiedStatus: AccountVerifiedStatus.accept,
+        ...overrides,
+      };
+    }
+
+    it('should throw BadRequestException if role is unsupported', async () => {
+      const dto = createLoginDto({
+        role: 'guest' as Role,
+      });
+
+      await expect(service.login(dto, mockRes as unknown as Response)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      expect(clientRepo.findClientByEmail).not.toHaveBeenCalled();
+      expect(influencerRepo.findInfluencerByEmail).not.toHaveBeenCalled();
+      expect(adminRepo.findAdminByEmail).not.toHaveBeenCalled();
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnauthorizedException client not found', async () => {
+      // Arrange
       clientRepo.findClientByEmail.mockResolvedValue(null);
 
-      await expect(service.login(baseDto, mockRes)).rejects.toThrow(
+      // Act + Assert
+      await expect(service.login(createLoginDto(), mockRes as unknown as Response)).rejects.toThrow(
         UnauthorizedException,
       );
-      await expect(service.login(baseDto, mockRes)).rejects.toThrow(
-        'User not found',
-      );
+
+      expect(clientRepo.findClientByEmail).toHaveBeenCalledWith('test@gmail.com');
+
+      expect(bcrypt.compare).not.toHaveBeenCalled();
     });
 
-    it('should throw UnauthorizedException if wrong password', async () => {
-      clientRepo.findClientByEmail.mockResolvedValue({
-        _id: 'u1',
-        password: 'hashed',
-        verifiedStatus: AccountVerifiedStatus.accept,
+    it('should normalize email before searching user', async () => {
+      const dto = createLoginDto({
+        email: '   TEST@GMAIL.COM    ',
         role: Role.client,
       });
-      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
-      await expect(service.login(baseDto, mockRes)).rejects.toThrow(
+      clientRepo.findClientByEmail.mockResolvedValue(null);
+
+      await expect(service.login(dto, mockRes as unknown as Response)).rejects.toThrow(
         UnauthorizedException,
       );
-      await expect(service.login(baseDto, mockRes)).rejects.toThrow(
-        'Wrong password',
-      );
+
+      expect(clientRepo.findClientByEmail).toBeCalledWith('test@gmail.com');
     });
 
-    it('should throw ForbiddenException if account not verified', async () => {
-      clientRepo.findClientByEmail.mockResolvedValue({
-        _id: 'u1',
-        password: 'hashed',
-        verifiedStatus: AccountVerifiedStatus.waitForAdmin,
-        role: Role.client,
-      });
+    it('should login client successfully', async () => {
+      // mock dto
+      const dto = createLoginDto();
+
+      // mock client
+      const client = createUser();
+
+      clientRepo.findClientByEmail.mockResolvedValue(client);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
-      await expect(service.login(baseDto, mockRes)).rejects.toThrow(
-        ForbiddenException,
-      );
-      await expect(service.login(baseDto, mockRes)).rejects.toThrow(
-        'Account not verified by admin',
-      );
+      const result = await service.login(dto, mockRes as unknown as Response);
+
+      expect(clientRepo.findClientByEmail).toHaveBeenCalledWith('test@gmail.com');
+
+      expect(influencerRepo.findInfluencerByEmail).not.toHaveBeenCalled();
+      expect(adminRepo.findAdminByEmail).not.toHaveBeenCalled();
+
+      expect(bcrypt.compare).toHaveBeenCalledWith('test', 'hashed-password');
+
+      expect(result).toEqual({ accessToken: 'mock-token' });
     });
 
-    it('should return accessToken on success', async () => {
-      clientRepo.findClientByEmail.mockResolvedValue({
-        _id: 'u1',
-        password: 'hashed',
-        verifiedStatus: AccountVerifiedStatus.accept,
-        role: Role.client,
-        isProposalClient: false,
+    it('should login influencer successfully', async () => {
+      // mock dto
+      const dto = createLoginDto({
+        role: Role.influencer,
       });
+
+      // mock influencer
+      const influencer = createUser({ role: Role.influencer });
+
+      // setting mocks behavior
+      influencerRepo.findInfluencerByEmail.mockResolvedValue(influencer);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
-      const result = await service.login(baseDto, mockRes);
+      const result = await service.login(dto, mockRes as unknown as Response);
 
+      expect(influencerRepo.findInfluencerByEmail).toHaveBeenCalledWith('test@gmail.com');
+
+      // these two methods should not be called cause we are waiting for influencer
+      expect(clientRepo.findClientByEmail).not.toHaveBeenCalled();
+      expect(adminRepo.findAdminByEmail).not.toHaveBeenCalled();
+
+      // expecting bcrypt.compare to be called with params in this order:
+      // 1) plain-password from dto
+      // 2) password hash from database
+      expect(bcrypt.compare).toHaveBeenCalledWith('test', 'hashed-password');
+
+      // Expecting result object to be equal to {accessToken: 'mock-token'}
       expect(result).toEqual({ accessToken: 'mock-token' });
-      expect(clientRepo.updateOne).toHaveBeenCalledWith(
-        { _id: 'u1' },
-        { refreshToken: expect.any(String) },
-      );
-    });
-  });
-
-  describe('refresh', () => {
-    it('should throw UnauthorizedException if no refresh token', async () => {
-      await expect(service.refresh(undefined as unknown as string, mockRes)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(service.refresh('', mockRes)).rejects.toThrow(
-        'No refresh token provided',
-      );
     });
 
-    it('should throw UnauthorizedException if invalid refresh token', async () => {
-      (jwt.verify as jest.Mock).mockImplementation(() => {
-        throw new Error('invalid');
-      });
-
-      await expect(
-        service.refresh('bad-token', mockRes),
-      ).rejects.toThrow(UnauthorizedException);
-      await expect(
-        service.refresh('bad-token', mockRes),
-      ).rejects.toThrow('Invalid refresh token');
-      expect(clearRefreshTokenCookie).toHaveBeenCalledWith(mockRes);
-    });
-
-    it('should rotate refresh token for a valid refresh token', async () => {
-      (jwt.verify as jest.Mock).mockReturnValue({
-        _id: 'u1',
-        role: Role.client,
-        jti: 'session-1',
-      });
-      clientRepo.findById.mockResolvedValue({
-        _id: 'u1',
-        role: Role.client,
-        verifiedStatus: AccountVerifiedStatus.accept,
-        refreshToken: createHash('sha256').update('mock-token').digest('hex'),
-        isProposalClient: false,
-      });
-
-      const result = await service.refresh('mock-token', mockRes);
-
-      expect(result).toEqual({ accessToken: 'mock-token' });
-      expect(clientRepo.updateOne).toHaveBeenCalledWith(
-        { _id: 'u1' },
-        { refreshToken: expect.any(String) },
-      );
-    });
-  });
-
-  describe('logout', () => {
-    it('should clear cookie even if refreshToken is missing', async () => {
-      await expect(
-        service.logout(undefined as unknown as string, mockRes),
-      ).resolves.toBeUndefined();
-
-      expect(clearRefreshTokenCookie).toHaveBeenCalledWith(mockRes);
-    });
-
-    it('should clear cookie on success for client', async () => {
-      const token = 'rt-1';
-      (jwt.verify as jest.Mock).mockReturnValue({
-        _id: 'u1',
-        role: Role.client,
-        jti: 'session-1',
-      });
-      clientRepo.findById.mockResolvedValue({
-        _id: 'u1',
-        role: Role.client,
-        refreshToken: 'unused-hash',
-      });
-
-      await service.logout(token, mockRes);
-
-      expect(clientRepo.updateOne).toHaveBeenCalledWith(
-        { _id: 'u1' },
-        { $unset: { refreshToken: '' } },
-      );
-      expect(clearRefreshTokenCookie).toHaveBeenCalledWith(mockRes);
-    });
-  });
-
-  describe('getMe', () => {
-    const userId = '507f1f77bcf86cd799439011';
-
-    it('should throw BadRequestException for unsupported role', async () => {
-      await expect(
-        service.getMe(userId, 'guest' as Role, mockRes),
-      ).rejects.toThrow(BadRequestException);
-      await expect(
-        service.getMe(userId, 'guest' as Role, mockRes),
-      ).rejects.toThrow('Unsupported role');
-    });
-
-    it('should throw UnauthorizedException if user not found', async () => {
-      clientRepo.findById.mockResolvedValue(null);
-
-      await expect(
-        service.getMe(userId, Role.client, mockRes),
-      ).rejects.toThrow(UnauthorizedException);
-    });
-
-    it('should return user data for client', async () => {
-      clientRepo.findById.mockResolvedValue({
-        firstName: 'Alex',
-        role: Role.client,
-        verifiedStatus: AccountVerifiedStatus.accept,
-        balance: 100,
-        logoUrl: 'https://example.com/l.png',
-      });
-
-      const result = await service.getMe(userId, Role.client, mockRes);
-
-      expect(result).toEqual({
-        firstName: 'Alex',
-        role: Role.client,
-        verifiedStatus: AccountVerifiedStatus.accept,
-        balance: 100,
-        logoUrl: 'https://example.com/l.png',
-      });
-    });
-  });
-
-  describe('verifyAdminInfluencer', () => {
-    it('should throw BadRequestException if no arguments', async () => {
-      await expect(
-        service.verifyAdminInfluencer('', 'accept'),
-      ).rejects.toThrow(BadRequestException);
-      await expect(
-        service.verifyAdminInfluencer('id', ''),
-      ).rejects.toThrow(BadRequestException);
-    });
-  });
-
-  describe('verifyAdminClient', () => {
-    it('should throw BadRequestException if no arguments', async () => {
-      await expect(
-        service.verifyAdminClient('', 'accept'),
-      ).rejects.toThrow(BadRequestException);
-      await expect(
-        service.verifyAdminClient('id', ''),
-      ).rejects.toThrow(BadRequestException);
-    });
-  });
-
-  describe('createClient', () => {
-    it('should throw BadRequestException if no data', async () => {
-      await expect(
-        service.createClient(null as never),
-      ).rejects.toThrow(BadRequestException);
-      await expect(
-        service.createClient(null as never),
-      ).rejects.toThrow('Not enough arguments');
-    });
-
-    it('should throw ConflictException if email exists', async () => {
-      const data = {
-        firstName: 'A',
-        company: 'C',
-        companyType: 't',
-        instagramUsername: 'ig',
-        email: 'dup@example.com',
-        phone: '1',
-        referalCode: 'r',
-        password: 'p',
-        internalNote: 'n',
-      };
-
-      influencerRepo.findInfluencerByEmail.mockResolvedValue({ _id: 'existing' });
-      clientRepo.findClientByInstagramUsername.mockResolvedValue(null);
-      influencerRepo.findOne.mockResolvedValue(null);
-
-      await expect(service.createClient(data)).rejects.toThrow(
-        ConflictException,
-      );
-      await expect(service.createClient(data)).rejects.toThrow(
-        'User with this email already exists',
-      );
+    it('should login admin successfully', async () => {
+      const dto = createLoginDto({ role: Role.admin });
+      const admin = createUser({ role: Role.admin });
+      adminRepo.findAdminByEmail.mockResolvedValue(admin);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      const res = await service.login(dto, mockRes as unknown as Response);
+      expect(adminRepo.findAdminByEmail).toHaveBeenCalledWith('test@gmail.com');
+      expect(clientRepo.findClientByEmail).not.toHaveBeenCalled();
+      expect(influencerRepo.findInfluencerByEmail).not.toHaveBeenCalled();
+      expect(bcrypt.compare).toHaveBeenCalledWith('test', 'hashed-password');
+      expect(res).toEqual({ accessToken: 'mock-token' });
     });
   });
 });

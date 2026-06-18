@@ -1,102 +1,90 @@
-import {Injectable, NotFoundException} from '@nestjs/common';
-import {InfluencerRepository} from '../../../database/repositories/users/influencer.repository';
-import {ICampaignDetails} from '../../../common/types/client/campaign.types';
-import {CurrencyCode} from "../../../common/types/finance.types";
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InfluencerRepository } from '../../../database/repositories/users/influencer.repository';
+import { ICampaignDetails } from '../../../common/types/client/campaign.types';
+import { CurrencyCode } from '../../../common/types/finance.types';
 
 export type CampaignDetailsContext<TCampaign, TResult> = {
-    findCampaign: (campaignId: string) => Promise<TCampaign | null>;
-    mapResult: (campaign: TCampaign) => TResult;
+  findCampaign: (campaignId: string) => Promise<TCampaign | null>;
+  mapResult: (campaign: TCampaign) => TResult;
 };
 
 @Injectable()
 export class CampaignDetailsService {
-    constructor(private readonly influencerRepo: InfluencerRepository) {
+  constructor(private readonly influencerRepo: InfluencerRepository) {}
+
+  async execute<TCampaign extends ICampaignDetails, TResult>(
+    campaignId: string,
+    context: CampaignDetailsContext<TCampaign, TResult>,
+  ): Promise<TResult> {
+    let campaign = await context.findCampaign(campaignId);
+
+    if (!campaign) {
+      throw new NotFoundException('Campaign not found');
     }
 
-    async execute<TCampaign extends ICampaignDetails, TResult>(
-        campaignId: string,
-        context: CampaignDetailsContext<TCampaign, TResult>,
-    ): Promise<TResult> {
-        let campaign = await context.findCampaign(campaignId);
+    campaign = await this.attachLogos(campaign);
 
-        if (!campaign) {
-            throw new NotFoundException('Campaign not found');
-        }
+    return context.mapResult(campaign);
+  }
 
-        campaign = await this.attachLogos(campaign);
+  async attachLogos<TCampaign extends ICampaignDetails>(campaign: TCampaign): Promise<TCampaign> {
+    const influencerIds = [...new Set(campaign.addedAccounts.map((acc) => acc.influencerId))];
 
-        return context.mapResult(campaign);
-    }
+    const socialMedias = [
+      'instagram',
+      'tiktok',
+      'youtube',
+      'facebook',
+      'spotify',
+      'soundcloud',
+      'press',
+    ] as const;
 
-    async attachLogos<TCampaign extends ICampaignDetails>(campaign: TCampaign): Promise<TCampaign> {
-        const influencerIds = [...new Set(campaign.addedAccounts.map((acc) => acc.influencerId))];
+    const socialAccountFields = [
+      '_id',
+      'logoUrl',
+      'profileCategory',
+      'currency',
+      'initialPrice',
+    ] as const;
 
-        const influencers = await this.influencerRepo.findMany(
-            {_id: {$in: influencerIds}},
-            {
-                lean: true,
-                select: [
-                    '_id',
-                    'phone',
-                    'instagram._id',
-                    'instagram.logoUrl',
-                    'tiktok._id',
-                    'tiktok.logoUrl',
-                    'youtube._id',
-                    'youtube.logoUrl',
-                    'facebook._id',
-                    'facebook.logoUrl',
-                    'spotify._id',
-                    'spotify.logoUrl',
-                    'soundcloud._id',
-                    'soundcloud.logoUrl',
-                    'press._id',
-                    'press.logoUrl',
-                    'instagram._id',
-                    'instagram.profileCategory',
-                    'tiktok._id',
-                    'tiktok.profileCategory',
-                    'youtube._id',
-                    'youtube.profileCategory',
-                    'facebook._id',
-                    'facebook.profileCategory',
-                    'spotify._id',
-                    'spotify.profileCategory',
-                    'soundcloud._id',
-                    'soundcloud.profileCategory',
-                    'press._id',
-                    'press.profileCategory',
-                    'instagram.currency',
-                    'tiktok.currency',
-                    'youtube.currency',
-                    'facebook.currency',
-                    'spotify.currency',
-                    'soundcloud.currency',
-                    'press.currency',
-                ],
-            },
-        );
+    const select = [
+      '_id',
+      'phone',
+      ...socialMedias.flatMap((socialMedia) =>
+        socialAccountFields.map((field) => `${socialMedia}.${field}`),
+      ),
+    ];
 
-        const influencerMap = new Map(influencers.map((inf) => [inf._id?.toString(), inf]));
+    const influencers = await this.influencerRepo.findMany(
+      { _id: { $in: influencerIds } },
+      {
+        lean: true,
+        select,
+      },
+    );
 
-        campaign.addedAccounts = campaign.addedAccounts.map((acc) => {
-            const influencer = influencerMap.get(acc.influencerId?.toString());
-            if (!influencer) return acc;
+    const influencerMap = new Map(influencers.map((inf) => [inf._id?.toString(), inf]));
 
-            const accountsArray = influencer[acc.socialMedia] ?? [];
-            const matchedAccount = accountsArray?.find(
-                (a) => a._id?.toString() === acc.socialAccountId?.toString(),
-            );
+    campaign.addedAccounts = campaign.addedAccounts.map((acc) => {
+      const influencer = influencerMap.get(acc.influencerId?.toString());
+      if (!influencer) return acc;
 
-            return {
-                ...acc,
-                logoUrl: matchedAccount?.logoUrl ?? null,
-                profileType: matchedAccount?.profileCategory ?? null,
-                currency: matchedAccount?.currency ?? CurrencyCode.EUR,
-                phoneNumber: influencer.phone
-            };
-        });
+      const accountsArray = influencer[acc.socialMedia] ?? [];
+      const matchedAccount = accountsArray?.find(
+        (a) => a._id?.toString() === acc.socialAccountId?.toString(),
+      );
 
-        return campaign;
-    }
+      return {
+        ...acc,
+        logoUrl: matchedAccount?.logoUrl ?? null,
+        profileType: matchedAccount?.profileCategory ?? null,
+        initialPrice: matchedAccount?.initialPrice ?? null,
+        currency: matchedAccount?.currency ?? CurrencyCode.EUR,
+        phoneNumber: influencer.phone,
+      };
+    });
+
+    return campaign;
+  }
 }
