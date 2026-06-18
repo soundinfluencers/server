@@ -2,7 +2,7 @@ import { ObjId } from '../base.types';
 import { Role } from '../user.types';
 import { Injectable, Logger } from '@nestjs/common';
 import { RequestForAdminRepository } from '../../../database/repositories/requests/request-for-admin.repository';
-import {SocialMediaEnum} from "../social-media.types";
+import { SocialMediaEnum } from '../social-media.types';
 
 export enum RequestForAdminType {
   NEW_CLIENT_REQUEST = 'NEW_CLIENT_REQUEST',
@@ -258,4 +258,5 @@ export interface IAdminRequest {
   createdAt: Date;
   lifecycleStatus: RequestLifecycleState;
   specifiedStatus: RequestSpecifiedStatus;
+  unreadMessages?: number;
 }

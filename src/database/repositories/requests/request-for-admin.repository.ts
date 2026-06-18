@@ -18,8 +18,10 @@ import {
   PriceUpdateRequestDetails,
   RequestForAdminType,
   RequestLifecycleState,
+  RequestSpecifiedStatus,
 } from '../../../common/types/request-for-admin/request-for-admin.types';
 import { AdminRequestsQueryDto } from '../../../modules/admin/dto/requests/admin-requests.dto';
+import { FilteredNestLogger } from 'src/common/logger/filtered-nest-logger';
 
 // Interface for admin requests repository
 interface IRequestForAdminRepository {
@@ -67,6 +69,8 @@ export class RequestForAdminRepository
   extends BaseRepository<RequestForAdmin>
   implements IRequestForAdminRepository
 {
+  private readonly logger = new FilteredNestLogger(RequestForAdminRepository.name);
+
   constructor(
     @InjectModel(RequestForAdmin.name)
     private readonly requestForAdmin: Model<RequestForAdmin>,
@@ -101,6 +105,39 @@ export class RequestForAdminRepository
       { $limit: limit },
 
       {
+        $lookup: {
+          from: 'request_negotiation_threads',
+          let: {
+            adminRequestId: '$_id',
+            specifiedStatus: '$specifiedStatus',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    {
+                      $eq: ['$$specifiedStatus', RequestSpecifiedStatus.NEGOTIATION],
+                    },
+                    {
+                      $eq: ['$requestId', '$$adminRequestId'],
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                unreadForAdmin: 1,
+              },
+            },
+          ],
+          as: 'negotiation',
+        },
+      },
+
+      {
         $project: {
           _id: 1,
           group: 1,
@@ -111,6 +148,14 @@ export class RequestForAdminRepository
           createdAt: 1,
           state: 1,
           specifiedStatus: 1,
+          unreadMessages: {
+            $ifNull: [
+              {
+                $arrayElemAt: ['$negotiation.unreadForAdmin', 0],
+              },
+              '$$REMOVE',
+            ],
+          },
         },
       },
     ];
@@ -164,6 +209,39 @@ export class RequestForAdminRepository
         { $limit: limit },
 
         {
+          $lookup: {
+            from: 'request_negotiation_threads',
+            let: {
+              adminRequestId: '$_id',
+              specifiedStatus: '$specifiedStatus',
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      {
+                        $eq: ['$$specifiedStatus', RequestSpecifiedStatus.NEGOTIATION],
+                      },
+                      {
+                        $eq: ['$requestId', '$$adminRequestId'],
+                      },
+                    ],
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 0,
+                  unreadForAdmin: 1,
+                },
+              },
+            ],
+            as: 'negotiation',
+          },
+        },
+
+        {
           $project: {
             _id: 1,
             group: 1,
@@ -174,6 +252,14 @@ export class RequestForAdminRepository
             createdAt: 1,
             state: 1,
             specifiedStatus: 1,
+            unreadMessages: {
+              $ifNull: [
+                {
+                  $arrayElemAt: ['$negotiation.unreadForAdmin', 0],
+                },
+                '$$REMOVE',
+              ],
+            },
           },
         },
       ]),

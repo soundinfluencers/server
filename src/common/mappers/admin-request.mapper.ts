@@ -19,7 +19,7 @@ import {
 } from '../../modules/admin/dto/requests/admin-requests.dto';
 import { formatDate } from '../utils/formatters';
 import { SocialMediaEnum } from '../types/social-media.types';
-import {CurrencyCode} from "../types/finance.types";
+import { CurrencyCode } from '../types/finance.types';
 
 export class AdminRequestMapper {
   static toLabel(type: RequestForAdminType): string {
@@ -51,6 +51,7 @@ export class AdminRequestMapper {
       type: request.type,
       lifecycleStatus: request.lifecycleStatus,
       specifiedStatus: request.specifiedStatus,
+      ...(request.unreadMessages ? { unreadMessages: request.unreadMessages } : {}),
     };
   }
 

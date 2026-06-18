@@ -61,6 +61,9 @@ export class AdminRequestForListDto {
 
   @ApiProperty({ enum: RequestSpecifiedStatus })
   specifiedStatus: RequestSpecifiedStatus;
+
+  @ApiPropertyOptional({ type: Number })
+  unreadMessages?: number;
 }
 
 // DTO for request list
@@ -250,6 +253,6 @@ export class NewSocialAccountRequestDetailsDto extends AdminRequestDetailsBase {
   @ApiProperty({ type: String })
   phoneNumber: string;
 
-  @ApiProperty({type: ExtendedSocialAccountDetailsDto})
+  @ApiProperty({ type: ExtendedSocialAccountDetailsDto })
   accountDetails: ExtendedSocialAccountDetailsDto;
 }
