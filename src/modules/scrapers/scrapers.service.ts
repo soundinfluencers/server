@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
   ServiceUnavailableException,
@@ -25,6 +26,7 @@ import { InfluencerRepository } from '../../database/repositories/users/influenc
 import { UpdatePostDetailsResponse } from './types/scraper-response.types';
 import { ScraperAvailableSocialMedias } from './types/scraper.types';
 import { ScrapersGateway, ScrapersRealtimeTarget } from './scrapers.gateway';
+import { log } from 'node:console';
 
 @Injectable()
 export class ScrapersService {
@@ -68,6 +70,9 @@ export class ScrapersService {
       postLink: string;
       impressions: number;
       like: number;
+      comments: number;
+      shares: number;
+      saves: number;
     }[],
     socialMedia: string,
     realtimeTarget: ScrapersRealtimeTarget,
@@ -99,11 +104,17 @@ export class ScrapersService {
             if (match) {
               const newImpressions = match.views ?? 0;
               const newLikes = match.likes ?? 0;
+              const newComments = match.commentsCount ?? 0;
+              const newShares = match.shares ?? 0;
+              const newSaves = match.saves ?? 0;
 
               results[acc.accountId] = {
                 success: true,
                 newImpressions: newImpressions > 0 ? newImpressions : acc.impressions,
                 newLikes: newLikes > 0 ? newLikes : acc.like,
+                newComments: newComments > 0 ? newComments : acc.comments,
+                newShares: newShares > 0 ? newShares : acc.shares,
+                newSaves: newSaves > 0 ? newSaves : acc.saves,
               };
               this.scrapersGateway.refreshPostDetailsStatusUpdate(realtimeTarget, {
                 accountId: acc.accountId,
@@ -111,6 +122,9 @@ export class ScrapersService {
                 success: true,
                 newImpressions: results[acc.accountId].newImpressions,
                 newLikes: results[acc.accountId].newLikes,
+                newComments: results[acc.accountId].newComments,
+                newShares: results[acc.accountId].newShares,
+                newSaves: results[acc.accountId].newSaves,
               });
             } else {
               results[acc.accountId] = { success: false };
@@ -129,6 +143,9 @@ export class ScrapersService {
                 success: false,
                 newImpressions: acc.impressions,
                 newLikes: acc.like,
+                newComments: acc.comments,
+                newShares: acc.shares,
+                newSaves: acc.saves,
               });
             });
           }
@@ -281,6 +298,9 @@ export class ScrapersService {
           postLink: accountPostDetails.postLink,
           impressions: accountPostDetails.impressions,
           like: accountPostDetails.like,
+          comments: accountPostDetails.comments,
+          shares: accountPostDetails.shares,
+          saves: accountPostDetails.saves,
         },
       ],
       accountPostDetails.socialMedia,
@@ -297,13 +317,15 @@ export class ScrapersService {
     await this.campaignRepository.updateOne(
       {
         _id: new Types.ObjectId(data.campaignId),
-        'selectInfluencers._id': new Types.ObjectId(data.accountId),
+        'addedAccounts._id': new Types.ObjectId(data.accountId),
       },
       {
         $set: {
-          'selectInfluencers.$.impressions':
-            scraped.newImpressions ?? accountPostDetails.impressions,
-          'selectInfluencers.$.like': scraped.newLikes ?? accountPostDetails.like,
+          'addedAccounts.$.impressions': scraped.newImpressions ?? accountPostDetails.impressions,
+          'addedAccounts.$.like': scraped.newLikes ?? accountPostDetails.like,
+          'addedAccounts.$.comments': scraped.newComments ?? accountPostDetails.comments,
+          'addedAccounts.$.shares': scraped.newShares ?? accountPostDetails.shares,
+          'addedAccounts.$.saves': scraped.newSaves ?? accountPostDetails.saves,
         },
       },
     );
@@ -315,6 +337,9 @@ export class ScrapersService {
       message: `${accountPostDetails.username} post details updated!`,
       newImpressions: scraped.newImpressions ?? accountPostDetails.impressions,
       newLikes: scraped.newLikes ?? accountPostDetails.like,
+      newComments: scraped.newComments ?? accountPostDetails.comments,
+      newShares: scraped.newShares ?? accountPostDetails.shares,
+      newSaves: scraped.newSaves ?? accountPostDetails.saves,
     };
   }
 
@@ -333,7 +358,7 @@ export class ScrapersService {
       throw new NotFoundException(`Campaign not found: ${data.campaignId}`);
     }
 
-    const accounts = campaign.addedAccounts.filter(
+    let accounts = campaign.addedAccounts.filter(
       (acc) => this.availableSocialMedias.includes(acc.socialMedia) && !!acc.postLink,
     );
 
@@ -369,6 +394,9 @@ export class ScrapersService {
           postLink: acc.postLink,
           impressions: acc.impressions,
           like: acc.like,
+          comments: acc.comments,
+          shares: acc.shares,
+          saves: acc.saves,
         }));
 
         const resultMap = await this.scrapePostDetailsBatch(
@@ -379,9 +407,13 @@ export class ScrapersService {
 
         for (const acc of batch) {
           const result = resultMap[acc._id.toString()];
+
           if (result?.success) {
             acc.impressions = result.newImpressions ?? acc.impressions;
             acc.like = result.newLikes ?? acc.like;
+            acc.comments = result.newComments ?? acc.comments;
+            acc.shares = result.newShares ?? acc.shares;
+            acc.saves = result.newSaves ?? acc.saves;
           } else {
             failed.push(acc);
           }
@@ -426,6 +458,9 @@ export class ScrapersService {
               postLink: acc.postLink,
               impressions: acc.impressions,
               like: acc.like,
+              comments: acc.comments,
+              shares: acc.shares,
+              saves: acc.saves,
             })),
             socialMedia,
             realtimeTarget,
@@ -436,6 +471,9 @@ export class ScrapersService {
             if (result?.success) {
               acc.impressions = result.newImpressions ?? acc.impressions;
               acc.like = result.newLikes ?? acc.like;
+              acc.comments = result.newComments ?? acc.comments;
+              acc.shares = result.newShares ?? acc.shares;
+              acc.saves = result.newSaves ?? acc.saves;
               this.scrapersGateway.finishAccountPostDetailsUpdate(realtimeTarget, data.campaignId, [
                 acc._id.toString(),
               ]);
@@ -444,7 +482,7 @@ export class ScrapersService {
         }
       }
 
-      campaign.markModified('selectInfluencers');
+      campaign.markModified('addedAccounts');
       await campaign.save();
 
       this.scrapersGateway.notificationFinishedRefreshingPostDetails(realtimeTarget, {
@@ -484,12 +522,12 @@ export class ScrapersService {
       {
         [socialMedia]: { $exists: true, $ne: [] },
       },
-      { lean: true, limit: 20, skip: 25 },
+      { lean: true },
     );
 
     influencers.map((influencer, i) => {
-      console.log(`Processing ${influencers[i]._id.toString()} ${influencer.firstName}`)
-    })
+      console.log(`Processing ${influencers[i]._id.toString()} ${influencer.firstName}`);
+    });
 
     if (!influencers || influencers.length === 0) {
       throw new NotFoundException(`Accounts from ${socialMedia} were not found`);

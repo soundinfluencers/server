@@ -39,7 +39,6 @@ export class ScrapersController {
 
     @Auth()
     @ApiOperation({summary: "Updates all post details for available social medias in campaign"})
-    // Using undefined in ApiResponseDto because client will get all data through socket
     @ApiResponseDto(undefined, { successStatusCode: 201 })
     @Patch('post-details/all')
     async updateAllPostsDetails(@Req() req: AuthenticatedRequest, @Body() data: ReqUpdateAllPostsDetailsDto): Promise<UpdateAllPostDetailsResponseDto> {
