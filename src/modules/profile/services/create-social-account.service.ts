@@ -1,33 +1,37 @@
 import { AddSocialAccountDto } from '../dto/influencer/update-influencer.dto';
-import { Influencer, SocialAccount } from '../../../database/schemas/users/influencer.schema';
+import {
+  Influencer,
+  InfluencerCountryStats,
+  SocialAccount,
+} from '../../../database/schemas/users/influencer.schema';
 import {
   BadRequestException,
   ConflictException,
   Inject,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InfluencerRepository } from '../../../database/repositories/users/influencer.repository';
 import { ExchangeRateService } from '../../../integrations/exchange-rate/exchange-rate.service';
-// import {EmailService} from "../../../integrations/email/email.service";
 import { SocialMediaEnum } from '../../../common/types/social-media.types';
 import {
   AdminCreateSocialAccountDto,
   CreateSocialAccountDto,
-  MusicGenreDto,
 } from '../../auth/dto/create-influencer.dto';
 import { CurrencyCode, getAvailableCurrenciesLabel } from '../../../common/types/finance.types';
 import { Types } from 'mongoose';
 import { AccountVerifiedStatus } from '../../../common/types/user.types';
-import { SocialAccountLabelStatus } from '../../../common/types/influencer/influencer.types';
+import {
+  InfluencerProfileCategory,
+  SocialAccountLabelStatus,
+} from '../../../common/types/influencer/influencer.types';
 import { areCountriesValid } from '../../../common/utils/countries.util';
-import { getArrayFromAccountMusicGenres } from '../../../common/utils/genres';
 import {
   CREATE_ADMIN_REQUEST_SERVICE,
   CreateAdminRequestService,
 } from '../../admin/services/requests/create-admin-request.service';
 import { RequestForAdminType } from '../../../common/types/request-for-admin/request-for-admin.types';
+import { FilteredNestLogger } from 'src/common/logger/filtered-nest-logger';
 
 interface ICreateSocialAccountService {
   // Executes service and returns result
@@ -40,7 +44,7 @@ interface ICreateSocialAccountService {
 
 @Injectable()
 export class CreateSocialAccountService implements ICreateSocialAccountService {
-  private readonly logger = new Logger('CreateSocialAccountService');
+  private readonly logger = new FilteredNestLogger('CreateSocialAccountService');
 
   constructor(
     private readonly influencerRepo: InfluencerRepository,
@@ -80,8 +84,8 @@ export class CreateSocialAccountService implements ICreateSocialAccountService {
     // Checking if account username already taken
     await this.checkDuplicate(socialMedia, payload.username);
 
-    // Normalizing music genres and countries
-    const normalized = this.normalizeGenresAndCountries(payload);
+    // Normalizing music countries
+    const countries = this.normalizeCountries(payload.countries);
 
     // Calculating price
     const { price, publicPrice } = await this.calculatePrice(payload);
@@ -89,7 +93,7 @@ export class CreateSocialAccountService implements ICreateSocialAccountService {
     // Building account object
     const account = this.buildAccount({
       payload,
-      normalized,
+      normalizedCountries: countries,
       price,
       publicPrice,
       isForAdmin,
@@ -145,16 +149,9 @@ export class CreateSocialAccountService implements ICreateSocialAccountService {
   }
 
   // Normalize payload
-  private normalizeGenresAndCountries(payload: CreateSocialAccountDto): {
-    musicGenres: MusicGenreDto[];
-    countries: { country: string; percentage: number }[];
-  } {
-    const musicGenres = Array.isArray(payload.musicGenres)
-      ? payload.musicGenres.filter(Boolean)
-      : [];
-
-    const countries = Array.isArray(payload.countries)
-      ? payload.countries
+  private normalizeCountries(countries: InfluencerCountryStats[]): InfluencerCountryStats[] {
+    const result = Array.isArray(countries)
+      ? countries
           .filter((c) => c?.country && typeof c.percentage === 'number')
           .map((c) => ({
             country: c.country,
@@ -162,7 +159,7 @@ export class CreateSocialAccountService implements ICreateSocialAccountService {
           }))
       : [];
 
-    return { musicGenres, countries };
+    return result;
   }
 
   // Calculate price
@@ -189,12 +186,12 @@ export class CreateSocialAccountService implements ICreateSocialAccountService {
   // Build account object
   private buildAccount(params: {
     payload: CreateSocialAccountDto | AdminCreateSocialAccountDto;
-    normalized: any;
+    normalizedCountries: InfluencerCountryStats[];
     price: number;
     publicPrice: number;
     isForAdmin: boolean;
   }): SocialAccount {
-    const { payload, normalized, price, publicPrice, isForAdmin } = params;
+    const { payload, normalizedCountries, price, publicPrice, isForAdmin } = params;
 
     const engagementRate: number | null = isForAdmin
       ? ((payload as AdminCreateSocialAccountDto).engagementRate ?? null)
@@ -211,33 +208,38 @@ export class CreateSocialAccountService implements ICreateSocialAccountService {
       followers: payload.followers,
       logoUrl: payload.logoUrl,
       profileCategory: payload.profileCategory,
-
-      ...(payload.profileCategory === 'creator' && {
-        creatorCategories: payload.creatorCategories ?? [],
-      }),
-
       price,
       publicPrice,
       initialPrice: payload.price,
       currency: payload.currency,
-
-      musicGenres: normalized.musicGenres,
-      countries: normalized.countries,
-      categories: payload.categories,
-
+      countries: normalizedCountries,
       engagementRate: engagementRate,
       averageViews: averageViews,
-
       isHidden: false,
       isDeleted: false,
-
       verifiedStatus: isForAdmin
         ? AccountVerifiedStatus.accept
         : AccountVerifiedStatus.waitForAdmin,
       labelStatus: isForAdmin
         ? SocialAccountLabelStatus.accept
         : SocialAccountLabelStatus.waitForAdmin,
-    };
+      ...(payload.profileCategory === InfluencerProfileCategory.community &&
+      payload?.communityMusicGenres?.length > 0
+        ? { communityMusicGenres: payload.communityMusicGenres }
+        : {}),
+      ...(payload.profileCategory === InfluencerProfileCategory.community &&
+      payload?.communityThemeTopics?.length > 0
+        ? { communityThemeTopics: payload.communityThemeTopics }
+        : {}),
+      ...(payload.profileCategory === InfluencerProfileCategory.community &&
+      payload?.creatorMusicGenres?.length > 0
+        ? { creatorMusicGenres: payload.creatorMusicGenres }
+        : {}),
+      ...(payload.profileCategory === InfluencerProfileCategory.creator &&
+      payload?.creatorContentFocus?.length > 0
+        ? { creatorContentFocus: payload.creatorContentFocus }
+        : {}),
+    } satisfies SocialAccount;
   }
 
   // Transaction saving
@@ -303,7 +305,6 @@ export class CreateSocialAccountService implements ICreateSocialAccountService {
     <li><strong>Website:</strong> ${account.profileLink}</li>
     <li><strong>Visitors:</strong> ${account.followers}</li>
     <li><strong>Logo:</strong> ${account.logoUrl}</li>
-    <li><strong>Music genres:</strong> ${getArrayFromAccountMusicGenres(account.musicGenres)?.join(', ') ?? ''}</li>
     <li><strong>Price:</strong> ${account.price}€</li>
     <li><strong>Initial price:</strong> ${account.initialPrice}€</li>
 </ul>`;
@@ -314,7 +315,6 @@ export class CreateSocialAccountService implements ICreateSocialAccountService {
     <li><strong>Link:</strong> ${account.profileLink}</li>
     <li><strong>Followers:</strong> ${account.followers}</li>
     <li><strong>Logo:</strong> ${account.logoUrl}</li>
-    <li><strong>Music genres:</strong> ${getArrayFromAccountMusicGenres(account.musicGenres)?.join(', ') ?? ''}</li>
     <li><strong>Price:</strong> ${account.price}€</li>
     <li><strong>Initial price:</strong> ${account.price}€</li>
 </ul>`;

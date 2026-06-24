@@ -1,329 +1,343 @@
-import {ApiProperty, ApiPropertyOptional} from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-    AgreementType,
-    InfluencerAccountDetails, InfluencerProfileCategory, SocialAccountDetails,
-    SocialAccountForAccountDetails, SocialAccountLabelStatus
-} from "../../../../common/types/influencer/influencer.types";
-import {ClientAccountDetails} from "../../../../common/types/client/client.types";
+  AgreementType,
+  CommunityMusicGenres,
+  CommunityThemeTopics,
+  CreatorContentFocus,
+  CreatorMusicGenres,
+  InfluencerAccountDetails,
+  InfluencerProfileCategory,
+  SocialAccountForAccountDetails,
+  SocialAccountLabelStatus,
+} from '../../../../common/types/influencer/influencer.types';
+import { ClientAccountDetails } from '../../../../common/types/client/client.types';
 import {
-    InfluencerCountryStats,
-    InfluencerMusicGenre,
-    UserNotificationMethods
-} from "../../../../database/schemas/users/influencer.schema";
-import {SocialMediaEnum} from "../../../../common/types/social-media.types";
-import {IsEnum, IsString} from "class-validator";
-import {AccountVerifiedStatus, Role} from "../../../../common/types/user.types";
-import {InfluencerConfirmationStatusEnum} from "../../../../common/types/influencer/promo.types";
-import {Response} from "express";
-import {CurrencyCode} from "../../../../common/types/finance.types";
+  InfluencerCountryStats,
+  UserNotificationMethods,
+} from '../../../../database/schemas/users/influencer.schema';
+import { SocialMediaEnum } from '../../../../common/types/social-media.types';
+import { IsEnum, IsString } from 'class-validator';
+import { AccountVerifiedStatus, Role } from '../../../../common/types/user.types';
+import { InfluencerConfirmationStatusEnum } from '../../../../common/types/influencer/promo.types';
+import { Response } from 'express';
+import { CurrencyCode } from '../../../../common/types/finance.types';
 
 export class SocialAccountForAccountDetailsDto implements SocialAccountForAccountDetails {
-    @ApiProperty({
-        description: "Social account's ID",
-        example: '66a747a89c6e78a6cfb83g5',
-    })
-    accountId: string;
+  @ApiProperty({
+    description: "Social account's ID",
+    example: '66a747a89c6e78a6cfb83g5',
+  })
+  accountId: string;
 
-    @ApiProperty({
-        description: "Social account's username",
-        example: 'Techno TV',
-    })
-    username: string;
+  @ApiProperty({
+    description: "Social account's username",
+    example: 'Techno TV',
+  })
+  username: string;
 
-    @ApiProperty({
-        example: 'new',
-        enum: SocialAccountLabelStatus
-    })
-    labelStatus: SocialAccountLabelStatus;
+  @ApiProperty({
+    example: 'new',
+    enum: SocialAccountLabelStatus,
+  })
+  labelStatus: SocialAccountLabelStatus;
 }
 
 // dto for getting influencer's profile details
 export class InfluencerAccountDetailsDto implements InfluencerAccountDetails {
-    @ApiProperty({example: 'John'})
-    firstName: string;
+  @ApiProperty({ example: 'John' })
+  firstName: string;
 
-    @ApiPropertyOptional({example: 'Doe'})
-    lastName?: string;
+  @ApiPropertyOptional({ example: 'Doe' })
+  lastName?: string;
 
-    @ApiPropertyOptional({type: String})
-    logoUrl?: string;
+  @ApiPropertyOptional({ type: String })
+  logoUrl?: string;
 
-    @ApiProperty({example: 'john.doe@gmail.com'})
-    email: string;
+  @ApiProperty({ example: 'john.doe@gmail.com' })
+  email: string;
 
-    @ApiProperty({example: '+380501234567'})
-    phone: string;
+  @ApiProperty({ example: '+380501234567' })
+  phone: string;
 
-    @ApiProperty({type: () => UserNotificationMethods})
-    notificationMethods: UserNotificationMethods;
+  @ApiProperty({ type: () => UserNotificationMethods })
+  notificationMethods: UserNotificationMethods;
 
-    @ApiProperty({
-        type: [SocialAccountForAccountDetailsDto],
-        description: 'Instagram accounts',
-    })
-    instagram: SocialAccountForAccountDetailsDto[];
+  @ApiProperty({
+    type: [SocialAccountForAccountDetailsDto],
+    description: 'Instagram accounts',
+  })
+  instagram: SocialAccountForAccountDetailsDto[];
 
-    @ApiProperty({
-        type: [SocialAccountForAccountDetailsDto],
-        description: 'TikTok accounts',
-    })
-    tiktok: SocialAccountForAccountDetailsDto[];
+  @ApiProperty({
+    type: [SocialAccountForAccountDetailsDto],
+    description: 'TikTok accounts',
+  })
+  tiktok: SocialAccountForAccountDetailsDto[];
 
-    @ApiProperty({
-        type: [SocialAccountForAccountDetailsDto],
-        description: 'Spotify accounts',
-    })
-    spotify: SocialAccountForAccountDetailsDto[];
+  @ApiProperty({
+    type: [SocialAccountForAccountDetailsDto],
+    description: 'Spotify accounts',
+  })
+  spotify: SocialAccountForAccountDetailsDto[];
 
-    @ApiProperty({
-        type: [SocialAccountForAccountDetailsDto],
-        description: 'YouTube accounts',
-    })
-    youtube: SocialAccountForAccountDetailsDto[];
+  @ApiProperty({
+    type: [SocialAccountForAccountDetailsDto],
+    description: 'YouTube accounts',
+  })
+  youtube: SocialAccountForAccountDetailsDto[];
 
-    @ApiProperty({
-        type: [SocialAccountForAccountDetailsDto],
-        description: 'Facebook accounts',
-    })
-    facebook: SocialAccountForAccountDetailsDto[];
+  @ApiProperty({
+    type: [SocialAccountForAccountDetailsDto],
+    description: 'Facebook accounts',
+  })
+  facebook: SocialAccountForAccountDetailsDto[];
 
-    @ApiProperty({
-        type: [SocialAccountForAccountDetailsDto],
-        description: 'SoundCloud accounts',
-    })
-    soundcloud: SocialAccountForAccountDetailsDto[];
+  @ApiProperty({
+    type: [SocialAccountForAccountDetailsDto],
+    description: 'SoundCloud accounts',
+  })
+  soundcloud: SocialAccountForAccountDetailsDto[];
 
-    @ApiProperty({
-        type: [SocialAccountForAccountDetailsDto],
-        description: 'Press accounts',
-    })
-    press: SocialAccountForAccountDetailsDto[];
+  @ApiProperty({
+    type: [SocialAccountForAccountDetailsDto],
+    description: 'Press accounts',
+  })
+  press: SocialAccountForAccountDetailsDto[];
 
-    @ApiPropertyOptional({
-        description: "Influencer's telegram username",
-        example: '@techno_tv',
-    })
-    telegramUsername?: string;
+  @ApiPropertyOptional({
+    description: "Influencer's telegram username",
+    example: '@techno_tv',
+  })
+  telegramUsername?: string;
 }
 
 // dto for getting client's profile details
 export class ClientAccountDetailsDto implements ClientAccountDetails {
-    @ApiProperty({example: 'John'})
-    firstName: string;
+  @ApiProperty({ example: 'John' })
+  firstName: string;
 
-    @ApiPropertyOptional({example: 'Doe'})
-    lastName?: string;
+  @ApiPropertyOptional({ example: 'Doe' })
+  lastName?: string;
 
-    @ApiPropertyOptional({type: String})
-    logoUrl?: string;
+  @ApiPropertyOptional({ type: String })
+  logoUrl?: string;
 
-    @ApiProperty({example: 'Techno TV Company'})
-    companyName: string;
+  @ApiProperty({ example: 'Techno TV Company' })
+  companyName: string;
 
-    @ApiProperty({example: 'john.doe@gmail.com'})
-    email: string;
+  @ApiProperty({ example: 'john.doe@gmail.com' })
+  email: string;
 
-    @ApiProperty({example: '+380501234567'})
-    phone: string;
+  @ApiProperty({ example: '+380501234567' })
+  phone: string;
 
-    @ApiPropertyOptional({type: Boolean})
-    isProposal?: boolean;
+  @ApiPropertyOptional({ type: Boolean })
+  isProposal?: boolean;
 }
 
 // query dto for getting detailed social account
 export class GetSocialAccountDetailsParamsDto {
-    @ApiProperty({example: '66a747a89c6e78a6cfb83g5'})
-    @IsString()
-    accountId: string;
+  @ApiProperty({ example: '66a747a89c6e78a6cfb83g5' })
+  @IsString()
+  accountId: string;
 
-    @ApiProperty({
-        enum: SocialMediaEnum,
-        example: 'instagram'
-    })
-    @IsEnum(SocialMediaEnum)
-    socialMedia: SocialMediaEnum;
+  @ApiProperty({
+    enum: SocialMediaEnum,
+    example: 'instagram',
+  })
+  @IsEnum(SocialMediaEnum)
+  socialMedia: SocialMediaEnum;
 
-    influencerId?: string;
+  influencerId?: string;
 }
 
 // dto for getting detailed social account
-export class SocialAccountDetailsDto implements SocialAccountDetails {
-    @ApiProperty({example: '66a747a89c6e78a6cfb83g5'})
-    accountId: string;
+export class SocialAccountDetailsDto {
+  @ApiProperty({ example: '66a747a89c6e78a6cfb83g5' })
+  accountId: string;
 
-    @ApiProperty({example: 'Techno TV'})
-    username: string;
+  @ApiProperty({ example: 'Techno TV' })
+  username: string;
 
-    @ApiProperty({example: 'https://instagram.com/technotv'})
-    profileLink: string;
+  @ApiProperty({ example: 'https://instagram.com/technotv' })
+  profileLink: string;
 
-    @ApiProperty({example: 12000})
-    followers: number;
+  @ApiProperty({ example: 12000 })
+  followers: number;
 
-    @ApiProperty({example: 'https://cdn.example.com/logo.png'})
-    logoUrl: string;
+  @ApiProperty({ example: 'https://cdn.example.com/logo.png' })
+  logoUrl: string;
 
-    @ApiProperty({example: 'music', enum: InfluencerProfileCategory})
-    profileCategory: InfluencerProfileCategory;
+  @ApiProperty({ example: 'music', enum: InfluencerProfileCategory })
+  profileCategory: InfluencerProfileCategory;
 
-    @ApiProperty({example: 60})
-    initialPrice: number;
+  @ApiProperty({ example: 60 })
+  initialPrice: number;
 
-    @ApiProperty({example: 'EUR', enum: CurrencyCode})
-    @IsEnum(CurrencyCode)
-    currency: CurrencyCode;
+  @ApiProperty({ example: 'EUR', enum: CurrencyCode })
+  @IsEnum(CurrencyCode)
+  currency: CurrencyCode;
 
-    @ApiProperty({isArray: true})
-    musicGenres: InfluencerMusicGenre[];
+  @ApiProperty({
+    example: [
+      { country: 'US', percentage: 60 },
+      { country: 'DE', percentage: 40 },
+    ],
+    isArray: true,
+  })
+  countries: InfluencerCountryStats[];
 
-    @ApiProperty({example: ['DJ', 'Producer'], isArray: true})
-    creatorCategories: string[];
+  @ApiProperty({ type: Number })
+  engagementRate: number;
 
-    @ApiProperty({example: [{country: 'US', percentage: 60}, {country: 'DE', percentage: 40}], isArray: true})
-    countries: InfluencerCountryStats[];
+  @ApiProperty({ type: Number })
+  averageViews: number;
 
-    @ApiProperty({example: ['Music', 'Entertainment'], isArray: true})
-    categories: string[];
+  @ApiPropertyOptional({ type: String, isArray: true, enum: CommunityMusicGenres })
+  communityMusicGenres?: CommunityMusicGenres[];
 
-    @ApiProperty({ type: Number })
-    engagementRate: number;
+  @ApiPropertyOptional({ type: String, isArray: true, enum: CommunityThemeTopics })
+  communityThemeTopics?: CommunityThemeTopics[];
 
-    @ApiProperty({ type: Number })
-    averageViews: number;
+  @ApiPropertyOptional({ type: String, isArray: true, enum: CreatorMusicGenres })
+  creatorMusicGenres?: CreatorMusicGenres[];
+
+  @ApiPropertyOptional({ type: String, isArray: true, enum: CreatorContentFocus })
+  creatorContentFocus?: CreatorContentFocus[];
 }
 
 export class ExtendedSocialAccountDetailsDto extends SocialAccountDetailsDto {
-    @ApiProperty({example: 60})
-    price: number;
+  @ApiProperty({ example: 60 })
+  price: number;
 
-    @ApiProperty({type: String, enum: SocialMediaEnum})
-    socialMedia: SocialMediaEnum;
+  @ApiProperty({ type: String, enum: SocialMediaEnum })
+  socialMedia: SocialMediaEnum;
 }
 
 // dto for returning found social accounts
 export class FoundAccountDto {
-    @ApiProperty({example: '66a747a89c6e78a6cfb83g5'})
-    accountId: string;
+  @ApiProperty({ example: '66a747a89c6e78a6cfb83g5' })
+  accountId: string;
 
-    @ApiProperty({example: '66a747a89c6e78a6cfb83g5'})
-    influencerId: string;
+  @ApiProperty({ example: '66a747a89c6e78a6cfb83g5' })
+  influencerId: string;
 
-    @ApiProperty({example: 'Techno TV'})
-    username: string;
+  @ApiProperty({ example: 'Techno TV' })
+  username: string;
 
-    @ApiProperty({example: 'https://cdn.example.com/logo.png'})
-    logoUrl: string;
+  @ApiProperty({ example: 'https://cdn.example.com/logo.png' })
+  logoUrl: string;
 
-    @ApiProperty({example: 12000})
-    followers: number;
+  @ApiProperty({ example: 12000 })
+  followers: number;
 
-    @ApiProperty()
-    prices: {
-        'EUR': number;
-        'USD': number;
-        'GBP': number;
-    }; // publicPrice of account (NOT DEFAULT PRICE)
+  @ApiProperty()
+  prices: {
+    EUR: number;
+    USD: number;
+    GBP: number;
+  }; // publicPrice of account (NOT DEFAULT PRICE)
 
-    @ApiProperty({example: 'instagram', enum: SocialMediaEnum})
-    socialMedia: SocialMediaEnum;
+  @ApiProperty({ example: 'instagram', enum: SocialMediaEnum })
+  socialMedia: SocialMediaEnum;
 
-    @ApiProperty({example: InfluencerProfileCategory.community, enum: InfluencerProfileCategory})
-    profileType: InfluencerProfileCategory;
+  @ApiProperty({ example: InfluencerProfileCategory.community, enum: InfluencerProfileCategory })
+  profileType: InfluencerProfileCategory;
 
-    @ApiProperty()
-    countries: {
-        country: string,
-        percentage: number
-    }[];
+  @ApiProperty()
+  countries: InfluencerCountryStats[];
 
-    @ApiPropertyOptional()
-    musicGenres?: string[]; // FORMATTED music genres (InfluencerMusicGenre[] -> string[])
+  @ApiProperty({ type: Number })
+  engagementRate: number;
 
-    @ApiProperty({ type: Number })
-    engagementRate: number;
+  @ApiProperty({ type: Number })
+  averageViews: number;
 
-    @ApiProperty({ type: Number })
-    averageViews: number;
+  @ApiPropertyOptional({ type: String, isArray: true, enum: CommunityMusicGenres })
+  communityMusicGenres?: CommunityMusicGenres[];
 
-    @ApiPropertyOptional()
-    creatorCategories?: string[];
+  @ApiPropertyOptional({ type: String, isArray: true, enum: CommunityThemeTopics })
+  communityThemeTopics?: CommunityThemeTopics[];
 
-    @ApiPropertyOptional()
-    categories?: string[];
+  @ApiPropertyOptional({ type: String, isArray: true, enum: CreatorMusicGenres })
+  creatorMusicGenres?: CreatorMusicGenres[];
+
+  @ApiPropertyOptional({ type: String, isArray: true, enum: CreatorContentFocus })
+  creatorContentFocus?: CreatorContentFocus[];
 }
 
 export class FoundAccountsDto {
-    @ApiProperty({type: FoundAccountDto, isArray: true})
-    accounts: FoundAccountDto[];
+  @ApiProperty({ type: FoundAccountDto, isArray: true })
+  accounts: FoundAccountDto[];
 }
 
 // account for agreement list
 export class AgreementAccountDto {
-    @ApiProperty()
-    accountId: string;
+  @ApiProperty()
+  accountId: string;
 
-    @ApiProperty()
-    username: string;
+  @ApiProperty()
+  username: string;
 
-    @ApiProperty()
-    price: number;
+  @ApiProperty()
+  price: number;
 
-    @ApiProperty()
-    agreementStatus: AccountVerifiedStatus
+  @ApiProperty()
+  agreementStatus: AccountVerifiedStatus;
 }
 
 // dto response for getting social accounts list that need influencer's agreement
 export class AgreementAccountsListDto {
-    @ApiProperty({enum: AgreementType})
-    agreementType: AgreementType;
+  @ApiProperty({ enum: AgreementType })
+  agreementType: AgreementType;
 
-    @ApiPropertyOptional({type: () => [AgreementAccountDto]})
-    instagram?: AgreementAccountDto[];
+  @ApiPropertyOptional({ type: () => [AgreementAccountDto] })
+  instagram?: AgreementAccountDto[];
 
-    @ApiPropertyOptional({type: () => [AgreementAccountDto]})
-    tiktok?: AgreementAccountDto[];
+  @ApiPropertyOptional({ type: () => [AgreementAccountDto] })
+  tiktok?: AgreementAccountDto[];
 
-    @ApiPropertyOptional({type: () => [AgreementAccountDto]})
-    facebook?: AgreementAccountDto[];
+  @ApiPropertyOptional({ type: () => [AgreementAccountDto] })
+  facebook?: AgreementAccountDto[];
 
-    @ApiPropertyOptional({type: () => [AgreementAccountDto]})
-    youtube?: AgreementAccountDto[];
+  @ApiPropertyOptional({ type: () => [AgreementAccountDto] })
+  youtube?: AgreementAccountDto[];
 
-    @ApiPropertyOptional({type: () => [AgreementAccountDto]})
-    spotify?: AgreementAccountDto[];
+  @ApiPropertyOptional({ type: () => [AgreementAccountDto] })
+  spotify?: AgreementAccountDto[];
 
-    @ApiPropertyOptional({type: () => [AgreementAccountDto]})
-    soundcloud?: AgreementAccountDto[];
+  @ApiPropertyOptional({ type: () => [AgreementAccountDto] })
+  soundcloud?: AgreementAccountDto[];
 
-    @ApiPropertyOptional({type: () => [AgreementAccountDto]})
-    press?: AgreementAccountDto[];
+  @ApiPropertyOptional({ type: () => [AgreementAccountDto] })
+  press?: AgreementAccountDto[];
 }
 
 // dto request for updating influencer's agreement statuses
 export class UpdateAccountsAgreementDto {
-    @ApiPropertyOptional({type: String})
-    influencerId?: string;
+  @ApiPropertyOptional({ type: String })
+  influencerId?: string;
 
-    @ApiProperty({enum: InfluencerConfirmationStatusEnum})
-    status: InfluencerConfirmationStatusEnum;
+  @ApiProperty({ enum: InfluencerConfirmationStatusEnum })
+  status: InfluencerConfirmationStatusEnum;
 
-    // for service (frontend does not send this data)
-    res: Response;
-    role?: Role;
+  // for service (frontend does not send this data)
+  res: Response;
+  role?: Role;
 }
 
 // dto request for updating influencer's one agreement status
 export class UpdateAccountAgreementDto {
-    @ApiProperty({type: String})
-    socialAccountId: string;
+  @ApiProperty({ type: String })
+  socialAccountId: string;
 
-    @ApiProperty({enum: InfluencerConfirmationStatusEnum})
-    status: InfluencerConfirmationStatusEnum;
+  @ApiProperty({ enum: InfluencerConfirmationStatusEnum })
+  status: InfluencerConfirmationStatusEnum;
 
-    @ApiPropertyOptional({type: String})
-    messageToAdmin?: string;
+  @ApiPropertyOptional({ type: String })
+  messageToAdmin?: string;
 
-    // for service (frontend does not send this data)
-    influencerId?: string;
-    role?: Role;
+  // for service (frontend does not send this data)
+  influencerId?: string;
+  role?: Role;
 }

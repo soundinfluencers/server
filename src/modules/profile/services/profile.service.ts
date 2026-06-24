@@ -21,10 +21,8 @@ import {
   UpdateInfluencerPersonalDto,
   UpdateSocialAccountDto,
 } from '../dto/influencer/update-influencer.dto';
-import * as process from 'node:process';
 import {
   Influencer,
-  InfluencerMusicGenre,
   SocialAccount,
   UserNotificationMethods,
 } from '../../../database/schemas/users/influencer.schema';
@@ -39,12 +37,11 @@ import {
   UserPayload,
 } from '../../../common/types/user.types';
 import { SocialMediaEnum } from '../../../common/types/social-media.types';
-import { normalizeStringToMusicGenres } from '../../../common/utils/genres';
 import {
   AgreementType,
+  CommunityMusicGenres,
   InfluencerAccountDetails,
   InfluencerProfileCategory,
-  SocialAccountDetails,
   SocialAccountLabelStatus,
 } from '../../../common/types/influencer/influencer.types';
 import {
@@ -59,6 +56,7 @@ import {
   FoundAccountDto,
   GetSocialAccountDetailsParamsDto,
   InfluencerAccountDetailsDto,
+  SocialAccountDetailsDto,
   UpdateAccountAgreementDto,
   UpdateAccountsAgreementDto,
 } from '../dto/influencer/get-profile.dto';
@@ -597,7 +595,7 @@ export class ProfileService {
   // Returns detailed social account
   async getDetailedSocialAccount(
     data: GetSocialAccountDetailsParamsDto,
-  ): Promise<SocialAccountDetails> {
+  ): Promise<SocialAccountDetailsDto> {
     const { influencerId, socialMedia, accountId } = data;
 
     if (!influencerId || !socialMedia || !accountId)
@@ -636,9 +634,9 @@ export class ProfileService {
   }
 
   // Updates influencer's social account
-  async updateSocialAccount(data: UpdateSocialAccountDto): Promise<SocialAccountDetails> {
+  async updateSocialAccount(data: UpdateSocialAccountDto): Promise<SocialAccountDetailsDto> {
     if (!data.influencerId) throw new BadRequestException('Not enough arguments');
-    return (await this.updateSocialAccountService.execute(data)) as SocialAccountDetails;
+    return (await this.updateSocialAccountService.execute(data, false)) as SocialAccountDetailsDto;
   }
 
   // Returns list of social accounts that were verified by admin and need agreement from influencer
@@ -2010,48 +2008,44 @@ export class ProfileService {
       });
     }
 
-    if (filters.musicGenres?.length) {
-      const normalizedGenres: InfluencerMusicGenre[] = normalizeStringToMusicGenres(
-        filters.musicGenres,
-      );
-
-      const genreConditions = normalizedGenres.flatMap((g) => {
-        const subGenres = g.subGenres?.length ? g.subGenres : [null];
-
-        return subGenres.map((sub) => {
-          if (sub) {
-            return {
-              'allAccounts.musicGenres': {
-                $elemMatch: {
-                  genre: g.genre,
-                  subGenres: sub,
-                },
-              },
-            };
-          }
-
-          return {
-            'allAccounts.musicGenres': {
-              $elemMatch: {
-                genre: g.genre,
-              },
-            },
-          };
-        });
+    if (filters?.communityMusicGenres?.length) {
+      stages.push({
+        $match: {
+          'allAccounts.communityMusicGenres': {
+            $in: filters.communityMusicGenres,
+          },
+        },
       });
+    }
 
-      if (genreConditions.length) {
-        stages.push({
-          $match:
-            filters.musicGenresFilterMethod === 'and'
-              ? {
-                  $and: genreConditions,
-                }
-              : {
-                  $or: genreConditions,
-                },
-        });
-      }
+    if (filters?.communityThemeTopics?.length) {
+      stages.push({
+        $match: {
+          'allAccounts.communityThemeTopics': {
+            $in: filters.communityThemeTopics,
+          },
+        },
+      });
+    }
+
+    if (filters?.creatorMusicGenres?.length) {
+      stages.push({
+        $match: {
+          'allAccounts.creatorMusicGenres': {
+            $in: filters.creatorMusicGenres,
+          },
+        },
+      });
+    }
+
+    if (filters?.creatorContentFocus?.length) {
+      stages.push({
+        $match: {
+          'allAccounts.creatorContentFocus': {
+            $in: filters.creatorContentFocus,
+          },
+        },
+      });
     }
 
     if (filters.countries?.length) {
@@ -2059,64 +2053,6 @@ export class ProfileService {
         $match: {
           'allAccounts.countries.country': {
             $in: filters.countries,
-          },
-        },
-      });
-    }
-
-    if (filters.additionalTopics?.length) {
-      const normalizedAdditionalTopics = filters.additionalTopics.map((x) =>
-        x.trim().toLowerCase(),
-      );
-
-      stages.push({
-        $match: {
-          $expr: {
-            $gt: [
-              {
-                $size: {
-                  $setIntersection: [
-                    {
-                      $map: {
-                        input: {
-                          $ifNull: ['$allAccounts.categories', []],
-                        },
-                        as: 'category',
-                        in: {
-                          $toLower: {
-                            $trim: {
-                              input: '$$category',
-                            },
-                          },
-                        },
-                      },
-                    },
-                    normalizedAdditionalTopics,
-                  ],
-                },
-              },
-              0,
-            ],
-          },
-        },
-      });
-    }
-
-    if (filters.musicCategories?.length) {
-      stages.push({
-        $match: {
-          'allAccounts.creatorCategories': {
-            $in: filters.musicCategories,
-          },
-        },
-      });
-    }
-
-    if (filters.entertainmentCategories?.length) {
-      stages.push({
-        $match: {
-          'allAccounts.categories': {
-            $in: filters.entertainmentCategories,
           },
         },
       });
@@ -2190,15 +2126,10 @@ export class ProfileService {
           countries: { $ifNull: ['$acc.countries', []] },
           profileType: '$acc.profileCategory',
 
-          musicGenres: {
-            $cond: [
-              { $isArray: '$acc.musicGenres' },
-              { $map: { input: '$acc.musicGenres', as: 'g', in: '$$g.genre' } },
-              '$$REMOVE',
-            ],
-          },
-          creatorCategories: { $ifNull: ['$acc.creatorCategories', '$$REMOVE'] },
-          categories: { $ifNull: ['$acc.categories', '$$REMOVE'] },
+          communityMusicGenres: { $ifNull: ['$acc.communityMusicGenres', '$$REMOVE'] },
+          communityThemeTopics: { $ifNull: ['$acc.communityThemeTopics', '$$REMOVE'] },
+          creatorMusicGenres: { $ifNull: ['$acc.creatorMusicGenres', '$$REMOVE'] },
+          creatorContentFocus: { $ifNull: ['$acc.creatorContentFocus', '$$REMOVE'] },
 
           prices: {
             EUR: eurPriceExpr,

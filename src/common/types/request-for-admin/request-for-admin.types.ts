@@ -3,6 +3,12 @@ import { Role } from '../user.types';
 import { Injectable, Logger } from '@nestjs/common';
 import { RequestForAdminRepository } from '../../../database/repositories/requests/request-for-admin.repository';
 import { SocialMediaEnum } from '../social-media.types';
+import {
+  CommunityMusicGenres,
+  CommunityThemeTopics,
+  CreatorContentFocus,
+  CreatorMusicGenres,
+} from '../influencer/influencer.types';
 
 export enum RequestForAdminType {
   NEW_CLIENT_REQUEST = 'NEW_CLIENT_REQUEST',
@@ -127,12 +133,13 @@ export type NewSocialAccountRequestDetails = {
   price: number;
   initialPrice: number;
   currency: string;
-  musicGenres: any[];
-  creatorCategories: string[];
   countries: any[];
-  categories: string[];
   engagementRate: number | null;
   averageViews: number | null;
+  communityMusicGenres?: CommunityMusicGenres[];
+  communityThemeTopics?: CommunityThemeTopics[];
+  creatorMusicGenres?: CreatorMusicGenres[];
+  creatorContentFocus?: CreatorContentFocus[];
 };
 
 export type CreatePriceUpdateRequestProps = {

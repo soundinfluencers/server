@@ -19,9 +19,9 @@ import {AddSocialAccountDto, InfluencerUpdatedPersonalDto} from "../../profile/d
 import {UpdateInfluencerService} from "../../profile/services/update-influencer.service";
 import {
     GetSocialAccountDetailsParamsDto,
-    InfluencerAccountDetailsDto
+    InfluencerAccountDetailsDto,
+    SocialAccountDetailsDto
 } from "../../profile/dto/influencer/get-profile.dto";
-import {SocialAccountDetails} from "../../../common/types/influencer/influencer.types";
 import {Types} from "mongoose";
 import {CreateSocialAccountService} from "../../profile/services/create-social-account.service";
 
@@ -55,7 +55,7 @@ export interface IAdminInfluencersService {
     ): Promise<void>;
 
     // Returns detailed social account
-    getDetailedSocialAccount(data: GetSocialAccountDetailsParamsDto): Promise<SocialAccountDetails>;
+    getDetailedSocialAccount(data: GetSocialAccountDetailsParamsDto): Promise<SocialAccountDetailsDto>;
 
     // Deletes social account
     deleteSocialAccount(data: GetSocialAccountDetailsParamsDto): Promise<void>;
@@ -126,7 +126,7 @@ export class AdminInfluencersService implements IAdminInfluencersService {
     }
 
     // Returns detailed social account
-    async getDetailedSocialAccount(data: GetSocialAccountDetailsParamsDto): Promise<SocialAccountDetails> {
+    async getDetailedSocialAccount(data: GetSocialAccountDetailsParamsDto): Promise<SocialAccountDetailsDto> {
         const {influencerId, socialMedia, accountId} = data;
 
         if (!influencerId || !socialMedia || !accountId) throw new BadRequestException("Not enough arguments");
