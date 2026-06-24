@@ -445,9 +445,15 @@ export class AuthService {
     switch (dto.role) {
       case Role.client:
         user = await this.clientRepo.findClientByEmail(email);
+        if (!user) {
+          user = await this.influencerRepo.findInfluencerByEmail(email);
+        }
         break;
       case Role.influencer:
         user = await this.influencerRepo.findInfluencerByEmail(email);
+        if (!user) {
+          user = await this.clientRepo.findClientByEmail(email);
+        }
         break;
       case Role.admin:
         user = await this.adminRepo.findAdminByEmail(email);
