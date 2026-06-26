@@ -236,12 +236,14 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
             "You can't select creator music genres or content focus for community account",
           );
         }
+        return;
       case InfluencerProfileCategory.creator:
         if (data.communityMusicGenres !== undefined || data.communityThemeTopics !== undefined) {
           throw new BadRequestException(
             "You can't select community music genres or theme topics for creator account",
           );
         }
+        return;
       default:
         throw new BadRequestException('Unsupported profile category');
     }
