@@ -30,6 +30,7 @@ import {
 } from '../../profile/dto/influencer/update-influencer.dto';
 import { UpdateInfluencerService } from '../../profile/services/update-influencer.service';
 import {
+  ExtendedSocialAccountDetailsDto,
   GetSocialAccountDetailsParamsDto,
   InfluencerAccountDetailsDto,
   SocialAccountDetailsDto,
@@ -147,7 +148,7 @@ export class AdminInfluencersService implements IAdminInfluencersService {
   // Returns detailed social account
   async getDetailedSocialAccount(
     data: GetSocialAccountDetailsParamsDto,
-  ): Promise<SocialAccountDetailsDto> {
+  ): Promise<ExtendedSocialAccountDetailsDto> {
     const { influencerId, socialMedia, accountId } = data;
 
     if (!influencerId || !socialMedia || !accountId)
@@ -169,10 +170,19 @@ export class AdminInfluencersService implements IAdminInfluencersService {
         $unwind: '$accounts',
       },
       {
-        $match: { 'accounts._id': new Types.ObjectId(accountId) },
+        $match: {
+          'accounts._id': new Types.ObjectId(accountId),
+        },
       },
       {
-        $replaceRoot: { newRoot: '$accounts' },
+        $addFields: {
+          'accounts.socialMedia': socialMedia,
+        },
+      },
+      {
+        $replaceRoot: {
+          newRoot: '$accounts',
+        },
       },
     ]);
 
@@ -182,7 +192,13 @@ export class AdminInfluencersService implements IAdminInfluencersService {
 
     const account: SocialAccount = accountAggregation[0];
 
-    return mapToSocialAccountDetailsDto(account);
+    const resultAcc: SocialAccountDetailsDto = mapToSocialAccountDetailsDto(account);
+
+    return {
+      ...resultAcc,
+      price: account.price,
+      socialMedia: (account as SocialAccount & {socialMedia: SocialMediaEnum}).socialMedia,
+    };
   }
 
   async updateSocialAccount(

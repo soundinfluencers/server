@@ -1,7 +1,4 @@
-import {
-  InfluencerCountryStats,
-  UserNotificationMethods,
-} from '../../../database/schemas/users/influencer.schema';
+import { UserNotificationMethods } from '../../../database/schemas/users/influencer.schema';
 import { CurrencyCode } from '../finance.types';
 import { SocialMediaEnum } from '../social-media.types';
 import { ObjId } from '../base.types';
