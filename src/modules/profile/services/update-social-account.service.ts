@@ -35,6 +35,8 @@ import { RequestForAdminType } from '../../../common/types/request-for-admin/req
 import { EmailService } from '../../../integrations/email/email.service';
 import { InfluencerToAdminEmails } from '../../../integrations/email/email.templates';
 import { SocialAccountDetailsDto } from '../dto/influencer/get-profile.dto';
+import { ExchangeRateService } from 'src/integrations/exchange-rate/exchange-rate.service';
+import { FilteredNestLogger } from 'src/common/logger/filtered-nest-logger';
 
 type UpdateSocialAccountInput = UpdateSocialAccountDto | AdminUpdateSocialAccountDto;
 
@@ -58,13 +60,14 @@ interface IUpdateSocialAccountService {
 
 @Injectable()
 export class UpdateSocialAccountService implements IUpdateSocialAccountService {
-  private readonly logger = new Logger('UpdateSocialAccountService');
+  private readonly logger = new FilteredNestLogger('UpdateSocialAccountService');
 
   constructor(
     private readonly influencerRepository: InfluencerRepository,
     @Inject(CREATE_ADMIN_REQUEST_SERVICE)
     private readonly createAdminRequestService: CreateAdminRequestService,
     private readonly emailService: EmailService,
+    private readonly exchangeRateService: ExchangeRateService,
   ) {}
 
   async execute(
@@ -88,18 +91,52 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
       );
     }
 
-    const updateFields = this.buildUpdateFields(data, isForAdmin);
+    const updateFields = this.buildUpdateFields(data);
 
-    if (isForAdmin === false) {
-      await this.handlePriceChangeIfNeeded({
-        data,
-        influencer,
-        socialAccount,
-        socialMedia,
-        influencerId,
-        socialAccountId,
-        updateFields,
-      });
+    const isPriceChanged =
+      data.price !== undefined && data.price !== null && data.price !== socialAccount.price;
+
+    if (isPriceChanged === true) {
+      switch (isForAdmin) {
+        case false:
+          await this.handleInfluencerPriceChange({
+            data,
+            influencer,
+            socialAccount,
+            socialMedia,
+            influencerId,
+            socialAccountId,
+            updateFields,
+          });
+          break;
+        case true:
+          const parsedPricesInfo = await this.handleAdminPriceChange({
+            currentInitialPrice:
+              Number.isFinite(socialAccount.initialPrice) && socialAccount.initialPrice > 0
+                ? socialAccount.initialPrice
+                : socialAccount.price,
+            requestedInitialPrice: data.price,
+            requestedCurrency: data.currency,
+          });
+
+          if (!parsedPricesInfo) {
+            this.logger.error(
+              `Can't parse prices for ${socialMedia} social account ${socialAccount.username}, ${JSON.stringify(parsedPricesInfo, null, '\t')}`,
+            );
+            throw new InternalServerErrorException(
+              'Something went wrong while saving your account. Try again later.',
+            );
+          }
+
+          updateFields.price = parsedPricesInfo.price;
+          updateFields.publicPrice = parsedPricesInfo.publicPrice;
+          updateFields.initialPrice = parsedPricesInfo.initialPrice;
+          updateFields.currency = parsedPricesInfo.currency;
+
+          break;
+        default:
+          break;
+      }
     }
 
     // if there's no fields to update - return account in current state (without updating)
@@ -255,28 +292,21 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
     }
   }
 
-  private buildUpdateFields(
-    data: UpdateSocialAccountInput,
-    isForAdmin: boolean = false,
-  ): Partial<SocialAccount> {
+  private buildUpdateFields(data: UpdateSocialAccountInput): Partial<SocialAccount> {
     const updateFields: Partial<SocialAccount> = {};
 
-    for (const [key, value] of Object.entries(data)) {
-      if (
-        value !== undefined &&
-        key !== 'influencerId' &&
-        key !== 'accountId' &&
-        key !== 'socialMedia'
-        // key !== "price" &&
-        // key !== "currency"
-      ) {
-        if (
-          (key === 'price' || key === 'currency' || key === 'publicPrice') &&
-          isForAdmin === false
-        ) {
-          continue;
-        }
+    const bannedFields = [
+      'influencerId',
+      'accountId',
+      'socialMedia',
+      'price',
+      'publicPrice',
+      'initialPrice',
+      'currency',
+    ];
 
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined && bannedFields.includes(value)) {
         updateFields[key as keyof SocialAccount] = value as never;
       }
     }
@@ -284,7 +314,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
     return updateFields;
   }
 
-  private async handlePriceChangeIfNeeded(params: {
+  private async handleInfluencerPriceChange(params: {
     data: UpdateSocialAccountInput;
     influencer: Influencer;
     socialAccount: SocialAccount;
@@ -302,13 +332,6 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
       socialAccountId,
       updateFields,
     } = params;
-
-    const isPriceChanged =
-      data.price !== undefined && data.price !== null && data.price !== socialAccount.price;
-
-    // for creating change price request
-    if (!isPriceChanged) return;
-
     if (!data.currency || !Object.values(CurrencyCode).includes(data.currency)) {
       throw new BadRequestException(
         `Currency for ${socialMedia} account ${socialAccount.username} is not valid. ` +
@@ -363,6 +386,42 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
         err,
       );
     }
+  }
+
+  // Getting current initial price, current currency, requested initial price, requested currency
+  // Returning parsed price, publicPrice, initialPrice, currency
+  private async handleAdminPriceChange(params: {
+    currentInitialPrice: number; // current value of initialPrice in database
+    requestedInitialPrice: number; // value of initialPrice from dto
+    requestedCurrency: CurrencyCode; // value of currency from dto
+  }): Promise<{
+    price: number;
+    publicPrice: number;
+    initialPrice: number;
+    currency: CurrencyCode;
+  }> {
+    const { currentInitialPrice, requestedInitialPrice, requestedCurrency } = params;
+
+    if (currentInitialPrice === requestedInitialPrice) {
+      return;
+    }
+
+    const returnedValues = {
+      price: 0,
+      publicPrice: 0,
+      initialPrice: 0,
+      currency: CurrencyCode.EUR,
+    };
+
+    const exchangeRate = (await this.exchangeRateService.getRate(requestedCurrency, 'EUR')) ?? 1;
+    const parsedPrice = Math.round(exchangeRate * requestedInitialPrice);
+
+    returnedValues.price = parsedPrice;
+    returnedValues.publicPrice = parsedPrice * 2;
+    returnedValues.initialPrice = requestedInitialPrice;
+    returnedValues.currency = requestedCurrency;
+
+    return returnedValues;
   }
 
   private async updateSocialAccountInDb(params: {
