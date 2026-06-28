@@ -77,9 +77,12 @@ export class GetFilteredAccountsBodyDto {
     enum: CommunityMusicGenres,
   })
   @IsOptional()
-  @IsString({ each: true })
   @IsArray({ message: 'communityMusicGenres must be an array of strings' })
-  communityMusicGenres?: string[];
+  @IsEnum(CommunityMusicGenres, {
+    each: true,
+    message: 'communityMusicGenres must contain only valid CommunityMusicGenres values',
+  })
+  communityMusicGenres?: CommunityMusicGenres[];
 
   @ApiPropertyOptional({
     name: 'communityThemeTopics',
@@ -88,9 +91,12 @@ export class GetFilteredAccountsBodyDto {
     enum: CommunityThemeTopics,
   })
   @IsOptional()
-  @IsString({ each: true })
   @IsArray({ message: 'communityThemeTopics must be an array of strings' })
-  communityThemeTopics?: string[];
+  @IsEnum(CommunityThemeTopics, {
+    each: true,
+    message: 'communityThemeTopics must contain only valid CommunityThemeTopics values',
+  })
+  communityThemeTopics?: CommunityThemeTopics[];
 
   @ApiPropertyOptional({
     name: 'creatorMusicGenres',
@@ -99,9 +105,12 @@ export class GetFilteredAccountsBodyDto {
     enum: CreatorMusicGenres,
   })
   @IsOptional()
-  @IsString({ each: true })
   @IsArray({ message: 'creatorMusicGenres must be an array of strings' })
-  creatorMusicGenres?: string[];
+  @IsEnum(CreatorMusicGenres, {
+    each: true,
+    message: 'creatorMusicGenres must contain only valid CreatorMusicGenres values',
+  })
+  creatorMusicGenres?: CreatorMusicGenres[];
 
   @ApiPropertyOptional({
     name: 'creatorContentFocus',
@@ -110,19 +119,12 @@ export class GetFilteredAccountsBodyDto {
     enum: CreatorContentFocus,
   })
   @IsOptional()
-  @IsString({ each: true })
   @IsArray({ message: 'creatorContentFocus must be an array of strings' })
-  creatorContentFocus?: string[];
-
-  @ApiPropertyOptional({
-    name: 'musicGenresFilterMethod',
-    enum: ['and', 'or'],
+  @IsEnum(CreatorContentFocus, {
+    each: true,
+    message: 'creatorContentFocus must contain only valid CreatorContentFocus values',
   })
-  @IsOptional()
-  @IsEnum(['and', 'or'], {
-    message: 'musicGenresFilterMethod must be either "and" or "or"',
-  })
-  musicGenresFilterMethod?: 'and' | 'or';
+  creatorContentFocus?: CreatorContentFocus[];
 
   @ApiPropertyOptional({
     name: 'countries',

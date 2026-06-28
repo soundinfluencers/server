@@ -23,10 +23,10 @@ export class AndOrFlagDto {
 }
 
 export class FilterBlockDto {
-    @ApiProperty({ example: 'music-genre' })
+    @ApiProperty({ example: 'community-music-genres' })
     id: string;
 
-    @ApiProperty({ example: 'Music Genre' })
+    @ApiProperty({ example: 'Community Music Genres' })
     title: string;
 
     @ApiPropertyOptional({ type: () => [AndOrFlagDto] })

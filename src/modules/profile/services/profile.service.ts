@@ -40,10 +40,19 @@ import { SocialMediaEnum } from '../../../common/types/social-media.types';
 import {
   AgreementType,
   CommunityMusicGenres,
+  CommunityThemeTopics,
+  CreatorContentFocus,
+  CreatorMusicGenres,
   InfluencerAccountDetails,
   InfluencerProfileCategory,
   SocialAccountLabelStatus,
 } from '../../../common/types/influencer/influencer.types';
+import {
+  COMMUNITY_MUSIC_GENRE_LABELS,
+  COMMUNITY_THEME_TOPIC_LABELS,
+  CREATOR_CONTENT_FOCUS_LABELS,
+  CREATOR_MUSIC_GENRE_LABELS,
+} from '../../../common/utils/influencer-profile-taxonomy';
 import {
   mapInfluencerToAccountDetailsDto,
   mapToSocialAccountDetailsDto,
@@ -128,14 +137,25 @@ export class ProfileService {
 
   // ------------ UTILS ---------------
 
-  private capitalize = (s: string): string => {
-    if (!s) return s;
-    return s.charAt(0).toUpperCase() + s.slice(1);
-  };
-
   private escapeRegex = (input: string): string => {
     return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   };
+
+  private buildEnumFilterOptions<T extends string>(
+    values: readonly T[],
+    labels: Record<T, string>,
+    counts: { id: T; count: number }[],
+    group: string,
+  ) {
+    const countMap = new Map<T, number>(counts.map((item) => [item.id, item.count]));
+
+    return values.map((value) => ({
+      id: value,
+      group,
+      filterName: labels[value] ?? value,
+      count: countMap.get(value) ?? 0,
+    }));
+  }
 
   // ------------- ORCHESTRATORS -------------
 
@@ -1152,32 +1172,10 @@ export class ProfileService {
   async getFilterOptions(
     filters: GetFilteredAccountsBodyDto = {} as GetFilteredAccountsBodyDto,
   ): Promise<GetFilterOptionsDataDto> {
-    const CANONICAL_ALLOWED_GENRES = [
-      'Techno (Melodic, Minimal)',
-      'Techno (Hard, Peak)',
-      'House (Tech House)',
-      'House (Melodic, Afro)',
-      'EDM',
-      'D&B',
-      'Bass',
-      'Psy, Trance',
-      'Dubstep',
-      'Garage',
-      'Dance Pop',
-    ] as const;
-
-    const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
-
     const cap = (s: string) => {
       if (!s) return s;
       return s.charAt(0).toUpperCase() + s.slice(1);
     };
-
-    const canonicalByKey = new Map<string, string>(
-      CANONICAL_ALLOWED_GENRES.map((v) => [norm(v), v]),
-    );
-
-    const allowedKeys = CANONICAL_ALLOWED_GENRES.map(norm);
 
     const socialFieldEntries = Object.values(SocialMediaEnum).map((f) => ({
       k: f,
@@ -1187,6 +1185,43 @@ export class ProfileService {
     const socialMediaMatchStage: PipelineStage.FacetPipelineStage[] = filters.socialMedias?.length
       ? [{ $match: { 'allAccounts.socialMedia': { $in: filters.socialMedias } } }]
       : [];
+
+    const buildEnumFacet = (field: string): PipelineStage.FacetPipelineStage[] => [
+      ...socialMediaMatchStage,
+      {
+        $unwind: {
+          path: `$allAccounts.${field}`,
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      {
+        $match: {
+          [`allAccounts.${field}`]: {
+            $type: 'string',
+            $ne: '',
+          },
+        },
+      },
+      {
+        $group: {
+          _id: `$allAccounts.${field}`,
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          id: '$_id',
+          count: 1,
+        },
+      },
+      {
+        $sort: {
+          count: -1,
+          id: 1,
+        },
+      },
+    ];
 
     const pipeline: PipelineStage[] = [
       this.buildAllAccountsProjectStage(socialFieldEntries),
@@ -1291,206 +1326,10 @@ export class ProfileService {
             },
           ],
 
-          categories: [
-            ...socialMediaMatchStage,
-            {
-              $unwind: {
-                path: '$allAccounts.categories',
-                preserveNullAndEmptyArrays: false,
-              },
-            },
-            {
-              $project: {
-                cat: {
-                  $toLower: {
-                    $trim: {
-                      input: '$allAccounts.categories',
-                    },
-                  },
-                },
-              },
-            },
-            {
-              $match: {
-                cat: {
-                  $type: 'string',
-                  $ne: '',
-                },
-              },
-            },
-            {
-              $group: {
-                _id: '$cat',
-                count: { $sum: 1 },
-              },
-            },
-            {
-              $project: {
-                _id: 0,
-                id: '$_id',
-                count: 1,
-              },
-            },
-            {
-              $sort: {
-                count: -1,
-                id: 1,
-              },
-            },
-          ],
-
-          creatorCategories: [
-            ...socialMediaMatchStage,
-            {
-              $unwind: {
-                path: '$allAccounts.creatorCategories',
-                preserveNullAndEmptyArrays: false,
-              },
-            },
-            {
-              $match: {
-                'allAccounts.creatorCategories': {
-                  $type: 'string',
-                  $ne: '',
-                },
-              },
-            },
-            {
-              $group: {
-                _id: '$allAccounts.creatorCategories',
-                count: { $sum: 1 },
-              },
-            },
-            {
-              $project: {
-                _id: 0,
-                id: '$_id',
-                count: 1,
-              },
-            },
-            {
-              $sort: {
-                count: -1,
-                id: 1,
-              },
-            },
-          ],
-
-          genres: [
-            ...socialMediaMatchStage,
-            {
-              $unwind: {
-                path: '$allAccounts.musicGenres',
-                preserveNullAndEmptyArrays: false,
-              },
-            },
-            {
-              $project: {
-                genre: '$allAccounts.musicGenres.genre',
-                subGenres: {
-                  $ifNull: ['$allAccounts.musicGenres.subGenres', []],
-                },
-              },
-            },
-            {
-              $match: {
-                genre: {
-                  $type: 'string',
-                  $ne: '',
-                },
-              },
-            },
-            {
-              $project: {
-                genreNorm: {
-                  $toLower: {
-                    $trim: {
-                      input: '$genre',
-                    },
-                  },
-                },
-                subNorms: {
-                  $map: {
-                    input: '$subGenres',
-                    as: 's',
-                    in: {
-                      $toLower: {
-                        $trim: {
-                          input: '$$s',
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-            {
-              $project: {
-                flat: {
-                  $cond: [
-                    {
-                      $gt: [
-                        {
-                          $size: '$subNorms',
-                        },
-                        0,
-                      ],
-                    },
-                    {
-                      $map: {
-                        input: '$subNorms',
-                        as: 'sub',
-                        in: {
-                          $concat: ['$genreNorm', ' (', '$$sub', ')'],
-                        },
-                      },
-                    },
-                    ['$genreNorm'],
-                  ],
-                },
-              },
-            },
-            {
-              $unwind: '$flat',
-            },
-            {
-              $project: {
-                flat: {
-                  $toLower: {
-                    $trim: {
-                      input: '$flat',
-                    },
-                  },
-                },
-              },
-            },
-            {
-              $match: {
-                flat: {
-                  $in: allowedKeys,
-                },
-              },
-            },
-            {
-              $group: {
-                _id: '$flat',
-                count: { $sum: 1 },
-              },
-            },
-            {
-              $project: {
-                _id: 0,
-                key: '$_id',
-                count: 1,
-              },
-            },
-            {
-              $sort: {
-                count: -1,
-                key: 1,
-              },
-            },
-          ],
+          communityMusicGenres: buildEnumFacet('communityMusicGenres'),
+          creatorMusicGenres: buildEnumFacet('creatorMusicGenres'),
+          communityThemeTopics: buildEnumFacet('communityThemeTopics'),
+          creatorContentFocus: buildEnumFacet('creatorContentFocus'),
         },
       },
     ];
@@ -1500,9 +1339,10 @@ export class ProfileService {
         platforms: { id: string; count: number }[];
         profileTypes: { id: string; count: number }[];
         countries: { id: string; count: number }[];
-        categories: { id: string; count: number }[];
-        creatorCategories: { id: string; count: number }[];
-        genres: { key: string; count: number }[];
+        communityMusicGenres: { id: CommunityMusicGenres; count: number }[];
+        creatorMusicGenres: { id: CreatorMusicGenres; count: number }[];
+        communityThemeTopics: { id: CommunityThemeTopics; count: number }[];
+        creatorContentFocus: { id: CreatorContentFocus; count: number }[];
       }>(pipeline)
       .exec();
 
@@ -1530,100 +1370,6 @@ export class ProfileService {
       };
     });
 
-    const byGenre = new Map<string, { total: number; subs: Map<string, number> }>();
-
-    for (const row of agg?.genres ?? []) {
-      const canonical = canonicalByKey.get(row.key);
-
-      if (!canonical) continue;
-
-      const match = canonical.match(/^(.+?)\s*\((.+)\)$/);
-
-      if (match) {
-        const parent = match[1].trim();
-        const sub = match[2].trim();
-
-        if (!byGenre.has(parent)) {
-          byGenre.set(parent, {
-            total: 0,
-            subs: new Map(),
-          });
-        }
-
-        const item = byGenre.get(parent)!;
-
-        item.total += row.count;
-        item.subs.set(sub, (item.subs.get(sub) ?? 0) + row.count);
-      } else {
-        const parent = canonical.trim();
-
-        if (!byGenre.has(parent)) {
-          byGenre.set(parent, {
-            total: 0,
-            subs: new Map(),
-          });
-        }
-
-        byGenre.get(parent)!.total += row.count;
-      }
-    }
-
-    /**
-     * Собираем жанры строго по CANONICAL_ALLOWED_GENRES,
-     * чтобы даже при count = 0 они не исчезали с UI.
-     */
-    for (const canonical of CANONICAL_ALLOWED_GENRES) {
-      const match = canonical.match(/^(.+?)\s*\((.+)\)$/);
-
-      if (match) {
-        const parent = match[1].trim();
-        const sub = match[2].trim();
-
-        if (!byGenre.has(parent)) {
-          byGenre.set(parent, {
-            total: 0,
-            subs: new Map(),
-          });
-        }
-
-        const item = byGenre.get(parent)!;
-
-        if (!item.subs.has(sub)) {
-          item.subs.set(sub, 0);
-        }
-      } else {
-        const parent = canonical.trim();
-
-        if (!byGenre.has(parent)) {
-          byGenre.set(parent, {
-            total: 0,
-            subs: new Map(),
-          });
-        }
-      }
-    }
-
-    const musicGenreFilters = Array.from(byGenre.entries())
-      .sort((a, b) => b[1].total - a[1].total || a[0].localeCompare(b[0]))
-      .map(([parent, data]) => {
-        const children = Array.from(data.subs.entries())
-          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-          .map(([sub, count]) => ({
-            id: `(${sub})`,
-            filterName: sub,
-            count,
-            group: 'genres',
-          }));
-
-        return {
-          id: parent,
-          filterName: parent,
-          count: data.total,
-          group: 'genres',
-          ...(children.length ? { children } : {}),
-        };
-      });
-
     const platformsBlock = {
       id: 'social-platforms-1',
       title: 'Social Media Platforms',
@@ -1636,22 +1382,26 @@ export class ProfileService {
       filters: profileTypeFilters,
     };
 
-    const musicGenreBlock = {
-      id: 'music-genre',
-      title: 'Music Genre',
-      AndOrFlag: [{ method: 'And' }, { method: 'Or' }],
-      filters: musicGenreFilters,
+    const communityMusicGenreBlock = {
+      id: 'community-music-genres',
+      title: 'Community Music Genres',
+      filters: this.buildEnumFilterOptions(
+        Object.values(CommunityMusicGenres),
+        COMMUNITY_MUSIC_GENRE_LABELS,
+        agg?.communityMusicGenres ?? [],
+        'communityMusicGenres',
+      ),
     };
 
-    const musicCategoriesBlock = {
-      id: 'music-categories',
-      title: 'Music Categories',
-      filters: (agg?.creatorCategories ?? []).map((x) => ({
-        id: x.id,
-        group: 'musicCategories',
-        filterName: x.id,
-        count: x.count,
-      })),
+    const creatorMusicGenreBlock = {
+      id: 'creator-music-genres',
+      title: 'Creator Music Genres',
+      filters: this.buildEnumFilterOptions(
+        Object.values(CreatorMusicGenres),
+        CREATOR_MUSIC_GENRE_LABELS,
+        agg?.creatorMusicGenres ?? [],
+        'creatorMusicGenres',
+      ),
     };
 
     const countriesBlock = {
@@ -1665,25 +1415,37 @@ export class ProfileService {
       })),
     };
 
-    const additionalTopicsBlock = {
-      id: 'additional-topics',
-      title: 'Additional Topics',
-      filters: (agg?.categories ?? []).map((x) => ({
-        id: x.id,
-        group: 'addTopics',
-        filterName: this.capitalize(x.id),
-        count: x.count,
-      })),
+    const communityThemeTopicsBlock = {
+      id: 'community-theme-topics',
+      title: 'Community Theme Topics',
+      filters: this.buildEnumFilterOptions(
+        Object.values(CommunityThemeTopics),
+        COMMUNITY_THEME_TOPIC_LABELS,
+        agg?.communityThemeTopics ?? [],
+        'communityThemeTopics',
+      ),
+    };
+
+    const creatorContentFocusBlock = {
+      id: 'creator-content-focus',
+      title: 'Creator Content Focus',
+      filters: this.buildEnumFilterOptions(
+        Object.values(CreatorContentFocus),
+        CREATOR_CONTENT_FOCUS_LABELS,
+        agg?.creatorContentFocus ?? [],
+        'creatorContentFocus',
+      ),
     };
 
     return {
       filterArr: [
         platformsBlock,
         profileTypeBlock,
-        musicGenreBlock,
-        musicCategoriesBlock,
+        communityMusicGenreBlock,
+        creatorMusicGenreBlock,
         countriesBlock,
-        additionalTopicsBlock,
+        communityThemeTopicsBlock,
+        creatorContentFocusBlock,
       ],
     };
   }
@@ -1802,50 +1564,20 @@ export class ProfileService {
           },
         },
 
-        musicGenres: {
-          $reduce: {
-            input: {
-              $ifNull: ['$allAccounts.musicGenres', []],
-            },
-            initialValue: [],
-            in: {
-              $concatArrays: [
-                '$$value',
-                {
-                  $cond: [
-                    {
-                      $gt: [
-                        {
-                          $size: {
-                            $ifNull: ['$$this.subGenres', []],
-                          },
-                        },
-                        0,
-                      ],
-                    },
-                    {
-                      $map: {
-                        input: '$$this.subGenres',
-                        as: 'sg',
-                        in: {
-                          $concat: ['$$this.genre', ' (', '$$sg', ')'],
-                        },
-                      },
-                    },
-                    ['$$this.genre'],
-                  ],
-                },
-              ],
-            },
-          },
+        communityMusicGenres: {
+          $ifNull: ['$allAccounts.communityMusicGenres', []],
         },
 
-        creatorCategories: {
-          $ifNull: ['$allAccounts.creatorCategories', []],
+        communityThemeTopics: {
+          $ifNull: ['$allAccounts.communityThemeTopics', []],
         },
 
-        categories: {
-          $ifNull: ['$allAccounts.categories', []],
+        creatorMusicGenres: {
+          $ifNull: ['$allAccounts.creatorMusicGenres', []],
+        },
+
+        creatorContentFocus: {
+          $ifNull: ['$allAccounts.creatorContentFocus', []],
         },
 
         averageViews: {
@@ -2008,44 +1740,52 @@ export class ProfileService {
       });
     }
 
-    if (filters?.communityMusicGenres?.length) {
-      stages.push({
-        $match: {
-          'allAccounts.communityMusicGenres': {
-            $in: filters.communityMusicGenres,
-          },
-        },
-      });
-    }
+    const musicGenreConditions: Record<string, unknown>[] = [];
 
-    if (filters?.communityThemeTopics?.length) {
-      stages.push({
-        $match: {
-          'allAccounts.communityThemeTopics': {
-            $in: filters.communityThemeTopics,
-          },
+    if (filters?.communityMusicGenres?.length) {
+      musicGenreConditions.push({
+        'allAccounts.communityMusicGenres': {
+          $in: filters.communityMusicGenres,
         },
       });
     }
 
     if (filters?.creatorMusicGenres?.length) {
-      stages.push({
-        $match: {
-          'allAccounts.creatorMusicGenres': {
-            $in: filters.creatorMusicGenres,
-          },
+      musicGenreConditions.push({
+        'allAccounts.creatorMusicGenres': {
+          $in: filters.creatorMusicGenres,
+        },
+      });
+    }
+
+    if (musicGenreConditions.length === 1) {
+      stages.push({ $match: musicGenreConditions[0] });
+    } else if (musicGenreConditions.length > 1) {
+      stages.push({ $match: { $or: musicGenreConditions } });
+    }
+
+    const contentAttributeConditions: Record<string, unknown>[] = [];
+
+    if (filters?.communityThemeTopics?.length) {
+      contentAttributeConditions.push({
+        'allAccounts.communityThemeTopics': {
+          $in: filters.communityThemeTopics,
         },
       });
     }
 
     if (filters?.creatorContentFocus?.length) {
-      stages.push({
-        $match: {
-          'allAccounts.creatorContentFocus': {
-            $in: filters.creatorContentFocus,
-          },
+      contentAttributeConditions.push({
+        'allAccounts.creatorContentFocus': {
+          $in: filters.creatorContentFocus,
         },
       });
+    }
+
+    if (contentAttributeConditions.length === 1) {
+      stages.push({ $match: contentAttributeConditions[0] });
+    } else if (contentAttributeConditions.length > 1) {
+      stages.push({ $match: { $or: contentAttributeConditions } });
     }
 
     if (filters.countries?.length) {

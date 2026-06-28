@@ -418,7 +418,7 @@ export class ProfileController {
     // changeSocialMediaPrice(
     //     @Query()
     //     query: {
-    //         influencerId: string;
+    //         influencerId: string; 
     //         socialMedia: string;
     //         networkUsername: string;
     //         isPriceGoodToGo: string;
