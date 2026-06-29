@@ -20,6 +20,7 @@ import {
 import { formatDate } from '../utils/formatters';
 import { SocialMediaEnum } from '../types/social-media.types';
 import { CurrencyCode } from '../types/finance.types';
+import { InfluencerProfileCategory } from '../types/influencer/influencer.types';
 
 export class AdminRequestMapper {
   static toLabel(type: RequestForAdminType): string {
@@ -164,12 +165,25 @@ export class AdminRequestMapper {
         price: details.price,
         initialPrice: details.initialPrice,
         currency: details.currency as any,
-        musicGenres: details.musicGenres ?? [],
-        creatorCategories: details.creatorCategories ?? [],
         countries: details.countries ?? [],
-        categories: details.categories ?? [],
         engagementRate: details.engagementRate,
         averageViews: details.averageViews,
+        ...(details.profileCategory === InfluencerProfileCategory.community &&
+        details?.communityMusicGenres?.length > 0
+          ? { communityMusicGenres: details.communityMusicGenres }
+          : {}),
+        ...(details.profileCategory === InfluencerProfileCategory.community &&
+        details?.communityThemeTopics?.length > 0
+          ? { communityThemeTopics: details.communityThemeTopics }
+          : {}),
+        ...(details.profileCategory === InfluencerProfileCategory.creator &&
+        details?.creatorMusicGenres?.length > 0
+          ? { creatorMusicGenres: details.creatorMusicGenres }
+          : {}),
+        ...(details.profileCategory === InfluencerProfileCategory.creator &&
+        details?.creatorContentFocus?.length > 0
+          ? { creatorContentFocus: details.creatorContentFocus }
+          : {}),
       },
     };
   }

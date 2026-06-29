@@ -21,13 +21,15 @@ import { VerifyInfluencerRepository } from '../../database/repositories/verify-u
 import { GetMeResponseDto, LoginDto, LoginResponseDto } from './dto/login.dto';
 import { Influencer, SocialAccount } from '../../database/schemas/users/influencer.schema';
 import { SocialMediaEnum } from '../../common/types/social-media.types';
-import { normalizeDtoToMusicGenres } from '../../common/utils/genres';
 import { AdminRepository } from '../../database/repositories/users/admin.repository';
 import { AccountVerifiedStatus, Role } from '../../common/types/user.types';
 import { Client } from '../../database/schemas/users/client.schema';
 import { Admin } from '../../database/schemas/users/admin.schema';
 import { areCountriesValid } from '../../common/utils/countries.util';
-import { SocialAccountLabelStatus } from '../../common/types/influencer/influencer.types';
+import {
+  InfluencerProfileCategory,
+  SocialAccountLabelStatus,
+} from '../../common/types/influencer/influencer.types';
 import { ExchangeRateService } from '../../integrations/exchange-rate/exchange-rate.service';
 import { CurrencyCode, getAvailableCurrenciesLabel } from '../../common/types/finance.types';
 import { EmailService } from '../../integrations/email/email.service';
@@ -356,16 +358,29 @@ export class AuthService {
             initialPrice: sanitizedPrice,
             currency: item.currency,
             profileCategory: item.profileCategory,
-            musicGenres: normalizeDtoToMusicGenres(item.musicGenres) ?? [],
-            creatorCategories: item.creatorCategories ?? [],
             countries: item.countries ?? [],
-            categories: item.categories ?? [],
             engagementRate: null,
             averageViews: null,
             isHidden: false,
             isDeleted: false,
             verifiedStatus: AccountVerifiedStatus.waitForAdmin,
             labelStatus: SocialAccountLabelStatus.waitForAdmin,
+            ...(item?.profileCategory === InfluencerProfileCategory.community &&
+            item?.communityMusicGenres?.length > 0
+              ? { communityMusicGenres: item.communityMusicGenres }
+              : {}),
+            ...(item?.profileCategory === InfluencerProfileCategory.community &&
+            item?.communityThemeTopics?.length > 0
+              ? { communityThemeTopics: item.communityThemeTopics }
+              : {}),
+            ...(item?.profileCategory === InfluencerProfileCategory.creator &&
+            item?.creatorMusicGenres?.length > 0
+              ? { creatorMusicGenres: item.creatorMusicGenres }
+              : {}),
+            ...(item?.profileCategory === InfluencerProfileCategory.creator &&
+            item?.creatorContentFocus?.length > 0
+              ? { creatorContentFocus: item.creatorContentFocus }
+              : {}),
           };
         }),
       );

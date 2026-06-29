@@ -9,7 +9,6 @@ import {
   GetFilteredPublishedOffers,
 } from './dto/get-offers.dto';
 import { FoundAccountDto } from '../profile/dto/influencer/get-profile.dto';
-import { getArrayFromAccountMusicGenres } from '../../common/utils/genres';
 import { InfluencerProfileCategory } from '../../common/types/influencer/influencer.types';
 import { CurrencyCode } from '../../common/types/finance.types';
 import { ExchangeRateService } from '../../integrations/exchange-rate/exchange-rate.service';
@@ -37,8 +36,6 @@ export class OffersService {
     const cacheKey = this.buildCacheKey(genre, socialMedia);
     const cachedOffers =
       await this.cacheManager.get<FilteredPublishedOffersByGenreAndSocialMedia[]>(cacheKey);
-
-    console.log(`Cache key: ${cacheKey}\nCached offers length: ${cachedOffers?.length ?? 0}`);
 
     if (cachedOffers !== undefined) {
       return cachedOffers;
@@ -135,22 +132,33 @@ export class OffersService {
             countries: {
               $cond: [{ $isArray: `$${socialMedia}.countries` }, `$${socialMedia}.countries`, []],
             },
-            musicGenres: {
+            communityMusicGenres: {
               $cond: [
-                { $isArray: `$${socialMedia}.musicGenres` },
-                `$${socialMedia}.musicGenres`,
+                { $isArray: `$${socialMedia}.communityMusicGenres` },
+                `$${socialMedia}.communityMusicGenres`,
                 [],
               ],
             },
-            creatorCategories: {
+            communityThemeTopics: {
               $cond: [
-                { $isArray: `$${socialMedia}.creatorCategories` },
-                `$${socialMedia}.creatorCategories`,
+                { $isArray: `$${socialMedia}.communityThemeTopics` },
+                `$${socialMedia}.communityThemeTopics`,
                 [],
               ],
             },
-            categories: {
-              $cond: [{ $isArray: `$${socialMedia}.categories` }, `$${socialMedia}.categories`, []],
+            creatorMusicGenres: {
+              $cond: [
+                { $isArray: `$${socialMedia}.creatorMusicGenres` },
+                `$${socialMedia}.creatorMusicGenres`,
+                [],
+              ],
+            },
+            creatorContentFocus: {
+              $cond: [
+                { $isArray: `$${socialMedia}.creatorContentFocus` },
+                `$${socialMedia}.creatorContentFocus`,
+                [],
+              ],
             },
             prices: {
               EUR: eurPriceExpr,
@@ -190,13 +198,22 @@ export class OffersService {
             (influencer.profileCategory as InfluencerProfileCategory | undefined) ??
             InfluencerProfileCategory.community,
           countries: influencer.countries?.length > 0 ? influencer.countries : null,
-          musicGenres:
-            influencer.musicGenres?.length > 0
-              ? getArrayFromAccountMusicGenres(influencer.musicGenres)
-              : null,
-          creatorCategories:
-            influencer.creatorCategories?.length > 0 ? influencer.creatorCategories : null,
-          categories: influencer.categories?.length > 0 ? influencer.categories : null,
+          ...(influencer.profileCategory === InfluencerProfileCategory.community &&
+          influencer?.communityMusicGenres?.length > 0
+            ? { communityMusicGenres: influencer.communityMusicGenres }
+            : {}),
+          ...(influencer.profileCategory === InfluencerProfileCategory.community &&
+          influencer?.communityThemeTopics?.length > 0
+            ? { communityThemeTopics: influencer.communityThemeTopics }
+            : {}),
+          ...(influencer.profileCategory === InfluencerProfileCategory.creator &&
+          influencer?.creatorMusicGenres?.length > 0
+            ? { creatorMusicGenres: influencer.creatorMusicGenres }
+            : {}),
+          ...(influencer.profileCategory === InfluencerProfileCategory.creator &&
+          influencer?.creatorContentFocus?.length > 0
+            ? { creatorContentFocus: influencer.creatorContentFocus }
+            : {}),
         });
       }
     });
