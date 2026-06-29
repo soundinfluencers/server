@@ -1,10 +1,10 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
   InternalServerErrorException,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { isMongoId } from 'class-validator';
@@ -139,6 +139,10 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
       }
     }
 
+    this.logger.debug(
+      `LENGTH OF UPDATE FIELDS FOR UPDATING SOCIAL ACCOUNT: ${Object.keys(updateFields).length}`,
+    );
+
     // if there's no fields to update - return account in current state (without updating)
     if (Object.keys(updateFields).length === 0) {
       return isForAdmin
@@ -157,6 +161,8 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
           })
         : mapToSocialAccountDetailsDto(socialAccount);
     }
+
+    this.logger.debug(JSON.stringify(updateFields, null, '\t'));
 
     await this.updateSocialAccountInDb({
       influencerId,
@@ -306,7 +312,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
     ];
 
     for (const [key, value] of Object.entries(data)) {
-      if (value !== undefined && bannedFields.includes(value)) {
+      if (value !== undefined && !bannedFields.includes(key)) {
         updateFields[key as keyof SocialAccount] = value as never;
       }
     }
@@ -359,6 +365,12 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
         `Error creating price change request for ${socialMedia} account ${String(socialAccountId)}`,
         e instanceof Error ? e.stack : String(e),
       );
+
+      if (e?.stack?.includes('duplicate key error collection')) {
+        throw new ConflictException(
+          "There's already an open price change request for this account.",
+        );
+      }
 
       throw new InternalServerErrorException(
         'Creating price change request failed. Try again later',
