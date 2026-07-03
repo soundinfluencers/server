@@ -422,7 +422,7 @@ export class PaymentsHistoryService implements IPaymentsHistoryService {
             campaignId: new ObjId(campaignId),
             accountId: new ObjId(accountId),
         }, {session});
-
+        
         if (!cell) {
             throw new NotFoundException(`Payment history cell not found for campaign ${campaignId} and account ${accountId}`);
         }
