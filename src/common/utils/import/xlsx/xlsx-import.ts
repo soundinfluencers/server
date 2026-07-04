@@ -1,4 +1,4 @@
-import {BadRequestException, Injectable, InternalServerErrorException} from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { Types } from 'mongoose';
 import { Influencer, SocialAccount } from '../../../../database/schemas/users/influencer.schema';
@@ -210,16 +210,11 @@ export class XlsxImporter {
       if (isTotalRow) {
         // Price is either in the followers column ("5000€") or embedded in the pageName ("TOTAL: 5000€")
         const price = this.toNumber(priceRaw, NaN);
-        totalPrice =
-            Number.isFinite(price) && price > 0
-                ? price
-                : this.toNumber(pageName, 0);
+        totalPrice = Number.isFinite(price) && price > 0 ? price : this.toNumber(pageName, 0);
 
         const followers = this.toNumber(followersRaw, NaN);
         totalFollowers =
-          Number.isFinite(followers) && followers > 0
-            ? followers
-            : this.toNumber(pageName, 0);
+          Number.isFinite(followers) && followers > 0 ? followers : this.toNumber(pageName, 0);
         break;
       }
 
@@ -338,7 +333,10 @@ export class XlsxImporter {
         platform: normalizedRow.findIndex((v) => v === 'platform'),
         brandName: normalizedRow.findIndex((v) => v === 'brandname'),
         followers: normalizedRow.findIndex((v) => v === 'followers'),
-        videoLink: normalizedRow.findIndex((v) => v === 'videolink:' || v === 'videolink'),
+        videoLink: normalizedRow.findIndex(
+          (v) =>
+            v === 'videolink:' || v === 'videolink' || v === 'contentlink:' || v === 'contentlink',
+        ),
         description: normalizedRow.findIndex((v) => v === 'description:' || v === 'description'),
         storyTag: normalizedRow.findIndex((v) => v === 'storytag:' || v === 'storytag'),
         storyLink: normalizedRow.findIndex((v) => v === 'storylink:' || v === 'storylink'),
