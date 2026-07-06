@@ -39,6 +39,7 @@ import { ParseObjectIdPipe } from '../../../common/pipes/parse-oid.pipe';
 import { SocialMediaEnum } from '../../../common/types/social-media.types';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { XlsxOffersImportSummary } from '../dto/offers/xlsx-offers-import.dto';
+import { OfferSocialMediaEnum } from 'src/common/types/offer.types';
 
 @Auth()
 @Roles(Role.admin)
@@ -145,7 +146,8 @@ export class AdminOffersController {
   @UseInterceptors(FileInterceptor('file'))
   @Post(':socialMedia/xlsx')
   importXlsxOffers(
-    @Param('socialMedia', new ParseEnumPipe(SocialMediaEnum)) socialMedia: SocialMediaEnum,
+    @Param('socialMedia', new ParseEnumPipe(OfferSocialMediaEnum))
+    socialMedia: OfferSocialMediaEnum,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<XlsxOffersImportSummary> {
     return this.adminOffersService.importXlsxOffers(socialMedia, file);

@@ -14,16 +14,16 @@ export enum SocialMediaEnum {
   youtube = 'youtube',
   spotify = 'spotify',
   soundcloud = 'soundcloud',
-  press = 'press'
+  press = 'press',
 }
 
 // Social media labels for UI
 export const socialMediaLabels: Record<SocialMediaType, string> = {
-    instagram: 'Instagram',
-    tiktok: 'TikTok',
-    facebook: 'Facebook',
-    youtube: 'YouTube',
-    spotify: 'Spotify',
-    soundcloud: 'SoundCloud',
-    press: 'Press',
+  instagram: 'Instagram',
+  tiktok: 'TikTok',
+  facebook: 'Facebook',
+  youtube: 'YouTube',
+  spotify: 'Spotify',
+  soundcloud: 'SoundCloud',
+  press: 'Press',
 };

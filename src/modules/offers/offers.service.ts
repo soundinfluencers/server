@@ -93,7 +93,7 @@ export class OffersService {
 
     const eurPriceExpr = { $ifNull: [`$${socialMedia}.publicPrice`, 0] };
 
-    // Агрегация инфлюенсеров и извлекание нужных для FoundAccountDto полей
+    // Агрегация инфлюенсеров и извлечение нужных для FoundAccountDto полей
     const influencers = await this.influencerRepository
       .aggregate([
         {

@@ -14,7 +14,6 @@ import {
   UpdateOfferFieldDto,
 } from '../dto/offers/admin-offers-matrix.dto';
 import { OfferAccountLinkRepository } from '../../../database/repositories/offers/offer-account-link.repository';
-import { SocialMediaEnum } from '../../../common/types/social-media.types';
 import {
   OfferHeaderRow,
   OfferRepository,
@@ -27,6 +26,12 @@ import { Influencer } from '../../../database/schemas/users/influencer.schema';
 import { InfluencerRepository } from '../../../database/repositories/users/influencer.repository';
 import { Types } from 'mongoose';
 import { XlsxOffersImportSummary } from '../dto/offers/xlsx-offers-import.dto';
+import { FilteredNestLogger } from 'src/common/logger/filtered-nest-logger';
+import { OfferSocialMediaEnum } from 'src/common/types/offer.types';
+import {
+  CommunityMusicGenres,
+  CreatorMusicGenres,
+} from 'src/common/types/influencer/influencer.types';
 
 export interface OffersMatrixOfferCursor {
   createdAt: Date;
@@ -65,6 +70,8 @@ const offerFieldTypes: Record<keyof OfferFieldRecord, 'string' | 'number' | 'boo
 
 @Injectable()
 export class AdminOffersService {
+  private readonly logger = new FilteredNestLogger(AdminOffersService.name);
+
   constructor(
     private readonly offerRepository: OfferRepository,
     private readonly offerAccountLinkRepository: OfferAccountLinkRepository,
@@ -83,6 +90,8 @@ export class AdminOffersService {
       take: offersTake,
       cursor: this.decodeOffersCursor(query.offersCursor),
     });
+
+    this.logger.debug(`OFFERS LENGTH: ${offersPage.items.length}\n`);
 
     if (!offersPage.items.length)
       throw new NotFoundException('No offers found. Please check your filters and try again.');
@@ -210,7 +219,7 @@ export class AdminOffersService {
   }
 
   async importXlsxOffers(
-    socialMedia: SocialMediaEnum,
+    socialMedia: OfferSocialMediaEnum,
     file: Express.Multer.File,
   ): Promise<XlsxOffersImportSummary> {
     const parsed = await this.xlsxImporter.importOffers(file);
@@ -259,7 +268,7 @@ export class AdminOffersService {
           combinedFollowers: block.totalFollowers,
           networksAmount: block.accounts.length,
           isPublished: true,
-          ...(block.storyAndPostDetails ? {storyAndPostDetails: block.storyAndPostDetails} : {}),
+          ...(block.storyAndPostDetails ? { storyAndPostDetails: block.storyAndPostDetails } : {}),
         } as unknown as Partial<Offer>);
         offerId = (created as any)._id as Types.ObjectId;
         summary.createdOffers++;
@@ -346,8 +355,8 @@ export class AdminOffersService {
   }
 
   private async getOffersHeadersPage(params: {
-    socialMedia: SocialMediaEnum;
-    genre: string;
+    socialMedia: OfferSocialMediaEnum;
+    genre: CommunityMusicGenres | CreatorMusicGenres;
     take: number;
     cursor: OffersMatrixOfferCursor | null;
   }): Promise<{
@@ -357,6 +366,8 @@ export class AdminOffersService {
     const { take } = params;
 
     const rows: OfferHeaderRow[] = await this.offerRepository.getOffersHeadersPage(params);
+
+    this.logger.debug(`ROWS LENGTH: ${rows.length}`);
 
     const hasNextPage = rows.length > take;
     const pageRows = hasNextPage ? rows.slice(0, take) : rows;
@@ -383,8 +394,8 @@ export class AdminOffersService {
   }
 
   private async getAccountRowsPage(params: {
-    socialMedia: SocialMediaEnum;
-    genre: string;
+    socialMedia: OfferSocialMediaEnum;
+    genre: CommunityMusicGenres | CreatorMusicGenres;
     take: number;
     cursor: OffersMatrixAccountCursor | null;
   }): Promise<{

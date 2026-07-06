@@ -1,52 +1,70 @@
-import {Prop, Schema, SchemaFactory} from '@nestjs/mongoose';
-import {Types} from 'mongoose';
-import {SocialMediaEnum} from "../../../common/types/social-media.types";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
+import {
+  isGenreAllowedForOfferSocialMedia,
+  OfferSocialMediaEnum,
+} from 'src/common/types/offer.types';
+import {
+  CommunityMusicGenres,
+  CreatorMusicGenres,
+} from 'src/common/types/influencer/influencer.types';
 
 @Schema({
-    timestamps: true,
+  timestamps: true,
 })
 export class Offer {
-    @Prop({type: Types.ObjectId})
-    _id: Types.ObjectId;
+  @Prop({ type: Types.ObjectId })
+  _id: Types.ObjectId;
 
-    @Prop({required: true})
-    title: string;
+  @Prop({ required: true })
+  title: string;
 
-    @Prop({
-        required: true,
-        type: String,
-        enum: SocialMediaEnum,
-    })
-    socialMedia: SocialMediaEnum;
+  @Prop({
+    required: true,
+    type: String,
+    enum: OfferSocialMediaEnum,
+  })
+  socialMedia: OfferSocialMediaEnum;
 
-    @Prop({
-        required: true,
-    })
-    price: number;
+  @Prop({
+    required: true,
+  })
+  price: number;
 
-    @Prop({
-        type: String,
-        required: true,
-    })
-    genre: string;
+  @Prop({
+    type: String,
+    required: true,
+    validate: {
+      validator: function (this: Offer, genre: string) {
+        return isGenreAllowedForOfferSocialMedia({
+          socialMedia: this.socialMedia,
+          genre,
+        });
+      },
+      message: function (props) {
+        return `Invalid genre "${props.value}" for selected socialMedia`;
+      },
+    },
+  })
+  genre: CommunityMusicGenres | CreatorMusicGenres;
 
-    @Prop({required: false, default: false})
-    isPublished: boolean;
+  @Prop({ required: false, default: false })
+  isPublished: boolean;
 
-    // @Prop({required: false, default: false})
-    // isDeleted: boolean;
+  // @Prop({required: false, default: false})
+  // isDeleted: boolean;
 
-    @Prop({required: false, type: String})
-    combinedFollowers?: string;
+  @Prop({ required: false, type: String })
+  combinedFollowers?: string;
 
-    @Prop({required: false, type: String})
-    networksAmount?: string;
+  @Prop({ required: false, type: String })
+  networksAmount?: string;
 
-    @Prop({required: false, type: String})
-    storyAndPostDetails?: string;
+  @Prop({ required: false, type: String })
+  storyAndPostDetails?: string;
 
-    readonly createdAt?: Date;
-    readonly updatedAt?: Date;
+  readonly createdAt?: Date;
+  readonly updatedAt?: Date;
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);
