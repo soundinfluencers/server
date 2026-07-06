@@ -26,7 +26,7 @@ export class OffersService {
     private readonly offerAccountLinkRepository: OfferAccountLinkRepository,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
-  ) {}
+  ) { }
 
   async getPublishedOffersByGenreAndSocialMedia(
     data: GetFilteredPublishedOffers,
@@ -199,19 +199,19 @@ export class OffersService {
             InfluencerProfileCategory.community,
           countries: influencer.countries?.length > 0 ? influencer.countries : null,
           ...(influencer.profileCategory === InfluencerProfileCategory.community &&
-          influencer?.communityMusicGenres?.length > 0
+            influencer?.communityMusicGenres?.length > 0
             ? { communityMusicGenres: influencer.communityMusicGenres }
             : {}),
           ...(influencer.profileCategory === InfluencerProfileCategory.community &&
-          influencer?.communityThemeTopics?.length > 0
+            influencer?.communityThemeTopics?.length > 0
             ? { communityThemeTopics: influencer.communityThemeTopics }
             : {}),
           ...(influencer.profileCategory === InfluencerProfileCategory.creator &&
-          influencer?.creatorMusicGenres?.length > 0
+            influencer?.creatorMusicGenres?.length > 0
             ? { creatorMusicGenres: influencer.creatorMusicGenres }
             : {}),
           ...(influencer.profileCategory === InfluencerProfileCategory.creator &&
-          influencer?.creatorContentFocus?.length > 0
+            influencer?.creatorContentFocus?.length > 0
             ? { creatorContentFocus: influencer.creatorContentFocus }
             : {}),
         });

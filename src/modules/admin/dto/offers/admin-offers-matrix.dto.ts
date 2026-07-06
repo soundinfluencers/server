@@ -85,6 +85,27 @@ export class AdminOffersMatrixAccountRowDto {
   logoUrl?: string;
 }
 
+export class AdminCreateOfferDto {
+  @ApiProperty({ type: String, enum: OfferSocialMediaEnum })
+  @IsEnum(OfferSocialMediaEnum)
+  socialMedia: OfferSocialMediaEnum;
+
+  @ApiProperty({
+    oneOf: [
+      {type: 'string', enum: Object.values(CommunityMusicGenres)},
+      {type: 'string', enum: Object.values(CreatorMusicGenres)},
+    ]
+  })
+  @IsNotEmpty()
+  @IsString()
+  genre: CommunityMusicGenres | CreatorMusicGenres;
+
+  @ApiProperty({type: String})
+  @IsNotEmpty()
+  @IsString()
+  offerName: string;
+}
+
 export class AdminOffersMatrixLinkDto {
   @ApiProperty()
   offerId: string;

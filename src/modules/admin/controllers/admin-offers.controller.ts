@@ -30,6 +30,7 @@ import {
 import { ApiResponseDto } from '../../../common/decorators/api/response/api-response.decorator';
 import { AdminOffersService } from '../services/admin-offers.service';
 import {
+  AdminCreateOfferDto,
   AdminOffersMatrixDto,
   AdminOffersMatrixToggleLinkDto,
   GetAdminOffersMatrixQuery,
@@ -54,6 +55,13 @@ export class AdminOffersController {
   @Get()
   getMatrix(@Query() query: GetAdminOffersMatrixQuery): Promise<AdminOffersMatrixDto> {
     return this.adminOffersService.getMatrix(query);
+  }
+
+  @ApiOperation({ summary: 'Create a new empty offer' })
+  @ApiResponseDto(undefined, {successStatusCode: 201})
+  @Post()
+  create(@Body() data: AdminCreateOfferDto): Promise<void> {
+    return this.adminOffersService.createOffer(data);
   }
 
   @ApiOperation({ summary: 'Set offer isPublished (visible to clients)' })

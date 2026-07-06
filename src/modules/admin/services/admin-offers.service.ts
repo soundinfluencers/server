@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  AdminCreateOfferDto,
   AdminOffersMatrixAccountRowDto,
   AdminOffersMatrixDto,
   AdminOffersMatrixLinkDto,
@@ -136,6 +137,20 @@ export class AdminOffersService {
       accountsNextCursor: accountsPage.nextCursor,
       links,
     };
+  }
+
+  async createOffer(data: AdminCreateOfferDto): Promise<void> {
+    await this.offerRepository.create({
+      _id: new ObjId(),
+      title: data.offerName,
+      socialMedia: data.socialMedia,
+      price: 0,
+      genre: data.genre,
+      isPublished: false,
+      combinedFollowers: '0',
+      networksAmount: '0',
+      storyAndPostDetails: '0',
+    } satisfies Offer);
   }
 
   async toggleLink(dto: AdminOffersMatrixToggleLinkDto): Promise<{ ok: boolean }> {
