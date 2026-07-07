@@ -78,7 +78,7 @@ export class AdminOffersService {
     private readonly offerAccountLinkRepository: OfferAccountLinkRepository,
     private readonly xlsxImporter: XlsxImporter,
     private readonly influencerRepository: InfluencerRepository,
-  ) {}
+  ) { }
 
   async getMatrix(query: GetAdminOffersMatrixQuery): Promise<AdminOffersMatrixDto> {
     const offersTake = query.offersTake && query.offersTake > 0 ? query.offersTake : 10;
@@ -119,9 +119,9 @@ export class AdminOffersService {
     const linkDocs =
       offerIds.length && accountPairs.length
         ? await this.offerAccountLinkRepository.findViewportLinks({
-            offerIds,
-            accountPairs,
-          })
+          offerIds,
+          accountPairs,
+        })
         : [];
 
     const links: AdminOffersMatrixLinkDto[] = linkDocs.map((l) => ({
@@ -402,9 +402,9 @@ export class AdminOffersService {
       nextCursor:
         hasNextPage && last
           ? this.encodeOffersCursor({
-              createdAt: last.createdAt,
-              offerId: last.offerId.toString(),
-            })
+            createdAt: last.createdAt,
+            offerId: last.offerId.toString(),
+          })
           : null,
     };
   }
@@ -442,10 +442,10 @@ export class AdminOffersService {
       nextCursor:
         hasNextPage && last
           ? this.encodeAccountsCursor({
-              sortUsername: last.sortUsername,
-              influencerId: last.influencerId.toString(),
-              accountId: last.accountId.toString(),
-            })
+            sortUsername: last.sortUsername,
+            influencerId: last.influencerId.toString(),
+            accountId: last.accountId.toString(),
+          })
           : null,
     };
   }

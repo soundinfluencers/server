@@ -142,6 +142,7 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
     cursor?: OffersMatrixOfferCursor | null;
   }): Promise<OfferHeaderRow[]> {
     const { socialMedia, genre, take, cursor } = params;
+    const offerSocialMedia = socialMedia.split('_')[0];
 
     const filter: FilterQuery<Offer> = {
       socialMedia,
@@ -164,65 +165,91 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
       .lean()
       .exec();
 
-    // Set of unique accountIds
-    const accountsCache = new Map<ObjId, SocialAccount>();
     // Filtered offers
     const processedOffers: OfferHeaderRow[] = [];
 
-    for (const offer of rows) {
-      const links: OfferAccountLink[] | null = await this.offerAccountLinkModel.find({
-        offerId: offer._id,
-      });
+    const offerIds = rows.map(off => off._id);
 
-      if (!Array.isArray(links) || links.length <= 0) {
-        processedOffers.push({
-          offerId: offer._id as ObjId,
-          title: offer.title,
-          isPublished: offer.isPublished,
-          offerPrice: offer.price,
-          costPrice: 0,
-          createdAt: offer.createdAt ?? new Date(0),
-        })
-        continue;
+    // Getting all links
+    const links = await this.offerAccountLinkModel.find({
+      offerId: { $in: offerIds }
+    }).lean();
+
+    // If there's no links - return offers headers with costPrice equal to zero
+    if (!Array.isArray(links) || links.length <= 0) {
+      return rows.map(offer => ({
+        offerId: offer._id as ObjId,
+        title: offer.title,
+        isPublished: offer.isPublished,
+        offerPrice: offer.price,
+        costPrice: 0,
+        createdAt: offer.createdAt ?? new Date(0),
+      }));
+    }
+
+    const linksByOfferId = new Map<string, OfferAccountLink[]>(); // grouped links 
+    const uniqueInfluencerIds = new Set<ObjId>(); // unique influencers' ids for fetching all data in one request
+
+    for (const link of links) {
+      if (linksByOfferId.has(link.offerId.toString())) {
+        const currentArray = linksByOfferId.get(link.offerId.toString());
+        currentArray.push(link);
+        linksByOfferId.set(link.offerId.toString(), currentArray);
+      } else {
+        linksByOfferId.set(link.offerId.toString(), [link]);
       }
 
-      const offerSocialMedia = offer.socialMedia.split('_')[0];
+      if (!uniqueInfluencerIds.has(link.influencerId)) {
+        uniqueInfluencerIds.add(link.influencerId);
+      }
+    }
+
+    // Fetching all needed influencers data
+    const influencers = await this.influencerModel.find(
+      {
+        _id: { $in: Array.from(uniqueInfluencerIds) },
+      }
+    ).select(offerSocialMedia).lean();
+
+    // If there's no influencers - return offers headers with costPrice equal to zero
+    if (!Array.isArray(influencers) || influencers.length <= 0) {
+      return rows.map(offer => ({
+        offerId: offer._id as ObjId,
+        title: offer.title,
+        isPublished: offer.isPublished,
+        offerPrice: offer.price,
+        costPrice: 0,
+        createdAt: offer.createdAt ?? new Date(0),
+      }));
+    }
+
+    // Map for with account and price
+    //
+    // Key - influencerId:accountId
+    // Value - account.publicPrice
+    const accountPriceMap = new Map<string, number>();
+
+    for (const influencer of influencers) {
+      for (const account of influencer[offerSocialMedia]) {
+        accountPriceMap.set(`${influencer._id.toString()}:${account._id.toString()}`, account.publicPrice);
+      }
+    }
+
+    for (const offer of rows) {
       let costPrice = 0;
 
-      for (const link of links) {
-        if (!accountsCache.has(link.accountId)) {
-          const influencer = await this.influencerModel.findOne({
-            [`${offerSocialMedia}._id`]: link.accountId
-          })
+      const offerLinks: OfferAccountLink[] = linksByOfferId.get(offer._id.toString());
 
-          // invalid offer account link
-          if (!influencer) {
-            this.logger.warn(`
-              Didn't find influencer for offer.\nOffer id: ${JSON.stringify(offer._id)}\nOffer link: ${JSON.stringify(link, null, '\t')}
-            `);
-            // await this.offerAccountLinkModel.deleteOne({ _id: link._id });
+      if (Array.isArray && offerLinks.length !== 0) {
+        for (const link of offerLinks) {
+          const key = `${link.influencerId.toString()}:${link.accountId.toString()}`;
+          const price = accountPriceMap.get(key);
+
+          if (!price) {
             continue;
-          }
+          } 
 
-          const socialAccount: SocialAccount | null =
-            influencer[offerSocialMedia]?.find(
-              (acc) => acc._id.toString() === link.accountId.toString()
-            ) ?? null;
-
-          // invalid offer account link
-          if (!socialAccount) {
-            this.logger.warn(`
-              Didn't find social account for offer.\nOffer id: ${JSON.stringify(offer._id)}\nOffer link: ${JSON.stringify(link, null, '\t')}
-            `);
-            // await this.offerAccountLinkModel.deleteOne({ _id: link._id });
-            continue;
-          }
-
-          costPrice += socialAccount.publicPrice;
-          accountsCache.set(link.accountId, socialAccount);
-        } else {
-          const socialAccount = accountsCache.get(link.accountId);
-          costPrice += socialAccount.publicPrice;
+          costPrice += price;
         }
       }
 
