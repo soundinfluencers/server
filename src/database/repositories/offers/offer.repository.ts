@@ -4,7 +4,7 @@ import { Offer } from '../../schemas/offer/offer.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { DeleteResult, FilterQuery, Model, PipelineStage } from 'mongoose';
 import { OfferAccountLink } from '../../schemas/offer/offer-account-link.schema';
-import { Influencer } from '../../schemas/users/influencer.schema';
+import { Influencer, SocialAccount } from '../../schemas/users/influencer.schema';
 import { ObjId } from '../../../common/types/base.types';
 import {
   OfferFieldRecord,
@@ -18,12 +18,14 @@ import {
   CommunityMusicGenres,
   CreatorMusicGenres,
 } from 'src/common/types/influencer/influencer.types';
+import { FilteredNestLogger } from 'src/common/logger/filtered-nest-logger';
 
 export type OfferHeaderRow = {
   offerId: ObjId;
   title: string;
   isPublished: boolean;
-  price: number;
+  offerPrice: number; // custom price
+  costPrice: number; // auto-price - accounts' prices sum
   createdAt: Date;
 };
 
@@ -31,6 +33,8 @@ export type OffersMatrixAccountRow = {
   influencerId: ObjId;
   accountId: ObjId;
   username: string;
+  followers: number;
+  publicPrice: number;
   logoUrl?: string;
   sortUsername: string;
 };
@@ -70,6 +74,8 @@ interface IOfferRepository {
 
 @Injectable()
 export class OfferRepository extends BaseRepository<Offer> implements IOfferRepository {
+  private readonly logger = new FilteredNestLogger(OfferRepository.name);
+
   constructor(
     @InjectModel(Offer.name) private readonly offerModel: Model<Offer>,
     @InjectModel(OfferAccountLink.name)
@@ -158,13 +164,79 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
       .lean()
       .exec();
 
-    return rows.map((row): OfferHeaderRow => ({
-      offerId: row._id as ObjId,
-      title: row.title,
-      isPublished: row.isPublished,
-      price: row.price,
-      createdAt: row.createdAt ?? new Date(0),
-    }));
+    // Set of unique accountIds
+    const accountsCache = new Map<ObjId, SocialAccount>();
+    // Filtered offers
+    const processedOffers: OfferHeaderRow[] = [];
+
+    for (const offer of rows) {
+      const links: OfferAccountLink[] | null = await this.offerAccountLinkModel.find({
+        offerId: offer._id,
+      });
+
+      if (!Array.isArray(links) || links.length <= 0) {
+        processedOffers.push({
+          offerId: offer._id as ObjId,
+          title: offer.title,
+          isPublished: offer.isPublished,
+          offerPrice: offer.price,
+          costPrice: 0,
+          createdAt: offer.createdAt ?? new Date(0),
+        })
+        continue;
+      }
+
+      const offerSocialMedia = offer.socialMedia.split('_')[0];
+      let costPrice = 0;
+
+      for (const link of links) {
+        if (!accountsCache.has(link.accountId)) {
+          const influencer = await this.influencerModel.findOne({
+            [`${offerSocialMedia}._id`]: link.accountId
+          })
+
+          // Deleting invalid offer account link
+          if (!influencer) {
+            this.logger.warn(`
+              Didn't find influencer for offer, so deleting this offer link.\nOffer id: ${JSON.stringify(offer._id)}\nOffer link: ${JSON.stringify(link, null, '\t')}
+            `);
+            await this.offerAccountLinkModel.deleteOne({ _id: link._id });
+            continue;
+          }
+
+          const socialAccount: SocialAccount | null =
+            influencer[offerSocialMedia]?.find(
+              (acc) => acc._id = link.accountId
+            ) ?? null;
+
+          // Deleting invalid offer account link
+          if (!socialAccount) {
+            this.logger.warn(`
+              Didn't find social account for offer, so deleting this offer link.\nOffer id: ${JSON.stringify(offer._id)}\nOffer link: ${JSON.stringify(link, null, '\t')}
+            `);
+            await this.offerAccountLinkModel.deleteOne({ _id: link._id });
+            continue;
+          }
+
+          costPrice += socialAccount.publicPrice;
+          accountsCache.set(link.accountId, socialAccount);
+        } else {
+          const socialAccount = accountsCache.get(link.accountId);
+          costPrice += socialAccount.publicPrice;
+        }
+      }
+
+      processedOffers.push({
+        offerId: offer._id as ObjId,
+        title: offer.title,
+        isPublished: offer.isPublished,
+        offerPrice: offer.price,
+        costPrice: costPrice,
+        createdAt: offer.createdAt ?? new Date(0),
+      });
+    }
+
+    return processedOffers;
   }
 
   async getOffersMatrixAccountRowsPage(params: {
@@ -213,6 +285,8 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
           influencerId: '$_id',
           accountId: `$${sm}._id`,
           username: `$${sm}.username`,
+          followers: `$${sm}.followers`,
+          publicPrice: `$${sm}.publicPrice`,
           logoUrl: `$${sm}.logoUrl`,
           sortUsername: 1,
         },

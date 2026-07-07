@@ -65,7 +65,10 @@ export class AdminOffersMatrixOfferHeaderDto {
   isPublished: boolean;
 
   @ApiProperty()
-  price: number;
+  offerPrice: number; // custom price
+
+  @ApiProperty()
+  costPrice: number; // auto-price - accounts' prices sum
 
   @ApiProperty()
   createdAt: string;
@@ -80,6 +83,15 @@ export class AdminOffersMatrixAccountRowDto {
 
   @ApiProperty()
   username: string;
+
+  @ApiProperty()
+  followers: number;
+
+  @ApiProperty()
+  price: number;
+
+  @ApiProperty()
+  pricePerFollower: number;
 
   @ApiPropertyOptional()
   logoUrl?: string;

@@ -392,7 +392,8 @@ export class AdminOffersService {
       offerId: row.offerId.toString(),
       title: row.title,
       isPublished: row.isPublished,
-      price: row.price,
+      offerPrice: row.offerPrice, // custom price
+      costPrice: row.costPrice, // auto-price - accounts' prices sum
       createdAt: row.createdAt.toISOString(),
     }));
 
@@ -430,6 +431,9 @@ export class AdminOffersService {
       influencerId: r.influencerId.toString(),
       accountId: r.accountId.toString(),
       username: r.username,
+      followers: r.followers,
+      price: r.publicPrice,
+      pricePerFollower: Number((r.publicPrice / r.followers).toFixed(8)),
       logoUrl: r.logoUrl,
     }));
 

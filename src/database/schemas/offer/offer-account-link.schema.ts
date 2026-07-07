@@ -7,6 +7,8 @@ export type OfferAccountLinkDocument = HydratedDocument<OfferAccountLink>;
     timestamps: true,
 })
 export class OfferAccountLink {
+    declare _id: Types.ObjectId;
+
     @Prop({type: Types.ObjectId, required: true, ref: 'Offer'})
     offerId: Types.ObjectId;
 
