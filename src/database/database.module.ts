@@ -122,6 +122,10 @@ import { RequestNegotiationThreadRepository } from './repositories/negotiation/r
 import { RequestNegotiationMessageRepository } from './repositories/negotiation/request-negotiation-message.repository';
 import { ImapSyncStateRepository } from './repositories/negotiation/imap-sync-state.repository';
 import { RequestNegotiationUnmatchedEmailRepository } from './repositories/negotiation/request-negotiation-unmatched-email.repository';
+import { Bundle, BundleSchema } from './schemas/bundles/bundle.schema';
+import { BundleAccountLink, BundleAccountLinkSchema } from './schemas/bundles/bundle-account-link.schema';
+import { BundleRepository } from './repositories/bundles/bundle.repository';
+import { BundleAccountLinkRepository } from './repositories/bundles/bundle-account-link.repository';
 
 @Global()
 @Module({
@@ -198,6 +202,8 @@ import { RequestNegotiationUnmatchedEmailRepository } from './repositories/negot
           },
         ],
       },
+      { name: Bundle.name, schema: BundleSchema },
+      { name: BundleAccountLink.name, schema: BundleAccountLinkSchema },
     ]),
     MongooseModule.forFeatureAsync([
       {
@@ -247,6 +253,8 @@ import { RequestNegotiationUnmatchedEmailRepository } from './repositories/negot
     RequestNegotiationMessageRepository,
     ImapSyncStateRepository,
     RequestNegotiationUnmatchedEmailRepository,
+    BundleRepository,
+    BundleAccountLinkRepository,
   ],
   exports: [
     ClientRepository,
@@ -277,6 +285,8 @@ import { RequestNegotiationUnmatchedEmailRepository } from './repositories/negot
     RequestNegotiationMessageRepository,
     ImapSyncStateRepository,
     RequestNegotiationUnmatchedEmailRepository,
+    BundleRepository,
+    BundleAccountLinkRepository,
   ],
 })
 export class DatabaseModule {}
