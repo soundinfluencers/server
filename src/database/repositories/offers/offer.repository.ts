@@ -12,11 +12,13 @@ import {
   OffersMatrixOfferCursor,
   UpdateOfferFieldInput,
 } from '../../../modules/admin/services/admin-offers.service';
+import { SocialMediaEnum } from '../../../common/types/social-media.types';
 import { OfferSocialMediaEnum } from 'src/common/types/offer.types';
 import {
   CommunityMusicGenres,
   CreatorMusicGenres,
 } from 'src/common/types/influencer/influencer.types';
+import { FilteredNestLogger } from 'src/common/logger/filtered-nest-logger';
 
 export type OfferHeaderRow = {
   offerId: ObjId;
@@ -72,6 +74,8 @@ interface IOfferRepository {
 
 @Injectable()
 export class OfferRepository extends BaseRepository<Offer> implements IOfferRepository {
+  private readonly logger = new FilteredNestLogger(OfferRepository.name);
+
   constructor(
     @InjectModel(Offer.name) private readonly offerModel: Model<Offer>,
     @InjectModel(OfferAccountLink.name)
