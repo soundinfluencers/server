@@ -195,26 +195,26 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
             [`${offerSocialMedia}._id`]: link.accountId
           })
 
-          // Deleting invalid offer account link
+          // invalid offer account link
           if (!influencer) {
             this.logger.warn(`
-              Didn't find influencer for offer, so deleting this offer link.\nOffer id: ${JSON.stringify(offer._id)}\nOffer link: ${JSON.stringify(link, null, '\t')}
+              Didn't find influencer for offer.\nOffer id: ${JSON.stringify(offer._id)}\nOffer link: ${JSON.stringify(link, null, '\t')}
             `);
-            await this.offerAccountLinkModel.deleteOne({ _id: link._id });
+            // await this.offerAccountLinkModel.deleteOne({ _id: link._id });
             continue;
           }
 
           const socialAccount: SocialAccount | null =
             influencer[offerSocialMedia]?.find(
-              (acc) => acc._id = link.accountId
+              (acc) => acc._id.toString() === link.accountId.toString()
             ) ?? null;
 
-          // Deleting invalid offer account link
+          // invalid offer account link
           if (!socialAccount) {
             this.logger.warn(`
-              Didn't find social account for offer, so deleting this offer link.\nOffer id: ${JSON.stringify(offer._id)}\nOffer link: ${JSON.stringify(link, null, '\t')}
+              Didn't find social account for offer.\nOffer id: ${JSON.stringify(offer._id)}\nOffer link: ${JSON.stringify(link, null, '\t')}
             `);
-            await this.offerAccountLinkModel.deleteOne({ _id: link._id });
+            // await this.offerAccountLinkModel.deleteOne({ _id: link._id });
             continue;
           }
 
