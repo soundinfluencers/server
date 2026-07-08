@@ -114,7 +114,6 @@ export class AdminOffersController {
     return this.adminOffersService.toggleLink(payload);
   }
 
-  @ApiExcludeEndpoint()
   @ApiOperation({ summary: "Updates one offer's field" })
   @ApiResponseDto()
   @ApiParam({

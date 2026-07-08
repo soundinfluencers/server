@@ -54,8 +54,8 @@ export class Offer {
   // @Prop({required: false, default: false})
   // isDeleted: boolean;
 
-  @Prop({ required: false, type: String })
-  combinedFollowers?: string;
+  @Prop({ required: false, type: Number })
+  combinedFollowers?: number;
 
   @Prop({ required: false, type: String })
   networksAmount?: string;
@@ -68,3 +68,12 @@ export class Offer {
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);
+
+OfferSchema.index({
+  socialMedia: 1,
+  genre: 1,
+  isPublished: 1,
+  combinedFollowers: 1,
+  createdAt: -1,
+  _id: -1,
+});

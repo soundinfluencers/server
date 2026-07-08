@@ -51,7 +51,7 @@ export class FilteredPublishedOffersByGenreAndSocialMedia {
   genre?: CommunityMusicGenres | CreatorMusicGenres;
 
   @ApiProperty()
-  combinedFollowers?: string;
+  combinedFollowers?: number;
 
   @ApiProperty()
   networksAmount?: string;

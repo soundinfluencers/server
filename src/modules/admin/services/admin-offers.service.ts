@@ -149,7 +149,7 @@ export class AdminOffersService {
       price: 0,
       genre: data.genre,
       isPublished: false,
-      combinedFollowers: '0',
+      combinedFollowers: 0,
       networksAmount: '0',
       storyAndPostDetails: '0',
     } satisfies Offer);

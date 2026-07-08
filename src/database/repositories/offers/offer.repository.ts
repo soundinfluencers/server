@@ -160,7 +160,7 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
 
     const rows = await this.offerModel
       .find(filter)
-      .sort({ createdAt: -1, _id: -1 })
+      .sort({ combinedFollowers: 1, createdAt: -1, _id: -1 })
       .limit(take + 1)
       .lean()
       .exec();
@@ -247,7 +247,7 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
 
           if (!price) {
             continue;
-          } 
+          }
 
           costPrice += price;
         }
