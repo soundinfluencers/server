@@ -240,7 +240,7 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
 
       const offerLinks: OfferAccountLink[] = linksByOfferId.get(offer._id.toString());
 
-      if (Array.isArray && offerLinks.length !== 0) {
+      if (Array.isArray(offerLinks) && offerLinks.length !== 0) {
         for (const link of offerLinks) {
           const key = `${link.influencerId.toString()}:${link.accountId.toString()}`;
           const price = accountPriceMap.get(key);
