@@ -41,11 +41,7 @@ export type OffersMatrixAccountRow = {
 
 // Interface for offer repository
 interface IOfferRepository {
-  // Updates many offers' published status (Opposite value of first offer)
-  updatePublishedStatusMany(): Promise<void>;
-
-  // Updates one offer's published status (Opposite value of this offer)
-  updatePublishedStatusOne(offerId: string): Promise<void>;
+  changePublishedStatuses(socialMedia: OfferSocialMediaEnum, genre: CommunityMusicGenres | CreatorMusicGenres);
 
   // Updates one offer's field
   updateOneField<K extends keyof OfferFieldRecord>(
@@ -85,36 +81,34 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
     super(offerModel);
   }
 
-  async updatePublishedStatusMany(): Promise<void> {
-    // Get first offer
-    const firstOffer = await this.offerModel.findOne().select('isPublished').lean();
+  async changePublishedStatuses(socialMedia: OfferSocialMediaEnum, genre: CommunityMusicGenres | CreatorMusicGenres) {
+    const filter: FilterQuery<Offer> = {
+      socialMedia,
+      genre,
+      combinedFollowers: { "$gt": 0 }
+    } 
+    
+    const firstSortedOffer = await this.offerModel
+      .findOne(filter)
+      .sort({
+        combinedFollowers: 1,
+        createdAt: -1,
+        _id: -1,
+      })
+      .select('isPublished')
+      .lean()
+      .exec();
 
-    // Opposite value of first offer
-    const firstValue = firstOffer?.isPublished ?? false;
+    const isPublished = firstSortedOffer.isPublished;
 
-    // Update all offers' published status
-    await this.offerModel.updateMany(
-      {},
+    const updateResult = await this.offerModel.updateMany(
+      filter,
       {
-        $set: { isPublished: !firstValue },
+        $set: { isPublished: !isPublished }
       },
     );
-  }
 
-  async updatePublishedStatusOne(offerId: string): Promise<void> {
-    const offerObjectId = new ObjId(offerId);
-
-    const result = await this.offerModel.updateOne({ _id: offerObjectId }, [
-      {
-        $set: {
-          isPublished: { $not: '$isPublished' },
-        },
-      },
-    ]);
-
-    if (result.matchedCount === 0) {
-      throw new NotFoundException('Offer not found');
-    }
+    return updateResult;
   }
 
   async updateOneField<K extends keyof OfferFieldRecord>(

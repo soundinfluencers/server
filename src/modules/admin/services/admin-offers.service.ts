@@ -215,11 +215,12 @@ export class AdminOffersService {
     }
   }
 
-  async setPublishedStatus(offerId?: string): Promise<void> {
-    if (offerId) {
-      await this.offerRepository.updatePublishedStatusOne(offerId);
-    } else {
-      await this.offerRepository.updatePublishedStatusMany();
+  async changePublishedStatuses(socialMedia: OfferSocialMediaEnum, genre: CommunityMusicGenres | CreatorMusicGenres): Promise<void> {
+    const updateResult = await this.offerRepository.changePublishedStatuses(socialMedia, genre);
+
+    if (updateResult.matchedCount === 0) {
+      this.logger.warn(`Didn't change isPublished status for ${socialMedia} offers with genre ${genre}. updateResult object: ${JSON.stringify(updateResult, null, '\t')}`);
+      throw new NotFoundException(`Offers not found`);
     }
   }
 

@@ -41,6 +41,12 @@ import { SocialMediaEnum } from '../../../common/types/social-media.types';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { XlsxOffersImportSummary } from '../dto/offers/xlsx-offers-import.dto';
 import { OfferSocialMediaEnum } from 'src/common/types/offer.types';
+import { CommunityMusicGenres, CreatorMusicGenres } from 'src/common/types/influencer/influencer.types';
+
+const MUSIC_GENRE_VALUES = [
+  ...Object.values(CommunityMusicGenres),
+  ...Object.values(CreatorMusicGenres),
+];
 
 @Auth()
 @Roles(Role.admin)
@@ -66,14 +72,24 @@ export class AdminOffersController {
 
   @ApiOperation({ summary: 'Set offer isPublished (visible to clients)' })
   @ApiResponseDto()
-  @ApiQuery({
-    name: 'offerId',
+  @ApiParam({
+    name: 'socialMedia',
     type: String,
-    required: false,
+    enum: OfferSocialMediaEnum,
+    required: true,
   })
-  @Patch('published')
-  setPublished(@Query('offerId') offerId?: string): Promise<void> {
-    return this.adminOffersService.setPublishedStatus(offerId);
+  @ApiParam({
+    name: 'genre',
+    type: String,
+    enum: MUSIC_GENRE_VALUES,
+    required: true,
+  })
+  @Patch('change-published-status/:socialMedia/:genre')
+  setPublished(
+    @Param('socialMedia', new ParseEnumPipe(OfferSocialMediaEnum)) socialMedia: OfferSocialMediaEnum,
+    @Param('genre', new ParseEnumPipe(MUSIC_GENRE_VALUES)) genre: CommunityMusicGenres | CreatorMusicGenres
+   ): Promise<void> {
+    return this.adminOffersService.changePublishedStatuses(socialMedia, genre);
   }
 
   @ApiOperation({ summary: 'Add or remove one account–offer link' })
