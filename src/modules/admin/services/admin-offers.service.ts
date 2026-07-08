@@ -84,22 +84,7 @@ export class AdminOffersService {
     const offersTake = query.offersTake && query.offersTake > 0 ? query.offersTake : 10;
     const accountsTake = query.accountsTake && query.accountsTake > 0 ? query.accountsTake : 10;
 
-    // 1. Load paginated offer headers (matrix columns)
-    const offersPage = await this.getOffersHeadersPage({
-      socialMedia: query.socialMedia,
-      genre: query.genre,
-      take: offersTake,
-      cursor: this.decodeOffersCursor(query.offersCursor),
-    });
-
-    this.logger.debug(`OFFERS LENGTH: ${offersPage.items.length}\n`);
-
-    if (!offersPage.items.length)
-      throw new NotFoundException('No offers found. Please check your filters and try again.');
-
-    const offerIds = offersPage.items.map((o) => new ObjId(o.offerId));
-
-    // 2. Load paginated account rows (matrix rows)
+    // 1. Load paginated account rows (matrix rows)
     const accountsPage = await this.getAccountRowsPage({
       socialMedia: query.socialMedia,
       genre: query.genre,
@@ -115,23 +100,40 @@ export class AdminOffersService {
       accountId: new ObjId(r.accountId),
     }));
 
-    // 3. Load only existing links for the current viewport
-    const linkDocs =
-      offerIds.length && accountPairs.length
-        ? await this.offerAccountLinkRepository.findViewportLinks({
-          offerIds,
-          accountPairs,
-        })
-        : [];
+    // 2. Load paginated offer headers (matrix columns)
+    const offersPage = await this.getOffersHeadersPage({
+      socialMedia: query.socialMedia,
+      genre: query.genre,
+      take: offersTake,
+      cursor: this.decodeOffersCursor(query.offersCursor),
+    });
 
-    const links: AdminOffersMatrixLinkDto[] = linkDocs.map((l) => ({
-      offerId: l.offerId.toString(),
-      influencerId: l.influencerId.toString(),
-      accountId: l.accountId.toString(),
-    }));
+    let links = [];
+
+    if (offersPage?.items?.length > 0) {
+      const offerIds = offersPage.items.map((o) => new ObjId(o.offerId));
+
+      // 3. Load only existing links for the current viewport
+      const linkDocs =
+        offerIds.length && accountPairs.length
+          ? await this.offerAccountLinkRepository.findViewportLinks({
+            offerIds,
+            accountPairs,
+          })
+          : [];
+
+
+      for (const link of linkDocs) {
+        links.push({
+          offerId: link.offerId.toString(),
+          influencerId: link.influencerId.toString(),
+          accountId: link.accountId.toString(),
+        })
+      }
+    }
 
     return {
-      offerHeaders: offersPage.items,
+      offerHeaders: offersPage?.items?.length > 0 ? offersPage.items : [],
       offersNextCursor: offersPage.nextCursor,
       accountRows: accountsPage.items,
       accountsNextCursor: accountsPage.nextCursor,
@@ -381,8 +383,6 @@ export class AdminOffersService {
     const { take } = params;
 
     const rows: OfferHeaderRow[] = await this.offerRepository.getOffersHeadersPage(params);
-
-    this.logger.debug(`ROWS LENGTH: ${rows.length}`);
 
     const hasNextPage = rows.length > take;
     const pageRows = hasNextPage ? rows.slice(0, take) : rows;
