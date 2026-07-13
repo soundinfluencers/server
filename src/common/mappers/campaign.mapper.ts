@@ -176,8 +176,8 @@ export const mapSchemaToICampaignDetails = (
         (account as any)?.selectedCampaignContentItem?.toString() ??
         (Array.isArray((campaign as any)?.videos)
           ? (campaign as any).videos
-              ?.find((v) => v.videoLink === (account as any)?.selectedVideo)
-              ?._id?.toString()
+            ?.find((v) => v.videoLink === (account as any)?.selectedVideo)
+            ?._id?.toString()
           : null) ??
         null;
 
@@ -186,41 +186,41 @@ export const mapSchemaToICampaignDetails = (
         selectedCampaignContentItem =
           (Array.isArray(campaign.campaignContent)
             ? (() => {
-                const contentItem = campaign.campaignContent.find(
-                  (item) => item?._id.toString() === selectedCampaignContentItemId,
+              const contentItem = campaign.campaignContent.find(
+                (item) => item?._id.toString() === selectedCampaignContentItemId,
+              );
+              if (!contentItem) return null;
+
+              let description: string;
+              try {
+                description =
+                  contentItem.descriptions?.find(
+                    (pd) =>
+                      pd._id.toString() === account.selectedContent?.descriptionId.toString(),
+                  )?.description ??
+                  (contentItem as any)?.postDescription ??
+                  '';
+              } catch (err) {
+                console.warn(
+                  `Can't get description for addedAccounts ${account._id} in campaign ${campaign._id}`,
                 );
-                if (!contentItem) return null;
+              }
 
-                let description: string;
-                try {
-                  description =
-                    contentItem.descriptions?.find(
-                      (pd) =>
-                        pd._id.toString() === account.selectedContent?.descriptionId.toString(),
-                    )?.description ??
-                    (contentItem as any)?.postDescription ??
-                    '';
-                } catch (err) {
-                  console.warn(
-                    `Can't get description for addedAccounts ${account._id} in campaign ${campaign._id}`,
-                  );
-                }
-
-                return {
-                  _id: contentItem._id,
-                  mainLink: contentItem.mainLink ?? (contentItem as any).videoLink ?? null,
-                  description: description ?? null,
-                  taggedUser: contentItem.taggedUser ?? (contentItem as any).storyTag ?? null,
-                  taggedLink: contentItem.taggedLink ?? (contentItem as any).swipeUpLink ?? null,
-                  additionalBrief:
-                    contentItem.additionalBrief ?? (contentItem as any).specialWishes ?? null,
-                };
-              })()
+              return {
+                _id: contentItem._id,
+                mainLink: contentItem.mainLink ?? (contentItem as any).videoLink ?? null,
+                description: description ?? null,
+                taggedUser: contentItem.taggedUser ?? (contentItem as any).storyTag ?? null,
+                taggedLink: contentItem.taggedLink ?? (contentItem as any).swipeUpLink ?? null,
+                additionalBrief:
+                  contentItem.additionalBrief ?? (contentItem as any).specialWishes ?? null,
+              };
+            })()
             : null) ??
           (Array.isArray((campaign as any).videos)
             ? (campaign as any).videos.find(
-                (item) => item?._id?.toString() === selectedCampaignContentItemId?.toString(),
-              )
+              (item) => item?._id?.toString() === selectedCampaignContentItemId?.toString(),
+            )
             : null) ??
           null;
       }
@@ -249,22 +249,22 @@ export const mapSchemaToICampaignDetails = (
     proceedAccounts.sort((a, b) => {
       const aIndex = Array.isArray(campaign.campaignContent)
         ? campaign.campaignContent.findIndex(
-            (c) => c?._id?.toString() === a.selectedContent.campaignContentItemId?.toString(),
-          )
+          (c) => c?._id?.toString() === a.selectedContent.campaignContentItemId?.toString(),
+        )
         : Array.isArray((campaign as any).videos)
           ? (campaign as any).videos.findIndex(
-              (v) => v?._id?.toString() === (a as any)?.selectedCampaignContentItemId?.toString(),
-            )
+            (v) => v?._id?.toString() === (a as any)?.selectedCampaignContentItemId?.toString(),
+          )
           : -1;
 
       const bIndex = Array.isArray(campaign.campaignContent)
         ? campaign.campaignContent.findIndex(
-            (c) => c?._id?.toString() === b.selectedContent.campaignContentItemId?.toString(),
-          )
+          (c) => c?._id?.toString() === b.selectedContent.campaignContentItemId?.toString(),
+        )
         : Array.isArray((campaign as any).videos)
           ? (campaign as any).videos.findIndex(
-              (v) => v?._id?.toString() === (b as any)?.selectedCampaignContentItemId?.toString(),
-            )
+            (v) => v?._id?.toString() === (b as any)?.selectedCampaignContentItemId?.toString(),
+          )
           : -1;
 
       return aIndex - bIndex;
@@ -344,8 +344,8 @@ export const mapSchemaToIAdminCampaignDetails = (
         (account as any)?.selectedCampaignContentItem?.toString() ??
         (Array.isArray((campaign as any)?.videos)
           ? (campaign as any).videos
-              ?.find((v) => v.videoLink === (account as any)?.selectedVideo)
-              ?._id?.toString()
+            ?.find((v) => v.videoLink === (account as any)?.selectedVideo)
+            ?._id?.toString()
           : null) ??
         null;
 
@@ -354,41 +354,41 @@ export const mapSchemaToIAdminCampaignDetails = (
         selectedCampaignContentItem =
           (Array.isArray(campaign.campaignContent)
             ? (() => {
-                const contentItem = campaign.campaignContent.find(
-                  (item) => item?._id.toString() === selectedCampaignContentItemId,
+              const contentItem = campaign.campaignContent.find(
+                (item) => item?._id.toString() === selectedCampaignContentItemId,
+              );
+              if (!contentItem) return null;
+
+              let description: string;
+              try {
+                description =
+                  contentItem.descriptions?.find(
+                    (pd) =>
+                      pd._id.toString() === account.selectedContent?.descriptionId.toString(),
+                  )?.description ??
+                  (contentItem as any)?.postDescription ??
+                  '';
+              } catch (err) {
+                console.warn(
+                  `Can't get description for addedAccounts ${account._id} in campaign ${campaign._id}`,
                 );
-                if (!contentItem) return null;
+              }
 
-                let description: string;
-                try {
-                  description =
-                    contentItem.descriptions?.find(
-                      (pd) =>
-                        pd._id.toString() === account.selectedContent?.descriptionId.toString(),
-                    )?.description ??
-                    (contentItem as any)?.postDescription ??
-                    '';
-                } catch (err) {
-                  console.warn(
-                    `Can't get description for addedAccounts ${account._id} in campaign ${campaign._id}`,
-                  );
-                }
-
-                return {
-                  _id: contentItem._id,
-                  mainLink: contentItem.mainLink ?? (contentItem as any).videoLink ?? null,
-                  description: description ?? null,
-                  taggedUser: contentItem.taggedUser ?? (contentItem as any).storyTag ?? null,
-                  taggedLink: contentItem.taggedLink ?? (contentItem as any).swipeUpLink ?? null,
-                  additionalBrief:
-                    contentItem.additionalBrief ?? (contentItem as any).specialWishes ?? null,
-                };
-              })()
+              return {
+                _id: contentItem._id,
+                mainLink: contentItem.mainLink ?? (contentItem as any).videoLink ?? null,
+                description: description ?? null,
+                taggedUser: contentItem.taggedUser ?? (contentItem as any).storyTag ?? null,
+                taggedLink: contentItem.taggedLink ?? (contentItem as any).swipeUpLink ?? null,
+                additionalBrief:
+                  contentItem.additionalBrief ?? (contentItem as any).specialWishes ?? null,
+              };
+            })()
             : null) ??
           (Array.isArray((campaign as any).videos)
             ? (campaign as any).videos.find(
-                (item) => item?._id?.toString() === selectedCampaignContentItemId?.toString(),
-              )
+              (item) => item?._id?.toString() === selectedCampaignContentItemId?.toString(),
+            )
             : null) ??
           null;
       }
@@ -429,22 +429,22 @@ export const mapSchemaToIAdminCampaignDetails = (
     proceedAccounts.sort((a, b) => {
       const aIndex = Array.isArray(campaign.campaignContent)
         ? campaign.campaignContent.findIndex(
-            (c) => c?._id?.toString() === a.selectedContent.campaignContentItemId?.toString(),
-          )
+          (c) => c?._id?.toString() === a.selectedContent.campaignContentItemId?.toString(),
+        )
         : Array.isArray((campaign as any).videos)
           ? (campaign as any).videos.findIndex(
-              (v) => v?._id?.toString() === (a as any)?.selectedCampaignContentItemId?.toString(),
-            )
+            (v) => v?._id?.toString() === (a as any)?.selectedCampaignContentItemId?.toString(),
+          )
           : -1;
 
       const bIndex = Array.isArray(campaign.campaignContent)
         ? campaign.campaignContent.findIndex(
-            (c) => c?._id?.toString() === b.selectedContent.campaignContentItemId?.toString(),
-          )
+          (c) => c?._id?.toString() === b.selectedContent.campaignContentItemId?.toString(),
+        )
         : Array.isArray((campaign as any).videos)
           ? (campaign as any).videos.findIndex(
-              (v) => v?._id?.toString() === (b as any)?.selectedCampaignContentItemId?.toString(),
-            )
+            (v) => v?._id?.toString() === (b as any)?.selectedCampaignContentItemId?.toString(),
+          )
           : -1;
 
       return aIndex - bIndex;
@@ -658,7 +658,7 @@ export const mapProposalToIAdminCampaignDetails = (
               contentItem.descriptions?.find(
                 (pd) => pd._id?.toString() === account.selectedContent?.descriptionId?.toString(),
               )?.description ?? '';
-          } catch {}
+          } catch { }
 
           selectedCampaignContentItem = {
             _id: contentItem._id,

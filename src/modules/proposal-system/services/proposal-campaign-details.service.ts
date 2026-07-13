@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { InfluencerRepository } from '../../../database/repositories/users/influencer.repository';
-import {CurrencyCode} from "../../../common/types/finance.types";
+import { CurrencyCode } from "../../../common/types/finance.types";
 
 // ─── structural constraints (mirrors CampaignDetailsService pattern) ───────
 
@@ -9,6 +9,7 @@ export type ProposalAccountDetailsLike = {
     influencerId: Types.ObjectId;
     accountId: Types.ObjectId;
     socialMedia: string;
+    followers: number;
 };
 
 export type ProposalOptionDetailsLike = {
@@ -33,7 +34,7 @@ export type ProposalCampaignDetailsContext<
 export class ProposalCampaignDetailsService {
     constructor(
         private readonly influencerRepo: InfluencerRepository,
-    ) {}
+    ) { }
 
     async execute<
         TCampaign extends { _id: Types.ObjectId },
@@ -50,52 +51,56 @@ export class ProposalCampaignDetailsService {
             throw new NotFoundException('Proposal campaign not found');
         }
 
-        const option = await context.findOption(campaign._id, optionIndex);
+        let option = await context.findOption(campaign._id, optionIndex);
 
         if (!option) {
             throw new NotFoundException('Proposal campaign option not found');
         }
 
-        await this.attachLogos(option);
+        option = await this.attachLogos(option);
 
         return context.mapResult(campaign, option);
     }
 
     private async attachLogos<TOption extends ProposalOptionDetailsLike>(
         option: TOption,
-    ): Promise<void> {
+    ): Promise<any> {
         const influencerIds = [
             ...new Set(option.addedAccounts.map(acc => acc.influencerId)),
+        ];
+
+        const socialMedias = [
+            'instagram',
+            'tiktok',
+            'youtube',
+            'facebook',
+            'spotify',
+            'soundcloud',
+            'press',
+        ] as const;
+
+        const socialAccountFields = [
+            '_id',
+            'logoUrl',
+            'profileCategory',
+            'currency',
+            'initialPrice',
+            'followers',
+        ] as const;
+
+        const select = [
+            '_id',
+            'phone',
+            ...socialMedias.flatMap((socialMedia) =>
+                socialAccountFields.map((field) => `${socialMedia}.${field}`),
+            ),
         ];
 
         const influencers = await this.influencerRepo.findMany(
             { _id: { $in: influencerIds } },
             {
                 lean: true,
-                select: [
-                    '_id',
-                    'instagram._id', 'instagram.logoUrl',
-                    'tiktok._id', 'tiktok.logoUrl',
-                    'youtube._id', 'youtube.logoUrl',
-                    'facebook._id', 'facebook.logoUrl',
-                    'spotify._id', 'spotify.logoUrl',
-                    'soundcloud._id', 'soundcloud.logoUrl',
-                    'press._id', 'press.logoUrl',
-                    'instagram._id', 'instagram.profileCategory',
-                    'tiktok._id', 'tiktok.profileCategory',
-                    'youtube._id', 'youtube.profileCategory',
-                    'facebook._id', 'facebook.profileCategory',
-                    'spotify._id', 'spotify.profileCategory',
-                    'soundcloud._id', 'soundcloud.profileCategory',
-                    'press._id', 'press.profileCategory',
-                    'instagram._id', 'instagram.currency',
-                    'tiktok._id', 'tiktok.currency',
-                    'youtube._id', 'youtube.currency',
-                    'facebook._id', 'facebook.currency',
-                    'spotify._id', 'spotify.currency',
-                    'soundcloud._id', 'soundcloud.currency',
-                    'press._id', 'press.currency',
-                ],
+                select: select,
             },
         );
 
@@ -117,7 +122,10 @@ export class ProposalCampaignDetailsService {
                 logoUrl: matchedAccount?.logoUrl ?? null,
                 profileType: matchedAccount?.profileCategory ?? null,
                 currency: matchedAccount?.currency ?? CurrencyCode.EUR,
+                followers: matchedAccount?.followers ?? acc.followers
             };
         });
+
+        return option;
     }
 }

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InfluencerRepository } from '../../../database/repositories/users/influencer.repository';
-import { ICampaignDetails } from '../../../common/types/client/campaign.types';
+import { CampaignStatusEnum, ICampaignDetails } from '../../../common/types/client/campaign.types';
 import { CurrencyCode } from '../../../common/types/finance.types';
 
 export type CampaignDetailsContext<TCampaign, TResult> = {
@@ -10,7 +10,7 @@ export type CampaignDetailsContext<TCampaign, TResult> = {
 
 @Injectable()
 export class CampaignDetailsService {
-  constructor(private readonly influencerRepo: InfluencerRepository) {}
+  constructor(private readonly influencerRepo: InfluencerRepository) { }
 
   async execute<TCampaign extends ICampaignDetails, TResult>(
     campaignId: string,
@@ -46,6 +46,7 @@ export class CampaignDetailsService {
       'profileCategory',
       'currency',
       'initialPrice',
+      'followers',
     ] as const;
 
     const select = [
@@ -82,6 +83,7 @@ export class CampaignDetailsService {
         initialPrice: matchedAccount?.initialPrice ?? null,
         currency: matchedAccount?.currency ?? CurrencyCode.EUR,
         phoneNumber: influencer.phone,
+        followers: campaign.status !== CampaignStatusEnum.completed ? matchedAccount?.followers : acc.followers,
       };
     });
 
