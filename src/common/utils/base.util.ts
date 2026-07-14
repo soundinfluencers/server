@@ -25,7 +25,6 @@ export const safeParseToNumber = (val: any, fallback = 0): number => {
     if (val == null) return fallback;
 
     const n = Number(val);
-    console.log('safeParseToNumber n result: ', n)
     return Number.isFinite(n) ? n : fallback;
 };
 

@@ -63,6 +63,9 @@ export class Offer {
   @Prop({ required: false, type: String })
   storyAndPostDetails?: string;
 
+  @Prop({ type: Types.ObjectId })
+  referenceId?: Types.ObjectId;
+
   readonly createdAt?: Date;
   readonly updatedAt?: Date;
 }
@@ -74,6 +77,23 @@ OfferSchema.index({
   genre: 1,
   isPublished: 1,
   combinedFollowers: 1,
+  createdAt: -1,
+  _id: -1,
+});
+
+OfferSchema.index({
+  socialMedia: 1,
+  genre: 1,
+  referenceId: 1,
+  combinedFollowers: 1,
+  createdAt: -1,
+  _id: -1,
+});
+
+OfferSchema.index({
+  referenceId: 1,
+  isPublished: 1,
+  updatedAt: -1,
   createdAt: -1,
   _id: -1,
 });

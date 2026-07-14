@@ -3,8 +3,6 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  InternalServerErrorException,
-  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -26,11 +24,11 @@ import { InfluencerRepository } from '../../database/repositories/users/influenc
 import { UpdatePostDetailsResponse } from './types/scraper-response.types';
 import { ScraperAvailableSocialMedias } from './types/scraper.types';
 import { ScrapersGateway, ScrapersRealtimeTarget } from './scrapers.gateway';
-import { log } from 'node:console';
+import { FilteredNestLogger } from 'src/common/logger/filtered-nest-logger';
 
 @Injectable()
 export class ScrapersService {
-  private readonly logger = new Logger();
+  private readonly logger = new FilteredNestLogger();
 
   // All available adapters
   private readonly adapterMap = {
@@ -90,7 +88,7 @@ export class ScrapersService {
 
           const adapter = this.adapterMap[socialMedia];
           if (!adapter) {
-            this.logger.error(`[SCRAPER] Unsupported social media: ${socialMedia}`);
+            this.logger.warn(`[SCRAPER] Unsupported social media was provided to scrapePostDetailsBatch: ${socialMedia}`);
             accountsBatch.forEach((acc) => {
               results[acc.accountId] = { success: false };
             });
@@ -133,7 +131,7 @@ export class ScrapersService {
           break;
         } catch (e) {
           attempt++;
-          this.logger.error(`[SCRAPER] Posts batch attempt ${attempt} failed: ${e.message}`);
+          this.logger.error(`[SCRAPER] Posts batch attempt ${attempt} failed`, e instanceof Error ? e.stack : String(e));
           if (attempt > maxRetries) {
             accountsBatch.forEach((acc) => {
               results[acc.accountId] = { success: false };
@@ -153,7 +151,7 @@ export class ScrapersService {
       }
     } catch (error) {
       this.logger.error(
-        `[SCRAPER] Posts batch attempt ${attempt}/${maxRetries} failed: ${error.message}`,
+        `[SCRAPER] Posts batch attempt ${attempt}/${maxRetries} failed.`, error instanceof Error ? error.stack : String(error),
       );
     } finally {
       this.currentRuns--;
@@ -229,7 +227,7 @@ export class ScrapersService {
           break;
         } catch (e) {
           attempt++;
-          this.logger.error(`[SCRAPER] Accounts batch attempt ${attempt} failed: ${e.message}`);
+          this.logger.error(`[SCRAPER] Accounts batch attempt ${attempt} failed.`, e instanceof Error ? e.stack : String(e));
           if (attempt > maxRetries) {
             accountsBatch.forEach((acc) => {
               results[acc.accountId] = { success: false };
@@ -248,8 +246,8 @@ export class ScrapersService {
       }
     } catch (error) {
       this.logger.error(
-        `[SCRAPER] Accounts batch attempt ${attempt}/${maxRetries} failed: ${error.message}`,
-        error instanceof Error ? error.stack : new Error().stack,
+        `[SCRAPER] Accounts batch attempt ${attempt}/${maxRetries} failed.`,
+        error instanceof Error ? error.stack : String(error)
       );
     } finally {
       this.currentRuns--;
@@ -522,7 +520,7 @@ export class ScrapersService {
       {
         [socialMedia]: { $exists: true, $ne: [] },
       },
-      { lean: true },
+      { lean: true, limit: 5 },
     );
 
     influencers.map((influencer, i) => {

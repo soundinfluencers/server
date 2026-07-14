@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  HttpException,
+  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -33,8 +35,12 @@ import {
   CommunityMusicGenres,
   CreatorMusicGenres,
 } from 'src/common/types/influencer/influencer.types';
+import { CREATE_OFFER_SERVICE, CreateOfferService } from './offers/create-offer.service';
+import { UPDATE_OFFER_FIELD_SERVICE, UpdateOfferFieldService } from './offers/update-offer-field.service';
+import { TOGGLE_OFFER_LINK_SERVICE, ToggleOfferLinkService } from './offers/toggle-offer-link.service';
 
 export interface OffersMatrixOfferCursor {
+  combinedFollowers: number;
   createdAt: Date;
   offerId: string;
 }
@@ -45,30 +51,6 @@ export interface OffersMatrixAccountCursor {
   accountId: string;
 }
 
-export type OfferFieldRecord = {
-  title: string;
-  price: number;
-  combinedFollowers: string;
-  networkAmount: number;
-  storyAndPostDetails: string;
-  isPublished: boolean;
-};
-
-export type UpdateOfferFieldInput<K extends keyof OfferFieldRecord = keyof OfferFieldRecord> = {
-  offerId: string;
-  field: K;
-  value: OfferFieldRecord[K];
-};
-
-const offerFieldTypes: Record<keyof OfferFieldRecord, 'string' | 'number' | 'boolean'> = {
-  title: 'string',
-  price: 'number',
-  combinedFollowers: 'string',
-  networkAmount: 'number',
-  storyAndPostDetails: 'string',
-  isPublished: 'boolean',
-};
-
 @Injectable()
 export class AdminOffersService {
   private readonly logger = new FilteredNestLogger(AdminOffersService.name);
@@ -78,6 +60,12 @@ export class AdminOffersService {
     private readonly offerAccountLinkRepository: OfferAccountLinkRepository,
     private readonly xlsxImporter: XlsxImporter,
     private readonly influencerRepository: InfluencerRepository,
+    @Inject(CREATE_OFFER_SERVICE)
+    private readonly createOfferService: CreateOfferService,
+    @Inject(UPDATE_OFFER_FIELD_SERVICE)
+    private readonly updateOfferService: UpdateOfferFieldService,
+    @Inject(TOGGLE_OFFER_LINK_SERVICE)
+    private readonly toggleOfferLinkService: ToggleOfferLinkService,
   ) { }
 
   async getMatrix(query: GetAdminOffersMatrixQuery): Promise<AdminOffersMatrixDto> {
@@ -142,85 +130,53 @@ export class AdminOffersService {
   }
 
   async createOffer(data: AdminCreateOfferDto): Promise<void> {
-    await this.offerRepository.create({
-      _id: new ObjId(),
-      title: data.offerName,
-      socialMedia: data.socialMedia,
-      price: 0,
-      genre: data.genre,
-      isPublished: false,
-      combinedFollowers: 0,
-      networksAmount: '0',
-      storyAndPostDetails: '0',
-    } satisfies Offer);
+    try {
+      const payload = {
+        offerName: data.offerName,
+        socialMedia: data.socialMedia,
+        genre: data.genre,
+      } satisfies AdminCreateOfferDto;
+
+      await this.createOfferService.exec(payload);
+    } catch (err) {
+      this.logger.error(`Error while creating new offer:`, err instanceof Error ? err.stack : undefined);
+      throw new InternalServerErrorException("Something went wrong");
+    }
   }
 
-  async toggleLink(dto: AdminOffersMatrixToggleLinkDto): Promise<{ ok: boolean }> {
-    const offerId = new ObjId(dto.offerId);
-    const influencerId = new ObjId(dto.influencerId);
-    const accountId = new ObjId(dto.accountId);
-
-    const session = await this.offerAccountLinkRepository.startSession();
-    session.startTransaction();
-
+  async toggleLink(data: AdminOffersMatrixToggleLinkDto): Promise<void> {
     try {
-      if (dto.connected) {
-        await this.offerAccountLinkRepository.addLink(offerId, influencerId, accountId, session);
-      } else {
-        await this.offerAccountLinkRepository.removeLink(offerId, influencerId, accountId, session);
-      }
-
-      const n = await this.offerAccountLinkRepository.countByOfferId(offerId, session);
-      await this.offerRepository.updateOne({ _id: offerId }, { $set: { networksAmount: n } });
-
-      await session.commitTransaction();
+      await this.toggleOfferLinkService.exec(data);
     } catch (err) {
-      await session.abortTransaction();
-      throw err;
-    } finally {
-      await session.endSession();
+      if (err instanceof HttpException) {
+        throw err;
+      }
+      this.logger.error(`
+        Error while updating offer ${data.offerId}. Payload: ${JSON.stringify(data, null, '\t')}
+        `, err instanceof Error ? err.stack : undefined);
+      throw new InternalServerErrorException("Something went wrong");
     }
-
-    return { ok: true };
   }
 
   async updateField(offerId: string, payload: UpdateOfferFieldDto): Promise<void> {
-    const allowedFields: (keyof OfferFieldRecord)[] = [
-      'title',
-      'price',
-      'combinedFollowers',
-      'networkAmount',
-      'storyAndPostDetails',
-      'isPublished',
-    ];
-
-    if (!allowedFields.includes(payload.field as keyof OfferFieldRecord)) {
-      throw new BadRequestException('Invalid offer field');
-    }
-
-    const field = payload.field as keyof OfferFieldRecord;
-
-    if (!this.validateOfferFieldValue(field, payload.value)) {
-      throw new BadRequestException(`Invalid value type for field "${field}"`);
-    }
-
-    const offer = await this.offerRepository.updateOneField({
-      offerId: offerId,
-      field,
-      value: payload.value,
-    });
-
-    if (!offer) {
-      throw new NotFoundException('Offer not found');
+    try {
+      await this.updateOfferService.exec(new ObjId(offerId), payload);
+    } catch (err) {
+      if (err instanceof HttpException) {
+        throw err;
+      }
+      this.logger.error(`
+        Error while updating offer ${offerId}. Payload: ${JSON.stringify(payload, null, '\t')}
+        `, err instanceof Error ? err.stack : undefined);
+      throw new InternalServerErrorException("Something went wrong");
     }
   }
 
   async changePublishedStatuses(socialMedia: OfferSocialMediaEnum, genre: CommunityMusicGenres | CreatorMusicGenres): Promise<void> {
-    const updateResult = await this.offerRepository.changePublishedStatuses(socialMedia, genre);
-
-    if (updateResult.matchedCount === 0) {
-      this.logger.warn(`Didn't change isPublished status for ${socialMedia} offers with genre ${genre}. updateResult object: ${JSON.stringify(updateResult, null, '\t')}`);
-      throw new NotFoundException(`Offers not found`);
+    try {
+      await this.offerRepository.changePublishedStatuses(socialMedia, genre);
+    } catch (err) {
+      throw err;
     }
   }
 
@@ -403,8 +359,9 @@ export class AdminOffersService {
       nextCursor:
         hasNextPage && last
           ? this.encodeOffersCursor({
-            createdAt: last.createdAt,
-            offerId: last.offerId.toString(),
+            combinedFollowers: last.cursorCombinedFollowers,
+            createdAt: last.cursorCreatedAt,
+            offerId: last.cursorOfferId.toString(),
           })
           : null,
     };
@@ -434,7 +391,7 @@ export class AdminOffersService {
       username: r.username,
       followers: r.followers,
       price: r.publicPrice,
-      pricePerFollower: Number((r.publicPrice / r.followers).toFixed(8)),
+      pricePerFollower: r.pricePerFollower,
       logoUrl: r.logoUrl,
     }));
 
@@ -451,10 +408,15 @@ export class AdminOffersService {
     };
   }
 
-  private encodeOffersCursor(c: { createdAt: Date; offerId: string }): string {
+  private encodeOffersCursor(c: {
+    combinedFollowers: number;
+    createdAt: Date;
+    offerId: string;
+  }): string {
     const createdAt = c.createdAt instanceof Date ? c.createdAt : new Date(c.createdAt);
     return Buffer.from(
       JSON.stringify({
+        combinedFollowers: c.combinedFollowers,
         createdAt: createdAt.toISOString(),
         offerId: c.offerId,
       }),
@@ -466,10 +428,17 @@ export class AdminOffersService {
     if (!cursor) return null;
     try {
       const raw = JSON.parse(Buffer.from(cursor, 'base64').toString('utf8')) as {
+        combinedFollowers?: unknown;
         createdAt: string;
         offerId: string;
       };
+
+      if (typeof raw.combinedFollowers !== 'number') {
+        return null;
+      }
+
       return {
+        combinedFollowers: raw.combinedFollowers,
         createdAt: new Date(raw.createdAt),
         offerId: raw.offerId,
       };
@@ -491,12 +460,5 @@ export class AdminOffersService {
     } catch {
       return null;
     }
-  }
-
-  private validateOfferFieldValue(
-    field: keyof OfferFieldRecord,
-    value: unknown,
-  ): value is OfferFieldRecord[typeof field] {
-    return typeof value === offerFieldTypes[field];
   }
 }

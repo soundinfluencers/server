@@ -119,7 +119,7 @@ export class AdminOffersController {
     @Param('influencerId', new ParseObjectIdPipe()) influencerId: string,
     @Param('accountId', new ParseObjectIdPipe()) accountId: string,
     @Param('connected', new ParseBoolPipe()) connected: boolean,
-  ): Promise<{ ok: boolean }> {
+  ): Promise<void> {
     const payload = {
       offerId,
       influencerId,

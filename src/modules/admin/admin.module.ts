@@ -72,6 +72,9 @@ import {
 } from './services/requests/get-admin-request-details.service';
 import { RequestNegotiationModule } from '../request-negotiation/request-negotiation.module';
 import { WebsocketModule } from '../websocket/websocket.module';
+import { CREATE_OFFER_SERVICE, CreateOfferService } from './services/offers/create-offer.service';
+import { UPDATE_OFFER_FIELD_SERVICE, UpdateOfferFieldService } from './services/offers/update-offer-field.service';
+import { TOGGLE_OFFER_LINK_SERVICE, ToggleOfferLinkService } from './services/offers/toggle-offer-link.service';
 
 @Module({
   imports: [EmailModule, WebsocketModule],
@@ -155,6 +158,18 @@ export class AdminRequestsModule {}
     AdminClientInvoicesService,
     AdminInfluencerInvoicesService,
     AdminOffersService,
+    {
+      provide: CREATE_OFFER_SERVICE,
+      useClass: CreateOfferService
+    },
+    {
+      provide: UPDATE_OFFER_FIELD_SERVICE,
+      useClass: UpdateOfferFieldService
+    },
+    {
+      provide: TOGGLE_OFFER_LINK_SERVICE,
+      useClass: ToggleOfferLinkService
+    }
   ],
 })
 export class AdminModule {}

@@ -8,9 +8,9 @@ import {
     Types,
     UpdateQuery
 } from "mongoose";
-import {RepoOptions} from "../types/repo.types";
-import {applyQueryOptions} from "../utils/apply-query-options.util";
-import {applyAggregateOptions} from "../utils/apply-aggregate-options.util";
+import { RepoOptions } from "../types/repo.types";
+import { applyQueryOptions } from "../utils/apply-query-options.util";
+import { applyAggregateOptions } from "../utils/apply-aggregate-options.util";
 
 // Interface for base repository with default mongo methods
 export interface IBaseRepository<T> {
@@ -24,7 +24,7 @@ export interface IBaseRepository<T> {
 }
 
 export class BaseRepository<T> implements IBaseRepository<T> {
-    constructor(protected readonly model: Model<T>) {}
+    constructor(protected readonly model: Model<T>) { }
 
     findById(id: string, options?: RepoOptions & { select?: string[] }) {
         let query = this.model.findById(new Types.ObjectId(id));

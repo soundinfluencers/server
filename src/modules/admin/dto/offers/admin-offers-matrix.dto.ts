@@ -16,6 +16,7 @@ import {
   CommunityMusicGenres,
   CreatorMusicGenres,
 } from 'src/common/types/influencer/influencer.types';
+import { ObjId } from 'src/common/types/base.types';
 
 export class GetAdminOffersMatrixQuery {
   @ApiPropertyOptional({ type: String })
@@ -116,6 +117,14 @@ export class AdminCreateOfferDto {
   @IsNotEmpty()
   @IsString()
   offerName: string;
+
+  // fields not for api
+  requestedId?: ObjId;
+  price?: number;
+  combinedFollowers?: number;
+  networksAmount?: string;
+  storyAndPostDetails?: string;
+  referenceId?: ObjId;
 }
 
 export class AdminOffersMatrixLinkDto {
@@ -173,10 +182,7 @@ export class AdminOffersMatrixToggleLinkDto {
 export enum OfferEditableField {
   title = 'title',
   price = 'price',
-  combinedFollowers = 'combinedFollowers',
-  networkAmount = 'networkAmount',
   storyAndPostDetails = 'storyAndPostDetails',
-  isPublished = 'isPublished',
 }
 
 export class UpdateOfferFieldDto {
@@ -191,7 +197,6 @@ export class UpdateOfferFieldDto {
     oneOf: [
       { type: 'string', example: 'New offer title' },
       { type: 'number', example: 150 },
-      { type: 'boolean', example: true },
     ],
   })
   @IsNotEmpty()
