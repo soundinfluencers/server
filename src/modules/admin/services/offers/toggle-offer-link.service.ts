@@ -94,6 +94,13 @@ export class ToggleOfferLinkService {
                 networksAmount++;
                 combinedFollowers += safeParseToNumber(socialAccount.followers);
             } else {
+                const linksAmount = await this.offerAccountLinkRepository.countByOfferId(isPublished === true ? offerWorkingCopyId : offerId);
+
+                if (!Number.isFinite(linksAmount) || linksAmount <= 0) {
+                    this.logger.warn(`No offer account links were found while trying to remove link for influencer ${influencerId} with ${socialMedia} account ${accountId}`);
+                    return;
+                }
+
                 await this.offerAccountLinkRepository.removeLink(isPublished === true ? offerWorkingCopyId : offerId, influencerId, accountId, session);
                 networksAmount--;
                 combinedFollowers -= safeParseToNumber(socialAccount.followers);

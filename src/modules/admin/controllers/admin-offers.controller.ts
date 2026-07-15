@@ -12,8 +12,6 @@ import {
   Query,
   UploadedFile,
   UseInterceptors,
-  UsePipes,
-  ValidationPipe,
 } from '@nestjs/common';
 import { Auth } from '../../../common/decorators/auth.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
@@ -21,10 +19,8 @@ import { Role } from '../../../common/types/user.types';
 import {
   ApiBody,
   ApiConsumes,
-  ApiExcludeEndpoint,
   ApiOperation,
   ApiParam,
-  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { ApiResponseDto } from '../../../common/decorators/api/response/api-response.decorator';
