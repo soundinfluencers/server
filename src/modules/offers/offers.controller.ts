@@ -1,6 +1,5 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { OffersService } from './offers.service';
-import { SocialMediaEnum } from '../../common/types/social-media.types';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { Auth } from '../../common/decorators/auth.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -10,6 +9,7 @@ import {
   GetFilteredPublishedOffers,
 } from './dto/get-offers.dto';
 import { ApiResponseDto } from '../../common/decorators/api/response/api-response.decorator';
+import { OfferSocialMediaEnum } from 'src/common/types/offer.types';
 
 @ApiTags('offers')
 @Controller('offers')
@@ -23,7 +23,7 @@ export class OffersController {
     name: 'socialMedia',
     required: true,
     type: 'string',
-    enum: SocialMediaEnum,
+    enum: OfferSocialMediaEnum,
   })
   @ApiParam({
     name: 'genre',

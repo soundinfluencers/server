@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { SocialMediaEnum } from '../../../common/types/social-media.types';
 import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 import { FoundAccountDto } from '../../profile/dto/influencer/get-profile.dto';
 import { IsGenreAllowedForSocialMedia } from '../../../common/decorators/dto/genre-for-social-media.decorator';
@@ -13,11 +12,11 @@ export class GetFilteredPublishedOffers {
   @ApiProperty({
     name: 'socialMedia',
     type: 'string',
-    enum: SocialMediaEnum,
+    enum: OfferSocialMediaEnum,
     required: true,
   })
-  @IsEnum(SocialMediaEnum)
-  socialMedia: SocialMediaEnum;
+  @IsEnum(OfferSocialMediaEnum)
+  socialMedia: OfferSocialMediaEnum;
 
   @ApiProperty({
     name: 'genre',

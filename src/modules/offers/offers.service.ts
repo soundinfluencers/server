@@ -15,10 +15,14 @@ import { ExchangeRateService } from '../../integrations/exchange-rate/exchange-r
 import { OfferRepository } from '../../database/repositories/offers/offer.repository';
 import { InfluencerRepository } from '../../database/repositories/users/influencer.repository';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
-import { SocialMediaEnum } from '../../common/types/social-media.types';
+import { OfferSocialMediaEnum } from 'src/common/types/offer.types';
+import { SocialMediaEnum } from 'src/common/types/social-media.types';
+import { FilteredNestLogger } from 'src/common/logger/filtered-nest-logger';
 
 @Injectable()
 export class OffersService {
+  private readonly logger = new FilteredNestLogger(OffersService.name);
+  
   constructor(
     private readonly exchangeRateService: ExchangeRateService,
     private readonly influencerRepository: InfluencerRepository,
@@ -38,6 +42,7 @@ export class OffersService {
       await this.cacheManager.get<FilteredPublishedOffersByGenreAndSocialMedia[]>(cacheKey);
 
     if (cachedOffers !== undefined) {
+      this.logger.debug(`Found cached offers with key: ${cacheKey}`);
       return cachedOffers;
     }
 
@@ -51,6 +56,10 @@ export class OffersService {
         lean: true,
       },
     );
+
+    this.logger.debug(`
+      OFFERS FETCH RESULT: ${offers?.length}.
+    `);
 
     if (!offers?.length) return [];
 
@@ -193,7 +202,7 @@ export class OffersService {
           prices: influencer.prices,
           averageViews: influencer.averageViews,
           engagementRate: influencer.engagementRate,
-          socialMedia: socialMedia,
+          socialMedia: socialMedia as unknown as SocialMediaEnum,
           profileType:
             (influencer.profileCategory as InfluencerProfileCategory | undefined) ??
             InfluencerProfileCategory.community,
@@ -250,7 +259,7 @@ export class OffersService {
     return result;
   }
 
-  private buildCacheKey(genre: string, socialMedia: SocialMediaEnum): string {
+  private buildCacheKey(genre: string, socialMedia: OfferSocialMediaEnum): string {
     return `offers:v1:${socialMedia}:${genre.toLowerCase()}`;
   }
 }
