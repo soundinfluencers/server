@@ -7,16 +7,20 @@ import {
   CommunityMusicGenres,
   CreatorMusicGenres,
 } from 'src/common/types/influencer/influencer.types';
+import { SocialMediaEnum } from 'src/common/types/social-media.types';
 
 export class GetFilteredPublishedOffers {
   @ApiProperty({
     name: 'socialMedia',
     type: 'string',
-    enum: OfferSocialMediaEnum,
+    // enum: OfferSocialMediaEnum,
+    enum: SocialMediaEnum,
     required: true,
   })
-  @IsEnum(OfferSocialMediaEnum)
-  socialMedia: OfferSocialMediaEnum;
+  @IsEnum(SocialMediaEnum)
+  socialMedia: SocialMediaEnum;
+  // @IsEnum(OfferSocialMediaEnum)
+  // socialMedia: OfferSocialMediaEnum;
 
   @ApiProperty({
     name: 'genre',
@@ -26,7 +30,7 @@ export class GetFilteredPublishedOffers {
   })
   @IsString()
   @IsNotEmpty()
-  @IsGenreAllowedForSocialMedia()
+  // @IsGenreAllowedForSocialMedia()
   genre: string;
 }
 
@@ -37,8 +41,11 @@ export class FilteredPublishedOffersByGenreAndSocialMedia {
   @ApiProperty()
   title: string;
 
-  @ApiProperty({ type: String, enum: OfferSocialMediaEnum })
-  socialMedia: OfferSocialMediaEnum;
+  // @ApiProperty({ type: String, enum: OfferSocialMediaEnum })
+  // socialMedia: OfferSocialMediaEnum;
+
+  @ApiProperty({ type: String, enum: SocialMediaEnum })
+  socialMedia: SocialMediaEnum;
 
   @ApiProperty({ type: () => [FoundAccountDto] })
   connectedAccounts: FoundAccountDto[];

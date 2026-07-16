@@ -10,6 +10,7 @@ import {
 } from './dto/get-offers.dto';
 import { ApiResponseDto } from '../../common/decorators/api/response/api-response.decorator';
 import { OfferSocialMediaEnum } from 'src/common/types/offer.types';
+import { SocialMediaEnum } from 'src/common/types/social-media.types';
 
 @ApiTags('offers')
 @Controller('offers')
@@ -23,7 +24,8 @@ export class OffersController {
     name: 'socialMedia',
     required: true,
     type: 'string',
-    enum: OfferSocialMediaEnum,
+    // enum: OfferSocialMediaEnum,
+    enum: SocialMediaEnum,
   })
   @ApiParam({
     name: 'genre',

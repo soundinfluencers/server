@@ -233,7 +233,7 @@ export class OffersService {
         return {
           _id: offer._id.toString(),
           title: offer.title,
-          socialMedia: offer.socialMedia,
+          socialMedia: offer.socialMedia as unknown as SocialMediaEnum,
           price: offer.price,
           genre: offer.genre,
           combinedFollowers: offer.combinedFollowers,
@@ -259,7 +259,8 @@ export class OffersService {
     return result;
   }
 
-  private buildCacheKey(genre: string, socialMedia: OfferSocialMediaEnum): string {
+  // private buildCacheKey(genre: string, socialMedia: OfferSocialMediaEnum): string {
+  private buildCacheKey(genre: string, socialMedia: SocialMediaEnum): string {
     return `offers:v1:${socialMedia}:${genre.toLowerCase()}`;
   }
 }
