@@ -27,6 +27,7 @@ export type OfferHeaderRow = {
   isPublished: boolean;
   offerPrice: number; // custom price
   costPrice: number; // auto-price - accounts' prices sum
+  combinedFollowers: number;
   createdAt: Date;
   cursorOfferId: ObjId;
   cursorCombinedFollowers: number;
@@ -355,6 +356,7 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
         isPublished: offer.isPublished,
         offerPrice: offer.price,
         costPrice: 0,
+        combinedFollowers: 0,
         createdAt: offer.createdAt ?? new Date(0),
         cursorOfferId: baseOffer._id as ObjId,
         cursorCombinedFollowers: baseOffer.combinedFollowers ?? 0,
@@ -392,6 +394,7 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
         isPublished: offer.isPublished,
         offerPrice: offer.price,
         costPrice: 0,
+        combinedFollowers: 0,
         createdAt: offer.createdAt ?? new Date(0),
         cursorOfferId: baseOffer._id as ObjId,
         cursorCombinedFollowers: baseOffer.combinedFollowers ?? 0,
@@ -404,10 +407,13 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
     // Key - influencerId:accountId
     // Value - account.publicPrice
     const accountPriceMap = new Map<string, number>();
+    const accountFollowersMap = new Map<string, number>();
 
     for (const influencer of influencers) {
       for (const account of influencer[offerSocialMedia]) {
-        accountPriceMap.set(`${influencer._id.toString()}:${account._id.toString()}`, account.publicPrice);
+        const key = `${influencer._id.toString()}:${account._id.toString()}`;
+        accountPriceMap.set(key, account.publicPrice);
+        accountFollowersMap.set(key, account.followers);
       }
     }
 
@@ -415,6 +421,7 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
 
     for (const { baseOffer, offer } of effectiveRows) {
       let costPrice = 0;
+      let combinedFollowers = 0;
 
       const offerLinks: OfferAccountLink[] = linksByOfferId.get(offer._id.toString());
 
@@ -422,12 +429,15 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
         for (const link of offerLinks) {
           const key = `${link.influencerId.toString()}:${link.accountId.toString()}`;
           const price = accountPriceMap.get(key);
+          const followers = accountFollowersMap.get(key);
 
-          if (!price) {
-            continue;
+          if (price) {
+            costPrice += price;
           }
 
-          costPrice += price;
+          if (followers) {
+            combinedFollowers += followers;
+          }
         }
       }
 
@@ -437,6 +447,7 @@ export class OfferRepository extends BaseRepository<Offer> implements IOfferRepo
         isPublished: offer.isPublished,
         offerPrice: offer.price,
         costPrice: costPrice,
+        combinedFollowers,
         createdAt: offer.createdAt ?? new Date(0),
         cursorOfferId: baseOffer._id as ObjId,
         cursorCombinedFollowers: baseOffer.combinedFollowers ?? 0,

@@ -72,6 +72,9 @@ export class AdminOffersMatrixOfferHeaderDto {
   costPrice: number; // auto-price - accounts' prices sum
 
   @ApiProperty()
+  combinedFollowers: number; // current sum of linked accounts followers
+
+  @ApiProperty()
   createdAt: string;
 }
 

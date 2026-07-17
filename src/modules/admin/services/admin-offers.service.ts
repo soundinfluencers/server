@@ -351,6 +351,7 @@ export class AdminOffersService {
       isPublished: row.isPublished,
       offerPrice: row.offerPrice, // custom price
       costPrice: row.costPrice, // auto-price - accounts' prices sum
+      combinedFollowers: row.combinedFollowers,
       createdAt: row.createdAt.toISOString(),
     }));
 
