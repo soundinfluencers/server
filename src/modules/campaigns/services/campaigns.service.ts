@@ -728,8 +728,136 @@ export class CampaignsService {
   async getCampaignByPublicShareLink(campaignId: string): Promise<IPublicCampaignForTable> {
     if (!campaignId) throw new BadRequestException('Not enough arguments');
 
-    let campaign: any = await this.campaignRepo.findById(campaignId, { lean: true });
-    if (!campaign) campaign = await this.completedCampaignRepo.findById(campaignId, { lean: true });
+    const [campaign]: any[] = await this.campaignRepo.aggregate([
+      {
+        $match: {
+          _id: new Types.ObjectId(campaignId),
+        },
+      },
+      {
+        $unionWith: {
+          coll: 'completedcampaigns',
+          pipeline: [
+            {
+              $match: {
+                _id: new Types.ObjectId(campaignId),
+              },
+            },
+          ],
+        },
+      },
+      {
+        $limit: 1,
+      },
+      {
+        $lookup: {
+          from: 'influencers',
+          let: {
+            influencerIds: {
+              $setUnion: [{ $ifNull: ['$addedAccounts.influencerId', []] }, []],
+            },
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: ['$_id', '$$influencerIds'],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                socialAccounts: {
+                  $concatArrays: [
+                    { $ifNull: ['$instagram', []] },
+                    { $ifNull: ['$tiktok', []] },
+                    { $ifNull: ['$facebook', []] },
+                    { $ifNull: ['$youtube', []] },
+                    { $ifNull: ['$spotify', []] },
+                    { $ifNull: ['$soundcloud', []] },
+                    { $ifNull: ['$press', []] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: '_influencers',
+        },
+      },
+      {
+        $set: {
+          addedAccounts: {
+            $map: {
+              input: { $ifNull: ['$addedAccounts', []] },
+              as: 'account',
+              in: {
+                $let: {
+                  vars: {
+                    influencer: {
+                      $first: {
+                        $filter: {
+                          input: '$_influencers',
+                          as: 'influencer',
+                          cond: {
+                            $eq: ['$$influencer._id', '$$account.influencerId'],
+                          },
+                        },
+                      },
+                    },
+                  },
+                  in: {
+                    $let: {
+                      vars: {
+                        socialAccount: {
+                          $first: {
+                            $filter: {
+                              input: {
+                                $ifNull: ['$$influencer.socialAccounts', []],
+                              },
+                              as: 'socialAccount',
+                              cond: {
+                                $eq: ['$$socialAccount._id', '$$account.accountId'],
+                              },
+                            },
+                          },
+                        },
+                      },
+                      in: {
+                        $mergeObjects: [
+                          '$$account',
+                          {
+                            followers: {
+                              $cond: [
+                                {
+                                  $eq: ['$statusCampaign', CampaignStatusEnum.completed],
+                                },
+                                '$$account.followers',
+                                {
+                                  $ifNull: [
+                                    '$$socialAccount.followers',
+                                    '$$account.followers',
+                                  ],
+                                },
+                              ],
+                            },
+                          },
+                        ],
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _influencers: 0,
+        },
+      },
+    ]);
     if (!campaign) throw new NotFoundException('Campaign not found');
 
     const campaignToReturn = {
@@ -869,6 +997,7 @@ export class CampaignsService {
     });
 
     const withLogos = await this.campaignDetailsService.attachLogos({
+      status: campaignToReturn.status,
       addedAccounts: campaignToReturn.addedAccounts.map((acc) => ({
         ...acc,
         socialAccountId: acc.socialAccountId ?? acc.accountId,

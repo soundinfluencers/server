@@ -34,16 +34,6 @@ export class AdminUpdateSocialAccountDto extends UpdateSocialAccountDto {
     @Type(() => Number)
     @IsNumber()
     averageViews?: number;
-
-    // @ApiPropertyOptional({ description: "Deleted flag" })
-    // @IsOptional()
-    // @IsBoolean()
-    // isDeleted?: boolean;
-    //
-    // @ApiPropertyOptional({ description: "Verified flag" })
-    // @IsOptional()
-    // @IsBoolean()
-    // isVerified?: boolean;
 }
 
 // DTO for updating influencer's personal information as admin

@@ -37,7 +37,6 @@ import {
 } from '../../profile/dto/influencer/get-profile.dto';
 import { Types } from 'mongoose';
 import { CreateSocialAccountService } from '../../profile/services/create-social-account.service';
-import { log } from 'node:console';
 
 // Interface for AdminInfluencersService, AdminInfluencersController
 export interface IAdminInfluencersService {

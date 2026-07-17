@@ -68,12 +68,13 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
     private readonly createAdminRequestService: CreateAdminRequestService,
     private readonly emailService: EmailService,
     private readonly exchangeRateService: ExchangeRateService,
-  ) {}
+  ) { }
 
   async execute(
     data: UpdateSocialAccountInput,
     isForAdmin: boolean = false,
   ): Promise<SocialAccountDetailsDto | AdminSocialAccountForListDto> {
+    this.logger.debug(`PAYLOAD: ${JSON.stringify(data, null, '\t')}`);
     const { influencerId, socialAccountId, socialMedia } = this.validateInput(data);
 
     this.validateProfileCategoryFields(data);
@@ -91,10 +92,9 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
       );
     }
 
-    const updateFields = this.buildUpdateFields(data);
+    const updateFields = this.buildUpdateFields(data, isForAdmin);
 
-    const isPriceChanged =
-      data.price !== undefined && data.price !== null && data.price !== socialAccount.price;
+    const isPriceChanged = data.price !== undefined && data.price !== null && data.price !== socialAccount.price;
 
     if (isPriceChanged === true) {
       switch (isForAdmin) {
@@ -119,6 +119,8 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
             requestedCurrency: data.currency,
           });
 
+          this.logger.debug(`PARSED PRICES RESULT FROM handleAdminPriceChange: ${JSON.stringify(parsedPricesInfo, null, '\t')}`);
+
           if (!parsedPricesInfo) {
             this.logger.error(
               `Can't parse prices for ${socialMedia} social account ${socialAccount.username}, ${JSON.stringify(parsedPricesInfo, null, '\t')}`,
@@ -139,30 +141,27 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
       }
     }
 
-    this.logger.debug(
-      `LENGTH OF UPDATE FIELDS FOR UPDATING SOCIAL ACCOUNT: ${Object.keys(updateFields).length}`,
-    );
+    this.logger.debug(`UPDATE FIELDS FOR UPDATING SOCIAL ACCOUNT: \nLENGTH: ${Object.keys(updateFields).length}\nOBJECT: ${JSON.stringify(updateFields, null, '\t')}`);
 
     // if there's no fields to update - return account in current state (without updating)
     if (Object.keys(updateFields).length === 0) {
       return isForAdmin
         ? mapToAdminSocialAccountForListDto({
-            ...socialAccount,
-            influencerId: influencerId,
-            firstName: influencer.firstName,
-            lastName: influencer.lastName,
-            email: influencer.email,
-            phone: influencer.phone,
-            accountId: socialAccount._id,
-            balance: influencer.balance,
-            socialMedia: socialMedia,
-            costPerFollower:
-              Number((socialAccount?.price / socialAccount?.followers)?.toFixed(6)) ?? 0,
-          })
+          ...socialAccount,
+          influencerId: influencerId,
+          firstName: influencer.firstName,
+          lastName: influencer.lastName,
+          email: influencer.email,
+          phone: influencer.phone,
+          accountId: socialAccount._id,
+          balance: influencer.balance,
+          socialMedia: socialMedia,
+          costPerFollower:
+            Number((socialAccount?.price / socialAccount?.followers)?.toFixed(6)) ?? 0,
+        })
         : mapToSocialAccountDetailsDto(socialAccount);
     }
 
-    this.logger.debug(JSON.stringify(updateFields, null, '\t'));
 
     await this.updateSocialAccountInDb({
       influencerId,
@@ -179,27 +178,27 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
 
     return isForAdmin
       ? mapToAdminSocialAccountForListDto({
-          influencerId: influencerId,
-          firstName: influencer.firstName,
-          lastName: influencer.lastName,
-          email: influencer.email,
-          phone: influencer.phone,
-          balance: influencer.balance,
-          accountId: updatedAccount._id,
-          username: updatedAccount.username,
-          socialMedia: socialMedia,
-          logoUrl: updatedAccount.logoUrl,
-          followers: updatedAccount.followers,
-          profileLink: updatedAccount.profileLink,
-          publicPrice: updatedAccount.publicPrice,
-          price: updatedAccount.price,
-          initialPrice: updatedAccount.initialPrice,
-          currency: updatedAccount.currency,
-          costPerFollower:
-            Number((updatedAccount?.price / updatedAccount?.followers)?.toFixed(6)) ?? 0,
-          isHidden: updatedAccount.isHidden,
-          internalNote: influencer.internalNote,
-        })
+        influencerId: influencerId,
+        firstName: influencer.firstName,
+        lastName: influencer.lastName,
+        email: influencer.email,
+        phone: influencer.phone,
+        balance: influencer.balance,
+        accountId: updatedAccount._id,
+        username: updatedAccount.username,
+        socialMedia: socialMedia,
+        logoUrl: updatedAccount.logoUrl,
+        followers: updatedAccount.followers,
+        profileLink: updatedAccount.profileLink,
+        publicPrice: updatedAccount.publicPrice,
+        price: updatedAccount.price,
+        initialPrice: updatedAccount.initialPrice,
+        currency: updatedAccount.currency,
+        costPerFollower:
+          Number((updatedAccount?.price / updatedAccount?.followers)?.toFixed(6)) ?? 0,
+        isHidden: updatedAccount.isHidden,
+        internalNote: influencer.internalNote,
+      })
       : mapToSocialAccountDetailsDto(updatedAccount);
   }
 
@@ -272,6 +271,8 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
   }
 
   private validateProfileCategoryFields(data: UpdateSocialAccountInput): void {
+    if (!data.profileCategory) return;
+
     switch (data.profileCategory) {
       case InfluencerProfileCategory.community:
         if (data.creatorMusicGenres !== undefined || data.creatorContentFocus !== undefined) {
@@ -298,7 +299,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
     }
   }
 
-  private buildUpdateFields(data: UpdateSocialAccountInput): Partial<SocialAccount> {
+  private buildUpdateFields(data: UpdateSocialAccountInput, isForAdmin: boolean): Partial<SocialAccount> {
     const updateFields: Partial<SocialAccount> = {};
 
     const bannedFields = [
@@ -306,10 +307,13 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
       'accountId',
       'socialMedia',
       'price',
-      'publicPrice',
       'initialPrice',
       'currency',
     ];
+
+    if (isForAdmin === false) {
+      bannedFields.push('publicPrice');
+    }
 
     for (const [key, value] of Object.entries(data)) {
       if (value !== undefined && !bannedFields.includes(key)) {
@@ -341,7 +345,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
     if (!data.currency || !Object.values(CurrencyCode).includes(data.currency)) {
       throw new BadRequestException(
         `Currency for ${socialMedia} account ${socialAccount.username} is not valid. ` +
-          `Try to use one of these: ${getAvailableCurrenciesLabel()}`,
+        `Try to use one of these: ${getAvailableCurrenciesLabel()}`,
       );
     }
 
@@ -366,7 +370,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
         e instanceof Error ? e.stack : String(e),
       );
 
-      if (e?.stack?.includes('duplicate key error collection')) {
+      if ((e as any)?.stack?.includes('duplicate key error collection')) {
         throw new ConflictException(
           "There's already an open price change request for this account.",
         );
@@ -425,7 +429,9 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
       currency: CurrencyCode.EUR,
     };
 
-    const exchangeRate = (await this.exchangeRateService.getRate(requestedCurrency, 'EUR')) ?? 1;
+    this.logger.debug(`handleAdminPriceChange input: ${JSON.stringify(params, null, '\t')}`);
+
+    const exchangeRate = (await this.exchangeRateService.getRate(requestedCurrency ?? CurrencyCode.EUR, CurrencyCode.EUR)) ?? 1;
     const parsedPrice = Math.round(exchangeRate * requestedInitialPrice);
 
     returnedValues.price = parsedPrice;
@@ -443,6 +449,8 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
     updateFields: Partial<SocialAccount>;
   }): Promise<void> {
     const { influencerId, socialAccountId, socialMedia, updateFields } = params;
+
+    this.logger.debug(`updateSocialAccountInDb updateFields object: ${JSON.stringify(updateFields, null, '\t')}`);
 
     const updateResult = await this.influencerRepository.updateOne(
       {

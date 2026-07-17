@@ -134,10 +134,142 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
         clientId: string,
         campaignId: string
     ): Promise<ICampaignDetails> {
-        const campaign = await this.campaignModel.findOne({
-            _id: new Types.ObjectId(campaignId),
-            clientId: new Types.ObjectId(clientId),
-        })
+        const [campaign] = await this.campaignModel
+            .aggregate([
+                {
+                    $match: {
+                        _id: new Types.ObjectId(campaignId),
+                        clientId: new Types.ObjectId(clientId),
+                    },
+                },
+                {
+                    $limit: 1,
+                },
+                {
+                    $lookup: {
+                        from: 'influencers',
+                        let: {
+                            influencerIds: {
+                                $setUnion: [
+                                    { $ifNull: ['$addedAccounts.influencerId', []] },
+                                    [],
+                                ],
+                            },
+                        },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: {
+                                        $in: ['$_id', '$$influencerIds'],
+                                    },
+                                },
+                            },
+                            {
+                                $project: {
+                                    _id: 1,
+                                    socialAccounts: {
+                                        $concatArrays: [
+                                            { $ifNull: ['$instagram', []] },
+                                            { $ifNull: ['$tiktok', []] },
+                                            { $ifNull: ['$facebook', []] },
+                                            { $ifNull: ['$youtube', []] },
+                                            { $ifNull: ['$spotify', []] },
+                                            { $ifNull: ['$soundcloud', []] },
+                                            { $ifNull: ['$press', []] },
+                                        ],
+                                    },
+                                },
+                            },
+                        ],
+                        as: '_influencers',
+                    },
+                },
+                {
+                    $set: {
+                        addedAccounts: {
+                            $map: {
+                                input: { $ifNull: ['$addedAccounts', []] },
+                                as: 'account',
+                                in: {
+                                    $let: {
+                                        vars: {
+                                            influencer: {
+                                                $first: {
+                                                    $filter: {
+                                                        input: '$_influencers',
+                                                        as: 'influencer',
+                                                        cond: {
+                                                            $eq: [
+                                                                '$$influencer._id',
+                                                                '$$account.influencerId',
+                                                            ],
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                        in: {
+                                            $let: {
+                                                vars: {
+                                                    socialAccount: {
+                                                        $first: {
+                                                            $filter: {
+                                                                input: {
+                                                                    $ifNull: [
+                                                                        '$$influencer.socialAccounts',
+                                                                        [],
+                                                                    ],
+                                                                },
+                                                                as: 'socialAccount',
+                                                                cond: {
+                                                                    $eq: [
+                                                                        '$$socialAccount._id',
+                                                                        '$$account.accountId',
+                                                                    ],
+                                                                },
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                                in: {
+                                                    $mergeObjects: [
+                                                        '$$account',
+                                                        {
+                                                            followers: {
+                                                                $cond: [
+                                                                    {
+                                                                        $eq: [
+                                                                            '$statusCampaign',
+                                                                            CampaignStatusEnum.completed,
+                                                                        ],
+                                                                    },
+                                                                    '$$account.followers',
+                                                                    {
+                                                                        $ifNull: [
+                                                                            '$$socialAccount.followers',
+                                                                            '$$account.followers',
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                {
+                    $project: {
+                        _influencers: 0,
+                    },
+                },
+            ])
+            .exec();
 
         if (!campaign) return null;
 
@@ -182,6 +314,17 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
                                 $project: {
                                     _id: 1,
                                     firstName: 1,
+                                    socialAccounts: {
+                                        $concatArrays: [
+                                            { $ifNull: ['$instagram', []] },
+                                            { $ifNull: ['$tiktok', []] },
+                                            { $ifNull: ['$facebook', []] },
+                                            { $ifNull: ['$youtube', []] },
+                                            { $ifNull: ['$spotify', []] },
+                                            { $ifNull: ['$soundcloud', []] },
+                                            { $ifNull: ['$press', []] },
+                                        ],
+                                    },
                                 },
                             },
                         ],
@@ -214,12 +357,55 @@ export class CampaignRepository extends BaseRepository<Campaign> implements ICam
                                             },
                                         },
                                         in: {
-                                            $mergeObjects: [
-                                                '$$account',
-                                                {
-                                                    firstName: '$$influencer.firstName',
+                                            $let: {
+                                                vars: {
+                                                    socialAccount: {
+                                                        $first: {
+                                                            $filter: {
+                                                                input: {
+                                                                    $ifNull: [
+                                                                        '$$influencer.socialAccounts',
+                                                                        [],
+                                                                    ],
+                                                                },
+                                                                as: 'socialAccount',
+                                                                cond: {
+                                                                    $eq: [
+                                                                        '$$socialAccount._id',
+                                                                        '$$account.accountId',
+                                                                    ],
+                                                                },
+                                                            },
+                                                        },
+                                                    },
                                                 },
-                                            ],
+                                                in: {
+                                                    $mergeObjects: [
+                                                        '$$account',
+                                                        {
+                                                            firstName:
+                                                                '$$influencer.firstName',
+                                                            followers: {
+                                                                $cond: [
+                                                                    {
+                                                                        $eq: [
+                                                                            '$statusCampaign',
+                                                                            CampaignStatusEnum.completed,
+                                                                        ],
+                                                                    },
+                                                                    '$$account.followers',
+                                                                    {
+                                                                        $ifNull: [
+                                                                            '$$socialAccount.followers',
+                                                                            '$$account.followers',
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
                                         },
                                     },
                                 },
