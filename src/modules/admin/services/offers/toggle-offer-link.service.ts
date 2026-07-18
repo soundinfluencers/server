@@ -82,45 +82,18 @@ export class ToggleOfferLinkService {
             this.logger.debug(`COMBINED FOLLOWERS BEFORE TOGGLING LINK: ${typeof combinedFollowers + ' ' + combinedFollowers}`);
 
             this.logger.debug(`OFFER INFO: ${JSON.stringify(offer, null, '\t')}`);
-            this.logger.debug(`SELECTED SOCIAL ACCOUNT INFO: ${JSON.stringify({
+            this.logger.debug(`: ${JSON.stringify({
                 influencerId: influencer._id,
                 accountId: socialAccount._id,
                 username: socialAccount.username,
                 followers: socialAccount.followers,
             }, null, '\t')}`);
 
-            if (payload.connected === true) {
-                await this.offerAccountLinkRepository.addLink(isPublished === true ? offerWorkingCopyId : offerId, influencerId, accountId, session);
-                networksAmount++;
-                combinedFollowers += safeParseToNumber(socialAccount.followers);
-            } else {
-                const linksAmount = await this.offerAccountLinkRepository.countByOfferId(isPublished === true ? offerWorkingCopyId : offerId);
-
-                if (!Number.isFinite(linksAmount) || linksAmount <= 0) {
-                    this.logger.warn(`No offer account links were found while trying to remove link for influencer ${influencerId} with ${socialMedia} account ${accountId}`);
-                    return;
-                }
-
-                await this.offerAccountLinkRepository.removeLink(isPublished === true ? offerWorkingCopyId : offerId, influencerId, accountId, session);
-                networksAmount--;
-                combinedFollowers -= safeParseToNumber(socialAccount.followers);
-            }
-
-            this.logger.debug(`NETWORKS AMOUNT AFTER TOGGLING LINK: ${typeof networksAmount + ' ' + networksAmount}`);
-            this.logger.debug(`COMBINED FOLLOWERS AFTER TOGGLING LINK: ${typeof combinedFollowers + ' ' + combinedFollowers}`);
-
-            if (networksAmount < 0) {
-                this.logger.warn(`Networks amount became less than zero after toggling link for ${socialMedia} account ${accountId} in offer ${offerId}: ${typeof networksAmount + ' ' + networksAmount}`);
-                throw new InternalServerErrorException("Something went wrong");
-            }
-            if (combinedFollowers < 0) {
-                this.logger.warn(`Combined followers became less than zero after toggling link for ${socialMedia} account ${accountId} in offer ${offerId}: ${typeof combinedFollowers + ' ' + combinedFollowers}`);
-                throw new InternalServerErrorException("Something went wrong");
-            }
-
             // If offer published, creates a working copy
             // Otherwise, updates existing offer`
             if (isPublished === true) {
+                this.logger.debug(`${socialMedia} OFFER ${offer.title} is published, so creating a working copy with _id ${offerWorkingCopyId}.`)
+
                 // Creating offer's working copy
                 const offerWorkingCopy = await this.createOfferService.exec({
                     requestedId: offerWorkingCopyId,
@@ -176,6 +149,41 @@ export class ToggleOfferLinkService {
                     throw new InternalServerErrorException('Something went wrong');
                 }
             }
+
+            this.logger.debug(`OFFER WORKING COPY ID: ${offerWorkingCopyId}`);
+
+            if (payload.connected === true) {
+                await this.offerAccountLinkRepository.addLink(isPublished === true ? offerWorkingCopyId : offerId, influencerId, accountId, session);
+                networksAmount++;
+                combinedFollowers += safeParseToNumber(socialAccount.followers);
+            } else {
+                const linksAmount = await this.offerAccountLinkRepository.countByOfferId(isPublished === true ? offerWorkingCopyId : offerId);
+
+                this.logger.debug(`${socialMedia} OFFER ${offerId} LINKS AMOUNT: ${linksAmount}`)
+
+                if (isPublished === false && (!Number.isFinite(linksAmount) || linksAmount <= 0)) {
+                    this.logger.warn(`No offer account links were found while trying to remove link for influencer ${influencerId} with ${socialMedia} account ${accountId} for offer ${offerId}`);
+                    return;
+                }
+
+                await this.offerAccountLinkRepository.removeLink(isPublished === true ? offerWorkingCopyId : offerId, influencerId, accountId, session);
+                networksAmount--;
+                combinedFollowers -= safeParseToNumber(socialAccount.followers);
+            }
+
+            this.logger.debug(`NETWORKS AMOUNT AFTER TOGGLING LINK: ${typeof networksAmount + ' ' + networksAmount}`);
+            this.logger.debug(`COMBINED FOLLOWERS AFTER TOGGLING LINK: ${typeof combinedFollowers + ' ' + combinedFollowers}`);
+
+            if (networksAmount < 0) {
+                this.logger.warn(`Networks amount became less than zero after toggling link for ${socialMedia} account ${accountId} in offer ${offerId}: ${typeof networksAmount + ' ' + networksAmount}`);
+                throw new InternalServerErrorException("Something went wrong");
+            }
+            if (combinedFollowers < 0) {
+                this.logger.warn(`Combined followers became less than zero after toggling link for ${socialMedia} account ${accountId} in offer ${offerId}: ${typeof combinedFollowers + ' ' + combinedFollowers}`);
+                throw new InternalServerErrorException("Something went wrong");
+            }
+
+            this.logger.debug(`${socialMedia} OFFER ${offer.title} is published: ${isPublished}`);
 
             await session.commitTransaction();
         } catch (err) {

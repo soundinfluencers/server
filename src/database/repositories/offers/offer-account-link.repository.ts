@@ -1,12 +1,13 @@
-import {Injectable} from '@nestjs/common';
-import {InjectModel} from '@nestjs/mongoose';
-import {ClientSession, DeleteResult, Model, Types} from 'mongoose';
-import {BaseRepository} from '../base.repository';
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { ClientSession, DeleteResult, Model, Types } from 'mongoose';
+import { BaseRepository } from '../base.repository';
 import {
     OfferAccountLink,
     OfferAccountLinkDocument,
 } from '../../schemas/offer/offer-account-link.schema';
 import { FilteredNestLogger } from 'src/common/logger/filtered-nest-logger';
+import { ObjId } from 'src/common/types/base.types';
 
 export type OfferAccountPair = {
     influencerId: Types.ObjectId;
@@ -16,7 +17,7 @@ export type OfferAccountPair = {
 @Injectable()
 export class OfferAccountLinkRepository extends BaseRepository<OfferAccountLinkDocument> {
     private readonly logger = new FilteredNestLogger(OfferAccountLinkRepository.name);
-    
+
     constructor(
         @InjectModel(OfferAccountLink.name)
         private readonly offerAccountLinkModel: Model<OfferAccountLinkDocument>,
@@ -38,14 +39,14 @@ export class OfferAccountLinkRepository extends BaseRepository<OfferAccountLinkD
                 influencerId: p.influencerId,
                 accountId: p.accountId,
             })),
-            {session, ordered: false},
+            { session, ordered: false },
         );
     }
 
     async deleteByOfferId(offerId: Types.ObjectId | string, session?: ClientSession): Promise<DeleteResult> {
         return this.offerAccountLinkModel.deleteMany(
-            {offerId: new Types.ObjectId(offerId)},
-            {session},
+            { offerId: new Types.ObjectId(offerId) },
+            { session },
         );
     }
 
@@ -56,12 +57,12 @@ export class OfferAccountLinkRepository extends BaseRepository<OfferAccountLinkD
         session?: ClientSession,
     ): Promise<void> {
         const updateRes = await this.offerAccountLinkModel.updateOne(
-            {offerId, influencerId, accountId},
-            {$setOnInsert: {offerId, influencerId, accountId}},
-            {upsert: true, session},
+            { offerId, influencerId, accountId },
+            { $setOnInsert: { offerId, influencerId, accountId } },
+            { upsert: true, session },
         );
 
-        this.logger.debug(`Offer account link repository 'addLink' update result: ${JSON.stringify(updateRes, null, '\t')}`);
+        this.logger.debug(`Offer account link repository 'addLink' update result for offer: ${offerId}: ${JSON.stringify(updateRes, null, '\t')}`);
 
         if (updateRes.upsertedCount === 0 && updateRes.modifiedCount === 0) {
             throw new Error("Changes weren't saved");
@@ -74,9 +75,9 @@ export class OfferAccountLinkRepository extends BaseRepository<OfferAccountLinkD
         accountId: Types.ObjectId,
         session?: ClientSession,
     ): Promise<void> {
-        const deleteRes = await this.offerAccountLinkModel.deleteOne({offerId, influencerId, accountId}, {session});
+        const deleteRes = await this.offerAccountLinkModel.deleteOne({ offerId, influencerId, accountId }, { session });
 
-        this.logger.debug(`Offer account link repository 'removeLink' delete result: ${JSON.stringify(deleteRes, null, '\t')}`);
+        this.logger.debug(`Offer account link repository 'removeLink' delete result for offer: ${offerId}: ${JSON.stringify(deleteRes, null, '\t')}`);
 
         if (deleteRes.deletedCount === 0) {
             throw new Error("Changes weren't saved");
@@ -89,7 +90,7 @@ export class OfferAccountLinkRepository extends BaseRepository<OfferAccountLinkD
             return [];
         }
         return this.offerAccountLinkModel
-            .find({offerId: {$in: offerIds}})
+            .find({ offerId: { $in: offerIds } })
             .lean()
             .exec() as Promise<OfferAccountLink[]>;
     }
@@ -99,7 +100,7 @@ export class OfferAccountLinkRepository extends BaseRepository<OfferAccountLinkD
         offerIds: Types.ObjectId[];
         accountPairs: OfferAccountPair[];
     }): Promise<OfferAccountLink[]> {
-        const {offerIds, accountPairs} = params;
+        const { offerIds, accountPairs } = params;
         if (!offerIds.length || !accountPairs.length) {
             return [];
         }
@@ -109,7 +110,7 @@ export class OfferAccountLinkRepository extends BaseRepository<OfferAccountLinkD
         }));
         return this.offerAccountLinkModel
             .find({
-                offerId: {$in: offerIds},
+                offerId: { $in: offerIds },
                 $or: orClause,
             })
             .lean()
@@ -121,44 +122,45 @@ export class OfferAccountLinkRepository extends BaseRepository<OfferAccountLinkD
         session?: ClientSession,
     ): Promise<number> {
         return this.offerAccountLinkModel.countDocuments({
-            offerId: new Types.ObjectId(offerId),
-        }, {session});
+            offerId: typeof offerId === 'string' ? new Types.ObjectId(offerId) : offerId,
+        }, { session });
     }
 
     async copyLinksToOffer(
-    originalOfferId: Types.ObjectId | string,
-    newOfferId: Types.ObjectId | string,
-    session?: ClientSession,
-  ): Promise<number> {
-    const links = await this.offerAccountLinkModel
-      .find({ offerId: originalOfferId })
-      .select({
-        _id: 0,
-        influencerId: 1,
-        accountId: 1,
-      })
-      .lean()
-      .session(session ?? null)
-      .exec();
+        originalOfferId: Types.ObjectId | string,
+        newOfferId: Types.ObjectId | string,
+        session?: ClientSession,
+    ): Promise<number> {
+        const links = await this.offerAccountLinkModel
+            .find({ offerId: typeof originalOfferId === 'string' ? new ObjId(originalOfferId) : originalOfferId })
+            .select({
+                _id: 0,
+                influencerId: 1,
+                accountId: 1,
+            })
+            .lean()
+            .session(session ?? null)
+            .exec();
 
-    if (links.length === 0) {
-      return 0;
+        if (links?.length === 0) {
+            return 0;
+        }
+
+        const newLinks = links.map((link) => ({
+            offerId: typeof newOfferId === 'string' ? new ObjId(newOfferId) : newOfferId,
+            influencerId: link.influencerId,
+            accountId: link.accountId,
+        }));
+
+
+        const createdLinks = await this.offerAccountLinkModel.insertMany(
+            newLinks,
+            {
+                session,
+                ordered: true,
+            },
+        );
+
+        return createdLinks.length;
     }
-
-    const newLinks = links.map((link) => ({
-      offerId: newOfferId,
-      influencerId: link.influencerId,
-      accountId: link.accountId,
-    }));
-
-    const createdLinks = await this.offerAccountLinkModel.insertMany(
-      newLinks,
-      {
-        session,
-        ordered: true,
-      },
-    );
-
-    return createdLinks.length;
-  }
 }
