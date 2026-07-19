@@ -21,6 +21,7 @@ import {
   ApiConsumes,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { ApiResponseDto } from '../../../common/decorators/api/response/api-response.decorator';
@@ -38,6 +39,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { XlsxOffersImportSummary } from '../dto/offers/xlsx-offers-import.dto';
 import { OfferSocialMediaEnum } from 'src/common/types/offer.types';
 import { CommunityMusicGenres, CreatorMusicGenres } from 'src/common/types/influencer/influencer.types';
+import { GetOffersParamsDto, OfferClientView } from 'src/modules/offers/dto/get-offers.dto';
 
 const MUSIC_GENRE_VALUES = [
   ...Object.values(CommunityMusicGenres),
@@ -50,17 +52,54 @@ const MUSIC_GENRE_VALUES = [
 @Controller('admin/offers')
 @Injectable()
 export class AdminOffersController {
-  constructor(private readonly adminOffersService: AdminOffersService) {}
+  constructor(private readonly adminOffersService: AdminOffersService) { }
+
+  @ApiOperation({ summary: 'Get client view offers' })
+  @ApiResponseDto(OfferClientView)
+  @ApiQuery({
+    name: 'socialMedia',
+    required: true,
+    type: 'string',
+    enum: OfferSocialMediaEnum,
+  })
+  @ApiQuery({
+    name: 'genre',
+    type: 'string',
+    description: 'Must be allowed for the given socialMedia (allowedGenresMap).',
+    required: true,
+    enum: [...Object.values(CommunityMusicGenres), ...Object.values(CreatorMusicGenres)]
+  })
+  @Get('client-view')
+  getPublishedOffersByGenreAndSocialMedia(
+    @Query() query: GetOffersParamsDto,
+  ): Promise<OfferClientView[]> {
+    return this.adminOffersService.getClientView(query);
+  }
 
   @ApiOperation({ summary: 'Cursor-paginated offers × accounts matrix (links for viewport)' })
   @ApiResponseDto(AdminOffersMatrixDto)
-  @Get()
-  getMatrix(@Query() query: GetAdminOffersMatrixQuery): Promise<AdminOffersMatrixDto> {
-    return this.adminOffersService.getMatrix(query);
+  @ApiQuery({
+    name: 'socialMedia',
+    required: true,
+    type: 'string',
+    enum: OfferSocialMediaEnum,
+  })
+  @ApiQuery({
+    name: 'genre',
+    type: 'string',
+    description: 'Must be allowed for the given socialMedia (allowedGenresMap).',
+    required: true,
+    enum: [...Object.values(CommunityMusicGenres), ...Object.values(CreatorMusicGenres)]
+  })
+  @Get('matrix-view')
+  getMatrix(
+    @Query() query: GetAdminOffersMatrixQuery
+  ): Promise<AdminOffersMatrixDto> {
+    return this.adminOffersService.getMatrixView(query);
   }
 
   @ApiOperation({ summary: 'Create a new empty offer' })
-  @ApiResponseDto(undefined, {successStatusCode: 201})
+  @ApiResponseDto(undefined, { successStatusCode: 201 })
   @Post()
   create(@Body() data: AdminCreateOfferDto): Promise<void> {
     return this.adminOffersService.createOffer(data);
@@ -84,7 +123,7 @@ export class AdminOffersController {
   setPublished(
     @Param('socialMedia', new ParseEnumPipe(OfferSocialMediaEnum)) socialMedia: OfferSocialMediaEnum,
     @Param('genre', new ParseEnumPipe(MUSIC_GENRE_VALUES)) genre: CommunityMusicGenres | CreatorMusicGenres
-   ): Promise<void> {
+  ): Promise<void> {
     return this.adminOffersService.changePublishedStatuses(socialMedia, genre);
   }
 

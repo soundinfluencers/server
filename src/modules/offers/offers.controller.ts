@@ -5,12 +5,12 @@ import { Auth } from '../../common/decorators/auth.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/types/user.types';
 import {
-  FilteredPublishedOffersByGenreAndSocialMedia,
-  GetFilteredPublishedOffers,
+  OfferClientView,
+  GetOffersParamsDto,
 } from './dto/get-offers.dto';
 import { ApiResponseDto } from '../../common/decorators/api/response/api-response.decorator';
 import { OfferSocialMediaEnum } from 'src/common/types/offer.types';
-import { SocialMediaEnum } from 'src/common/types/social-media.types';
+import { CommunityMusicGenres, CreatorMusicGenres } from 'src/common/types/influencer/influencer.types';
 
 @ApiTags('offers')
 @Controller('offers')
@@ -24,20 +24,20 @@ export class OffersController {
     name: 'socialMedia',
     required: true,
     type: 'string',
-    // enum: OfferSocialMediaEnum,
-    enum: SocialMediaEnum,
+    enum: OfferSocialMediaEnum,
   })
   @ApiParam({
     name: 'genre',
     type: 'string',
     description: 'Must be allowed for the given socialMedia (allowedGenresMap).',
     required: true,
+    enum: [...Object.values(CommunityMusicGenres), ...Object.values(CreatorMusicGenres)]
   })
-  @ApiResponseDto(FilteredPublishedOffersByGenreAndSocialMedia)
+  @ApiResponseDto(OfferClientView)
   @Get('published/:socialMedia/:genre')
   getPublishedOffersByGenreAndSocialMedia(
-    @Param() params: GetFilteredPublishedOffers,
-  ): Promise<FilteredPublishedOffersByGenreAndSocialMedia[]> {
+    @Param() params: GetOffersParamsDto,
+  ): Promise<OfferClientView[]> {
     return this.offersService.getPublishedOffersByGenreAndSocialMedia(params);
   }
 }

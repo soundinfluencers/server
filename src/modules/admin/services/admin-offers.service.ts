@@ -38,6 +38,8 @@ import {
 import { CREATE_OFFER_SERVICE, CreateOfferService } from './offers/create-offer.service';
 import { UPDATE_OFFER_FIELD_SERVICE, UpdateOfferFieldService } from './offers/update-offer-field.service';
 import { TOGGLE_OFFER_LINK_SERVICE, ToggleOfferLinkService } from './offers/toggle-offer-link.service';
+import { GET_OFFERS_SERVICE, GetOffersService } from 'src/modules/offers/services/get-offers.service';
+import { GetOffersParamsDto, OfferClientView } from 'src/modules/offers/dto/get-offers.dto';
 
 export interface OffersMatrixOfferCursor {
   combinedFollowers: number;
@@ -66,9 +68,15 @@ export class AdminOffersService {
     private readonly updateOfferService: UpdateOfferFieldService,
     @Inject(TOGGLE_OFFER_LINK_SERVICE)
     private readonly toggleOfferLinkService: ToggleOfferLinkService,
+    @Inject(GET_OFFERS_SERVICE)
+    private readonly getOffersService: GetOffersService,
   ) { }
 
-  async getMatrix(query: GetAdminOffersMatrixQuery): Promise<AdminOffersMatrixDto> {
+  async getClientView(query: GetOffersParamsDto): Promise<OfferClientView[]> {
+    return this.getOffersService.exec({ ...query, onlyPublished: false });
+  }
+
+  async getMatrixView(query: GetAdminOffersMatrixQuery): Promise<AdminOffersMatrixDto> {
     const offersTake = query.offersTake && query.offersTake > 0 ? query.offersTake : 10;
     const accountsTake = query.accountsTake && query.accountsTake > 0 ? query.accountsTake : 10;
 

@@ -9,18 +9,15 @@ import {
 } from 'src/common/types/influencer/influencer.types';
 import { SocialMediaEnum } from 'src/common/types/social-media.types';
 
-export class GetFilteredPublishedOffers {
+export class GetOffersParamsDto {
   @ApiProperty({
     name: 'socialMedia',
     type: 'string',
-    // enum: OfferSocialMediaEnum,
-    enum: SocialMediaEnum,
+    enum: OfferSocialMediaEnum,
     required: true,
   })
-  @IsEnum(SocialMediaEnum)
-  socialMedia: SocialMediaEnum;
-  // @IsEnum(OfferSocialMediaEnum)
-  // socialMedia: OfferSocialMediaEnum;
+  @IsEnum(OfferSocialMediaEnum)
+  socialMedia: OfferSocialMediaEnum;
 
   @ApiProperty({
     name: 'genre',
@@ -30,11 +27,13 @@ export class GetFilteredPublishedOffers {
   })
   @IsString()
   @IsNotEmpty()
-  // @IsGenreAllowedForSocialMedia()
-  genre: string;
+  @IsGenreAllowedForSocialMedia()
+  genre: CommunityMusicGenres | CreatorMusicGenres;
+
+  onlyPublished: boolean;
 }
 
-export class FilteredPublishedOffersByGenreAndSocialMedia {
+export class OfferClientView {
   @ApiProperty()
   _id: string;
 
