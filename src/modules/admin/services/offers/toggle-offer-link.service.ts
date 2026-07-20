@@ -78,6 +78,14 @@ export class ToggleOfferLinkService {
             let combinedFollowers = offer.combinedFollowers ?? 0;
             let networksAmount = safeParseToNumber(offer.networksAmount, 0);
 
+            if (payload.connected === true) {
+                networksAmount++;
+                combinedFollowers += safeParseToNumber(socialAccount.followers);
+            } else {
+                networksAmount--;
+                combinedFollowers -= safeParseToNumber(socialAccount.followers);
+            }
+
             this.logger.debug(`NETWORKS AMOUNT BEFORE TOGGLING LINK: ${typeof networksAmount + ' ' + networksAmount}`);
             this.logger.debug(`COMBINED FOLLOWERS BEFORE TOGGLING LINK: ${typeof combinedFollowers + ' ' + combinedFollowers}`);
 
@@ -154,8 +162,6 @@ export class ToggleOfferLinkService {
 
             if (payload.connected === true) {
                 await this.offerAccountLinkRepository.addLink(isPublished === true ? offerWorkingCopyId : offerId, influencerId, accountId, session);
-                networksAmount++;
-                combinedFollowers += safeParseToNumber(socialAccount.followers);
             } else {
                 const linksAmount = await this.offerAccountLinkRepository.countByOfferId(isPublished === true ? offerWorkingCopyId : offerId);
 
@@ -167,8 +173,6 @@ export class ToggleOfferLinkService {
                 }
 
                 await this.offerAccountLinkRepository.removeLink(isPublished === true ? offerWorkingCopyId : offerId, influencerId, accountId, session);
-                networksAmount--;
-                combinedFollowers -= safeParseToNumber(socialAccount.followers);
             }
 
             this.logger.debug(`NETWORKS AMOUNT AFTER TOGGLING LINK: ${typeof networksAmount + ' ' + networksAmount}`);

@@ -58,16 +58,16 @@ export class GetOffersService {
 
     this.logger.debug(`Cached offers result: ${JSON.stringify(cachedOffers, null, '\t')}`);
 
-    if (cachedOffers !== undefined) {
-      this.logger.debug(
-        `Get offers completed from cache: ${JSON.stringify({
-          cacheKey,
-          offersAmount: cachedOffers.length,
-          durationMs: Date.now() - startedAt,
-        })}`,
-      );
-      return cachedOffers;
-    }
+    // if (cachedOffers !== undefined) {
+    //   this.logger.debug(
+    //     `Get offers completed from cache: ${JSON.stringify({
+    //       cacheKey,
+    //       offersAmount: cachedOffers.length,
+    //       durationMs: Date.now() - startedAt,
+    //     })}`,
+    //   );
+    //   return cachedOffers;
+    // }
 
     const offers = await this.getEffectiveOffers(socialMedia, genre, onlyPublished);
 
@@ -553,7 +553,7 @@ export class GetOffersService {
         genre: offer.genre,
         combinedFollowers: offer.combinedFollowers,
         networksAmount: offer.networksAmount,
-        storyAndPostDetails: offer.storyAndPostDetails,
+        storyAndPostDetails: `${offer.networksAmount} Post + Story across`,
         connectedAccounts,
       };
     });
