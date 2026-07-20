@@ -225,6 +225,8 @@ export class PaymentsHistoryService implements IPaymentsHistoryService {
             // 1. Find existing cell
             let cell = await this.findCellOrThrow(cellInfo.campaignId, cellInfo.accountId, session);
 
+            if (!cell) continue;
+
             // 2. Apply new status fields
             if (cellInfo.newAdminOverrideStatus && adminId) {
                 cell.adminOverrideStatus = cellInfo.newAdminOverrideStatus;
@@ -246,9 +248,9 @@ export class PaymentsHistoryService implements IPaymentsHistoryService {
 
         const updateResult = await this.paymentHistoryCellRepository.updateCellStatuses(cells, session);
 
-        if (updateResult?.matchedCount === 0) {
-            throw new NotFoundException(`Can't rebuild specified payment history cells: no cells found`);
-        }
+        // if (updateResult?.matchedCount === 0) {
+        //     throw new NotFoundException(`Can't rebuild specified payment history cells: no cells found`);
+        // }
     }
 
     // Optional bulk method for repair jobs, migration scripts, cron backfill, etc.
@@ -424,7 +426,8 @@ export class PaymentsHistoryService implements IPaymentsHistoryService {
         }, {session});
         
         if (!cell) {
-            throw new NotFoundException(`Payment history cell not found for campaign ${campaignId} and account ${accountId}`);
+            return null;
+            // throw new NotFoundException(`Payment history cell not found for campaign ${campaignId} and account ${accountId}`);
         }
 
         return {

@@ -47,10 +47,12 @@ import {
 } from '../../common/types/history.types';
 import { PaymentsHistoryService } from '../payments-history/payments-history.service';
 import { InvoiceDetails } from '../../database/schemas/invoices/invoice-details.schema';
-import { log } from 'node:console';
+import { FilteredNestLogger } from 'src/common/logger/filtered-nest-logger';
 
 @Injectable()
 export class InvoiceService {
+  private readonly logger = new FilteredNestLogger(InvoiceService.name);
+
   constructor(
     // repositories
     private readonly influencerRepo: InfluencerRepository,
@@ -62,9 +64,7 @@ export class InvoiceService {
     private readonly profileService: ProfileService,
     private readonly emailService: EmailService,
     private readonly paymentsHistoryService: PaymentsHistoryService,
-  ) {}
-
-  private readonly logger = new Logger('InvoiceService');
+  ) { }
 
   // Creates new influencer invoice
   async createInfluencerInvoice(data: CreateInvoiceDto): Promise<void> {
