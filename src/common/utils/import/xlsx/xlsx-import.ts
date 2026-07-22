@@ -15,6 +15,35 @@ import {
   XlsxOffersImportResult,
 } from '../../../../modules/admin/dto/offers/xlsx-offers-import.dto';
 
+type CampaignTableColumns = {
+  platform?: number;
+  brandName?: number;
+  followers?: number;
+  videoLink?: number;
+  description?: number;
+  storyTag?: number;
+  storyLink?: number;
+  specialRequest?: number;
+};
+
+type CampaignTableColumn = keyof CampaignTableColumns;
+
+type CampaignTableHeaderMap = {
+  rowIndex: number;
+  columns: CampaignTableColumns;
+};
+
+const campaignHeaderAliases: Readonly<Record<CampaignTableColumn, ReadonlySet<string>>> = {
+  platform: new Set(['platform']),
+  brandName: new Set(['brandname']),
+  followers: new Set(['followers']),
+  videoLink: new Set(['videolink', 'contentlink', 'tracklink']),
+  description: new Set(['description']),
+  storyTag: new Set(['storytag']),
+  storyLink: new Set(['storylink']),
+  specialRequest: new Set(['specialrequest']),
+};
+
 @Injectable()
 export class XlsxImporter {
   private readonly supportedSocials: SocialMediaEnum[] = Object.values(SocialMediaEnum);
@@ -204,8 +233,7 @@ export class XlsxImporter {
       const followersRaw = this.toNullableString(row[followersCol]);
 
       // Detect "TOTAL:" row — cell may be just "TOTAL:" or contain "TOTAL: 5000€"
-      const normalizedPageName = this.normalizeHeader(pageName ?? '');
-      const isTotalRow = normalizedPageName === 'total' || normalizedPageName.startsWith('total:');
+      const isTotalRow = /^total\s*(?::|$)/i.test((pageName ?? '').replace(/\u00a0/g, ' ').trim());
 
       if (isTotalRow) {
         // Price is either in the followers column ("5000€") or embedded in the pageName ("TOTAL: 5000€")
@@ -313,36 +341,19 @@ export class XlsxImporter {
     return this.toEnumValue<SocialMediaEnum>(normalized, Object.values(SocialMediaEnum)) ?? null;
   }
 
-  private findCampaignTableHeaderRow(matrix: (string | null)[][]): {
-    rowIndex: number;
-    columns: {
-      platform?: number;
-      brandName?: number;
-      followers?: number;
-      videoLink?: number;
-      description?: number;
-      storyTag?: number;
-      storyLink?: number;
-      specialRequest?: number;
-    };
-  } {
+  private findCampaignTableHeaderRow(matrix: (string | null)[][]): CampaignTableHeaderMap {
     for (let rowIndex = 0; rowIndex < matrix.length; rowIndex++) {
       const normalizedRow = matrix[rowIndex].map((cell) => this.normalizeHeader(cell ?? ''));
 
       const columns = {
-        platform: normalizedRow.findIndex((v) => v === 'platform'),
-        brandName: normalizedRow.findIndex((v) => v === 'brandname'),
-        followers: normalizedRow.findIndex((v) => v === 'followers'),
-        videoLink: normalizedRow.findIndex(
-          (v) =>
-            v === 'videolink:' || v === 'videolink' || v === 'contentlink:' || v === 'contentlink',
-        ),
-        description: normalizedRow.findIndex((v) => v === 'description:' || v === 'description'),
-        storyTag: normalizedRow.findIndex((v) => v === 'storytag:' || v === 'storytag'),
-        storyLink: normalizedRow.findIndex((v) => v === 'storylink:' || v === 'storylink'),
-        specialRequest: normalizedRow.findIndex(
-          (v) => v === 'specialrequest:' || v === 'specialrequest',
-        ),
+        platform: this.findHeaderColumn(normalizedRow, campaignHeaderAliases.platform),
+        brandName: this.findHeaderColumn(normalizedRow, campaignHeaderAliases.brandName),
+        followers: this.findHeaderColumn(normalizedRow, campaignHeaderAliases.followers),
+        videoLink: this.findHeaderColumn(normalizedRow, campaignHeaderAliases.videoLink),
+        description: this.findHeaderColumn(normalizedRow, campaignHeaderAliases.description),
+        storyTag: this.findHeaderColumn(normalizedRow, campaignHeaderAliases.storyTag),
+        storyLink: this.findHeaderColumn(normalizedRow, campaignHeaderAliases.storyLink),
+        specialRequest: this.findHeaderColumn(normalizedRow, campaignHeaderAliases.specialRequest),
       };
 
       const hasRequiredColumns =
@@ -371,21 +382,13 @@ export class XlsxImporter {
     throw new BadRequestException('Campaign table headers not found');
   }
 
+  private findHeaderColumn(row: string[], aliases: ReadonlySet<string>): number {
+    return row.findIndex((value) => aliases.has(value));
+  }
+
   private readCampaignPages(
     matrix: (string | null)[][],
-    headerMap: {
-      rowIndex: number;
-      columns: {
-        platform?: number;
-        brandName?: number;
-        followers?: number;
-        videoLink?: number;
-        description?: number;
-        storyTag?: number;
-        storyLink?: number;
-        specialRequest?: number;
-      };
-    },
+    headerMap: CampaignTableHeaderMap,
   ): XlsxCampaignDto['pages'] {
     const pages: XlsxCampaignDto['pages'] = [];
 
@@ -403,8 +406,7 @@ export class XlsxImporter {
       const platformRaw = this.getCellByColumn(row, headerMap.columns.platform);
 
       const isTotalRow =
-        this.normalizeHeader(username ?? '') === 'total:' ||
-        this.normalizeHeader(platformRaw ?? '') === 'total:' ||
+        this.normalizeHeader(username ?? '') === 'total' ||
         this.normalizeHeader(platformRaw ?? '') === 'total';
 
       if (isTotalRow) {
@@ -873,7 +875,10 @@ export class XlsxImporter {
   }
 
   private normalizeHeader(value: string): string {
-    return value.trim().toLowerCase().replace(/\s+/g, '');
+    return value
+      .normalize('NFKC')
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, '');
   }
 
   private toNullableString(value: unknown): string | null {
