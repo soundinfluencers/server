@@ -111,10 +111,10 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
           break;
         case true:
           const parsedPricesInfo = await this.handleAdminPriceChange({
-            currentInitialPrice:
-              Number.isFinite(socialAccount.initialPrice) && socialAccount.initialPrice > 0
-                ? socialAccount.initialPrice
-                : socialAccount.price,
+            // currentInitialPrice:
+            //   Number.isFinite(socialAccount.initialPrice) && socialAccount.initialPrice > 0
+            //     ? socialAccount.initialPrice
+            //     : socialAccount.price,
             requestedInitialPrice: data.price,
             requestedCurrency: data.currency,
           });
@@ -407,7 +407,7 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
   // Getting current initial price, current currency, requested initial price, requested currency
   // Returning parsed price, publicPrice, initialPrice, currency
   private async handleAdminPriceChange(params: {
-    currentInitialPrice: number; // current value of initialPrice in database
+    // currentInitialPrice: number; // current value of initialPrice in database
     requestedInitialPrice: number; // value of initialPrice from dto
     requestedCurrency: CurrencyCode; // value of currency from dto
   }): Promise<{
@@ -416,11 +416,13 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
     initialPrice: number;
     currency: CurrencyCode;
   }> {
-    const { currentInitialPrice, requestedInitialPrice, requestedCurrency } = params;
+    this.logger.debug(`handleAdminPriceChange PAYLOAD: ${JSON.stringify(params, null, '\t')}`);
+    
+    const { requestedInitialPrice, requestedCurrency } = params;
 
-    if (currentInitialPrice === requestedInitialPrice) {
-      return;
-    }
+    // if (currentInitialPrice === requestedInitialPrice) {
+    //   return;
+    // }
 
     const returnedValues = {
       price: 0,
@@ -438,6 +440,8 @@ export class UpdateSocialAccountService implements IUpdateSocialAccountService {
     returnedValues.publicPrice = parsedPrice * 2;
     returnedValues.initialPrice = requestedInitialPrice;
     returnedValues.currency = requestedCurrency;
+
+    this.logger.debug(`handleAdminPriceChange returnedValues: ${JSON.stringify(returnedValues, null, '\t')}`);
 
     return returnedValues;
   }
