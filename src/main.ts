@@ -8,7 +8,6 @@ import {AllExceptionsFilter} from "./common/filters/exceptions.filter";
 import {ValidationPipe} from "@nestjs/common";
 import {RolesGuard} from "./common/guards/roles.guard";
 import {JwtGuard} from "./common/guards/jwt.guard";
-import * as dotenv from 'dotenv';
 import {FilteredNestLogger} from "./common/logger/filtered-nest-logger";
 import { HttpRequestLoggerInterceptor } from './common/interceptors/http-request-logger.interceptor';
 
@@ -20,10 +19,10 @@ function parseOrigins(env?: string): string[] {
 }
 
 async function bootstrap() {
-    dotenv.config();
     const app = await NestFactory.create(AppModule, {
         logger: new FilteredNestLogger(),
     });
+    app.enableShutdownHooks();
 
     const allowedOrigins = parseOrigins(process.env.CORS_ORIGINS);
     const reflector = app.get(Reflector);
@@ -253,7 +252,8 @@ async function bootstrap() {
     );
 
 
-    await app.listen(3001);
+    const port = Number(process.env.PORT ?? 3001);
+    await app.listen(port);
 }
 
 void bootstrap();

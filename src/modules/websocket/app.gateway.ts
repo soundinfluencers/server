@@ -155,7 +155,12 @@ export class AppGateway
 
     try {
       await Promise.all([pubClient.connect(), subClient.connect()]);
-      server.adapter(createAdapter(pubClient, subClient));
+      const redisPrefix = this.config.getOrThrow<string>('REDIS_PREFIX');
+      server.adapter(
+        createAdapter(pubClient, subClient, {
+          key: `${redisPrefix}:socket.io`,
+        }),
+      );
       this.pubClient = pubClient;
       this.subClient = subClient;
       this.logger.log('Socket.IO Redis adapter connected');

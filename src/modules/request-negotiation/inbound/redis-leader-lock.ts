@@ -11,11 +11,13 @@ import { FilteredNestLogger } from '../../../common/logger/filtered-nest-logger'
 export class RedisLeaderLock implements OnModuleDestroy {
   private readonly logger = new FilteredNestLogger(RedisLeaderLock.name);
   private readonly client: ReturnType<typeof createClient>;
+  private readonly prefix: string;
   private connecting?: Promise<void>;
   private connected = false;
 
   constructor(config: ConfigService) {
     this.client = createClient({ url: config.getOrThrow<string>('REDIS_URL') });
+    this.prefix = config.getOrThrow<string>('REDIS_PREFIX');
     this.client.on('error', (err) =>
       this.logger.warn(`Redis lock client error: ${err?.message ?? err}`),
     );
@@ -36,7 +38,10 @@ export class RedisLeaderLock implements OnModuleDestroy {
   // Acquire the lock only if it is currently free (SET NX PX).
   async acquire(key: string, owner: string, ttlMs: number): Promise<boolean> {
     await this.ensureConnected();
-    const result = await this.client.set(key, owner, { NX: true, PX: ttlMs });
+    const result = await this.client.set(this.prefixed(key), owner, {
+      NX: true,
+      PX: ttlMs,
+    });
     return result === 'OK';
   }
 
@@ -45,7 +50,7 @@ export class RedisLeaderLock implements OnModuleDestroy {
     await this.ensureConnected();
     const result = await this.client.eval(
       "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('pexpire', KEYS[1], ARGV[2]) else return 0 end",
-      { keys: [key], arguments: [owner, String(ttlMs)] },
+      { keys: [this.prefixed(key)], arguments: [owner, String(ttlMs)] },
     );
     return result === 1;
   }
@@ -58,7 +63,7 @@ export class RedisLeaderLock implements OnModuleDestroy {
     try {
       await this.client.eval(
         "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
-        { keys: [key], arguments: [owner] },
+        { keys: [this.prefixed(key)], arguments: [owner] },
       );
     } catch (err: any) {
       this.logger.warn(`Redis lock release failed: ${err?.message ?? err}`);
@@ -73,5 +78,9 @@ export class RedisLeaderLock implements OnModuleDestroy {
         /* ignore */
       }
     }
+  }
+
+  private prefixed(key: string): string {
+    return `${this.prefix}:lock:${key}`;
   }
 }
