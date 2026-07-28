@@ -84,6 +84,10 @@ export class InvoicePdfExporter {
         }
     }
 
+    static async shutdown(): Promise<void> {
+        await this.resetBrowser();
+    }
+
     // -------------------- hardening --------------------
 
     private static async hardenPage(page: Page) {

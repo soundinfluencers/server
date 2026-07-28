@@ -37,6 +37,10 @@ import { WhatsappModule } from '../../integrations/whatsapp/whatsapp.module';
 import { RequestNegotiationInboundModule } from '../request-negotiation/inbound/request-negotiation-inbound.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { createKeyv } from '@keyv/redis';
+import { validateEnvironment } from '../../config/env.validation';
+import { HealthService } from '../health/health.service';
+import { CacheLifecycleService } from '../../common/lifecycle/cache-lifecycle.service';
+import { PuppeteerLifecycleService } from '../../common/lifecycle/puppeteer-lifecycle.service';
 
 const cacheLogger = new Logger('CacheModule');
 
@@ -44,6 +48,7 @@ const cacheLogger = new Logger('CacheModule');
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validate: validateEnvironment,
     }),
     CacheModule.registerAsync({
       isGlobal: true,
@@ -52,9 +57,12 @@ const cacheLogger = new Logger('CacheModule');
       useFactory: async (configService: ConfigService) => {
         const redisUrl = configService.getOrThrow<string>('REDIS_URL');
 
-        cacheLogger.log(`[REDIS_URL]: ${redisUrl}`);
+        const redisPrefix = configService.getOrThrow<string>('REDIS_PREFIX');
+        cacheLogger.log('Redis cache configured');
 
-        const redisStore = createKeyv(redisUrl);
+        const redisStore = createKeyv(redisUrl, {
+          namespace: `${redisPrefix}:cache`,
+        });
 
         return {
           stores: [redisStore],
@@ -62,7 +70,13 @@ const cacheLogger = new Logger('CacheModule');
         };
       },
     }),
-    MongooseModule.forRoot(process.env.DATABASE_ROOT),
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        uri: configService.getOrThrow<string>('DATABASE_ROOT'),
+      }),
+    }),
     ScheduleModule.forRoot(),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
@@ -96,6 +110,11 @@ const cacheLogger = new Logger('CacheModule');
     RequestNegotiationInboundModule,
   ],
   controllers: [AppController, HealthController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    HealthService,
+    CacheLifecycleService,
+    PuppeteerLifecycleService,
+  ],
 })
 export class AppModule {}
