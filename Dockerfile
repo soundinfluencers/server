@@ -7,6 +7,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 FROM dependencies AS build
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 COPY nest-cli.json tsconfig.json tsconfig.build.json ./
 COPY src ./src
 COPY scripts ./scripts

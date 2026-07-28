@@ -25,6 +25,8 @@ env:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
 
     steps:
       - name: Check out repository
