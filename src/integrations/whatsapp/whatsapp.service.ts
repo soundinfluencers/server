@@ -42,9 +42,10 @@ type BulkWhatsappStatusPayload = {
 export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
 
-  constructor(private readonly realtimeNotificationService: RealtimeNotificationService) {}
+  constructor(private readonly realtimeNotificationService: RealtimeNotificationService) { }
 
-  private readonly BOTASSIUM_WEBHOOK_URL = process.env.BOTASSIUM_WEBHOOK_URL;
+  private readonly BOTASSIUM_API_ENDPOINT = process.env.BOTASSIUM_API_ENDPOINT;
+  private readonly BOTASSIUM_AUTH_KEY = process.env.BOTASSIUM_AUTH_KEY;
   private readonly DEVELOPMENT_WHATSAPP_PHONE = '+380935298273';
 
   async sendMessage(props: SendMessageProps): Promise<{ status: 'sent' }> {
@@ -159,12 +160,23 @@ export class WhatsappService {
   }
 
   private async sendTextMessage(message: string, phone: string): Promise<void> {
-    await axios.post(this.BOTASSIUM_WEBHOOK_URL, {
+    console.log(['development', 'local'].includes(process.env.NODE_ENV) ? this.DEVELOPMENT_WHATSAPP_PHONE : phone);
+
+    const res = await axios.post(this.BOTASSIUM_API_ENDPOINT, {
       action: 'send-message',
       type: 'text',
       content: message,
-      phone: process.env.NODE_ENV === 'development' ? this.DEVELOPMENT_WHATSAPP_PHONE : phone,
-    });
+      phone: ['development', 'local'].includes(process.env.NODE_ENV) ? this.DEVELOPMENT_WHATSAPP_PHONE : phone,
+    },
+      {
+        headers: {
+          'x-api-key': this.BOTASSIUM_AUTH_KEY,
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+
+    console.log(res.data);
   }
 
   private emitStatus(

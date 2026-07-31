@@ -23,7 +23,7 @@ export function validateEnvironment(
   }
 
   const nodeEnv = String(config.NODE_ENV ?? 'development');
-  if (!['development', 'test', 'production'].includes(nodeEnv)) {
+  if (!['development', 'local', 'test', 'production'].includes(nodeEnv)) {
     throw new Error('NODE_ENV must be development, test, or production');
   }
 
