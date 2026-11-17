@@ -77,7 +77,12 @@ const cacheLogger = new Logger('CacheModule');
         uri: configService.getOrThrow<string>('DATABASE_ROOT'),
       }),
     }),
-    ScheduleModule.forRoot(),
+    // The codex instance runs against isolated data and has no scheduled jobs.
+    ScheduleModule.forRoot({
+      cronJobs: process.env.CODEX_ISOLATED !== 'true',
+      intervals: process.env.CODEX_ISOLATED !== 'true',
+      timeouts: process.env.CODEX_ISOLATED !== 'true',
+    }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',

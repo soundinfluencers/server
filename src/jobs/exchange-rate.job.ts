@@ -28,7 +28,8 @@ export class ExchangeRateJob implements OnModuleInit {
     }
 
     async onModuleInit() {
-        if (process.env.NODE_ENV === 'production') {
+        // The startup fetch runs independently of the Nest scheduler.
+        if (process.env.NODE_ENV === 'production' && process.env.CODEX_ISOLATED !== 'true') {
             await this.runSafe('Exchange rate: initialFetch');
         }
     }

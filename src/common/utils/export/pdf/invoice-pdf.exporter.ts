@@ -711,6 +711,10 @@ export class InvoicePdfExporter {
     // ---------------- helpers ----------------
 
     private static renderPaymentInfo(invoice: ClientInvoiceDocument | InfluencerInvoiceDocument, isClientInvoice: boolean) {
+        if (process.env.CODEX_ISOLATED === 'true') {
+            return '<p>Payments are disabled in this test environment.</p>';
+        }
+
         const method = invoice.selectedPaymentMethod as any;
 
         if (isClientInvoice) {
